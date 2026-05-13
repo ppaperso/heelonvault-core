@@ -16,6 +16,7 @@ pub const VAULT_KEY_LEN: usize = 32;
 
 #[trait_variant::make(VaultKeyEnvelopeRepository: Send)]
 pub trait LocalVaultKeyEnvelopeRepository {
+    /// Return the encrypted vault key envelope for a vault, if present.
     async fn get_vault_key_envelope(
         &self,
         vault_id: Uuid,
@@ -24,40 +25,56 @@ pub trait LocalVaultKeyEnvelopeRepository {
 
 #[trait_variant::make(VaultService: Send)]
 pub trait LocalVaultService {
+    /// Create a new vault for `owner_user_id` and initialize its key envelope.
+    ///
+    /// `master_key` must be the owner's KDF-derived master key.
     async fn create_vault(
         &self,
         owner_user_id: Uuid,
         name: &str,
         master_key: SecretBox<Vec<u8>>,
     ) -> Result<Vault, AppError>;
+    /// Open a vault by decrypting the stored envelope with `master_key`.
+    ///
+    /// Returns the plaintext vault key on success.
     async fn open_vault(
         &self,
         vault_id: Uuid,
         master_key: SecretBox<Vec<u8>>,
     ) -> Result<SecretBox<Vec<u8>>, AppError>;
+    /// Open a vault for a specific requester after permission checks.
+    ///
+    /// Returns `AccessDenied` when the user has no read access.
     async fn open_vault_for_user(
         &self,
         requester_id: Uuid,
         vault_id: Uuid,
         master_key: SecretBox<Vec<u8>>,
     ) -> Result<SecretBox<Vec<u8>>, AppError>;
+    /// List all vaults visible to a user (owned and shared).
     async fn list_user_vaults(&self, user_id: Uuid) -> Result<Vec<Vault>, AppError>;
+    /// Return access metadata for one vault/user pair.
     async fn get_vault_access_for_user(
         &self,
         user_id: Uuid,
         vault_id: Uuid,
     ) -> Result<Option<AccessibleVault>, AppError>;
+    /// List only vaults owned by `user_id`.
     async fn list_owned_vaults(&self, user_id: Uuid) -> Result<Vec<Vault>, AppError>;
+    /// List only vaults shared with `user_id`.
     async fn list_shared_vaults(&self, user_id: Uuid) -> Result<Vec<Vault>, AppError>;
+    /// List shared-vault access records for UI/security decisions.
     async fn list_shared_vault_access(
         &self,
         user_id: Uuid,
     ) -> Result<Vec<AccessibleVault>, AppError>;
+    /// Returns true when a vault has at least one external share.
     async fn is_vault_shared_with_others(
         &self,
         user_id: Uuid,
         vault_id: Uuid,
     ) -> Result<bool, AppError>;
+    /// Permanently delete a vault after ownership and share constraints checks.
     async fn delete_vault(&self, requester_id: Uuid, vault_id: Uuid) -> Result<(), AppError>;
 }
 

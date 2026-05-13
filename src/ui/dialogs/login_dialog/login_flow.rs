@@ -8,7 +8,7 @@ use gtk4::prelude::*;
 use secrecy::SecretBox;
 use tokio::runtime::Handle;
 
-use crate::errors::{AccessDeniedReason, AppError};
+use crate::errors::AppError;
 use crate::services::auth_policy_service::AuthPolicyService;
 use crate::services::auth_service::AuthService;
 use crate::services::totp_service::TotpService;
@@ -109,15 +109,20 @@ pub(super) fn handle_totp_submit<TAuth, TPolicy, TUser, TTotp>(
                 });
             }
 
-            let master_key = auth_for_task
+            let master_key_opt = auth_for_task
                 .derive_key_if_valid(
                     canonical_username.as_str(),
                     SecretBox::new(Box::new(password_bytes.clone())),
                 )
-                .await?
-                .ok_or(AppError::Authorization(
-                    AccessDeniedReason::InvalidCredentials,
-                ))?;
+                .await?;
+            let Some(master_key) = master_key_opt else {
+                let state = auth_policy_for_task
+                    .record_failed_attempt(canonical_username.as_str())
+                    .await?;
+                return Ok(LoginAttemptOutcome::InvalidCredentials {
+                    remaining_lock_secs: state.remaining_lock_secs,
+                });
+            };
 
             let user_profile = user_for_task
                 .get_user_profile_by_username(canonical_username.as_str())
@@ -214,13 +219,27 @@ pub(super) fn handle_totp_submit<TAuth, TPolicy, TUser, TTotp>(
                 );
             }
             Ok(Ok(LoginAttemptOutcome::InvalidCredentials {
-                remaining_lock_secs: _,
+                remaining_lock_secs,
             })) => {
-                feedback::set_pending_state(&button_for_result, &spinner_for_result, false);
-                feedback::show_feedback(
-                    &error_for_result,
-                    crate::tr!("login-error-internal").as_str(),
-                );
+                if remaining_lock_secs > 0 {
+                    feedback::set_pending_state(&button_for_result, &spinner_for_result, false);
+                    lock_state::start_lock_countdown(
+                        &button_for_result,
+                        &spinner_for_result,
+                        &error_for_result,
+                        remaining_lock_secs,
+                        Rc::clone(&lock_active_for_result),
+                        Rc::clone(&lock_timer_for_result),
+                        feedback::set_pending_state,
+                        feedback::show_feedback,
+                    );
+                } else {
+                    feedback::set_pending_state(&button_for_result, &spinner_for_result, false);
+                    feedback::show_feedback(
+                        &error_for_result,
+                        crate::tr!("login-error-credentials").as_str(),
+                    );
+                }
             }
             Ok(Ok(LoginAttemptOutcome::RequiresTotp)) => {
                 feedback::set_pending_state(&button_for_result, &spinner_for_result, false);

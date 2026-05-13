@@ -15,7 +15,7 @@ cargo check
 From repository root:
 
 ```bash
-./run-dev.sh
+./scripts/run-dev.sh
 ```
 
 Development database path:

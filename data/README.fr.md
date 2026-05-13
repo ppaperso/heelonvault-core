@@ -20,4 +20,4 @@ Ce chemin correspond a d'anciennes donnees Python et doit rester intact.
 rm -f data/heelonvault-rust-dev.db
 ```
 
-La base dev sera recreee au prochain lancement `./run-dev.sh`.
+La base dev sera recreee au prochain lancement `./scripts/run-dev.sh`.

@@ -29,7 +29,7 @@ cargo check
 Run application in development mode:
 
 ```bash
-./run-dev.sh
+./scripts/run-dev.sh
 ```
 
 Database paths:

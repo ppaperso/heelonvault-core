@@ -39,7 +39,7 @@ hv_validate_rhel_os() {
   if [[ "$os_ok" != true ]]; then
     echo "[ERROR] Distribution incompatible : ${PRETTY_NAME:-$ID}"
     echo "[ERROR] remove-rhel.sh est réservé aux distributions Fedora / RHEL / Rocky Linux / AlmaLinux."
-    echo "[ERROR] Pour Ubuntu / Debian et dérivés, utilisez : sudo ./remove-ubuntu.sh"
+    echo "[ERROR] Pour Ubuntu / Debian et dérivés, utilisez : sudo ./scripts/remove-ubuntu.sh"
     exit 1
   fi
 }

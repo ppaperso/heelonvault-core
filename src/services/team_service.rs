@@ -235,6 +235,162 @@ where
             bytes[hash_start..expected_len].to_vec(),
         )))
     }
+
+    async fn resolve_member_master_key(
+        &self,
+        team_id: Uuid,
+        member_id: Uuid,
+        member_master_keys: &[(Uuid, SecretBox<Vec<u8>>)],
+    ) -> Result<Option<SecretBox<Vec<u8>>>, AppError> {
+        use secrecy::ExposeSecret;
+
+        if let Some((_, key)) = member_master_keys.iter().find(|(uid, _)| uid == &member_id) {
+            return Ok(Some(SecretBox::new(Box::new(key.expose_secret().clone()))));
+        }
+
+        let envelope_opt = self
+            .user_repo
+            .get_password_envelope_by_user_id(member_id)
+            .await?;
+
+        match envelope_opt {
+            Some(envelope) => match Self::derive_master_key_from_password_envelope(&envelope) {
+                Ok(derived_key) => Ok(Some(derived_key)),
+                Err(err) => {
+                    warn!(
+                        team = %team_id,
+                        user = %member_id,
+                        error = %err,
+                        "cannot derive master key from password envelope — skipping vault share"
+                    );
+                    Ok(None)
+                }
+            },
+            None => Ok(None),
+        }
+    }
+
+    async fn insert_team_key_share(
+        &self,
+        granter_id: Uuid,
+        vault_id: Uuid,
+        team_id: Uuid,
+        member_id: Uuid,
+        vault_key: &SecretBox<Vec<u8>>,
+        master_key: &SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        use secrecy::ExposeSecret;
+
+        let vk_clone = SecretBox::new(Box::new(vault_key.expose_secret().clone()));
+        let payload = self.crypto_service.encrypt(&vk_clone, master_key).await?;
+        let envelope = Self::serialize_vault_key_envelope(&payload);
+        self.vault_repo
+            .insert_key_share(
+                vault_id,
+                member_id,
+                envelope,
+                Some(granter_id),
+                Some(team_id),
+                VaultShareRole::Read,
+            )
+            .await
+    }
+
+    async fn share_vault_with_members(
+        &self,
+        granter_id: Uuid,
+        vault_id: Uuid,
+        team_id: Uuid,
+        vault_key: &SecretBox<Vec<u8>>,
+        member_master_keys: &[(Uuid, SecretBox<Vec<u8>>)],
+        member_ids: &[Uuid],
+    ) -> Result<(usize, usize), AppError> {
+        let mut granted = 0_usize;
+        let mut skipped = 0_usize;
+
+        for member_id in member_ids {
+            let effective_key = self
+                .resolve_member_master_key(team_id, *member_id, member_master_keys)
+                .await?;
+
+            if let Some(master_key) = effective_key {
+                self.insert_team_key_share(
+                    granter_id,
+                    vault_id,
+                    team_id,
+                    *member_id,
+                    vault_key,
+                    &master_key,
+                )
+                .await?;
+                granted += 1;
+            } else {
+                warn!(
+                    team = %team_id,
+                    user = %member_id,
+                    "master key not available for member — skipping vault share"
+                );
+                skipped += 1;
+            }
+        }
+
+        Ok((granted, skipped))
+    }
+
+    async fn record_team_share_event(
+        &self,
+        granter_id: Uuid,
+        vault_id: Uuid,
+        team_id: Uuid,
+        granted: usize,
+        skipped: usize,
+    ) -> Result<(), AppError> {
+        self.audit_service
+            .record_event(
+                Some(granter_id),
+                AuditAction::VaultSharedWithTeam,
+                Some("vault"),
+                Some(&vault_id.to_string()),
+                Some(&format!(
+                    r#"{{"team_id":"{}","members_granted":{},"members_skipped":{}}}"#,
+                    team_id, granted, skipped
+                )),
+            )
+            .await
+    }
+
+    async fn persist_rotated_vault_keys(
+        &self,
+        actor_id: Uuid,
+        vault_id: Uuid,
+        new_owner_key_envelope: SecretBox<Vec<u8>>,
+        new_shares: &[KeyShare],
+    ) -> Result<(), AppError> {
+        self.vault_repo
+            .replace_all_key_shares(vault_id, new_shares, Some(actor_id))
+            .await?;
+
+        self.vault_repo
+            .update_vault_key_envelope(vault_id, new_owner_key_envelope)
+            .await
+    }
+
+    async fn record_vault_rotation_event(
+        &self,
+        actor_id: Uuid,
+        vault_id: Uuid,
+        new_share_count: usize,
+    ) -> Result<(), AppError> {
+        self.audit_service
+            .record_event(
+                Some(actor_id),
+                AuditAction::VaultKeyRotated,
+                Some("vault"),
+                Some(&vault_id.to_string()),
+                Some(&format!(r#"{{"new_share_count":{}}}"#, new_share_count)),
+            )
+            .await
+    }
 }
 
 impl<TTeamRepo, TUserRepo, TVaultRepo, TCrypto, TAuditSvc> TeamService
@@ -474,8 +630,6 @@ where
         vault_key: SecretBox<Vec<u8>>,
         member_master_keys: &[(Uuid, SecretBox<Vec<u8>>)],
     ) -> Result<(), AppError> {
-        use secrecy::ExposeSecret;
-
         let _ = self
             .team_repo
             .get_by_id(team_id)
@@ -483,84 +637,23 @@ where
             .ok_or_else(|| AppError::NotFound("team not found".to_string()))?;
 
         let member_ids = self.team_repo.list_member_user_ids(team_id).await?;
-        let mut skipped = 0_usize;
-
-        for member_id in &member_ids {
-            let explicit_key = member_master_keys
-                .iter()
-                .find(|(uid, _)| uid == member_id)
-                .map(|(_, key)| SecretBox::new(Box::new(key.expose_secret().clone())));
-
-            let effective_key = match explicit_key {
-                Some(key) => Some(key),
-                None => {
-                    let envelope_opt = self
-                        .user_repo
-                        .get_password_envelope_by_user_id(*member_id)
-                        .await?;
-
-                    match envelope_opt {
-                        Some(envelope) => {
-                            match Self::derive_master_key_from_password_envelope(&envelope) {
-                                Ok(derived_key) => Some(derived_key),
-                                Err(err) => {
-                                    warn!(
-                                        team = %team_id,
-                                        user = %member_id,
-                                        error = %err,
-                                        "cannot derive master key from password envelope — skipping vault share"
-                                    );
-                                    None
-                                }
-                            }
-                        }
-                        None => None,
-                    }
-                }
-            };
-
-            if let Some(master_key) = effective_key {
-                let vk_clone = SecretBox::new(Box::new(vault_key.expose_secret().clone()));
-                let payload = self.crypto_service.encrypt(&vk_clone, &master_key).await?;
-                let envelope = Self::serialize_vault_key_envelope(&payload);
-                self.vault_repo
-                    .insert_key_share(
-                        vault_id,
-                        *member_id,
-                        envelope,
-                        Some(granter_id),
-                        Some(team_id),
-                        VaultShareRole::Read,
-                    )
-                    .await?;
-            } else {
-                warn!(
-                    team = %team_id,
-                    user = %member_id,
-                    "master key not available for member — skipping vault share"
-                );
-                skipped += 1;
-            }
-        }
-
-        let granted = member_ids.len().saturating_sub(skipped);
+        let (granted, skipped) = self
+            .share_vault_with_members(
+                granter_id,
+                vault_id,
+                team_id,
+                &vault_key,
+                member_master_keys,
+                &member_ids,
+            )
+            .await?;
         if granted == 0 {
             return Err(AppError::Validation(
                 "team share failed: no member received a vault key".to_string(),
             ));
         }
 
-        self.audit_service
-            .record_event(
-                Some(granter_id),
-                AuditAction::VaultSharedWithTeam,
-                Some("vault"),
-                Some(&vault_id.to_string()),
-                Some(&format!(
-                    r#"{{"team_id":"{}","members_granted":{},"members_skipped":{}}}"#,
-                    team_id, granted, skipped
-                )),
-            )
+        self.record_team_share_event(granter_id, vault_id, team_id, granted, skipped)
             .await?;
 
         info!(
@@ -613,24 +706,10 @@ where
         // is in new_owner_key_envelope and new_shares which are already encrypted).
         let new_vault_key = generate_vault_key()?;
 
-        // Atomically replace all key shares.
-        self.vault_repo
-            .replace_all_key_shares(vault_id, &new_shares, Some(actor_id))
+        self.persist_rotated_vault_keys(actor_id, vault_id, new_owner_key_envelope, &new_shares)
             .await?;
 
-        // Update owner's vault_key_envelope.
-        self.vault_repo
-            .update_vault_key_envelope(vault_id, new_owner_key_envelope)
-            .await?;
-
-        self.audit_service
-            .record_event(
-                Some(actor_id),
-                AuditAction::VaultKeyRotated,
-                Some("vault"),
-                Some(&vault_id.to_string()),
-                Some(&format!(r#"{{"new_share_count":{}}}"#, new_shares.len())),
-            )
+        self.record_vault_rotation_event(actor_id, vault_id, new_shares.len())
             .await?;
 
         info!(

@@ -6,6 +6,7 @@ use crate::errors::AppError;
 
 const MAX_FAILED_ATTEMPTS: i64 = 5;
 const LOCK_WINDOW_SECS: i64 = 5 * 60;
+const BACKOFF_MAX_SECS: i64 = 30;
 const DEFAULT_AUTO_LOCK_DELAY_MINS: i64 = 5;
 
 #[derive(Debug, Clone, Copy)]
@@ -51,21 +52,34 @@ impl SqlxAuthPolicyService {
         Ok(())
     }
 
-    fn remaining_lock_secs(failed_attempts: i64, last_attempt_at: Option<i64>, now_ts: i64) -> i64 {
-        if failed_attempts < MAX_FAILED_ATTEMPTS {
+    fn backoff_delay_secs(failed_attempts: i64) -> i64 {
+        if failed_attempts <= 0 {
             return 0;
         }
 
+        let shift = (failed_attempts - 1).clamp(0, 30) as u32;
+        let value = 1_i64.checked_shl(shift).unwrap_or(BACKOFF_MAX_SECS);
+        value.min(BACKOFF_MAX_SECS)
+    }
+
+    fn remaining_lock_secs(failed_attempts: i64, last_attempt_at: Option<i64>, now_ts: i64) -> i64 {
         let Some(last_ts) = last_attempt_at else {
             return 0;
         };
 
         let elapsed = now_ts.saturating_sub(last_ts);
-        if elapsed >= LOCK_WINDOW_SECS {
-            0
-        } else {
-            LOCK_WINDOW_SECS - elapsed
+        let mut remaining = 0;
+
+        if failed_attempts >= MAX_FAILED_ATTEMPTS && elapsed < LOCK_WINDOW_SECS {
+            remaining = LOCK_WINDOW_SECS - elapsed;
         }
+
+        let backoff = Self::backoff_delay_secs(failed_attempts);
+        if backoff > elapsed {
+            remaining = remaining.max(backoff - elapsed);
+        }
+
+        remaining
     }
 
     fn is_allowed_auto_lock_delay(mins: i64) -> bool {
@@ -221,5 +235,34 @@ impl AuthPolicyService for SqlxAuthPolicyService {
 
         info!(username = %username, auto_lock_delay_mins = mins, "auto-lock delay updated");
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SqlxAuthPolicyService;
+
+    #[test]
+    fn backoff_delay_is_exponential_and_capped() {
+        assert_eq!(SqlxAuthPolicyService::backoff_delay_secs(0), 0);
+        assert_eq!(SqlxAuthPolicyService::backoff_delay_secs(1), 1);
+        assert_eq!(SqlxAuthPolicyService::backoff_delay_secs(2), 2);
+        assert_eq!(SqlxAuthPolicyService::backoff_delay_secs(3), 4);
+        assert_eq!(SqlxAuthPolicyService::backoff_delay_secs(4), 8);
+        assert_eq!(SqlxAuthPolicyService::backoff_delay_secs(5), 16);
+        assert_eq!(SqlxAuthPolicyService::backoff_delay_secs(6), 30);
+        assert_eq!(SqlxAuthPolicyService::backoff_delay_secs(16), 30);
+    }
+
+    #[test]
+    fn remaining_lock_secs_applies_backoff_before_lock_threshold() {
+        let remaining = SqlxAuthPolicyService::remaining_lock_secs(3, Some(100), 101);
+        assert_eq!(remaining, 3);
+    }
+
+    #[test]
+    fn remaining_lock_secs_keeps_hard_lock_priority() {
+        let remaining = SqlxAuthPolicyService::remaining_lock_secs(5, Some(100), 110);
+        assert_eq!(remaining, 290);
     }
 }

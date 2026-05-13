@@ -66,7 +66,7 @@ hv_validate_rhel_os() {
   if [[ "$os_ok" != true ]]; then
     echo "[ERROR] Distribution incompatible : ${PRETTY_NAME:-$ID}"
     echo "[ERROR] install-rhel.sh est réservé aux distributions Fedora / RHEL / Rocky Linux / AlmaLinux."
-    echo "[ERROR] Pour Ubuntu / Debian et dérivés, utilisez : sudo ./install-ubuntu.sh"
+    echo "[ERROR] Pour Ubuntu / Debian et dérivés, utilisez : sudo ./scripts/install-ubuntu.sh"
     exit 1
   fi
 

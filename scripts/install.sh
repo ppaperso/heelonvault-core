@@ -63,8 +63,8 @@ fi
 if [[ "$is_debian_family" == true && "$is_rhel_family" == true ]]; then
   echo "[ERROR] Détection OS ambiguë (Debian et RHEL en même temps)."
   echo "[ERROR] Lancez explicitement l'un des scripts suivants :"
-  echo "        sudo ./install-ubuntu.sh"
-  echo "        sudo ./install-rhel.sh"
+  echo "        sudo ./scripts/install-ubuntu.sh"
+  echo "        sudo ./scripts/install-rhel.sh"
   exit 1
 fi
 

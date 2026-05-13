@@ -20,4 +20,4 @@ This path belongs to legacy Python data and must remain untouched.
 rm -f data/heelonvault-rust-dev.db
 ```
 
-The dev database will be recreated on next `./run-dev.sh` launch.
+The dev database will be recreated on next `./scripts/run-dev.sh` launch.

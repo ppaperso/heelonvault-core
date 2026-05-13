@@ -231,7 +231,10 @@ where
     ) -> Result<(), AppError> {
         self.ensure_not_shutting_down()?;
 
-        if current_password.expose_secret().as_slice() == new_password.expose_secret().as_slice() {
+        if Self::constant_time_eq(
+            current_password.expose_secret().as_slice(),
+            new_password.expose_secret().as_slice(),
+        ) {
             return Err(AppError::Validation(
                 "new password must be different from current password".to_string(),
             ));
@@ -363,6 +366,7 @@ where
 mod tests {
     #![allow(clippy::disallowed_methods)]
     use super::{AuthService, AuthServiceImpl};
+    use crate::errors::AppError;
     use crate::services::crypto_service::CryptoServiceImpl;
     use secrecy::SecretBox;
 
@@ -472,6 +476,34 @@ mod tests {
         assert!(
             matches!(new_password_check, Ok(true)),
             "new password should be accepted"
+        );
+    }
+
+    #[tokio::test]
+    async fn change_password_rejects_identical_value() {
+        let service = AuthServiceImpl::new(CryptoServiceImpl::with_defaults());
+        let create_result = service
+            .create_user(
+                "eve",
+                SecretBox::new(Box::new(b"SamePassword#2026".to_vec())),
+            )
+            .await;
+        assert!(create_result.is_ok(), "create_user should succeed");
+        if create_result.is_err() {
+            return;
+        }
+
+        let result = service
+            .change_password(
+                "eve",
+                SecretBox::new(Box::new(b"SamePassword#2026".to_vec())),
+                SecretBox::new(Box::new(b"SamePassword#2026".to_vec())),
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(AppError::Validation(_))),
+            "identical password replacement must be rejected"
         );
     }
 }

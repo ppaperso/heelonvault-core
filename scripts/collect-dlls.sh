@@ -91,7 +91,7 @@ echo "  staged: loaders.cache"
 echo "[collect-dlls] Converting icon..."
 ICO_OUT="$STAGING_DIR/heelonvault.ico"
 # Use ImageMagick to produce a multi-resolution .ico from the 256px PNG
-ICON_SRC="resources/icons/hicolor/256x256/apps/heelonvault.png"
+ICON_SRC="assets/icons/hicolor/256x256/apps/heelonvault.png"
 if command -v convert >/dev/null 2>&1 && [[ -f "$ICON_SRC" ]]; then
   convert "$ICON_SRC" \
     \( -clone 0 -resize 16x16 \) \

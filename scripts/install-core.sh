@@ -21,7 +21,7 @@ hv_init_common_vars() {
   HV_LOCAL_ICON_DIR="$HV_INSTALL_DIR/icons"
   HV_LOCAL_ICON_PATH="$HV_LOCAL_ICON_DIR/heelonvault.png"
   HV_SCRIPT_DIR="$script_dir"
-  HV_PRIMARY_ICON_SOURCE="$HV_SCRIPT_DIR/resources/icons/hicolor/256x256/apps/heelonvault.png"
+  HV_PRIMARY_ICON_SOURCE="$HV_SCRIPT_DIR/assets/icons/hicolor/256x256/apps/heelonvault.png"
   HV_CHECKSUM_FILE="$HV_SCRIPT_DIR/heelonvault.sha256"
 
   HV_INVOKING_USER="${SUDO_USER:-root}"
@@ -351,7 +351,7 @@ hv_install_icons() {
   install -m 644 "$HV_PRIMARY_ICON_SOURCE" "$HV_LOCAL_ICON_PATH"
 
   for size in 48x48 128x128 256x256; do
-    src="$HV_SCRIPT_DIR/resources/icons/hicolor/$size/apps/heelonvault.png"
+    src="$HV_SCRIPT_DIR/assets/icons/hicolor/$size/apps/heelonvault.png"
     dst="$HV_ICON_THEME_DIR/$size/apps"
     if [[ -f "$src" ]]; then
       mkdir -p "$dst"

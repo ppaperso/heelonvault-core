@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+
 use image::ImageFormat;
 use qrcode::QrCode;
 use secrecy::{ExposeSecret, SecretBox};
@@ -12,6 +15,7 @@ use crate::services::crypto_service::{CryptoService, EncryptedPayload, NONCE_LEN
 const TOTP_DIGITS: usize = 6;
 const TOTP_STEP: u64 = 30;
 const TOTP_SKEW: u8 = 1;
+const TOTP_REPLAY_TTL_SECS: i64 = (TOTP_STEP as i64) * 3;
 const PASSWORD_ENVELOPE_VERSION: u8 = 1;
 const LEGACY_DEV_MASTER_KEY_BYTE: u8 = 0x41;
 const LEGACY_DEV_MASTER_KEY_LEN: usize = 32;
@@ -59,6 +63,7 @@ where
     auth_service: std::sync::Arc<TAuth>,
     crypto_service: TCrypto,
     issuer: String,
+    replay_guard: Mutex<HashMap<String, i64>>,
 }
 
 impl<TAuth, TCrypto> SqliteTotpService<TAuth, TCrypto>
@@ -77,7 +82,31 @@ where
             auth_service,
             crypto_service,
             issuer: issuer.into(),
+            replay_guard: Mutex::new(HashMap::new()),
         }
+    }
+
+    fn replay_key(username: &str, code: &str) -> String {
+        format!("{username}:{code}")
+    }
+
+    fn reject_replay_and_record(
+        &self,
+        username: &str,
+        code: &str,
+        now_ts: i64,
+    ) -> Result<bool, AppError> {
+        let mut guard = self.replay_guard.lock().map_err(|_| AppError::Internal)?;
+
+        guard.retain(|_, expires_at| *expires_at > now_ts);
+
+        let key = Self::replay_key(username, code);
+        if guard.contains_key(&key) {
+            return Ok(false);
+        }
+
+        guard.insert(key, now_ts + TOTP_REPLAY_TTL_SECS);
+        Ok(true)
     }
 
     fn build_totp(&self, account_name: &str, base32_secret: &str) -> Result<TOTP, AppError> {
@@ -383,8 +412,15 @@ where
             .map_err(|_| AppError::Validation("invalid decrypted TOTP secret".to_string()))?;
 
         let totp = self.build_totp(username, base32_secret.as_str())?;
-        totp.check_current(code).map_err(|error| {
+        let is_valid = totp.check_current(code).map_err(|error| {
             AppError::Validation(format!("failed to verify login TOTP code: {error}"))
-        })
+        })?;
+
+        if !is_valid {
+            return Ok(false);
+        }
+
+        let now_ts = chrono::Utc::now().timestamp();
+        self.reject_replay_and_record(username, code, now_ts)
     }
 }

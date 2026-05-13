@@ -15,7 +15,7 @@ Executer les scripts depuis la racine du depot.
 Pour le developpement et les tests, utiliser les scripts racine et commandes Rust :
 
 ```bash
-./run-dev.sh
+./scripts/run-dev.sh
 cargo check
 cargo test
 ```

@@ -62,19 +62,19 @@ jobs:
           rm -rf dist
           mkdir -p dist
           cp target/release/heelonvault dist/
-          cp install.sh dist/
-          cp install-core.sh dist/
-          cp install-ubuntu.sh dist/
-          cp install-rhel.sh dist/
-          cp remove.sh dist/
-          cp remove-core.sh dist/
-          cp remove-ubuntu.sh dist/
-          cp remove-rhel.sh dist/
-          cp tests/smoke-test.sh dist/
+          cp scripts/install.sh dist/install.sh
+          cp scripts/install-core.sh dist/install-core.sh
+          cp scripts/install-ubuntu.sh dist/install-ubuntu.sh
+          cp scripts/install-rhel.sh dist/install-rhel.sh
+          cp scripts/remove.sh dist/remove.sh
+          cp scripts/remove-core.sh dist/remove-core.sh
+          cp scripts/remove-ubuntu.sh dist/remove-ubuntu.sh
+          cp scripts/remove-rhel.sh dist/remove-rhel.sh
+          cp scripts/smoke-test.sh dist/smoke-test.sh
           cp heelonvault.desktop dist/
           cp README.md dist/
-          cp QUICKSTART.md dist/
-          cp -r resources dist/
+          cp docs/QUICKSTART.md dist/
+          cp -r assets dist/
           (cd dist && sha256sum heelonvault > heelonvault.sha256)
           chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh dist/heelonvault dist/smoke-test.sh
 
@@ -132,19 +132,19 @@ jobs:
           rm -rf dist
           mkdir -p dist
           cp target/release/heelonvault dist/
-          cp install.sh dist/
-          cp install-core.sh dist/
-          cp install-ubuntu.sh dist/
-          cp install-rhel.sh dist/
-          cp remove.sh dist/
-          cp remove-core.sh dist/
-          cp remove-ubuntu.sh dist/
-          cp remove-rhel.sh dist/
-          cp tests/smoke-test.sh dist/
+          cp scripts/install.sh dist/install.sh
+          cp scripts/install-core.sh dist/install-core.sh
+          cp scripts/install-ubuntu.sh dist/install-ubuntu.sh
+          cp scripts/install-rhel.sh dist/install-rhel.sh
+          cp scripts/remove.sh dist/remove.sh
+          cp scripts/remove-core.sh dist/remove-core.sh
+          cp scripts/remove-ubuntu.sh dist/remove-ubuntu.sh
+          cp scripts/remove-rhel.sh dist/remove-rhel.sh
+          cp scripts/smoke-test.sh dist/smoke-test.sh
           cp heelonvault.desktop dist/
           cp README.md dist/
-          cp QUICKSTART.md dist/
-          cp -r resources dist/
+          cp docs/QUICKSTART.md dist/
+          cp -r assets dist/
           (cd dist && sha256sum heelonvault > heelonvault.sha256)
           chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh dist/heelonvault dist/smoke-test.sh
 

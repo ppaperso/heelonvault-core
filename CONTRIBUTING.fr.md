@@ -29,7 +29,7 @@ cargo check
 Lancement en mode developpement :
 
 ```bash
-./run-dev.sh
+./scripts/run-dev.sh
 ```
 
 Chemins de base :

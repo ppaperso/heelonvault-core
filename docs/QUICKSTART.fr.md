@@ -15,7 +15,7 @@ cargo check
 Depuis la racine du depot :
 
 ```bash
-./run-dev.sh
+./scripts/run-dev.sh
 ```
 
 Chemin de la base de developpement :

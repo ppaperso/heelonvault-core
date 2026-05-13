@@ -81,11 +81,11 @@ Rôle de l'écran :
 
 Emplacement capture d'écran : Écran 1 - assistant d'initialisation
 
-![Écran 1a - Initialisation étape 1](../resources/images/user-guide/hv_first_init_1.png)
+![Écran 1a - Initialisation étape 1](../assets/images/user-guide/hv_first_init_1.png)
 
 Capture 01a - Assistant d'initialisation, étape 1 (création du compte administrateur).
 
-![Écran 1b - Initialisation étape 2](../resources/images/user-guide/hv_first_init_2.png)
+![Écran 1b - Initialisation étape 2](../assets/images/user-guide/hv_first_init_2.png)
 
 Capture 01b - Assistant d'initialisation, étape 2 (clé de secours 24 mots).
 
@@ -107,7 +107,7 @@ Bonnes pratiques :
 
 Emplacement capture d'écran : Écran 2 - connexion
 
-![Écran 2 - Connexion](../resources/images/user-guide/hv_login_screen_after_init.png)
+![Écran 2 - Connexion](../assets/images/user-guide/hv_login_screen_after_init.png)
 
 Capture 02 - Écran de connexion avec identifiant, mot de passe et accès récupération de base (.hvb).
 
@@ -128,7 +128,7 @@ Rôle de l'écran :
 
 Emplacement capture d'écran : Écran 3 - vue principale
 
-![Écran 3 - Vue principale du coffre](../resources/images/user-guide/hv_dashboard_empty.png)
+![Écran 3 - Vue principale du coffre](../assets/images/user-guide/hv_dashboard_empty.png)
 
 Capture 03 - Vue principale du coffre avec recherche, catégories, audit de sécurité et zone centrale.
 
@@ -152,27 +152,27 @@ Dans une logique produit, cet écran est central : il doit permettre une saisie 
 
 Emplacement capture d'écran : Écran 4 - éditeur de secret
 
-![Écran 4a - Sélection du type de secret](../resources/images/user-guide/hv_add_menu.png)
+![Écran 4a - Sélection du type de secret](../assets/images/user-guide/hv_add_menu.png)
 
 Capture 04a - Choix du type de secret (password, api_token, ssh_key, secure_document).
 
-![Écran 4b - Formulaire mot de passe](../resources/images/user-guide/hv_add_password1.png)
+![Écran 4b - Formulaire mot de passe](../assets/images/user-guide/hv_add_password1.png)
 
 Capture 04b - Création d'un secret de type mot de passe (vue générale du formulaire).
 
-![Écran 4c - Formulaire mot de passe, zone de validité](../resources/images/user-guide/hv_add_password2.png)
+![Écran 4c - Formulaire mot de passe, zone de validité](../assets/images/user-guide/hv_add_password2.png)
 
 Capture 04c - Paramètres complémentaires d'un secret mot de passe (notes, validité, enregistrement).
 
-![Écran 4d - Formulaire token API](../resources/images/user-guide/hv_add_apikey.png)
+![Écran 4d - Formulaire token API](../assets/images/user-guide/hv_add_apikey.png)
 
 Capture 04d - Création d'un secret de type token API.
 
-![Écran 4e - Formulaire clé SSH](../resources/images/user-guide/hv_add_sshkey.png)
+![Écran 4e - Formulaire clé SSH](../assets/images/user-guide/hv_add_sshkey.png)
 
 Capture 04e - Création d'un secret de type clé SSH.
 
-![Écran 4f - Formulaire document sécurisé](../resources/images/user-guide/hv_add_securedoc.png)
+![Écran 4f - Formulaire document sécurisé](../assets/images/user-guide/hv_add_securedoc.png)
 
 Capture 04f - Création d'un secret de type document sécurisé.
 
@@ -195,7 +195,7 @@ Flux recommandé :
 
 Emplacement capture d'écran : Écran 5 - corbeille
 
-![Écran 5 - Corbeille et restauration](../resources/images/user-guide/hv_trash.png)
+![Écran 5 - Corbeille et restauration](../assets/images/user-guide/hv_trash.png)
 
 Capture 05 - Corbeille avec actions de restauration et purge des éléments supprimés.
 
@@ -217,7 +217,7 @@ Pour garder un coffre lisible :
 
 Emplacement capture d'écran : Écran 6 - recherche
 
-![Écran 6 - Recherche et navigation](../resources/images/user-guide/hv_dashboard_empty.png)
+![Écran 6 - Recherche et navigation](../assets/images/user-guide/hv_dashboard_empty.png)
 
 Capture 06 - Barre de recherche et navigation latérale pour organiser et retrouver rapidement les secrets.
 
@@ -239,7 +239,7 @@ Cet écran correspond à l'espace de gestion de la confiance utilisateur. C'est 
 
 Emplacement capture d'écran : Écran 7 - profil et sécurité
 
-![Écran 7 - Profil et sécurité](../resources/images/user-guide/hv_userprofil.png)
+![Écran 7 - Profil et sécurité](../assets/images/user-guide/hv_userprofil.png)
 
 Capture 07 - Paramètres de profil, sécurité de session, TOTP, import/export et préférences.
 
@@ -265,7 +265,7 @@ Avant un export :
 
 Emplacement capture d'écran : Écran 8 - import / export
 
-![Écran 8 - Import / Export depuis le profil](../resources/images/user-guide/hv_userprofil.png)
+![Écran 8 - Import / Export depuis le profil](../assets/images/user-guide/hv_userprofil.png)
 
 Capture 08 - Zone Gestion des données (export .hvb et import CSV) accessible dans Profil & Sécurité.
 
@@ -287,15 +287,15 @@ Utilisations courantes :
 
 Emplacement capture d'écran : Écran 9 - tableau de bord sécurité
 
-![Écran 9a - Tableau de bord sécurité](../resources/images/user-guide/hv_dashboard_empty.png)
+![Écran 9a - Tableau de bord sécurité](../assets/images/user-guide/hv_dashboard_empty.png)
 
 Capture 09a - Tableau de bord principal et indicateurs d'audit de sécurité.
 
-![Écran 9b - Gestion des équipes](../resources/images/user-guide/hv_team.png)
+![Écran 9b - Gestion des équipes](../assets/images/user-guide/hv_team.png)
 
 Capture 09b - Vue d'administration des équipes (partage de coffres, gestion des membres).
 
-![Écran 9c - Gestion des utilisateurs](../resources/images/user-guide/hv_users.png)
+![Écran 9c - Gestion des utilisateurs](../assets/images/user-guide/hv_users.png)
 
 Capture 09c - Vue d'administration des utilisateurs (création, rôles, réinitialisation, suppression).
 
@@ -327,6 +327,6 @@ Capture 09c - Vue d'administration des utilisateurs (création, rôles, réiniti
 
 ## Références utiles
 
-- [../QUICKSTART.md](../QUICKSTART.md)
+- [QUICKSTART.md](QUICKSTART.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [UPDATE_GUIDE.md](UPDATE_GUIDE.md)

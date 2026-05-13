@@ -57,13 +57,13 @@ hv_validate_ubuntu_os() {
   if [[ "$os_ok" != true ]]; then
     echo "[ERROR] Distribution incompatible : ${PRETTY_NAME:-$ID}"
     echo "[ERROR] install-ubuntu.sh est réservé aux distributions Ubuntu / Debian et dérivés."
-    echo "[ERROR] Pour Fedora / RHEL / Rocky Linux / AlmaLinux, utilisez : sudo ./install-rhel.sh"
+    echo "[ERROR] Pour Fedora / RHEL / Rocky Linux / AlmaLinux, utilisez : sudo ./scripts/install-rhel.sh"
     exit 1
   fi
 
   if ! command -v apt-get >/dev/null 2>&1; then
     echo "[ERROR] apt-get introuvable sur ce système."
-    echo "[ERROR] Pour Fedora / RHEL / Rocky Linux / AlmaLinux, utilisez : sudo ./install-rhel.sh"
+    echo "[ERROR] Pour Fedora / RHEL / Rocky Linux / AlmaLinux, utilisez : sudo ./scripts/install-rhel.sh"
     exit 1
   fi
 }

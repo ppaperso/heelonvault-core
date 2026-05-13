@@ -81,11 +81,11 @@ Important notes:
 
 Screenshot placeholder: Screen 1 - bootstrap wizard
 
-![Screen 1a - Bootstrap step 1](../resources/images/user-guide/hv_first_init_1.png)
+![Screen 1a - Bootstrap step 1](../assets/images/user-guide/hv_first_init_1.png)
 
 Capture 01a - Bootstrap wizard, step 1 (first administrator account creation).
 
-![Screen 1b - Bootstrap step 2](../resources/images/user-guide/hv_first_init_2.png)
+![Screen 1b - Bootstrap step 2](../assets/images/user-guide/hv_first_init_2.png)
 
 Capture 01b - Bootstrap wizard, step 2 (24-word recovery key).
 
@@ -107,7 +107,7 @@ Best practices:
 
 Screenshot placeholder: Screen 2 - sign-in
 
-![Screen 2 - Sign-in](../resources/images/user-guide/hv_login_screen_after_init.png)
+![Screen 2 - Sign-in](../assets/images/user-guide/hv_login_screen_after_init.png)
 
 Capture 02 - Sign-in screen with username, password, and database recovery entry point (.hvb).
 
@@ -128,7 +128,7 @@ Screen role:
 
 Screenshot placeholder: Screen 3 - main window
 
-![Screen 3 - Main vault view](../resources/images/user-guide/hv_dashboard_empty.png)
+![Screen 3 - Main vault view](../assets/images/user-guide/hv_dashboard_empty.png)
 
 Capture 03 - Main vault view with search, categories, security audit filters, and central workspace.
 
@@ -152,27 +152,27 @@ From a product perspective, this is one of the key screens because it balances f
 
 Screenshot placeholder: Screen 4 - secret editor
 
-![Screen 4a - Secret type selection](../resources/images/user-guide/hv_add_menu.png)
+![Screen 4a - Secret type selection](../assets/images/user-guide/hv_add_menu.png)
 
 Capture 04a - Secret type selection (password, api_token, ssh_key, secure_document).
 
-![Screen 4b - Password secret form](../resources/images/user-guide/hv_add_password1.png)
+![Screen 4b - Password secret form](../assets/images/user-guide/hv_add_password1.png)
 
 Capture 04b - Password secret creation form (main fields).
 
-![Screen 4c - Password secret advanced area](../resources/images/user-guide/hv_add_password2.png)
+![Screen 4c - Password secret advanced area](../assets/images/user-guide/hv_add_password2.png)
 
 Capture 04c - Additional password-secret parameters (notes, validity, save actions).
 
-![Screen 4d - API token form](../resources/images/user-guide/hv_add_apikey.png)
+![Screen 4d - API token form](../assets/images/user-guide/hv_add_apikey.png)
 
 Capture 04d - API token secret form.
 
-![Screen 4e - SSH key form](../resources/images/user-guide/hv_add_sshkey.png)
+![Screen 4e - SSH key form](../assets/images/user-guide/hv_add_sshkey.png)
 
 Capture 04e - SSH key secret form.
 
-![Screen 4f - Secure document form](../resources/images/user-guide/hv_add_securedoc.png)
+![Screen 4f - Secure document form](../assets/images/user-guide/hv_add_securedoc.png)
 
 Capture 04f - Secure document secret form.
 
@@ -195,7 +195,7 @@ Recommended flow:
 
 Screenshot placeholder: Screen 5 - trash
 
-![Screen 5 - Trash and restore](../resources/images/user-guide/hv_trash.png)
+![Screen 5 - Trash and restore](../assets/images/user-guide/hv_trash.png)
 
 Capture 05 - Trash view with restore and purge actions for deleted items.
 
@@ -217,7 +217,7 @@ To keep the vault readable:
 
 Screenshot placeholder: Screen 6 - search
 
-![Screen 6 - Search and navigation](../resources/images/user-guide/hv_dashboard_empty.png)
+![Screen 6 - Search and navigation](../assets/images/user-guide/hv_dashboard_empty.png)
 
 Capture 06 - Search bar and left-side navigation used to organize and quickly retrieve secrets.
 
@@ -239,7 +239,7 @@ This screen is the core user trust area of the product. It contains the settings
 
 Screenshot placeholder: Screen 7 - profile and security
 
-![Screen 7 - Profile and security](../resources/images/user-guide/hv_userprofil.png)
+![Screen 7 - Profile and security](../assets/images/user-guide/hv_userprofil.png)
 
 Capture 07 - Profile settings, session security, TOTP controls, import/export, and preferences.
 
@@ -265,7 +265,7 @@ Before exporting:
 
 Screenshot placeholder: Screen 8 - import / export
 
-![Screen 8 - Import/Export from profile](../resources/images/user-guide/hv_userprofil.png)
+![Screen 8 - Import/Export from profile](../assets/images/user-guide/hv_userprofil.png)
 
 Capture 08 - Data management area (.hvb export and CSV import) from Profile & Security.
 
@@ -287,15 +287,15 @@ Common use cases:
 
 Screenshot placeholder: Screen 9 - security dashboard
 
-![Screen 9a - Security dashboard](../resources/images/user-guide/hv_dashboard_empty.png)
+![Screen 9a - Security dashboard](../assets/images/user-guide/hv_dashboard_empty.png)
 
 Capture 09a - Main dashboard and security audit indicators.
 
-![Screen 9b - Team management](../resources/images/user-guide/hv_team.png)
+![Screen 9b - Team management](../assets/images/user-guide/hv_team.png)
 
 Capture 09b - Team administration view (vault sharing and member management).
 
-![Screen 9c - User management](../resources/images/user-guide/hv_users.png)
+![Screen 9c - User management](../assets/images/user-guide/hv_users.png)
 
 Capture 09c - User administration view (create users, roles, reset, delete).
 
@@ -327,6 +327,6 @@ Capture 09c - User administration view (create users, roles, reset, delete).
 
 ## Useful references
 
-- [../QUICKSTART.md](../QUICKSTART.md)
+- [QUICKSTART.md](QUICKSTART.md)
 - [ARCHITECTURE.en.md](ARCHITECTURE.en.md)
 - [UPDATE_GUIDE.en.md](UPDATE_GUIDE.en.md)

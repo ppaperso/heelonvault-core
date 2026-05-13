@@ -1,6 +1,9 @@
 use std::fs;
 use std::path::Path;
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 use crate::errors::AppError;
 use aes_gcm::aead::consts::U12;
 use aes_gcm::aead::Aead;
@@ -170,7 +173,9 @@ impl BackupServiceImpl {
             fs::rename(target_sqlite_db_path, &old_path).map_err(AppError::Io)?;
         }
 
-        fs::write(target_sqlite_db_path, plaintext).map_err(AppError::Io)
+        fs::write(target_sqlite_db_path, plaintext).map_err(AppError::Io)?;
+        Self::set_owner_only_file_permissions(target_sqlite_db_path)?;
+        Ok(())
     }
 
     fn encrypt_bytes(
@@ -287,6 +292,14 @@ impl BackupServiceImpl {
             _ => Ok(()),
         }
     }
+
+    fn set_owner_only_file_permissions(path: &Path) -> Result<(), AppError> {
+        #[cfg(unix)]
+        {
+            fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(AppError::Io)?;
+        }
+        Ok(())
+    }
 }
 
 impl Default for BackupServiceImpl {
@@ -337,6 +350,7 @@ impl BackupService for BackupServiceImpl {
 
         Self::ensure_parent_exists(backup_file_path)?;
         fs::write(backup_file_path, json_bytes).map_err(AppError::Io)?;
+        Self::set_owner_only_file_permissions(backup_file_path)?;
 
         // Validate the written .hvb artifact end-to-end before reporting success.
         let written_bytes = fs::read(backup_file_path).map_err(AppError::Io)?;
@@ -475,6 +489,7 @@ impl BackupService for BackupServiceImpl {
 
         Self::ensure_parent_exists(backup_file_path)?;
         fs::write(backup_file_path, backup_bytes).map_err(AppError::Io)?;
+        Self::set_owner_only_file_permissions(backup_file_path)?;
 
         let exported_sha256 = Self::sha256_hex(sqlite_bytes.as_slice())?;
         if exported_sha256 != sha256_hex {
@@ -502,6 +517,7 @@ impl BackupService for BackupServiceImpl {
 
         Self::ensure_parent_exists(target_sqlite_db_path)?;
         fs::write(target_sqlite_db_path, plaintext.as_slice()).map_err(AppError::Io)?;
+        Self::set_owner_only_file_permissions(target_sqlite_db_path)?;
 
         let restored_bytes = fs::read(target_sqlite_db_path).map_err(AppError::Io)?;
         let restored_sha256 = Self::sha256_hex(restored_bytes.as_slice())?;

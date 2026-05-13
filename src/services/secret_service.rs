@@ -11,15 +11,24 @@ use crate::services::crypto_service::{CryptoService, EncryptedPayload, NONCE_LEN
 
 #[derive(Debug)]
 pub struct DecryptedSecret {
+    /// Secret identifier.
     pub id: Uuid,
+    /// Parent vault identifier.
     pub vault_id: Uuid,
+    /// Secret domain type (password/token/key/document).
     pub secret_type: SecretType,
+    /// Backing storage mode (inline/file).
     pub blob_storage: BlobStorage,
+    /// Decrypted secret payload.
     pub secret_value: SecretBox<Vec<u8>>,
 }
 
 #[trait_variant::make(SecretService: Send)]
 pub trait LocalSecretService {
+    /// Create and encrypt a new secret item inside a vault.
+    ///
+    /// `plaintext_secret` and `vault_key` are sensitive values that must be
+    /// handled as short-lived material by callers.
     #[allow(clippy::too_many_arguments)]
     async fn create_secret(
         &self,
@@ -32,11 +41,13 @@ pub trait LocalSecretService {
         plaintext_secret: SecretBox<Vec<u8>>,
         vault_key: SecretBox<Vec<u8>>,
     ) -> Result<SecretItem, AppError>;
+    /// Read and decrypt a secret using the caller-provided vault key.
     async fn get_secret(
         &self,
         secret_id: Uuid,
         vault_key: SecretBox<Vec<u8>>,
     ) -> Result<DecryptedSecret, AppError>;
+    /// Update secret metadata and optionally rotate encrypted payload.
     #[allow(clippy::too_many_arguments)]
     async fn update_secret(
         &self,
@@ -48,13 +59,21 @@ pub trait LocalSecretService {
         plaintext_secret: Option<SecretBox<Vec<u8>>>,
         vault_key: SecretBox<Vec<u8>>,
     ) -> Result<(), AppError>;
+    /// List non-deleted secrets for one vault.
     async fn list_by_vault(&self, vault_id: Uuid) -> Result<Vec<SecretItem>, AppError>;
+    /// List trashed secrets for one vault.
     async fn list_trash_by_vault(&self, vault_id: Uuid) -> Result<Vec<SecretItem>, AppError>;
+    /// List all trashed secrets visible to a user across vaults.
     async fn list_all_trash_by_user(&self, user_id: Uuid) -> Result<Vec<SecretItem>, AppError>;
+    /// Soft-delete a secret (move to trash).
     async fn soft_delete(&self, secret_id: Uuid) -> Result<(), AppError>;
+    /// Restore a trashed secret back to a vault.
     async fn restore_secret(&self, secret_id: Uuid, vault_id: Uuid) -> Result<(), AppError>;
+    /// Permanently delete one secret.
     async fn permanent_delete(&self, secret_id: Uuid, vault_id: Uuid) -> Result<(), AppError>;
+    /// Permanently delete all trashed secrets in a vault.
     async fn empty_trash(&self, vault_id: Uuid) -> Result<usize, AppError>;
+    /// Increase usage metrics for one secret (telemetry/security UX).
     async fn increment_usage_count(&self, secret_id: Uuid) -> Result<(), AppError>;
 }
 

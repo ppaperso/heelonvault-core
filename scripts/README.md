@@ -15,7 +15,7 @@ Run scripts from the repository root.
 For development and tests, use root-level scripts and Rust commands:
 
 ```bash
-./run-dev.sh
+./scripts/run-dev.sh
 cargo check
 cargo test
 ```

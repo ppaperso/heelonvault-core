@@ -10,7 +10,7 @@ RHEL_SCRIPT="$SCRIPT_DIR/remove-rhel.sh"
 
 print_usage() {
   cat <<'EOF'
-Usage: ./remove.sh [options]
+Usage: ./scripts/remove.sh [options]
 
 Options:
   --non-interactive         Active le mode non interactif
@@ -108,8 +108,8 @@ fi
 if [[ "$is_debian_family" == true && "$is_rhel_family" == true ]]; then
   echo "[ERROR] Détection OS ambiguë (Debian et RHEL en même temps)."
   echo "[ERROR] Lancez explicitement l'un des scripts suivants :"
-  echo "        sudo ./remove-ubuntu.sh"
-  echo "        sudo ./remove-rhel.sh"
+  echo "        sudo ./scripts/remove-ubuntu.sh"
+  echo "        sudo ./scripts/remove-rhel.sh"
   exit 1
 fi
 

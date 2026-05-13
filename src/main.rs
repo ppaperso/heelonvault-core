@@ -143,6 +143,28 @@ enum AppStartMode {
     NeedsBootstrap(AppContext),
 }
 
+struct PrimaryServices {
+    crypto_service: CryptoServiceImpl,
+    auth_service: Arc<AuthServiceImpl<CryptoServiceImpl>>,
+    audit_log_service: Arc<AuditLogServiceHandle>,
+    auth_policy_service: Arc<SqlxAuthPolicyService>,
+    vault_service: Arc<VaultServiceHandle>,
+    secret_service: Arc<SecretServiceHandle>,
+    user_service: Arc<UserServiceHandle>,
+    admin_service: Arc<AdminServiceHandle>,
+    team_service: Arc<TeamServiceHandle>,
+}
+
+struct SecondaryServices {
+    password_service: PasswordServiceImpl,
+    backup_service: Arc<BackupServiceImpl>,
+    backup_app_service: Arc<BackupApplicationServiceHandle>,
+    import_service: Arc<ImportServiceImpl>,
+    totp_service: Arc<TotpServiceHandle>,
+    audit_service: Arc<AuditService>,
+    license_service: Arc<LicenseService>,
+}
+
 struct DailyLogFileWriter {
     log_dir: PathBuf,
     base_name: String,
@@ -209,14 +231,15 @@ impl Write for DailyLogFileWriter {
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
 
-    // Lightweight --version flag for installer smoke tests and scripting.
-    // Must run before GTK/GLib initialisation (which requires a display).
-    if args.iter().any(|arg| arg == "--version") {
+    let startup_flags = StartupFlags::from_args(&args);
+    if startup_flags.show_version {
         println!("{}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
 
-    let startup_check_only = args.iter().any(|arg| arg == "--startup-check");
+    // Set renderer before any multi-threaded runtime starts.
+    // OpenGL avoids verbose Vulkan swapchain warnings on some systems.
+    env::set_var("GSK_RENDERER", "gl");
 
     let _logging_guard = init_logging()?;
     register_resources()?;
@@ -234,7 +257,7 @@ fn main() -> Result<()> {
         AppStartMode::NeedsBootstrap(ctx) => (Arc::new(ctx), true),
     };
 
-    if startup_check_only {
+    if startup_flags.startup_check_only {
         info!(
             needs_bootstrap = start_needs_bootstrap,
             "startup check completed successfully"
@@ -243,9 +266,28 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // Force OpenGL renderer to avoid Vulkan swapchain suboptimal warnings
-    // (benign but verbose). OpenGL is more stable and consistent across platforms.
-    env::set_var("GSK_RENDERER", "gl");
+    run_application(runtime, app_context, start_needs_bootstrap)
+}
+
+struct StartupFlags {
+    show_version: bool,
+    startup_check_only: bool,
+}
+
+impl StartupFlags {
+    fn from_args(args: &[String]) -> Self {
+        Self {
+            show_version: args.iter().any(|arg| arg == "--version"),
+            startup_check_only: args.iter().any(|arg| arg == "--startup-check"),
+        }
+    }
+}
+
+fn run_application(
+    runtime: Arc<tokio::runtime::Runtime>,
+    app_context: Arc<AppContext>,
+    start_needs_bootstrap: bool,
+) -> Result<()> {
 
     let application = adw::Application::builder()
         .application_id(APP_ID)
@@ -709,37 +751,7 @@ fn init_logging() -> Result<WorkerGuard> {
     Ok(guard)
 }
 
-async fn initialize_app_context() -> Result<AppStartMode> {
-    let database_path = resolve_database_path()?;
-    if let Some(parent) = database_path.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent).with_context(|| {
-                format!("failed to create database directory {}", parent.display())
-            })?;
-        }
-    }
-
-    let connect_options = SqliteConnectOptions::new()
-        .filename(&database_path)
-        .create_if_missing(true);
-
-    let pool = SqlitePool::connect_with(connect_options)
-        .await
-        .with_context(|| {
-            format!(
-                "failed to open sqlite database at {}",
-                database_path.display()
-            )
-        })?;
-
-    sqlx::migrate::Migrator::new(Path::new("./migrations"))
-        .await
-        .context("failed to load sqlx migrations")?
-        .run(&pool)
-        .await
-        .context("failed to run sqlx migrations")?;
-    info!(database = %database_path.display(), "sqlx migrations applied successfully");
-
+fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
     let crypto_service = CryptoServiceImpl::default();
     let auth_service = Arc::new(AuthServiceImpl::new(CryptoServiceImpl::default()));
     let audit_log_service = Arc::new(AuditLogServiceImpl::new(
@@ -777,23 +789,23 @@ async fn initialize_app_context() -> Result<AppStartMode> {
         Arc::clone(&audit_log_service),
     ));
 
-    let needs_bootstrap =
-        match ensure_privileged_account_context_initialized(&pool, &auth_service).await {
-            Ok(()) => false,
-            Err(e)
-                if e.downcast_ref::<AppError>()
-                    .is_some_and(|ae| matches!(ae, AppError::InitializationRequired(_))) =>
-            {
-                true
-            }
-            Err(e) => return Err(e),
-        };
-
-    if !needs_bootstrap {
-        load_password_envelopes_from_db(&SqlxUserRepository::new(pool.clone()), &auth_service)
-            .await?;
+    PrimaryServices {
+        crypto_service,
+        auth_service,
+        audit_log_service,
+        auth_policy_service,
+        vault_service,
+        secret_service,
+        user_service,
+        admin_service,
+        team_service,
     }
+}
 
+async fn build_secondary_services(
+    pool: &SqlitePool,
+    auth_service: Arc<AuthServiceImpl<CryptoServiceImpl>>,
+) -> SecondaryServices {
     let password_service = PasswordServiceImpl::new();
     let backup_service = Arc::new(BackupServiceImpl::new());
     let backup_app_service = Arc::new(BackupApplicationServiceImpl::new(
@@ -810,7 +822,6 @@ async fn initialize_app_context() -> Result<AppStartMode> {
     let audit_service = Arc::new(AuditService::new(pool.clone()));
     let mut license_service = LicenseService::new();
 
-    // Load and verify license (Community fallback if not available)
     match license_service.load_license().await {
         Ok(license) => {
             info!(customer = license.customer_name, tier = %license.tier, "license loaded successfully");
@@ -833,29 +844,94 @@ async fn initialize_app_context() -> Result<AppStartMode> {
             );
         }
     }
-    let license_service = Arc::new(license_service);
+
+    SecondaryServices {
+        password_service,
+        backup_service,
+        backup_app_service,
+        import_service,
+        totp_service,
+        audit_service,
+        license_service: Arc::new(license_service),
+    }
+}
+
+async fn initialize_app_context() -> Result<AppStartMode> {
+    let database_path = resolve_database_path()?;
+    if let Some(parent) = database_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent).with_context(|| {
+                format!("failed to create database directory {}", parent.display())
+            })?;
+        }
+    }
+
+    let connect_options = SqliteConnectOptions::new()
+        .filename(&database_path)
+        .create_if_missing(true);
+
+    let pool = SqlitePool::connect_with(connect_options)
+        .await
+        .with_context(|| {
+            format!(
+                "failed to open sqlite database at {}",
+                database_path.display()
+            )
+        })?;
+
+    sqlx::migrate::Migrator::new(Path::new("./migrations"))
+        .await
+        .context("failed to load sqlx migrations")?
+        .run(&pool)
+        .await
+        .context("failed to run sqlx migrations")?;
+    info!(database = %database_path.display(), "sqlx migrations applied successfully");
+
+    let primary = build_primary_services(&pool);
+
+    let needs_bootstrap =
+        match ensure_privileged_account_context_initialized(&pool, &primary.auth_service).await {
+            Ok(()) => false,
+            Err(e)
+                if e.downcast_ref::<AppError>()
+                    .is_some_and(|ae| matches!(ae, AppError::InitializationRequired(_))) =>
+            {
+                true
+            }
+            Err(e) => return Err(e),
+        };
+
+    if !needs_bootstrap {
+        load_password_envelopes_from_db(
+            &SqlxUserRepository::new(pool.clone()),
+            &primary.auth_service,
+        )
+        .await?;
+    }
+
+    let secondary = build_secondary_services(&pool, Arc::clone(&primary.auth_service)).await;
 
     info!("all services are initialized and ready");
 
     let ctx = AppContext {
         database_path,
         pool,
-        _crypto_service: crypto_service,
-        auth_service,
-        auth_policy_service,
-        vault_service,
-        secret_service,
-        backup_service,
-        import_service,
-        user_service,
-        totp_service,
-        _audit_log_service: audit_log_service,
-        audit_service,
-        admin_service,
-        team_service,
-        _backup_app_service: backup_app_service,
-        _license_service: license_service,
-        _password_service: password_service,
+        _crypto_service: primary.crypto_service,
+        auth_service: primary.auth_service,
+        auth_policy_service: primary.auth_policy_service,
+        vault_service: primary.vault_service,
+        secret_service: primary.secret_service,
+        backup_service: secondary.backup_service,
+        import_service: secondary.import_service,
+        user_service: primary.user_service,
+        totp_service: secondary.totp_service,
+        _audit_log_service: primary.audit_log_service,
+        audit_service: secondary.audit_service,
+        admin_service: primary.admin_service,
+        team_service: primary.team_service,
+        _backup_app_service: secondary.backup_app_service,
+        _license_service: secondary.license_service,
+        _password_service: secondary.password_service,
     };
     if needs_bootstrap {
         Ok(AppStartMode::NeedsBootstrap(ctx))
