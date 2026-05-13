@@ -1,0 +1,3 @@
+# Mark auto-generated files so they are excluded from language statistics
+# and treated as non-diffable blobs in GitHub's UI.
+sbom.cyclonedx.json linguist-generated=true

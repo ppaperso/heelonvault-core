@@ -1,0 +1,63 @@
+# ─── Rust ───────────────────────────────────────
+/target/
+/**/*.rs.bk
+/Cargo.lock.bak
+
+# Database files (SENSITIVE)
+*.db
+*.sqlite
+*.sqlite3
+
+# Fichiers de données sensibles (SENSITIVE)
+*.bin
+*.key
+*.pem
+
+# CSV exports et imports (SENSITIVE)
+export-csv/
+*.csv
+
+# Backups (SENSITIVE)
+*-backups/
+backup_*.tar.gz
+backup_before_*/
+backup_pre_migration_*/
+
+# Logs
+logs/*.log
+logs/pylint_report*.txt
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.code-workspace
+
+# Compiled translations
+locales/*/LC_MESSAGES/*.mo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Test coverage
+.coverage
+htmlcov/
+
+# Fichiers divers
+*.bak
+*.backup
+liste_docs.txt
+structure_heelonvault.txt
+browser_integration/.webext-credentials
+
+# SPDX / REUSE (généré, pas source)
+.reuse/dep5

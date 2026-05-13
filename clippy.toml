@@ -1,0 +1,15 @@
+# Clippy hardening policy for security-sensitive code.
+# Sensitive paths in this scaffold:
+# - src/services/
+# - src/repositories/
+# - src/models/secret_item.rs
+#
+# Path-scoped deny levels are not natively supported by clippy.toml,
+# so unwrap/expect are disallowed globally to protect sensitive flows.
+
+disallowed-methods = [
+  { path = "std::result::Result::unwrap", reason = "Use typed errors (thiserror) on sensitive paths" },
+  { path = "std::result::Result::expect", reason = "Avoid panics and secret-leaking failure messages" },
+  { path = "std::option::Option::unwrap", reason = "Handle missing values explicitly" },
+  { path = "std::option::Option::expect", reason = "Handle missing values explicitly" }
+]

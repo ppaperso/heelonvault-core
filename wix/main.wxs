@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  HeelonVault Windows Installer (WiX v4 / wix.exe)
+  ─────────────────────────────────────────────────
+  Structure:
+    wix/main.wxs   – this file: static product/directory/feature declaration
+    wix/dlls.wxs   – generated at CI build-time by scripts/collect-dlls.sh
+                     contains one <Component> per DLL identified by ntldd
+
+  Build command (from repo root, inside MSYS2 MINGW64 shell):
+    wix build wix/main.wxs wix/dlls.wxs -o heelonvault-windows-x86_64.msi
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Package
+    Name="HeelonVault"
+    Version="!(bind.FileVersion.heelonvault_exe)"
+    Manufacturer="Heelonys"
+    UpgradeCode="4F2D8A1C-3B7E-4F9A-8C5D-2E6F1A0B3C4D"
+    Language="1033"
+    Codepage="1252"
+    InstallerVersion="500"
+    Compressed="yes">
+
+    <!-- Allow clean upgrade: remove previous version before install -->
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of HeelonVault is already installed."
+      Schedule="afterInstallInitialize" />
+
+    <MediaTemplate EmbedCab="yes" CompressionLevel="mszip" />
+
+    <!-- ── Directory tree ────────────────────────────────────────────── -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="HeelonVault">
+        <!-- GLib runtime resources -->
+        <Directory Id="SCHEMAFOLDER"     Name="share">
+          <Directory Id="GLIBSCHEMAFOLDER" Name="glib-2.0">
+            <Directory Id="SCHEMASUBFOLDER"  Name="schemas" />
+          </Directory>
+        </Directory>
+        <Directory Id="GDKPIXBUFFOLDER"  Name="lib">
+          <Directory Id="GDKPIXBUF2FOLDER" Name="gdk-pixbuf-2.0">
+            <Directory Id="GDKPIXBUF_LOADERS" Name="2.10.0">
+              <Directory Id="GDKPIXBUF_LOADERS_DIR" Name="loaders" />
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="HeelonVault" />
+    </StandardDirectory>
+
+    <!-- ── Main executable component ────────────────────────────────── -->
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+
+      <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
+        <File Id="heelonvault_exe"
+              Source="target\release\heelonvault.exe"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- GLib compiled schemas (required: avoids silent crash at startup) -->
+      <Component Id="GLibSchemas" Guid="B2C3D4E5-F6A7-8901-BCDE-F12345678901">
+        <File Id="gschemas_compiled"
+              Source="wix\staging\share\glib-2.0\schemas\gschemas.compiled"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- GDK-Pixbuf loaders.cache (required: avoids silent crash at startup) -->
+      <Component Id="GdkPixbufLoaderCache" Guid="C3D4E5F6-A7B8-9012-CDEF-123456789012">
+        <File Id="loaders_cache"
+              Source="wix\staging\lib\gdk-pixbuf-2.0\2.10.0\loaders.cache"
+              KeyPath="yes" />
+      </Component>
+
+    </ComponentGroup>
+
+    <!-- ── DLL components (generated into wix/dlls.wxs by CI) ────────── -->
+    <!-- ComponentGroup Id="DllComponents" is declared in wix/dlls.wxs   -->
+
+    <!-- ── GDK-Pixbuf loader DLLs (generated into wix/dlls.wxs by CI) ── -->
+    <!-- ComponentGroup Id="PixbufLoaderComponents" in wix/dlls.wxs       -->
+
+    <!-- ── Start Menu shortcut ───────────────────────────────────────── -->
+    <ComponentGroup Id="ShortcutComponents" Directory="ApplicationProgramsFolder">
+      <Component Id="StartMenuShortcut" Guid="D4E5F6A7-B8C9-0123-DEF0-234567890123">
+        <Shortcut Id="AppShortcut"
+                  Name="HeelonVault"
+                  Description="HeelonVault Password &amp; Secret Manager"
+                  Target="[INSTALLFOLDER]heelonvault.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="heelonvault.ico" />
+        <RemoveFolder Id="RemoveProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\HeelonVault"
+                       Name="StartMenuShortcut"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ── Icon ─────────────────────────────────────────────────────── -->
+    <Icon Id="heelonvault.ico" SourceFile="wix\staging\heelonvault.ico" />
+
+    <!-- ── Feature tree ─────────────────────────────────────────────── -->
+    <Feature Id="ProductFeature" Title="HeelonVault" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentGroupRef Id="DllComponents" />
+      <ComponentGroupRef Id="PixbufLoaderComponents" />
+      <ComponentGroupRef Id="ShortcutComponents" />
+    </Feature>
+
+  </Package>
+</Wix>
