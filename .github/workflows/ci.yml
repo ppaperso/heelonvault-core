@@ -73,6 +73,15 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
+
+      - name: Verify Rust toolchain path (macOS)
+        run: |
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          hash -r
+          command -v cargo
+          cargo --version
 
       - name: Build
         run: cargo build --release --locked
