@@ -1,8 +1,8 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use serde::Serialize;
 use secrecy::{ExposeSecret, SecretBox};
+use serde::Serialize;
 use tracing::info;
 use url::Url;
 use uuid::Uuid;
@@ -356,11 +356,17 @@ mod tests {
         );
 
         let parsed = ImportServiceImpl::parse_csv_rows(path.as_path());
-        assert!(parsed.is_ok(), "empty password should be handled as skip, not error");
+        assert!(
+            parsed.is_ok(),
+            "empty password should be handled as skip, not error"
+        );
         let rows = match parsed {
             Ok(value) => value,
             Err(_) => return,
         };
-        assert!(rows.is_empty(), "rows with empty password should be skipped");
+        assert!(
+            rows.is_empty(),
+            "rows with empty password should be skipped"
+        );
     }
 }

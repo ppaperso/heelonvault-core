@@ -293,10 +293,10 @@ impl BackupServiceImpl {
         }
     }
 
-    fn set_owner_only_file_permissions(path: &Path) -> Result<(), AppError> {
+    fn set_owner_only_file_permissions(_path: &Path) -> Result<(), AppError> {
         #[cfg(unix)]
         {
-            fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(AppError::Io)?;
+            fs::set_permissions(_path, fs::Permissions::from_mode(0o600)).map_err(AppError::Io)?;
         }
         Ok(())
     }

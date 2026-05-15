@@ -288,7 +288,6 @@ fn run_application(
     app_context: Arc<AppContext>,
     start_needs_bootstrap: bool,
 ) -> Result<()> {
-
     let application = adw::Application::builder()
         .application_id(APP_ID)
         .flags(gio::ApplicationFlags::empty())
