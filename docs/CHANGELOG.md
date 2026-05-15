@@ -24,6 +24,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 - Validation automatique exécutée après refactor: `cargo test --workspace` et `cargo clippy --workspace --all-targets -- -D warnings`.
 
+### Sécurité dépendances (issue #13)
+
+- Mise à jour transitive de la chaîne TLS dans `Cargo.lock`: `rustls-webpki` `0.103.10` -> `0.103.13`, `rustls` `0.23.37` -> `0.23.40`.
+- Vérification lockfile: la version vulnérable `rustls-webpki 0.103.10` n'est plus présente.
+- Validation post-correction exécutée: `cargo check`, `cargo test --locked --all-targets --no-run`, `cargo clippy --all-targets --all-features -- -D warnings`.
+- Impact sécurité attendu: correction de l'alerte Dependabot high et des 2 alertes low associées à `rustls-webpki`, après push sur `main`.
+
 ## [1.1.0] — 2026-05-13
 
 ### Sécurité authentification et 2FA
