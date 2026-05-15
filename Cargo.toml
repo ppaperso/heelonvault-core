@@ -57,14 +57,13 @@ chrono = { version = "0.4", features = ["std"] }
 bip39 = "2.1"
 base64 = "0.22"
 csv = "1.3"
-qrcode = "0.14"
-image = { version = "0.25", features = ["png"] }
+qrcode = { version = "0.14", default-features = false, features = ["image"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
 url = "2.5"
 ed25519-dalek = { version = "2.1", features = ["std"] }
 hex = "0.4"
 fluent-templates = "0.9"
 unic-langid = "0.9"
-genpdf = { version = "0.2", features = ["images"] }
 dirs = "5.0"
 sha2 = "0.10"
 
