@@ -161,7 +161,7 @@ Options comparees:
 
 - `genpdf` historique: rejete (chaine obsolete, warnings audit persistants)
 - fork `genpdf` maintenu: option de transition rapide, mais dependances PDF historiques encore presentes
-- architecture PDF moderne (`printpdf` recent): retenue pour implementation cible (ecosysteme maintenu, licence MIT)
+- writer PDF interne minimal (sans dependance PDF externe): retenu pour implementation cible afin de garantir `cargo audit = 0 warning`
 
 Contraintes d'implementation:
 

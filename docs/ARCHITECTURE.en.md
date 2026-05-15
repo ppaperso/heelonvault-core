@@ -142,7 +142,7 @@ Options evaluated:
 
 - legacy `genpdf`: rejected (obsolete chain, persistent audit warnings)
 - maintained `genpdf` forks: possible fast transition, but still tied to legacy PDF transitive stack
-- modern PDF architecture (`printpdf` recent): selected target for implementation (maintained ecosystem, MIT license)
+- minimal internal PDF writer (no external PDF dependency): selected target to guarantee `cargo audit = 0 warning`
 
 Implementation constraints:
 
