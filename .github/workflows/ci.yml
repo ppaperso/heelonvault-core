@@ -1,5 +1,11 @@
 name: CI
 
+# Governance:
+# - PR: Tier 1 (validation) + Tier 2 (dev platform build) — fast feedback
+# - Push develop/main: Tier 1 + Tier 3 (build matrix) + Tier 4 (release gates)
+# - Push tags (v*): Same as main + artifact creation
+# - workflow_dispatch: Manual override for full matrix
+
 on:
   pull_request:
     branches:
@@ -20,8 +26,11 @@ permissions:
   contents: read
 
 jobs:
+  # ============================================================================
+  # TIER 1: VALIDATION (Code Quality & Linting) — runs on every context
+  # ============================================================================
   validate-source:
-    name: Validate source code quality
+    name: Tier 1 • Validate source code quality
     runs-on: ubuntu-24.04
 
     steps:
@@ -53,72 +62,11 @@ jobs:
       - name: Validate desktop entry
         run: desktop-file-validate heelonvault.desktop
 
-  build-and-verify:
-    if: github.event_name != 'pull_request'
-    needs: [validate-source]
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            desktop-file-utils \
-            pkg-config \
-            libgtk-4-dev \
-            libadwaita-1-dev \
-            libsqlite3-dev \
-            libglib2.0-dev \
-            libglib2.0-dev-bin
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-bin: false
-
-      - name: Build
-        run: cargo build --release --locked
-
-      - name: Compile tests
-        run: cargo test --locked --all-targets --no-run
-
-      - name: Package dist
-        run: |
-          set -euo pipefail
-
-          rm -rf dist
-          mkdir -p dist
-          cp target/release/heelonvault dist/
-          cp scripts/install.sh dist/install.sh
-          cp scripts/install-core.sh dist/install-core.sh
-          cp scripts/install-ubuntu.sh dist/install-ubuntu.sh
-          cp scripts/install-rhel.sh dist/install-rhel.sh
-          cp scripts/remove.sh dist/remove.sh
-          cp scripts/remove-core.sh dist/remove-core.sh
-          cp scripts/remove-ubuntu.sh dist/remove-ubuntu.sh
-          cp scripts/remove-rhel.sh dist/remove-rhel.sh
-          cp scripts/smoke-test.sh dist/smoke-test.sh
-          cp heelonvault.desktop dist/
-          cp README.md dist/
-          cp docs/QUICKSTART.md dist/
-          cp -r assets dist/
-          (cd dist && sha256sum heelonvault > heelonvault.sha256)
-          chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh dist/heelonvault dist/smoke-test.sh
-
-      - name: Smoke test – install
-        run: ./dist/smoke-test.sh --install ./dist/install.sh
-
-      - name: Smoke test – uninstall
-        run: ./dist/smoke-test.sh --remove ./dist/remove.sh
-
-  build-and-verify-fedora:
+  # ============================================================================
+  # TIER 2: DEV PLATFORM (Fast feedback on PR) — build validation only
+  # ============================================================================
+  build-fedora-dev:
+    name: Tier 2 • Build & validate on Fedora (target platform)
     needs: [validate-source]
     runs-on: ubuntu-24.04
     container: fedora:latest
@@ -154,13 +102,53 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Build
+      - name: Build release binary
         run: cargo build --release --locked
 
       - name: Validate desktop entry
         run: desktop-file-validate heelonvault.desktop
 
-      - name: Package dist
+  # ============================================================================
+  # TIER 3: BUILD MATRIX (Cross-platform validation) — push only
+  # ============================================================================
+  build-linux-reference:
+    name: Tier 3 • Build Linux (Ubuntu reference platform)
+    if: github.event_name != 'pull_request'
+    needs: [validate-source]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            desktop-file-utils \
+            pkg-config \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            libsqlite3-dev \
+            libglib2.0-dev \
+            libglib2.0-dev-bin
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Compile tests
+        run: cargo test --locked --all-targets --no-run
+
+      - name: Package distribution
         run: |
           set -euo pipefail
 
@@ -183,13 +171,131 @@ jobs:
           (cd dist && sha256sum heelonvault > heelonvault.sha256)
           chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh dist/heelonvault dist/smoke-test.sh
 
-      - name: Smoke test – install (Fedora)
+      - name: Smoke test – Ubuntu install
         run: ./dist/smoke-test.sh --install ./dist/install.sh
 
-      - name: Smoke test – uninstall (Fedora)
+      - name: Smoke test – Ubuntu uninstall
         run: ./dist/smoke-test.sh --remove ./dist/remove.sh
 
-  build-and-verify-windows:
+  build-fedora-production:
+    name: Tier 3 • Build Fedora (production target)
+    if: github.event_name != 'pull_request'
+    needs: [validate-source]
+    runs-on: ubuntu-24.04
+    container: fedora:latest
+
+    steps:
+      - name: Install container bootstrap tools
+        run: |
+          dnf install -y \
+            git \
+            tar \
+            gzip \
+            coreutils \
+            which
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Fedora build dependencies
+        run: |
+          dnf install -y \
+            gcc \
+            desktop-file-utils \
+            pkgconf-pkg-config \
+            gtk4-devel \
+            libadwaita-devel \
+            sqlite-devel \
+            glib2-devel \
+            glib2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Validate desktop entry
+        run: desktop-file-validate heelonvault.desktop
+
+      - name: Package distribution
+        run: |
+          set -euo pipefail
+
+          rm -rf dist
+          mkdir -p dist
+          cp target/release/heelonvault dist/
+          cp scripts/install.sh dist/install.sh
+          cp scripts/install-core.sh dist/install-core.sh
+          cp scripts/install-ubuntu.sh dist/install-ubuntu.sh
+          cp scripts/install-rhel.sh dist/install-rhel.sh
+          cp scripts/remove.sh dist/remove.sh
+          cp scripts/remove-core.sh dist/remove-core.sh
+          cp scripts/remove-ubuntu.sh dist/remove-ubuntu.sh
+          cp scripts/remove-rhel.sh dist/remove-rhel.sh
+          cp scripts/smoke-test.sh dist/smoke-test.sh
+          cp heelonvault.desktop dist/
+          cp README.md dist/
+          cp docs/QUICKSTART.md dist/
+          cp -r assets dist/
+          (cd dist && sha256sum heelonvault > heelonvault.sha256)
+          chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh dist/heelonvault dist/smoke-test.sh
+
+      - name: Smoke test – Fedora install
+        run: ./dist/smoke-test.sh --install ./dist/install.sh
+
+      - name: Smoke test – Fedora uninstall
+        run: ./dist/smoke-test.sh --remove ./dist/remove.sh
+
+  build-macos:
+    name: Tier 3 • Build macOS
+    if: github.event_name != 'pull_request'
+    needs: [validate-source]
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install macOS build dependencies
+        run: |
+          brew update || true
+          for formula in gtk4 libadwaita gdk-pixbuf sqlite pkgconf; do
+            brew list "$formula" >/dev/null 2>&1 || (brew install "$formula" || brew install --no-quarantine "$formula")
+          done
+          # Homebrew installs Rust transitively (via glib/gobject-introspection).
+          # Unlink it so its cargo/rustup-init do not shadow the toolchain below.
+          brew unlink rust 2>/dev/null || true
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
+
+      - name: Verify Rust toolchain path
+        run: |
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          hash -r
+          command -v cargo
+          cargo --version
+          rustup show active-toolchain
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Validate binary (static – no display server)
+        run: |
+          file target/release/heelonvault
+          otool -L target/release/heelonvault
+
+  build-windows:
+    name: Tier 3 • Build Windows
     if: github.event_name != 'pull_request'
     needs: [validate-source]
     runs-on: windows-2022
@@ -224,7 +330,7 @@ jobs:
           pkg-config --modversion gtk4
           pkg-config --modversion libadwaita-1
 
-      - name: Build Windows release binary
+      - name: Build release binary
         run: cargo build --release --locked
 
       - name: Verify Windows release binary exists
@@ -235,57 +341,17 @@ jobs:
           ls -lh target/release/heelonvault.exe
           sha256sum target/release/heelonvault.exe
 
-  build-and-verify-macos:
-    if: github.event_name != 'pull_request'
-    needs: [validate-source]
-    runs-on: macos-14
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Install macOS build dependencies
-        run: |
-          brew update || true
-          for formula in gtk4 libadwaita gdk-pixbuf sqlite pkgconf; do
-            brew list "$formula" >/dev/null 2>&1 || (brew install "$formula" || brew install --no-quarantine "$formula")
-          done
-          # Homebrew installs Rust transitively (via glib/gobject-introspection).
-          # Unlink it so its cargo/rustup-init do not shadow the toolchain below.
-          brew unlink rust 2>/dev/null || true
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-bin: false
-
-      - name: Verify Rust toolchain path (macOS)
-        run: |
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          hash -r
-          command -v cargo
-          cargo --version
-          rustup show active-toolchain
-
-      - name: Build
-        run: cargo build --release --locked
-
-      - name: Validate binary (static – no display server available)
-        run: |
-          file target/release/heelonvault
-          otool -L target/release/heelonvault
-
+  # ============================================================================
+  # TIER 4: RELEASE GATES (Supply-chain & SBOM validation) — push only
+  # ============================================================================
   check-sbom:
-    name: Check SBOM is up-to-date
+    name: Tier 4 • Check SBOM is up-to-date
     if: github.event_name != 'pull_request'
     needs:
-      - build-and-verify
-      - build-and-verify-fedora
-      - build-and-verify-macos
-      - build-and-verify-windows
+      - build-linux-reference
+      - build-fedora-production
+      - build-macos
+      - build-windows
     runs-on: ubuntu-24.04
 
     steps:
