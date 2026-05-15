@@ -124,3 +124,35 @@ cargo test
 - active runtime and operational scripts are Rust-only;
 - legacy artifacts may remain without affecting current execution;
 - docs and scripts must stay aligned with Rust-only flows.
+
+## Architecture Decision - Zero-warning supply chain (P2)
+
+Context:
+
+- `cargo audit` reports unmaintained/yanked crates in the legacy PDF dependency chain.
+- Project policy now targets strict `0 warning` (no permanent allowlist).
+
+Decision:
+
+1. Replace legacy `genpdf` dependency with a maintained PDF architecture.
+2. Remove unnecessary transitive dependency features that introduce risky crates.
+3. Enforce a CI-blocking policy for advisories, yanked crates, and unmaintained crates.
+
+Options evaluated:
+
+- legacy `genpdf`: rejected (obsolete chain, persistent audit warnings)
+- maintained `genpdf` forks: possible fast transition, but still tied to legacy PDF transitive stack
+- modern PDF architecture (`printpdf` recent): selected target for implementation (maintained ecosystem, MIT license)
+
+Implementation constraints:
+
+- keep PDF audit report generation (no feature regression);
+- preserve SHA-256 hash + Ed25519 signature in the generated document;
+- validate Linux/Fedora/macOS/Windows before merge.
+
+Definition of done (mandatory):
+
+- `cargo audit` => 0 warnings;
+- `cargo clippy --all-targets --all-features -- -D warnings` => pass;
+- multi-platform CI => green;
+- no permanent exception added to policy.
