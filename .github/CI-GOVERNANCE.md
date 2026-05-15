@@ -1,12 +1,12 @@
 # CI/Release Governance Policy
 
-This document defines the **Tier-based CI strategy** for HeelonVault, balancing development velocity, platform coverage, and release quality.
+│ TRIGGER                 │ TIER 1 │ TIER 2 │ TIER 3 │ TIER 4 │ T5 │ Release |
 
-## Overview
-
-The CI pipeline is organized into **5 execution tiers**, each with distinct triggers, scope, and objectives:
-
-```
+│ Pull Request (PR)       │   ✓    │   ✓    │   ✗    │   ✗    │ ✗  │ ✗      |
+│ Push develop            │   ✓    │   ✗    │   ✓    │   ✓    │ ✗  │ ✗      |
+│ Push main               │   ✓    │   ✗    │   ✓    │   ✓    │ ✗  │ ✗      |
+│ Push tags (v*)          │   ✓    │   ✗    │   ✓    │   ✓    │ ✓  │ ✓      |
+│ workflow_dispatch       │   ✓    │   ✗    │   ✓    │   ✓    │ ✓  │ ✓      |
 ┌─────────────────────────────────────────────────────────────────┐
 │ TRIGGER                 │ TIER 1 │ TIER 2 │ TIER 3 │ TIER 4 │ T5 │
 ├─────────────────────────────────────────────────────────────────┤
@@ -117,6 +117,48 @@ Enforce supply-chain and dependency integrity before code integrates into main.
 
 ---
 
+## Tier 5: Release Artifacts (Packaging & Upload)
+
+**Duration**: ~15 min (parallel packaging jobs) | **Tags (v*) only** | **Creates GitHub Release**
+
+### Objective
+Package platform-specific binary distributables and upload to GitHub Release with SBOM.
+
+### Jobs
+- `package-linux-tarball`: 
+  - Downloads Fedora production binary (production target)
+  - Creates `heelonvault-linux-x86_64.tar.gz` with scripts (Ubuntu+Fedora+RHEL compatible)
+  - Generates SHA256 checksum
+  
+- `package-macos-dmg`: 
+  - Downloads macOS binary
+  - Runs `scripts/create-macos-bundle.sh` → `heelonvault-macos-arm64.dmg`
+  - Generates SHA256
+  
+- `package-windows-msi`:
+  - Downloads Windows binary (heelonvault.exe)
+  - Runs `scripts/collect-dlls.sh` to generate DLL manifest
+  - Builds WiX installer → `heelonvault-windows-x86_64.msi`
+  - Generates SHA256
+  
+- `create-github-release` (depends on all packaging jobs):
+  - Collects all artifacts (Linux tarball, macOS DMG, Windows MSI)
+  - Includes SBOM + SHA256 checksums
+  - Uploads to GitHub Release via `softprops/action-gh-release@v1`
+  - Auto-generates release notes from commit messages
+
+### Rationale
+- **Platform-specific**: Each OS gets appropriate package format
+  - Linux: `tar.gz` (portable, no distro-specific format)
+  - macOS: `.dmg` with app bundle (native macOS convention)
+  - Windows: `.msi` via WiX (professional installer standard)
+- **One-shot**: Only on tags (v*) — saves CI resources, deliberate release moments
+- **Artifacts only**: No re-compilation, downloads binaries from Tier 3/4 artifacts (cheap)
+- **Governance**: Tier 5 depends on Tier 4 (SBOM pass) — ensures supply-chain cleanliness before release
+- **Supply-chain transparency**: Includes SBOM + SHA256 for auditability
+
+---
+
 ## Tier 5: Manual Force (workflow_dispatch)
 
 **Duration**: Varies | **Manual trigger only**
@@ -125,7 +167,7 @@ Enforce supply-chain and dependency integrity before code integrates into main.
 Escape hatch: Force full CI when needed (e.g., GitHub infrastructure issue, manual verification).
 
 ### What runs
-- All Tiers 1–4
+- All Tiers 1–5
 
 ### Rationale
 - **Edge cases**: Unblock situations where automated CI is insufficient
@@ -153,14 +195,25 @@ Escape hatch: Force full CI when needed (e.g., GitHub infrastructure issue, manu
 ```
 **Total time**: ~15 min (parallel Tier 3)
 
-### Push tags (v*)
+### Push tags (v*) — RELEASE
 ```
-Same as push main/develop. Tags are treated as release anchors.
+1. Tier 1: validate-source (must pass)
+2. Tier 3: [build-linux-reference, build-fedora-production, build-macos, build-windows] (parallel, all must pass)
+3. Tier 4: check-sbom (must pass, depends on Tier 3)
+4. Tier 5: [package-linux-tarball, package-macos-dmg, package-windows-msi] (parallel, all must pass)
+5. Release: create-github-release (uploads artifacts to Release page)
 ```
+**Total time**: ~30 min (parallel Tier 3 + parallel Tier 5 packaging)
+**Deliverables on GitHub Release**:
+- `heelonvault-linux-x86_64.tar.gz` + `.sha256`
+- `heelonvault-macos-arm64.dmg` + `.sha256`
+- `heelonvault-windows-x86_64.msi` + `.sha256`
+- `sbom.cyclonedx.json` + `.sha256`
+- Auto-generated release notes
 
 ### Manual dispatch
 ```
-All Tiers 1–5 run sequentially. Used for manual override/verification.
+All Tiers 1–5 run sequentially/parallel as defined. Used for manual override/verification.
 ```
 
 ---
@@ -172,6 +225,7 @@ All Tiers 1–5 run sequentially. Used for manual override/verification.
 | Is it cheap and adds safety? | Yes → Run on PR | Tier 1 ✓ |
 | Is it dev feedback (not release)? | Yes → Run on PR, Tier 2 | Dev platform only |
 | Is it expensive but necessary for release? | Yes → Run only on push | Tier 3–4 |
+| Is it packaging for release distribution? | Yes → Run only on tags | Tier 5 |
 | Is it a rare override? | Yes → workflow_dispatch | Tier 5 |
 
 ---
@@ -186,12 +240,15 @@ All Tiers 1–5 run sequentially. Used for manual override/verification.
 ### To ensure release quality
 - Tier 3 validates all platforms (required for production release)
 - Tier 4 enforces SBOM/supply-chain checks (no exceptions)
+- Tier 5 packages and uploads all release artifacts
 - Use branch protection rules: require all Tier 3/4 checks before merge to main
 
 ### To handle platform-specific issues
 - PR fails on Fedora? Fix, re-push → Tier 2 re-runs
 - Merge to main, then macOS fails? Keep commit, revert, fix, re-push → Tier 3/4 re-runs
+- Tag fails on Windows packaging? Delete tag, fix, re-tag → Tier 5 re-runs
 - Never bypass Tier 3/4 for main branch
+- Never bypass Tier 4/5 for release tags (v*)
 
 ---
 
@@ -206,7 +263,10 @@ All Tiers 1–5 run sequentially. Used for manual override/verification.
 
 ## Future Enhancements
 
-- **Tier 3 split**: Separate `build-cross-platform` (release-only) from `build-reference` (push-only)
-- **Artifact retention**: Store binaries from main/tags for download
-- **Performance metrics**: Track Tier 3 wall-time to optimize further
-- **Container update**: Monitor Fedora:latest version changes in CI logs
+- **.deb / .rpm packages**: Post-Tier 5 distro-specific packaging (opt-in)
+- **Notarization**: macOS code signing + Apple notarization before DMG
+- **Auto-release notes**: Parse commit history for changelog generation
+- **Artifact retention**: Extend lifecycle for binaries from main/tags
+- **Performance**: Parallelize Tier 5 packaging across different runners
+- **Container strategy**: Pin Fedora version (not :latest) in Tier 3
+- **Testing**: Add integration tests on packaged artifacts before release upload

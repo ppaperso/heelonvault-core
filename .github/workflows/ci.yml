@@ -177,6 +177,13 @@ jobs:
       - name: Smoke test – Ubuntu uninstall
         run: ./dist/smoke-test.sh --remove ./dist/remove.sh
 
+      - name: Upload Linux binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binary
+          path: target/release/heelonvault
+          retention-days: 1
+
   build-fedora-production:
     name: Tier 3 • Build Fedora (production target)
     if: github.event_name != 'pull_request'
@@ -250,6 +257,13 @@ jobs:
       - name: Smoke test – Fedora uninstall
         run: ./dist/smoke-test.sh --remove ./dist/remove.sh
 
+      - name: Upload Fedora binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fedora-binary
+          path: target/release/heelonvault
+          retention-days: 1
+
   build-macos:
     name: Tier 3 • Build macOS
     if: github.event_name != 'pull_request'
@@ -293,6 +307,13 @@ jobs:
         run: |
           file target/release/heelonvault
           otool -L target/release/heelonvault
+
+      - name: Upload macOS binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-binary
+          path: target/release/heelonvault
+          retention-days: 1
 
   build-windows:
     name: Tier 3 • Build Windows
@@ -340,6 +361,13 @@ jobs:
         run: |
           ls -lh target/release/heelonvault.exe
           sha256sum target/release/heelonvault.exe
+
+      - name: Upload Windows binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binary
+          path: target/release/heelonvault.exe
+          retention-days: 1
 
   # ============================================================================
   # TIER 4: RELEASE GATES (Supply-chain & SBOM validation) — push only
@@ -395,3 +423,200 @@ jobs:
 
           COUNT=$(echo "$FRESH" | wc -l | tr -d ' ')
           echo "SBOM is up-to-date (${COUNT} pURLs matched)."
+
+  # ============================================================================
+  # TIER 5: RELEASE ARTIFACTS (Packaging & GitHub Release) — push/tags only
+  # ============================================================================
+  package-linux-tarball:
+    name: Tier 5 • Package Linux tarball
+    if: github.event_name != 'pull_request'
+    needs:
+      - build-fedora-production
+      - check-sbom
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download Fedora binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fedora-binary
+          path: ./binary
+
+      - name: Prepare tarball contents
+        run: |
+          set -euo pipefail
+          mkdir -p heelonvault-dist
+          cp ./binary/heelonvault heelonvault-dist/
+          cp scripts/install.sh heelonvault-dist/
+          cp scripts/install-core.sh heelonvault-dist/
+          cp scripts/install-ubuntu.sh heelonvault-dist/
+          cp scripts/install-rhel.sh heelonvault-dist/
+          cp scripts/remove.sh heelonvault-dist/
+          cp scripts/remove-core.sh heelonvault-dist/
+          cp scripts/remove-ubuntu.sh heelonvault-dist/
+          cp scripts/remove-rhel.sh heelonvault-dist/
+          cp heelonvault.desktop heelonvault-dist/
+          cp README.md heelonvault-dist/
+          cp docs/QUICKSTART.md heelonvault-dist/
+          cp -r assets heelonvault-dist/
+          chmod +x heelonvault-dist/heelonvault heelonvault-dist/install.sh heelonvault-dist/remove.sh
+
+      - name: Create tarball
+        run: |
+          tar czf heelonvault-linux-x86_64.tar.gz heelonvault-dist/
+          sha256sum heelonvault-linux-x86_64.tar.gz > heelonvault-linux-x86_64.tar.gz.sha256
+          cat heelonvault-linux-x86_64.tar.gz.sha256
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-tarball
+          path: |
+            heelonvault-linux-x86_64.tar.gz
+            heelonvault-linux-x86_64.tar.gz.sha256
+          retention-days: 5
+
+  package-macos-dmg:
+    name: Tier 5 • Package macOS DMG
+    if: github.event_name != 'pull_request'
+    needs:
+      - build-macos
+      - check-sbom
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download macOS binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-binary
+          path: ./binary
+
+      - name: Install macOS packaging dependencies
+        run: |
+          brew install dylibbundler create-dmg || true
+
+      - name: Create macOS DMG
+        run: |
+          bash scripts/create-macos-bundle.sh \
+            --binary ./binary/heelonvault \
+            --out heelonvault-macos-arm64.dmg
+
+      - name: Generate SHA256
+        run: |
+          sha256sum heelonvault-macos-arm64.dmg > heelonvault-macos-arm64.dmg.sha256
+          cat heelonvault-macos-arm64.dmg.sha256
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: |
+            heelonvault-macos-arm64.dmg
+            heelonvault-macos-arm64.dmg.sha256
+          retention-days: 5
+
+  package-windows-msi:
+    name: Tier 5 • Package Windows MSI
+    if: github.event_name != 'pull_request'
+    needs:
+      - build-windows
+      - check-sbom
+    runs-on: windows-2022
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download Windows binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binary
+          path: ./binary
+
+      - name: Setup MSYS2 and packaging tools
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-ntldd
+            mingw-w64-x86_64-imagemagick
+            wix
+
+      - name: Generate DLL dependency manifest
+        run: |
+          bash scripts/collect-dlls.sh \
+            --binary ./binary/heelonvault.exe \
+            --msys2 /mingw64 \
+            --staging wix/staging \
+            --out wix/dlls.wxs
+
+      - name: Build MSI installer
+        run: |
+          wix build wix/main.wxs wix/dlls.wxs -o heelonvault-windows-x86_64.msi
+
+      - name: Generate SHA256
+        run: |
+          sha256sum heelonvault-windows-x86_64.msi > heelonvault-windows-x86_64.msi.sha256
+          cat heelonvault-windows-x86_64.msi.sha256
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: |
+            heelonvault-windows-x86_64.msi
+            heelonvault-windows-x86_64.msi.sha256
+          retention-days: 5
+
+  create-github-release:
+    name: Tier 5 • Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name != 'pull_request'
+    needs:
+      - check-sbom
+      - package-linux-tarball
+      - package-macos-dmg
+      - package-windows-msi
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download all packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Organize artifacts for release
+        run: |
+          mkdir -p release-assets
+          cp artifacts/linux-tarball/* release-assets/ 2>/dev/null || true
+          cp artifacts/macos-dmg/* release-assets/ 2>/dev/null || true
+          cp artifacts/windows-msi/* release-assets/ 2>/dev/null || true
+          cp sbom.cyclonedx.json release-assets/sbom.cyclonedx.json
+          sha256sum release-assets/sbom.cyclonedx.json > release-assets/sbom.cyclonedx.json.sha256
+          ls -lah release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-assets/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
