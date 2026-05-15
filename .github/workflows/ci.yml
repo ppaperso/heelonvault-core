@@ -7,6 +7,10 @@ on:
       - main
       - develop
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -47,6 +51,15 @@ jobs:
       - name: Validate desktop entry
         run: desktop-file-validate heelonvault.desktop
 
+      - name: Summarize validation stage
+        if: always()
+        run: |
+          {
+            echo "## Validation Stage"
+            echo "- fmt/clippy/desktop-file validation completed"
+            echo "- commit: $GITHUB_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   supply-chain-policy:
     name: Enforce supply-chain policy
     needs: [validate-source]
@@ -67,6 +80,15 @@ jobs:
 
       - name: Enforce advisories policy (vuln, unmaintained, yanked)
         run: cargo deny check advisories
+
+      - name: Summarize supply-chain policy
+        if: always()
+        run: |
+          {
+            echo "## Supply-chain Policy"
+            echo "- cargo-deny advisories policy executed"
+            echo "- fail on unmaintained/yanked/advisory crates"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build-and-verify:
     needs: [validate-source, supply-chain-policy]
