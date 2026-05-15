@@ -47,8 +47,29 @@ jobs:
       - name: Validate desktop entry
         run: desktop-file-validate heelonvault.desktop
 
-  build-and-verify:
+  supply-chain-policy:
+    name: Enforce supply-chain policy
     needs: [validate-source]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny (pinned pre-compiled binary)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.17.0
+          fallback: none
+
+      - name: Enforce advisories policy (vuln, unmaintained, yanked)
+        run: cargo deny check advisories
+
+  build-and-verify:
+    needs: [validate-source, supply-chain-policy]
     runs-on: ubuntu-24.04
 
     steps:
@@ -110,7 +131,7 @@ jobs:
         run: ./dist/smoke-test.sh --remove ./dist/remove.sh
 
   build-and-verify-fedora:
-    needs: [validate-source]
+    needs: [validate-source, supply-chain-policy]
     runs-on: ubuntu-24.04
     container: fedora:latest
 
@@ -181,7 +202,7 @@ jobs:
         run: ./dist/smoke-test.sh --remove ./dist/remove.sh
 
   build-and-verify-windows:
-    needs: [validate-source]
+    needs: [validate-source, supply-chain-policy]
     runs-on: windows-2022
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -226,7 +247,7 @@ jobs:
           sha256sum target/release/heelonvault.exe
 
   build-and-verify-macos:
-    needs: [validate-source]
+    needs: [validate-source, supply-chain-policy]
     runs-on: macos-14
 
     steps:
