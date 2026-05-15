@@ -239,6 +239,9 @@ jobs:
           for formula in gtk4 libadwaita gdk-pixbuf sqlite pkgconf; do
             brew list "$formula" >/dev/null 2>&1 || (brew install "$formula" || brew install --no-quarantine "$formula")
           done
+          # Homebrew installs Rust transitively (via glib/gobject-introspection).
+          # Unlink it so its cargo/rustup-init do not shadow the toolchain below.
+          brew unlink rust 2>/dev/null || true
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
