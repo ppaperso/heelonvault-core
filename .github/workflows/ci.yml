@@ -2,10 +2,16 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - main
+      - develop
   push:
     branches:
       - main
       - develop
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -48,6 +54,7 @@ jobs:
         run: desktop-file-validate heelonvault.desktop
 
   build-and-verify:
+    if: github.event_name != 'pull_request'
     needs: [validate-source]
     runs-on: ubuntu-24.04
 
@@ -75,13 +82,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-bin: false
-
-      - name: Verify Rust toolchain path (macOS)
-        run: |
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          hash -r
-          command -v cargo
-          cargo --version
 
       - name: Build
         run: cargo build --release --locked
@@ -190,6 +190,7 @@ jobs:
         run: ./dist/smoke-test.sh --remove ./dist/remove.sh
 
   build-and-verify-windows:
+    if: github.event_name != 'pull_request'
     needs: [validate-source]
     runs-on: windows-2022
     env:
@@ -235,6 +236,7 @@ jobs:
           sha256sum target/release/heelonvault.exe
 
   build-and-verify-macos:
+    if: github.event_name != 'pull_request'
     needs: [validate-source]
     runs-on: macos-14
 
@@ -257,6 +259,16 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
+
+      - name: Verify Rust toolchain path (macOS)
+        run: |
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          hash -r
+          command -v cargo
+          cargo --version
+          rustup show active-toolchain
 
       - name: Build
         run: cargo build --release --locked
@@ -268,6 +280,7 @@ jobs:
 
   check-sbom:
     name: Check SBOM is up-to-date
+    if: github.event_name != 'pull_request'
     needs:
       - build-and-verify
       - build-and-verify-fedora
