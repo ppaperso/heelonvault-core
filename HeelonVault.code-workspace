@@ -1,0 +1,17 @@
+{
+    "folders": [
+        {
+            "name": "HeelonVault - Projet",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder}/venv-dev/bin/python3",
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/.git": true,
+            "**/venv": true,        // Cache le venv de prod pour ne pas s'y perdre
+            "**/venv-dev": false    // Garde le venv de dev visible pour debug
+        }
+    }
+}

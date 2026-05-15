@@ -1,0 +1,3 @@
+# Répertoire de données de développement/test
+# Ce répertoire est ignoré par Git (.gitignore)
+# Les données ici sont totalement isolées de la production

@@ -1,0 +1,330 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-source:
+    name: Validate source code quality
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Linux dependencies for validation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            desktop-file-utils \
+            pkg-config \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            libsqlite3-dev \
+            libglib2.0-dev \
+            libglib2.0-dev-bin
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint – security and best practices
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Validate desktop entry
+        run: desktop-file-validate heelonvault.desktop
+
+  supply-chain-policy:
+    name: Enforce supply-chain policy
+    needs: [validate-source]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny (pinned pre-compiled binary)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.17.0
+          fallback: none
+
+      - name: Enforce advisories policy (vuln, unmaintained, yanked)
+        run: cargo deny check advisories
+
+  build-and-verify:
+    needs: [validate-source, supply-chain-policy]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            desktop-file-utils \
+            pkg-config \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            libsqlite3-dev \
+            libglib2.0-dev \
+            libglib2.0-dev-bin
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Compile tests
+        run: cargo test --locked --all-targets --no-run
+
+      - name: Package dist
+        run: |
+          set -euo pipefail
+
+          rm -rf dist
+          mkdir -p dist
+          cp target/release/heelonvault dist/
+          cp scripts/install.sh dist/install.sh
+          cp scripts/install-core.sh dist/install-core.sh
+          cp scripts/install-ubuntu.sh dist/install-ubuntu.sh
+          cp scripts/install-rhel.sh dist/install-rhel.sh
+          cp scripts/remove.sh dist/remove.sh
+          cp scripts/remove-core.sh dist/remove-core.sh
+          cp scripts/remove-ubuntu.sh dist/remove-ubuntu.sh
+          cp scripts/remove-rhel.sh dist/remove-rhel.sh
+          cp scripts/smoke-test.sh dist/smoke-test.sh
+          cp heelonvault.desktop dist/
+          cp README.md dist/
+          cp docs/QUICKSTART.md dist/
+          cp -r assets dist/
+          (cd dist && sha256sum heelonvault > heelonvault.sha256)
+          chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh dist/heelonvault dist/smoke-test.sh
+
+      - name: Smoke test – install
+        run: ./dist/smoke-test.sh --install ./dist/install.sh
+
+      - name: Smoke test – uninstall
+        run: ./dist/smoke-test.sh --remove ./dist/remove.sh
+
+  build-and-verify-fedora:
+    needs: [validate-source, supply-chain-policy]
+    runs-on: ubuntu-24.04
+    container: fedora:latest
+
+    steps:
+      - name: Install container bootstrap tools
+        run: |
+          dnf install -y \
+            git \
+            tar \
+            gzip \
+            coreutils \
+            which
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Fedora build dependencies
+        run: |
+          dnf install -y \
+            gcc \
+            desktop-file-utils \
+            pkgconf-pkg-config \
+            gtk4-devel \
+            libadwaita-devel \
+            sqlite-devel \
+            glib2-devel \
+            glib2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Validate desktop entry
+        run: desktop-file-validate heelonvault.desktop
+
+      - name: Package dist
+        run: |
+          set -euo pipefail
+
+          rm -rf dist
+          mkdir -p dist
+          cp target/release/heelonvault dist/
+          cp scripts/install.sh dist/install.sh
+          cp scripts/install-core.sh dist/install-core.sh
+          cp scripts/install-ubuntu.sh dist/install-ubuntu.sh
+          cp scripts/install-rhel.sh dist/install-rhel.sh
+          cp scripts/remove.sh dist/remove.sh
+          cp scripts/remove-core.sh dist/remove-core.sh
+          cp scripts/remove-ubuntu.sh dist/remove-ubuntu.sh
+          cp scripts/remove-rhel.sh dist/remove-rhel.sh
+          cp scripts/smoke-test.sh dist/smoke-test.sh
+          cp heelonvault.desktop dist/
+          cp README.md dist/
+          cp docs/QUICKSTART.md dist/
+          cp -r assets dist/
+          (cd dist && sha256sum heelonvault > heelonvault.sha256)
+          chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh dist/heelonvault dist/smoke-test.sh
+
+      - name: Smoke test – install (Fedora)
+        run: ./dist/smoke-test.sh --install ./dist/install.sh
+
+      - name: Smoke test – uninstall (Fedora)
+        run: ./dist/smoke-test.sh --remove ./dist/remove.sh
+
+  build-and-verify-windows:
+    needs: [validate-source, supply-chain-policy]
+    runs-on: windows-2022
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup MSYS2 and Windows build dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-rust
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-gtk4
+            mingw-w64-x86_64-libadwaita
+            mingw-w64-x86_64-sqlite3
+            mingw-w64-x86_64-glib2
+
+      - name: Verify MSYS2 toolchain
+        run: |
+          rustc --version
+          cargo --version
+          pkg-config --modversion gtk4
+          pkg-config --modversion libadwaita-1
+
+      - name: Build Windows release binary
+        run: cargo build --release --locked
+
+      - name: Verify Windows release binary exists
+        run: test -f target/release/heelonvault.exe
+
+      - name: Report Windows release binary details
+        run: |
+          ls -lh target/release/heelonvault.exe
+          sha256sum target/release/heelonvault.exe
+
+  build-and-verify-macos:
+    needs: [validate-source, supply-chain-policy]
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install macOS build dependencies
+        run: |
+          brew update || true
+          for formula in gtk4 libadwaita gdk-pixbuf sqlite pkgconf; do
+            brew list "$formula" >/dev/null 2>&1 || (brew install "$formula" || brew install --no-quarantine "$formula")
+          done
+          # Homebrew installs Rust transitively (via glib/gobject-introspection).
+          # Unlink it so its cargo/rustup-init do not shadow the toolchain below.
+          brew unlink rust 2>/dev/null || true
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Validate binary (static – no display server available)
+        run: |
+          file target/release/heelonvault
+          otool -L target/release/heelonvault
+
+  check-sbom:
+    name: Check SBOM is up-to-date
+    needs:
+      - build-and-verify
+      - build-and-verify-fedora
+      - build-and-verify-macos
+      - build-and-verify-windows
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-cyclonedx (pinned pre-compiled binary)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-cyclonedx@0.5.9
+          fallback: none
+
+      - name: Generate fresh SBOM
+        run: |
+          cargo cyclonedx \
+            --format json \
+            --spec-version 1.4 \
+            --override-filename sbom-fresh
+          mv sbom-fresh.json /tmp/sbom-fresh.json
+
+      - name: Compare pURLs (order-insensitive, ignores volatile fields)
+        run: |
+          extract_purls() {
+            jq -r '.components[]? | .purl // empty' "$1" | sort -u
+          }
+
+          COMMITTED=$(extract_purls sbom.cyclonedx.json)
+          FRESH=$(extract_purls /tmp/sbom-fresh.json)
+
+          if [ "$COMMITTED" != "$FRESH" ]; then
+            echo "::error::sbom.cyclonedx.json is out of date."
+            echo "::error::Run './scripts/generate-sbom.sh' and commit the result."
+            echo ""
+            echo "--- Diff (committed vs fresh) ---"
+            diff <(echo "$COMMITTED") <(echo "$FRESH") || true
+            exit 1
+          fi
+
+          COUNT=$(echo "$FRESH" | wc -l | tr -d ' ')
+          echo "SBOM is up-to-date (${COUNT} pURLs matched)."
