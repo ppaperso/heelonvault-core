@@ -251,11 +251,18 @@ Depending on granted permissions, HeelonVault supports:
 - `.hvb` export;
 - operations constrained by RBAC rules.
 
+The CSV import flow is now explicit and guided:
+
+- **Step 1 - Preview**: after selecting a file, the app shows detected secrets, importable rows, and rows that require manual review.
+- **Step 2 - Progress**: during import, a dedicated window displays live progress (processed/imported/failed).
+- **Step 3 - Final summary**: the app shows a detailed report (total/imported/failed) and lists the first non-imported rows with reasons for manual correction.
+
 Before importing:
 
 - verify file format and encoding;
 - clean unnecessary columns;
 - confirm the correct target vault.
+- review the final summary and fix flagged rows before running a focused re-import.
 
 Before exporting:
 

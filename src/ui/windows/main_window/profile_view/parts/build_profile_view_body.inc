@@ -1528,6 +1528,7 @@
         let refresh_for_response = Rc::clone(&refresh_for_import);
         let begin_critical_for_response = Rc::clone(&begin_critical_for_import);
         let end_critical_for_response = Rc::clone(&end_critical_for_import);
+
         chooser.connect_response(move |dialog, response| {
             if response != gtk4::ResponseType::Accept {
                 dialog.destroy();
@@ -1563,55 +1564,249 @@
                 return;
             };
 
-            let (sender, receiver) = tokio::sync::oneshot::channel();
-            let import_for_task = Arc::clone(&import_for_response);
-            let secret_for_task = Arc::clone(&secret_for_response);
-            let vault_for_task = Arc::clone(&vault_for_response);
-            let runtime_for_task = runtime_for_response.clone();
-            begin_critical_for_response();
-            std::thread::spawn(move || {
-                let result = runtime_for_task.block_on(async move {
-                    import_for_task
-                        .import_csv(
-                            csv_path.as_path(),
-                            user_id,
-                            SecretBox::new(Box::new(master_key)),
-                            secret_for_task,
-                            vault_for_task,
-                        )
-                        .await
+            let preview = match import_for_response.preview_csv(csv_path.as_path()) {
+                Ok(preview) => preview,
+                Err(error) => {
+                    tracing::error!(error = %error, csv_file = %csv_path.display(), "csv import preview failed");
+                    MainWindow::show_feedback_dialog(
+                        &window_for_response,
+                        crate::tr!("profile-import-accept").as_str(),
+                        format!("Cannot read CSV preview:\n{}", error).as_str(),
+                    );
+                    return;
+                }
+            };
+
+            let file_name = csv_path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("CSV file")
+                .to_string();
+
+            let preview_body = format!(
+                "{}\n{}\n{}\n\n{}",
+                crate::i18n::tr_args(
+                    "profile-import-preview-file",
+                    &[("file", crate::i18n::I18nArg::Str(file_name.as_str()))],
+                ),
+                crate::i18n::tr_args(
+                    "profile-import-preview-detected",
+                    &[("count", crate::i18n::I18nArg::Num(preview.total_rows as i64))],
+                ),
+                crate::i18n::tr_args(
+                    "profile-import-preview-ready",
+                    &[("count", crate::i18n::I18nArg::Num(preview.importable_rows as i64))],
+                ),
+                crate::tr!("profile-import-preview-confirm"),
+            );
+
+            let preview_dialog = adw::MessageDialog::new(
+                Some(&window_for_response),
+                Some(crate::tr!("profile-import-preview-title").as_str()),
+                Some(preview_body.as_str()),
+            );
+            preview_dialog.add_response("cancel", crate::tr!("common-cancel").as_str());
+            preview_dialog.add_response("import", crate::tr!("profile-import-accept").as_str());
+            preview_dialog.set_default_response(Some("import"));
+            preview_dialog.set_close_response("cancel");
+
+            let window_for_preview = window_for_response.clone();
+            let import_for_preview = Arc::clone(&import_for_response);
+            let secret_for_preview = Arc::clone(&secret_for_response);
+            let vault_for_preview = Arc::clone(&vault_for_response);
+            let runtime_for_preview = runtime_for_response.clone();
+            let refresh_for_preview = Rc::clone(&refresh_for_response);
+            let begin_critical_for_preview = Rc::clone(&begin_critical_for_response);
+            let end_critical_for_preview = Rc::clone(&end_critical_for_response);
+
+            preview_dialog.connect_response(None, move |preview_dialog, preview_response| {
+                preview_dialog.close();
+                if preview_response != "import" {
+                    return;
+                }
+
+                let progress_dialog = Rc::new(
+                    crate::ui::dialogs::import_progress_dialog::ImportProgressDialog::show(
+                        &window_for_preview,
+                        file_name.as_str(),
+                        preview.total_rows,
+                    ),
+                );
+                let progress_done = progress_dialog.completed_flag();
+                let (progress_tx, progress_rx) = std::sync::mpsc::channel::<
+                    crate::services::import_service::ImportProgressEvent,
+                >();
+
+                let progress_dialog_for_timer = Rc::clone(&progress_dialog);
+                glib::timeout_add_local(std::time::Duration::from_millis(80), move || {
+                    while let Ok(event) = progress_rx.try_recv() {
+                        match event {
+                            crate::services::import_service::ImportProgressEvent::Started {
+                                total_rows,
+                                importable_rows,
+                                failed_rows,
+                            } => {
+                                progress_dialog_for_timer.update(
+                                    failed_rows,
+                                    total_rows,
+                                    0,
+                                    failed_rows,
+                                    Some(&format!(
+                                        "Pre-flight: {} ready, {} to review",
+                                        importable_rows, failed_rows
+                                    )),
+                                );
+                            }
+                            crate::services::import_service::ImportProgressEvent::Progress {
+                                processed,
+                                total_rows,
+                                imported,
+                                failed,
+                                current_title,
+                            } => {
+                                progress_dialog_for_timer.update(
+                                    processed,
+                                    total_rows,
+                                    imported,
+                                    failed,
+                                    current_title.as_deref(),
+                                );
+                            }
+                        }
+                    }
+
+                    if progress_done.get() {
+                        glib::ControlFlow::Break
+                    } else {
+                        glib::ControlFlow::Continue
+                    }
                 });
-                let _ = sender.send(result);
+
+                let (sender, receiver) = tokio::sync::oneshot::channel();
+                let import_for_task = Arc::clone(&import_for_preview);
+                let secret_for_task = Arc::clone(&secret_for_preview);
+                let vault_for_task = Arc::clone(&vault_for_preview);
+                let runtime_for_task = runtime_for_preview.clone();
+                let csv_path_for_task = csv_path.clone();
+                let master_key_for_task = master_key.clone();
+                begin_critical_for_preview();
+                std::thread::spawn(move || {
+                    let result = runtime_for_task.block_on(async move {
+                        import_for_task
+                            .import_csv(
+                                csv_path_for_task.as_path(),
+                                user_id,
+                                SecretBox::new(Box::new(master_key_for_task)),
+                                secret_for_task,
+                                vault_for_task,
+                                Some(progress_tx),
+                            )
+                            .await
+                    });
+                    let _ = sender.send(result);
+                });
+
+                let window_for_result = window_for_preview.clone();
+                let refresh_for_result = Rc::clone(&refresh_for_preview);
+                let end_critical_for_result = Rc::clone(&end_critical_for_preview);
+                let progress_dialog_for_result = Rc::clone(&progress_dialog);
+                glib::MainContext::default().spawn_local(async move {
+                    let result = receiver.await;
+                    end_critical_for_result();
+                    match result {
+                        Ok(Ok(report)) => {
+                            refresh_for_result();
+                            progress_dialog_for_result.complete(
+                                crate::i18n::tr_args(
+                                    "profile-import-progress-summary",
+                                    &[
+                                        ("imported", crate::i18n::I18nArg::Num(report.imported as i64)),
+                                        ("failed", crate::i18n::I18nArg::Num(report.failed as i64)),
+                                    ],
+                                )
+                                .as_str(),
+                            );
+                            progress_dialog_for_result.close();
+
+                            let mut body = crate::i18n::tr_args(
+                                "profile-import-summary-body",
+                                &[
+                                    ("total", crate::i18n::I18nArg::Num(report.total_rows as i64)),
+                                    ("imported", crate::i18n::I18nArg::Num(report.imported as i64)),
+                                    ("failed", crate::i18n::I18nArg::Num(report.failed as i64)),
+                                ],
+                            );
+                            if !report.failures.is_empty() {
+                                body.push_str("\n\n");
+                                body.push_str(crate::tr!("profile-import-summary-followup").as_str());
+                                for failure in report.failures.iter().take(10) {
+                                    body.push_str("\n- ");
+                                    body.push_str(
+                                        crate::i18n::tr_args(
+                                            "profile-import-summary-item",
+                                            &[
+                                                ("row", crate::i18n::I18nArg::Num(failure.source_row as i64)),
+                                                ("title", crate::i18n::I18nArg::Str(failure.title.as_str())),
+                                                ("reason", crate::i18n::I18nArg::Str(failure.reason.as_str())),
+                                            ],
+                                        )
+                                        .as_str(),
+                                    );
+                                }
+                                if report.failures.len() > 10 {
+                                    body.push_str("\n- ");
+                                    body.push_str(
+                                        crate::i18n::tr_args(
+                                            "profile-import-summary-more",
+                                            &[(
+                                                "count",
+                                                crate::i18n::I18nArg::Num((report.failures.len() - 10) as i64),
+                                            )],
+                                        )
+                                        .as_str(),
+                                    );
+                                }
+                            }
+
+                            MainWindow::show_feedback_dialog(
+                                &window_for_result,
+                                crate::tr!("profile-import-accept").as_str(),
+                                body.as_str(),
+                            );
+                        }
+                        Ok(Err(error)) => {
+                            progress_dialog_for_result.close();
+                            tracing::error!(
+                                error = %error,
+                                "csv import failed in profile view"
+                            );
+                            MainWindow::show_feedback_dialog(
+                                &window_for_result,
+                                crate::tr!("profile-import-accept").as_str(),
+                                crate::i18n::tr_args(
+                                    "profile-import-error-body",
+                                    &[("error", crate::i18n::I18nArg::Str(error.to_string().as_str()))],
+                                )
+                                .as_str(),
+                            );
+                        }
+                        Err(error) => {
+                            progress_dialog_for_result.close();
+                            tracing::error!(
+                                error = %error,
+                                "csv import worker channel failed"
+                            );
+                            MainWindow::show_feedback_dialog(
+                                &window_for_result,
+                                crate::tr!("profile-import-accept").as_str(),
+                                crate::tr!("profile-import-failed").as_str(),
+                            );
+                        }
+                    }
+                });
             });
 
-            let window_for_result = window_for_response.clone();
-            let refresh_for_result = Rc::clone(&refresh_for_response);
-            let end_critical_for_result = Rc::clone(&end_critical_for_response);
-            glib::MainContext::default().spawn_local(async move {
-                let result = receiver.await;
-                end_critical_for_result();
-                match result {
-                    Ok(Ok(count)) => {
-                        refresh_for_result();
-                        let message = crate::i18n::tr_args(
-                            "profile-import-success-body",
-                            &[("count", crate::i18n::I18nArg::Num(count as i64))],
-                        );
-                        MainWindow::show_feedback_dialog(
-                            &window_for_result,
-                            crate::tr!("profile-import-accept").as_str(),
-                            message.as_str(),
-                        );
-                    }
-                    _ => {
-                        MainWindow::show_feedback_dialog(
-                            &window_for_result,
-                            crate::tr!("profile-import-accept").as_str(),
-                            crate::tr!("profile-import-failed").as_str(),
-                        );
-                    }
-                }
-            });
+            preview_dialog.present();
         });
 
         chooser.show();

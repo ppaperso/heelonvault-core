@@ -300,6 +300,8 @@ fn run_application(
     let runtime_handle = runtime.handle().clone();
     let runtime_for_activate = Arc::clone(&runtime);
     let app_context_for_activate = Arc::clone(&app_context);
+    let runtime_for_shutdown = Arc::clone(&runtime);
+    let app_context_for_shutdown = Arc::clone(&app_context);
     let needs_bootstrap_for_activate = Rc::new(Cell::new(start_needs_bootstrap));
     application.connect_activate(move |app| {
         let context = Arc::clone(&app_context_for_activate);
@@ -561,9 +563,11 @@ fn run_application(
                     let active_main_for_logout = Rc::clone(&active_main_for_success);
                     let present_for_logout = Rc::clone(&present_holder_for_logout);
                     main_for_success.set_on_logout(Rc::new(move || {
+                        info!("main window logout requested, clearing sensitive session and returning to login");
                         main_for_logout.clear_sensitive_session();
                         main_for_logout.window().set_visible(false);
                         *active_main_for_logout.borrow_mut() = None;
+                        info!("main window logout completed, login screen will be presented again");
                         if let Some(present_login_cb) = present_for_logout.borrow().as_ref() {
                             present_login_cb.as_ref()();
                         }
@@ -603,6 +607,18 @@ fn run_application(
         *present_login_holder.borrow_mut() = Some(Rc::clone(&present_login));
 
         present_login.as_ref()();
+    });
+
+    application.connect_shutdown(move |_| {
+        info!("application shutdown requested, closing services");
+        app_context_for_shutdown.auth_service.signal_shutdown();
+
+        let pool = app_context_for_shutdown.pool.clone();
+        runtime_for_shutdown.block_on(async move {
+            pool.close().await;
+        });
+
+        info!("application shutdown completed");
     });
 
     let _exit_code = application.run();

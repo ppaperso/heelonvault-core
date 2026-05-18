@@ -38,7 +38,12 @@
         let on_logout_for_close = Rc::clone(&on_logout);
         let critical_ops_for_close = Rc::clone(&critical_ops_in_flight);
         window.connect_close_request(move |win| {
+            info!("main window close requested");
             if critical_ops_for_close.get() > 0 {
+                warn!(
+                    critical_ops_in_flight = critical_ops_for_close.get(),
+                    "main window close deferred because a critical operation is still running"
+                );
                 Self::show_feedback_dialog(
 					win,
 					"Opération en cours",
@@ -52,6 +57,8 @@
                 win.height(),
                 win.is_fullscreen(),
             );
+
+            info!("main window state persisted, routing close request to logout flow");
 
             if let Some(callback) = on_logout_for_close.borrow().as_ref() {
                 callback();

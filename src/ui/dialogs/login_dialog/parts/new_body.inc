@@ -1003,6 +1003,10 @@
         let init_clipboard_dirty_for_close = Rc::clone(&init_clipboard_dirty);
         let init_clipboard_timer_for_close = Rc::clone(&init_clipboard_timer);
         window.connect_close_request(move |win| {
+            info!(
+                authenticated = authenticated_for_close.get(),
+                "login window close requested"
+            );
             window_state::save_login_or_bootstrap_window_size(
                 in_bootstrap_mode,
                 win.width(),
@@ -1020,7 +1024,10 @@
                 init_clipboard_dirty_for_close.set(false);
             }
             if !authenticated_for_close.get() {
+                warn!("login window closed before authentication, requesting application quit");
                 on_cancelled_for_close();
+            } else {
+                info!("login window closed after authentication, returning to application flow");
             }
             glib::Propagation::Proceed
         });

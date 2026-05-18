@@ -9,6 +9,21 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — Sprint v1.1.0
 
+### UX import CSV (premium)
+
+- `profile_view`: refonte du flux d'import CSV avec 3 etapes utilisateur:
+  - previsualisation du fichier (secrets detectes/importables/a revoir),
+  - progression visible pendant l'import,
+  - bilan final detaille avec les lignes a reprise manuelle.
+- `import_service`: import tolerant aux erreurs ligne par ligne avec rapport de synthese (`imported`, `failed`, details par ligne) au lieu d'un echec global opaque.
+- `ui/dialogs/import_progress_dialog`: nouveau dialogue dedie a la progression d'import.
+- Localisation FR/EN complete des nouveaux messages d'import (preview, progression, resume, erreurs).
+
+### Migration legacy v0.4 -> v1.1
+
+- Ajout du script `scripts/export-legacy-v0.4-to-csv.py` pour exporter les bases legacy vers un CSV compatible import v1.1.
+- Support des layouts legacy par `--profile`, `--workspace-uuid` ou `--db-path` + `--salt-path`.
+
 ### Dette technique v1.1.0 (issues #5, #6, #7, #8, #9)
 
 - `main`: déplacement de `env::set_var("GSK_RENDERER", "gl")` avant l'initialisation du runtime Tokio.

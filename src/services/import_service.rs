@@ -1,9 +1,9 @@
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{mpsc::Sender as ProgressSender, Arc};
 
 use secrecy::{ExposeSecret, SecretBox};
 use serde::Serialize;
-use tracing::info;
+use tracing::{error, info};
 use url::Url;
 use uuid::Uuid;
 
@@ -12,8 +12,48 @@ use crate::models::SecretType;
 use crate::services::secret_service::SecretService;
 use crate::services::vault_service::VaultService;
 
+#[derive(Debug, Clone)]
+pub struct ImportCsvFailure {
+    pub source_row: usize,
+    pub title: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportCsvPreview {
+    pub total_rows: usize,
+    pub importable_rows: usize,
+    pub failed_rows: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportCsvReport {
+    pub total_rows: usize,
+    pub imported: usize,
+    pub failed: usize,
+    pub failures: Vec<ImportCsvFailure>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ImportProgressEvent {
+    Started {
+        total_rows: usize,
+        importable_rows: usize,
+        failed_rows: usize,
+    },
+    Progress {
+        processed: usize,
+        total_rows: usize,
+        imported: usize,
+        failed: usize,
+        current_title: Option<String>,
+    },
+}
+
 #[trait_variant::make(ImportService: Send)]
 pub trait LocalImportService {
+    fn preview_csv(&self, csv_file_path: &Path) -> Result<ImportCsvPreview, AppError>;
+
     async fn import_csv<TSecret, TVault>(
         &self,
         csv_file_path: &Path,
@@ -21,7 +61,8 @@ pub trait LocalImportService {
         admin_master_key: SecretBox<Vec<u8>>,
         secret_service: Arc<TSecret>,
         vault_service: Arc<TVault>,
-    ) -> Result<usize, AppError>
+        progress: Option<ProgressSender<ImportProgressEvent>>,
+    ) -> Result<ImportCsvReport, AppError>
     where
         TSecret: SecretService + Send + Sync + 'static,
         TVault: VaultService + Send + Sync + 'static;
@@ -36,6 +77,15 @@ const MAX_FIELD_LEN: usize = 2048;
 impl ImportServiceImpl {
     pub fn new() -> Self {
         Self
+    }
+
+    pub fn preview_csv(csv_file_path: &Path) -> Result<ImportCsvPreview, AppError> {
+        let outcome = Self::parse_csv_rows(csv_file_path)?;
+        Ok(ImportCsvPreview {
+            total_rows: outcome.total_rows,
+            importable_rows: outcome.rows.len(),
+            failed_rows: outcome.failures.len(),
+        })
     }
 
     fn validate_csv_file_size(csv_file_path: &Path) -> Result<(), AppError> {
@@ -74,7 +124,7 @@ impl ImportServiceImpl {
         }
     }
 
-    fn parse_csv_rows(csv_file_path: &Path) -> Result<Vec<CsvRow>, AppError> {
+    fn parse_csv_rows(csv_file_path: &Path) -> Result<CsvParseOutcome, AppError> {
         Self::validate_csv_file_size(csv_file_path)?;
 
         let mut reader = csv::ReaderBuilder::new()
@@ -112,35 +162,107 @@ impl ImportServiceImpl {
         let notes_idx = idx("notes")?;
 
         let mut rows = Vec::new();
+        let mut failures = Vec::new();
         for (row_number, record) in reader.records().enumerate() {
-            let record = record
-                .map_err(|error| AppError::Validation(format!("invalid csv record: {error}")))?;
-
-            if rows.len() >= MAX_CSV_ROWS {
-                return Err(AppError::Validation(format!(
-                    "csv contains too many rows (max {MAX_CSV_ROWS})"
-                )));
+            if rows.len() + failures.len() >= MAX_CSV_ROWS {
+                break;
             }
 
             let csv_row = row_number + 2;
-            let name = Self::required_field(&record, name_idx, "name", csv_row)?;
-            let url = Self::required_field(&record, url_idx, "url", csv_row)?;
-            let username = Self::required_field(&record, username_idx, "username", csv_row)?;
-            let password = Self::required_field(&record, password_idx, "password", csv_row)?;
-            let notes = Self::required_field(&record, notes_idx, "notes", csv_row)?;
+            let record = match record {
+                Ok(record) => record,
+                Err(error) => {
+                    failures.push(ImportCsvFailure {
+                        source_row: csv_row,
+                        title: "Imported secret".to_string(),
+                        reason: format!("invalid csv record: {error}"),
+                    });
+                    continue;
+                }
+            };
 
-            Self::validate_field_length("name", name.as_str())?;
-            Self::validate_field_length("url", url.as_str())?;
-            Self::validate_field_length("username", username.as_str())?;
-            Self::validate_field_length("password", password.as_str())?;
-            Self::validate_field_length("notes", notes.as_str())?;
-            Self::validate_optional_url(url.as_str())?;
+            let name = match Self::required_field(&record, name_idx, "name", csv_row) {
+                Ok(value) => value,
+                Err(error) => {
+                    failures.push(ImportCsvFailure {
+                        source_row: csv_row,
+                        title: "Imported secret".to_string(),
+                        reason: error.to_string(),
+                    });
+                    continue;
+                }
+            };
+            let url = match Self::required_field(&record, url_idx, "url", csv_row) {
+                Ok(value) => value,
+                Err(error) => {
+                    failures.push(ImportCsvFailure {
+                        source_row: csv_row,
+                        title: name.clone(),
+                        reason: error.to_string(),
+                    });
+                    continue;
+                }
+            };
+            let username = match Self::required_field(&record, username_idx, "username", csv_row) {
+                Ok(value) => value,
+                Err(error) => {
+                    failures.push(ImportCsvFailure {
+                        source_row: csv_row,
+                        title: name.clone(),
+                        reason: error.to_string(),
+                    });
+                    continue;
+                }
+            };
+            let password = match Self::required_field(&record, password_idx, "password", csv_row) {
+                Ok(value) => value,
+                Err(error) => {
+                    failures.push(ImportCsvFailure {
+                        source_row: csv_row,
+                        title: name.clone(),
+                        reason: error.to_string(),
+                    });
+                    continue;
+                }
+            };
+            let notes = match Self::required_field(&record, notes_idx, "notes", csv_row) {
+                Ok(value) => value,
+                Err(error) => {
+                    failures.push(ImportCsvFailure {
+                        source_row: csv_row,
+                        title: name.clone(),
+                        reason: error.to_string(),
+                    });
+                    continue;
+                }
+            };
+
+            if let Err(error) = Self::validate_field_length("name", name.as_str())
+                .and_then(|_| Self::validate_field_length("url", url.as_str()))
+                .and_then(|_| Self::validate_field_length("username", username.as_str()))
+                .and_then(|_| Self::validate_field_length("password", password.as_str()))
+                .and_then(|_| Self::validate_field_length("notes", notes.as_str()))
+                .and_then(|_| Self::validate_optional_url(url.as_str()))
+            {
+                failures.push(ImportCsvFailure {
+                    source_row: csv_row,
+                    title: name.clone(),
+                    reason: error.to_string(),
+                });
+                continue;
+            }
 
             if password.is_empty() {
+                failures.push(ImportCsvFailure {
+                    source_row: csv_row,
+                    title: name.clone(),
+                    reason: "password is empty".to_string(),
+                });
                 continue;
             }
 
             rows.push(CsvRow {
+                source_row: csv_row,
                 name,
                 url,
                 username,
@@ -149,7 +271,11 @@ impl ImportServiceImpl {
             });
         }
 
-        Ok(rows)
+        Ok(CsvParseOutcome {
+            total_rows: rows.len() + failures.len(),
+            rows,
+            failures,
+        })
     }
 
     fn required_field(
@@ -169,6 +295,12 @@ impl ImportServiceImpl {
     }
 }
 
+struct CsvParseOutcome {
+    total_rows: usize,
+    rows: Vec<CsvRow>,
+    failures: Vec<ImportCsvFailure>,
+}
+
 impl Default for ImportServiceImpl {
     fn default() -> Self {
         Self::new()
@@ -176,6 +308,10 @@ impl Default for ImportServiceImpl {
 }
 
 impl ImportService for ImportServiceImpl {
+    fn preview_csv(&self, csv_file_path: &Path) -> Result<ImportCsvPreview, AppError> {
+        Self::preview_csv(csv_file_path)
+    }
+
     async fn import_csv<TSecret, TVault>(
         &self,
         csv_file_path: &Path,
@@ -183,17 +319,40 @@ impl ImportService for ImportServiceImpl {
         admin_master_key: SecretBox<Vec<u8>>,
         secret_service: Arc<TSecret>,
         vault_service: Arc<TVault>,
-    ) -> Result<usize, AppError>
+        progress: Option<ProgressSender<ImportProgressEvent>>,
+    ) -> Result<ImportCsvReport, AppError>
     where
         TSecret: SecretService + Send + Sync + 'static,
         TVault: VaultService + Send + Sync + 'static,
     {
-        let rows = Self::parse_csv_rows(csv_file_path)?;
-        if rows.is_empty() {
-            return Ok(0);
+        let outcome = match Self::parse_csv_rows(csv_file_path) {
+            Ok(rows) => rows,
+            Err(error) => {
+                error!(csv_file = %csv_file_path.display(), error = %error, "csv import parsing failed");
+                return Err(error);
+            }
+        };
+        if let Some(progress) = progress.as_ref() {
+            let _ = progress.send(ImportProgressEvent::Started {
+                total_rows: outcome.total_rows,
+                importable_rows: outcome.rows.len(),
+                failed_rows: outcome.failures.len(),
+            });
         }
 
-        let vaults = vault_service.list_user_vaults(admin_user_id).await?;
+        if outcome.rows.is_empty() && outcome.failures.is_empty() {
+            return Ok(ImportCsvReport {
+                total_rows: 0,
+                imported: 0,
+                failed: 0,
+                failures: vec![],
+            });
+        }
+
+        let vaults = vault_service.list_user_vaults(admin_user_id).await.map_err(|error| {
+            error!(admin_user_id = %admin_user_id, error = %error, "csv import failed while listing vaults");
+            error
+        })?;
         let first_vault = vaults
             .into_iter()
             .next()
@@ -204,10 +363,19 @@ impl ImportService for ImportServiceImpl {
                 first_vault.id,
                 SecretBox::new(Box::new(admin_master_key.expose_secret().clone())),
             )
-            .await?;
+            .await
+            .map_err(|error| {
+                error!(vault_id = %first_vault.id, error = %error, "csv import failed while opening vault");
+                error
+            })?;
 
         let mut imported_count = 0usize;
-        for row in rows {
+        let mut failures = outcome.failures;
+        let mut processed_count = failures.len();
+
+        for row in outcome.rows {
+            let secret_title = row.title_display();
+            let password_bytes = row.password.into_bytes();
             let metadata = serde_json::to_string(&CsvImportMetadata {
                 login: row.username,
                 url: row.url,
@@ -224,7 +392,7 @@ impl ImportService for ImportServiceImpl {
                 Some(row.name)
             };
 
-            secret_service
+            let create_result = secret_service
                 .create_secret(
                     first_vault.id,
                     SecretType::Password,
@@ -232,28 +400,75 @@ impl ImportService for ImportServiceImpl {
                     Some(metadata),
                     Some("import,csv".to_string()),
                     None,
-                    SecretBox::new(Box::new(row.password.into_bytes())),
+                    SecretBox::new(Box::new(password_bytes)),
                     SecretBox::new(Box::new(vault_key.expose_secret().clone())),
                 )
-                .await?;
-            imported_count += 1;
+                .await;
+
+            match create_result {
+                Ok(_) => {
+                    imported_count += 1;
+                }
+                Err(error) => {
+                    error!(
+                        vault_id = %first_vault.id,
+                        source_row = row.source_row,
+                        secret_title = secret_title,
+                        error = %error,
+                        "csv import failed while creating secret"
+                    );
+                    failures.push(ImportCsvFailure {
+                        source_row: row.source_row,
+                        title: secret_title.clone(),
+                        reason: error.to_string(),
+                    });
+                }
+            }
+
+            processed_count += 1;
+            if let Some(progress) = progress.as_ref() {
+                let _ = progress.send(ImportProgressEvent::Progress {
+                    processed: processed_count,
+                    total_rows: outcome.total_rows,
+                    imported: imported_count,
+                    failed: failures.len(),
+                    current_title: Some(secret_title),
+                });
+            }
         }
 
         info!(
             imported_count,
+            failed_count = failures.len(),
             vault_id = %first_vault.id,
             "csv import completed successfully"
         );
-        Ok(imported_count)
+        Ok(ImportCsvReport {
+            total_rows: outcome.total_rows,
+            imported: imported_count,
+            failed: failures.len(),
+            failures,
+        })
     }
 }
 
 struct CsvRow {
+    source_row: usize,
     name: String,
     url: String,
     username: String,
     password: String,
     notes: String,
+}
+
+impl CsvRow {
+    fn title_display(&self) -> String {
+        if self.name.is_empty() {
+            "Imported secret".to_string()
+        } else {
+            self.name.clone()
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -293,10 +508,13 @@ mod tests {
         );
 
         let parsed = ImportServiceImpl::parse_csv_rows(path.as_path());
-        assert!(
-            matches!(parsed, Err(AppError::Validation(_))),
-            "invalid URL scheme should be rejected"
-        );
+        assert!(parsed.is_ok(), "invalid URL scheme should not abort preview");
+        let outcome = match parsed {
+            Ok(value) => value,
+            Err(_) => return,
+        };
+        assert!(outcome.rows.is_empty(), "invalid URL rows should not be importable");
+        assert_eq!(outcome.failures.len(), 1);
     }
 
     #[test]
@@ -316,6 +534,12 @@ mod tests {
 
         let parsed = ImportServiceImpl::parse_csv_rows(path.as_path());
         assert!(parsed.is_ok(), "http/https URLs should be accepted");
+        let outcome = match parsed {
+            Ok(value) => value,
+            Err(_) => return,
+        };
+        assert_eq!(outcome.rows.len(), 2);
+        assert!(outcome.failures.is_empty());
     }
 
     #[test]
@@ -334,10 +558,13 @@ mod tests {
         );
 
         let parsed = ImportServiceImpl::parse_csv_rows(path.as_path());
-        assert!(
-            matches!(parsed, Err(AppError::Validation(_))),
-            "truncated records should fail validation"
-        );
+        assert!(parsed.is_ok(), "truncated records should not abort preview");
+        let outcome = match parsed {
+            Ok(value) => value,
+            Err(_) => return,
+        };
+        assert!(outcome.rows.is_empty());
+        assert_eq!(outcome.failures.len(), 1);
     }
 
     #[test]
@@ -364,9 +591,7 @@ mod tests {
             Ok(value) => value,
             Err(_) => return,
         };
-        assert!(
-            rows.is_empty(),
-            "rows with empty password should be skipped"
-        );
+        assert!(rows.rows.is_empty(), "rows with empty password should be skipped");
+        assert_eq!(rows.failures.len(), 1);
     }
 }

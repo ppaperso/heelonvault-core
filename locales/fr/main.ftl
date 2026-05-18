@@ -330,6 +330,30 @@ profile-import-invalid-path = Chemin CSV invalide.
 profile-import-session-locked = Session verrouillee, reconnectez-vous.
 profile-import-success-body = Import CSV termine: { $count } secrets.
 profile-import-failed = Echec de l'import CSV.
+profile-import-preview-title = Apercu de l'import
+profile-import-preview-file = Fichier : { $file }
+profile-import-preview-detected = Secrets detectes : { $count }
+profile-import-preview-ready = Secrets importables : { $count }
+profile-import-preview-confirm = Continuer l'import ?
+profile-import-progress-title = Import en cours
+profile-import-progress-file = Fichier : { $file }
+profile-import-progress-preparing = Preparation de l'import...
+profile-import-progress-processing = Traitement : { $title }
+profile-import-progress-default = Import des secrets en cours...
+profile-import-progress-stats = Traites { $processed }/{ $total } • Importes { $imported } • Echecs { $failed }
+profile-import-progress-completed = Import termine
+profile-import-progress-summary = Importes { $imported } secrets • { $failed } echec(s)
+profile-import-summary-body = Import CSV termine.
+
+    Detectes : { $total }
+    Importes : { $imported }
+    Echecs : { $failed }
+profile-import-summary-followup = Suivi manuel :
+profile-import-summary-item = Ligne { $row } : { $title } — { $reason }
+profile-import-summary-more = ... et { $count } de plus
+profile-import-error-body = Import CSV impossible :
+
+    { $error }
 
 profile-language-title = Langue
 profile-language-subtitle = Definit la langue de l'interface pour les prochaines vues.

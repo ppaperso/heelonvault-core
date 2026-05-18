@@ -251,11 +251,18 @@ Selon les autorisations disponibles, HeelonVault permet :
 - l'export au format `.hvb` ;
 - des opérations encadrées par les règles RBAC.
 
+Le flux d'import CSV est désormais explicite et guidé :
+
+- **Étape 1 - Prévisualisation** : après sélection du fichier, l'application affiche le nombre de secrets détectés, le nombre importable, et les lignes à revoir manuellement.
+- **Étape 2 - Progression** : pendant l'import, une fenêtre dédiée affiche l'avancement (traités/importés/en échec) avec mise à jour en continu.
+- **Étape 3 - Résumé final** : l'application affiche un bilan détaillé (total/importés/en échec) et liste les premières lignes non importées avec la raison pour correction manuelle.
+
 Avant un import :
 
 - vérifier le format et l'encodage du fichier ;
 - nettoyer les colonnes inutiles ;
 - confirmer la destination correcte du coffre.
+- lire le résumé final et corriger les lignes signalées avant un second import ciblé.
 
 Avant un export :
 
