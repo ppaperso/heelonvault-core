@@ -485,7 +485,6 @@ mod tests {
     use std::path::Path;
 
     use super::ImportServiceImpl;
-    use crate::errors::AppError;
 
     fn write_csv(path: &Path, body: &str) {
         let write_result = fs::write(path, body.as_bytes());
