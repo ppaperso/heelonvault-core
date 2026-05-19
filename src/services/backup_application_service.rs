@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use secrecy::SecretString;
 use tracing::warn;
@@ -8,6 +9,14 @@ use crate::errors::AppError;
 use crate::repositories::user_repository::UserRepository;
 use crate::services::access_control::{check_permission, Action, Resource};
 use crate::services::backup_service::{BackupMetadata, BackupService};
+
+#[derive(Debug, Clone)]
+pub struct RotationBackupTicket {
+    pub backup_file_path: String,
+    pub recovery_phrase: SecretString,
+    pub metadata_sha256_hex: String,
+    pub created_at: String,
+}
 
 /// Application-level authorization wrapper for backup operations.
 /// Enforces access control before delegating to the underlying backup service.
@@ -28,6 +37,22 @@ pub trait LocalBackupApplicationService {
         actor_id: Uuid,
         backup_file_path: &Path,
         recovery_phrase: &SecretString,
+        new_sqlite_db_path: &Path,
+    ) -> Result<BackupMetadata, AppError>;
+
+    /// Export backup for master-key rotation and keep recovery material in-memory.
+    async fn export_rotation_backup_secured(
+        &self,
+        actor_id: Uuid,
+        sqlite_db_path: &Path,
+        backup_file_path: &Path,
+    ) -> Result<RotationBackupTicket, AppError>;
+
+    /// Restore backup from a previously created rotation backup ticket.
+    async fn restore_rotation_backup_secured(
+        &self,
+        actor_id: Uuid,
+        ticket: &RotationBackupTicket,
         new_sqlite_db_path: &Path,
     ) -> Result<BackupMetadata, AppError>;
 }
@@ -106,6 +131,52 @@ where
             recovery_phrase,
             new_sqlite_db_path,
         )
+    }
+
+    async fn export_rotation_backup_secured(
+        &self,
+        actor_id: Uuid,
+        sqlite_db_path: &Path,
+        backup_file_path: &Path,
+    ) -> Result<RotationBackupTicket, AppError> {
+        let recovery = self.backup_service.generate_recovery_key()?;
+        let metadata = BackupApplicationService::export_backup_secured(
+            self,
+            actor_id,
+            sqlite_db_path,
+            backup_file_path,
+            &recovery.recovery_phrase,
+        )
+        .await?;
+
+        let created_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_err| AppError::Internal)?
+            .as_secs()
+            .to_string();
+
+        Ok(RotationBackupTicket {
+            backup_file_path: backup_file_path.to_string_lossy().to_string(),
+            recovery_phrase: recovery.recovery_phrase,
+            metadata_sha256_hex: metadata.sha256_hex,
+            created_at,
+        })
+    }
+
+    async fn restore_rotation_backup_secured(
+        &self,
+        actor_id: Uuid,
+        ticket: &RotationBackupTicket,
+        new_sqlite_db_path: &Path,
+    ) -> Result<BackupMetadata, AppError> {
+        BackupApplicationService::restore_backup_secured(
+            self,
+            actor_id,
+            Path::new(ticket.backup_file_path.as_str()),
+            &ticket.recovery_phrase,
+            new_sqlite_db_path,
+        )
+        .await
     }
 }
 
@@ -377,5 +448,57 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(AppError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn admin_can_export_rotation_backup_ticket() {
+        let user_repo = StubUserRepo::default();
+        let admin_id = Uuid::new_v4();
+        user_repo.insert_user(admin_id, UserRole::Admin);
+
+        let backup_service = StubBackupService;
+        let app_service = BackupApplicationServiceImpl::new(user_repo, backup_service);
+
+        let result = app_service
+            .export_rotation_backup_secured(
+                admin_id,
+                std::path::Path::new("/tmp/db.db"),
+                std::path::Path::new("/tmp/backup.hvb"),
+            )
+            .await;
+
+        assert!(result.is_ok());
+        let ticket = result.expect("rotation ticket should be returned");
+        assert_eq!(ticket.backup_file_path, "/tmp/backup.hvb");
+        assert_eq!(ticket.metadata_sha256_hex, "abc123");
+    }
+
+    #[tokio::test]
+    async fn admin_can_restore_rotation_backup_ticket() {
+        let user_repo = StubUserRepo::default();
+        let admin_id = Uuid::new_v4();
+        user_repo.insert_user(admin_id, UserRole::Admin);
+
+        let backup_service = StubBackupService;
+        let app_service = BackupApplicationServiceImpl::new(user_repo, backup_service);
+
+        let ticket = app_service
+            .export_rotation_backup_secured(
+                admin_id,
+                std::path::Path::new("/tmp/db.db"),
+                std::path::Path::new("/tmp/backup.hvb"),
+            )
+            .await
+            .expect("rotation backup export should succeed");
+
+        let restore_result = app_service
+            .restore_rotation_backup_secured(
+                admin_id,
+                &ticket,
+                std::path::Path::new("/tmp/db_restored.db"),
+            )
+            .await;
+
+        assert!(restore_result.is_ok());
     }
 }
