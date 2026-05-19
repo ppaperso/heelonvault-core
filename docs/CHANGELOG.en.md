@@ -9,6 +9,14 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — v1.1.0 sprint
 
+### Master key rotation (hardening)
+
+- `user_service`: hardened `rotate_master_key_hardened` flow enabled with pre/post rotation validation.
+- Owner/shared vault key-envelope rewrap now applied through an atomic SQL mutation.
+- Sample-secret validation is wired into `VaultAndSampleSecret` mode.
+- Manual verification confirmed: master key change succeeds in real application runtime.
+- Automated verification confirmed: broad `cargo test` run is green.
+
 ### CSV import UX (premium)
 
 - `profile_view`: redesigned CSV import into a 3-step user flow:

@@ -314,3 +314,188 @@ async fn scenario_edit_secret_locates_non_first_vault() {
         .expect("updated secret must still be in second vault");
     assert_eq!(updated.title.as_deref(), Some("prod-login-updated"));
 }
+
+#[tokio::test]
+async fn scenario_edit_secret_moves_to_target_vault_and_updates_payload() {
+    let ctx_result = setup_ctx().await;
+    assert!(ctx_result.is_ok(), "setup must succeed");
+    let ctx = match ctx_result {
+        Ok(value) => value,
+        Err(_) => return,
+    };
+
+    let source_vault = ctx
+        .vault_service
+        .create_vault(
+            ctx.admin.id,
+            "A Source",
+            SecretBox::new(Box::new(ctx.admin.master_key.expose_secret().clone())),
+        )
+        .await
+        .expect("create source vault");
+
+    let target_vault = ctx
+        .vault_service
+        .create_vault(
+            ctx.admin.id,
+            "B Target",
+            SecretBox::new(Box::new(ctx.admin.master_key.expose_secret().clone())),
+        )
+        .await
+        .expect("create target vault");
+
+    let source_vault_key = ctx
+        .vault_service
+        .open_vault_for_user(
+            ctx.admin.id,
+            source_vault.id,
+            SecretBox::new(Box::new(ctx.admin.master_key.expose_secret().clone())),
+        )
+        .await
+        .expect("open source vault");
+
+    let target_vault_key = ctx
+        .vault_service
+        .open_vault_for_user(
+            ctx.admin.id,
+            target_vault.id,
+            SecretBox::new(Box::new(ctx.admin.master_key.expose_secret().clone())),
+        )
+        .await
+        .expect("open target vault");
+
+    let secret = ctx
+        .secret_service
+        .create_secret(
+            source_vault.id,
+            SecretType::Password,
+            Some("ops-login".to_string()),
+            Some("{\"login\":\"root\"}".to_string()),
+            Some("ops".to_string()),
+            None,
+            SecretBox::new(Box::new(b"source-pass".to_vec())),
+            SecretBox::new(Box::new(source_vault_key.expose_secret().clone())),
+        )
+        .await
+        .expect("create source secret");
+
+    let resolved_before_move = resolve_secret_vault_for_user(
+        ctx.vault_service.as_ref(),
+        ctx.secret_service.as_ref(),
+        ctx.admin.id,
+        secret.id,
+    )
+    .await
+    .expect("resolve source vault before move");
+    assert_eq!(
+        resolved_before_move, source_vault.id,
+        "secret must start in source vault"
+    );
+
+    ctx.secret_service
+        .move_secret(
+            secret.id,
+            target_vault.id,
+            SecretBox::new(Box::new(source_vault_key.expose_secret().clone())),
+            SecretBox::new(Box::new(target_vault_key.expose_secret().clone())),
+        )
+        .await
+        .expect("move secret to target vault");
+
+    ctx.secret_service
+        .update_secret(
+            secret.id,
+            Some("ops-login-moved".to_string()),
+            Some("{\"login\":\"root\",\"notes\":\"moved\"}".to_string()),
+            Some("ops,moved".to_string()),
+            None,
+            Some(SecretBox::new(Box::new(b"target-pass".to_vec()))),
+            SecretBox::new(Box::new(target_vault_key.expose_secret().clone())),
+        )
+        .await
+        .expect("update moved secret with target vault key");
+
+    let source_items_after = ctx
+        .secret_service
+        .list_by_vault(source_vault.id)
+        .await
+        .expect("list source vault after move");
+    assert!(
+        source_items_after
+            .into_iter()
+            .all(|item| item.id != secret.id),
+        "source vault must no longer contain moved secret"
+    );
+
+    let target_items_after = ctx
+        .secret_service
+        .list_by_vault(target_vault.id)
+        .await
+        .expect("list target vault after move");
+    let moved_item = target_items_after
+        .into_iter()
+        .find(|item| item.id == secret.id)
+        .expect("target vault must contain moved secret");
+    assert_eq!(moved_item.title.as_deref(), Some("ops-login-moved"));
+    assert_eq!(moved_item.tags.as_deref(), Some("ops,moved"));
+    let moved_metadata = moved_item
+        .metadata_json
+        .as_deref()
+        .expect("moved secret must carry metadata");
+    let moved_metadata_value: serde_json::Value =
+        serde_json::from_str(moved_metadata).expect("metadata_json must be valid json");
+    assert_eq!(
+        moved_metadata_value
+            .get("login")
+            .and_then(serde_json::Value::as_str),
+        Some("root")
+    );
+    assert_eq!(
+        moved_metadata_value
+            .get("notes")
+            .and_then(serde_json::Value::as_str),
+        Some("moved")
+    );
+
+    let resolved_after_move = resolve_secret_vault_for_user(
+        ctx.vault_service.as_ref(),
+        ctx.secret_service.as_ref(),
+        ctx.admin.id,
+        secret.id,
+    )
+    .await
+    .expect("resolve target vault after move");
+    assert_eq!(
+        resolved_after_move, target_vault.id,
+        "secret must resolve to target vault after move"
+    );
+
+    let decrypt_with_source_result = ctx
+        .secret_service
+        .get_secret(
+            secret.id,
+            SecretBox::new(Box::new(source_vault_key.expose_secret().clone())),
+        )
+        .await;
+    assert!(
+        decrypt_with_source_result.is_err(),
+        "source vault key must not decrypt the moved secret"
+    );
+
+    let decrypted_with_target = ctx
+        .secret_service
+        .get_secret(
+            secret.id,
+            SecretBox::new(Box::new(target_vault_key.expose_secret().clone())),
+        )
+        .await
+        .expect("decrypt moved secret with target vault key");
+    assert_eq!(
+        decrypted_with_target
+            .secret_value
+            .expose_secret()
+            .as_slice(),
+        b"target-pass",
+        "target vault key must decrypt the updated secret payload"
+    );
+}

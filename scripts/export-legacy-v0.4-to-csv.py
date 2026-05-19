@@ -3,6 +3,9 @@
 
 CSV output columns (required by HeelonVault 1.1 import):
 name,url,username,password,notes
+
+Optional columns (fill in manually after export if needed):
+category,tags
 """
 
 from __future__ import annotations
@@ -180,7 +183,7 @@ def main() -> int:
     with output_path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(
             fh,
-            fieldnames=["name", "url", "username", "password", "notes"],
+            fieldnames=["name", "url", "username", "password", "notes", "category", "tags"],
         )
         writer.writeheader()
 
@@ -209,6 +212,8 @@ def main() -> int:
                     "username": username,
                     "password": password,
                     "notes": merged_notes,
+                    "category": "",
+                    "tags": "",
                 }
             )
             exported += 1

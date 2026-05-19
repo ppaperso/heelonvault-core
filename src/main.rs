@@ -71,7 +71,14 @@ type VaultServiceHandle = VaultServiceImpl<
 >;
 type SecretServiceHandle =
     SecretServiceImpl<SqlxSecretRepository, CryptoServiceImpl, AuditLogServiceHandle>;
-type UserServiceHandle = UserServiceImpl<SqlxUserRepository, AuthServiceImpl<CryptoServiceImpl>>;
+type UserServiceHandle = UserServiceImpl<
+    SqlxUserRepository,
+    SqlxVaultRepository,
+    SqlxVaultEnvelopeRepository,
+    SqlxSecretRepository,
+    AuthServiceImpl<CryptoServiceImpl>,
+    CryptoServiceImpl,
+>;
 type TotpServiceHandle = SqliteTotpService<AuthServiceImpl<CryptoServiceImpl>, CryptoServiceImpl>;
 type AuditLogServiceHandle = AuditLogServiceImpl<SqlxUserRepository, SqlxAuditLogRepository>;
 type AdminServiceHandle =
@@ -789,7 +796,11 @@ fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
     ));
     let user_service = Arc::new(UserServiceImpl::new(
         SqlxUserRepository::new(pool.clone()),
+        SqlxVaultRepository::new(pool.clone()),
+        SqlxVaultEnvelopeRepository::new(pool.clone()),
+        SqlxSecretRepository::new(pool.clone()),
         Arc::clone(&auth_service),
+        CryptoServiceImpl::default(),
     ));
     let admin_service = Arc::new(AdminServiceImpl::new(
         SqlxUserRepository::new(pool.clone()),

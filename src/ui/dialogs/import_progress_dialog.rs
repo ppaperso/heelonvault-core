@@ -2,6 +2,9 @@ use gtk4::prelude::*;
 use libadwaita as adw;
 use std::cell::Cell;
 use std::rc::Rc;
+use std::time::Duration;
+
+use crate::services::import_service::ImportCsvFailure;
 
 #[derive(Clone)]
 pub struct ImportProgressDialog {
@@ -13,11 +16,7 @@ pub struct ImportProgressDialog {
 }
 
 impl ImportProgressDialog {
-    pub fn show(
-        parent: &adw::ApplicationWindow,
-        file_name: &str,
-        total_rows: usize,
-    ) -> Self {
+    pub fn show(parent: &adw::ApplicationWindow, file_name: &str, total_rows: usize) -> Self {
         let window = gtk4::Window::builder()
             .title(crate::tr!("profile-import-progress-title").as_str())
             .transient_for(parent)
@@ -142,5 +141,269 @@ impl ImportProgressDialog {
 
     pub fn completed_flag(&self) -> Rc<Cell<bool>> {
         Rc::clone(&self.completed)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn show_summary(
+        parent: &adw::ApplicationWindow,
+        file_name: &str,
+        total_rows: usize,
+        imported: usize,
+        failed: usize,
+        duration: Duration,
+        failures: &[ImportCsvFailure],
+        reject_report_path: Option<&str>,
+    ) {
+        let window = gtk4::Window::builder()
+            .title(crate::tr!("profile-import-progress-completed").as_str())
+            .transient_for(parent)
+            .modal(true)
+            .default_width(760)
+            .default_height(620)
+            .build();
+
+        let header = gtk4::HeaderBar::new();
+        header.set_show_title_buttons(true);
+        window.set_titlebar(Some(&header));
+
+        let root = gtk4::Box::new(gtk4::Orientation::Vertical, 18);
+        root.set_margin_top(24);
+        root.set_margin_bottom(24);
+        root.set_margin_start(24);
+        root.set_margin_end(24);
+
+        let hero = gtk4::Box::new(gtk4::Orientation::Horizontal, 16);
+        hero.set_halign(gtk4::Align::Start);
+
+        let icon = gtk4::Image::from_icon_name("document-import-symbolic");
+        icon.set_pixel_size(44);
+
+        let hero_text = gtk4::Box::new(gtk4::Orientation::Vertical, 6);
+        let title = gtk4::Label::new(Some(crate::tr!("profile-import-result-title").as_str()));
+        title.set_xalign(0.0);
+        title.add_css_class("title-1");
+        title.set_wrap(true);
+
+        let subtitle = gtk4::Label::new(Some(
+            crate::i18n::tr_args(
+                "profile-import-result-subtitle",
+                &[("file", crate::i18n::I18nArg::Str(file_name))],
+            )
+            .as_str(),
+        ));
+        subtitle.set_xalign(0.0);
+        subtitle.set_wrap(true);
+        subtitle.add_css_class("dim-label");
+
+        let duration_text = Self::format_duration(duration);
+        let summary = gtk4::Label::new(Some(
+            crate::i18n::tr_args(
+                "profile-import-result-summary",
+                &[
+                    ("imported", crate::i18n::I18nArg::Num(imported as i64)),
+                    ("failed", crate::i18n::I18nArg::Num(failed as i64)),
+                    (
+                        "duration",
+                        crate::i18n::I18nArg::Str(duration_text.as_str()),
+                    ),
+                ],
+            )
+            .as_str(),
+        ));
+        summary.set_xalign(0.0);
+        summary.set_wrap(true);
+        summary.add_css_class("heading");
+
+        hero_text.append(&title);
+        hero_text.append(&subtitle);
+        hero_text.append(&summary);
+        hero.append(&icon);
+        hero.append(&hero_text);
+
+        let stats_row = gtk4::Box::new(gtk4::Orientation::Horizontal, 12);
+        for (label_key, value, accent_class) in [
+            ("profile-import-result-stat-total", total_rows, None),
+            (
+                "profile-import-result-stat-imported",
+                imported,
+                Some("status-role-admin"),
+            ),
+            (
+                "profile-import-result-stat-failed",
+                failed,
+                Some("status-role-user"),
+            ),
+        ] {
+            let card = gtk4::Frame::new(None);
+            card.add_css_class("card");
+            card.set_hexpand(true);
+
+            let card_box = gtk4::Box::new(gtk4::Orientation::Vertical, 4);
+            card_box.set_margin_top(14);
+            card_box.set_margin_bottom(14);
+            card_box.set_margin_start(16);
+            card_box.set_margin_end(16);
+
+            let value_label = gtk4::Label::new(Some(value.to_string().as_str()));
+            value_label.set_xalign(0.0);
+            value_label.add_css_class("title-2");
+            if let Some(class_name) = accent_class {
+                value_label.add_css_class(class_name);
+            }
+
+            let caption_text = match label_key {
+                "profile-import-result-stat-total" => {
+                    crate::tr!("profile-import-result-stat-total")
+                }
+                "profile-import-result-stat-imported" => {
+                    crate::tr!("profile-import-result-stat-imported")
+                }
+                _ => crate::tr!("profile-import-result-stat-failed"),
+            };
+            let caption = gtk4::Label::new(Some(caption_text.as_str()));
+            caption.set_xalign(0.0);
+            caption.add_css_class("dim-label");
+
+            card_box.append(&value_label);
+            card_box.append(&caption);
+            card.set_child(Some(&card_box));
+            stats_row.append(&card);
+        }
+
+        let details_box = gtk4::Box::new(gtk4::Orientation::Vertical, 10);
+        details_box.set_hexpand(true);
+
+        if let Some(path) = reject_report_path {
+            let report_label = gtk4::Label::new(Some(
+                crate::i18n::tr_args(
+                    "profile-import-result-reject-report",
+                    &[("path", crate::i18n::I18nArg::Str(path))],
+                )
+                .as_str(),
+            ));
+            report_label.set_xalign(0.0);
+            report_label.set_wrap(true);
+            report_label.add_css_class("dim-label");
+            details_box.append(&report_label);
+        }
+
+        let details_label = gtk4::Label::new(Some(
+            crate::tr!("profile-import-result-details-title").as_str(),
+        ));
+        details_label.set_xalign(0.0);
+        details_label.add_css_class("title-4");
+
+        details_box.append(&details_label);
+
+        if failures.is_empty() {
+            let ok_label = gtk4::Label::new(Some(
+                crate::tr!("profile-import-result-no-failures").as_str(),
+            ));
+            ok_label.set_xalign(0.0);
+            ok_label.set_wrap(true);
+            ok_label.add_css_class("dim-label");
+            details_box.append(&ok_label);
+        } else {
+            let scroller = gtk4::ScrolledWindow::builder()
+                .hscrollbar_policy(gtk4::PolicyType::Never)
+                .vscrollbar_policy(gtk4::PolicyType::Automatic)
+                .min_content_height(180)
+                .max_content_height(260)
+                .build();
+
+            let list = gtk4::ListBox::new();
+            list.add_css_class("boxed-listbox");
+
+            for failure in failures.iter().take(10) {
+                let row = gtk4::ListBoxRow::new();
+                row.set_selectable(false);
+                row.set_activatable(false);
+
+                let row_box = gtk4::Box::new(gtk4::Orientation::Vertical, 4);
+                row_box.set_margin_top(10);
+                row_box.set_margin_bottom(10);
+                row_box.set_margin_start(12);
+                row_box.set_margin_end(12);
+
+                let row_title = gtk4::Label::new(Some(
+                    crate::i18n::tr_args(
+                        "profile-import-summary-item",
+                        &[
+                            ("row", crate::i18n::I18nArg::Num(failure.source_row as i64)),
+                            ("title", crate::i18n::I18nArg::Str(failure.title.as_str())),
+                            ("reason", crate::i18n::I18nArg::Str(failure.reason.as_str())),
+                        ],
+                    )
+                    .as_str(),
+                ));
+                row_title.set_xalign(0.0);
+                row_title.set_wrap(true);
+                row_title.add_css_class("heading");
+
+                row_box.append(&row_title);
+                row.set_child(Some(&row_box));
+                list.append(&row);
+            }
+
+            if failures.len() > 10 {
+                let more_row = gtk4::ListBoxRow::new();
+                more_row.set_selectable(false);
+                more_row.set_activatable(false);
+
+                let more_label = gtk4::Label::new(Some(
+                    crate::i18n::tr_args(
+                        "profile-import-summary-more",
+                        &[(
+                            "count",
+                            crate::i18n::I18nArg::Num((failures.len() - 10) as i64),
+                        )],
+                    )
+                    .as_str(),
+                ));
+                more_label.set_xalign(0.0);
+                more_label.add_css_class("dim-label");
+                more_label.set_margin_top(10);
+                more_label.set_margin_bottom(10);
+                more_label.set_margin_start(12);
+                more_label.set_margin_end(12);
+                more_row.set_child(Some(&more_label));
+                list.append(&more_row);
+            }
+
+            scroller.set_child(Some(&list));
+            details_box.append(&scroller);
+        }
+
+        let close_button = gtk4::Button::with_label(crate::tr!("common-ok").as_str());
+        close_button.add_css_class("suggested-action");
+        let window_for_close = window.clone();
+        close_button.connect_clicked(move |_| {
+            window_for_close.close();
+        });
+
+        let action_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
+        action_box.set_halign(gtk4::Align::End);
+        action_box.append(&close_button);
+
+        root.append(&hero);
+        root.append(&stats_row);
+        root.append(&details_box);
+        root.append(&action_box);
+
+        window.set_child(Some(&root));
+        window.present();
+    }
+
+    fn format_duration(duration: Duration) -> String {
+        let total_seconds = duration.as_secs();
+        let minutes = total_seconds / 60;
+        let seconds = total_seconds % 60;
+
+        match (minutes, seconds) {
+            (0, 0) => "< 1 s".to_string(),
+            (0, secs) => format!("{secs} s"),
+            (mins, 0) => format!("{mins} min"),
+            (mins, secs) => format!("{mins} min {secs} s"),
+        }
     }
 }

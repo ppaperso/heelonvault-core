@@ -911,6 +911,15 @@
             create_window.present();
         });
 
+        let main_stack_for_profile_admin_users = center_panel.main_stack.clone();
+        let on_open_users_from_profile: Rc<dyn Fn()> = Rc::new(move || {
+            main_stack_for_profile_admin_users.set_visible_child_name("users_view");
+        });
+        let main_stack_for_profile_admin_teams = center_panel.main_stack.clone();
+        let on_open_teams_from_profile: Rc<dyn Fn()> = Rc::new(move || {
+            main_stack_for_profile_admin_teams.set_visible_child_name("teams_view");
+        });
+
         let profile_view = Self::build_profile_view(
             window.clone(),
             runtime_handle.clone(),
@@ -925,6 +934,8 @@
             database_path.clone(),
             admin_user_id,
             is_admin,
+            Rc::clone(&on_open_users_from_profile),
+            Rc::clone(&on_open_teams_from_profile),
             profile_button.clone(),
             Rc::clone(&critical_ops_in_flight),
             Rc::clone(&auto_lock_timeout_secs),

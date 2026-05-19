@@ -1,7 +1,7 @@
 use secrecy::{ExposeSecret, SecretBox};
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -9,8 +9,11 @@ use uuid::Uuid;
 use crate::errors::{AccessDeniedReason, AppError};
 use crate::models::AccessibleVault;
 use crate::models::User;
+use crate::repositories::secret_repository::SecretRepository;
 use crate::repositories::user_repository::UserRepository;
-use crate::repositories::vault_repository::VaultRepository;
+use crate::repositories::vault_repository::{
+    MasterKeyRotationRepository, VaultEnvelopeUpdate, VaultRepository, VaultShareEnvelopeUpdate,
+};
 use crate::services::auth_service::AuthService;
 use crate::services::backup_service::{BackupService, BackupServiceImpl};
 use crate::services::crypto_service::{CryptoService, EncryptedPayload, NONCE_LEN};
@@ -102,28 +105,31 @@ pub trait LocalUserService {
     ) -> Result<MasterKeyRotationReport, AppError>;
 }
 
-pub struct UserServiceImpl<TUserRepo, TVaultRepo, TEnvelopeRepo, TAuth, TCrypto>
+pub struct UserServiceImpl<TUserRepo, TVaultRepo, TEnvelopeRepo, TSecretRepo, TAuth, TCrypto>
 where
     TUserRepo: UserRepository + Send + Sync,
-    TVaultRepo: VaultRepository + Send + Sync,
+    TVaultRepo: VaultRepository + MasterKeyRotationRepository + Send + Sync,
     TEnvelopeRepo: VaultKeyEnvelopeRepository + Send + Sync,
+    TSecretRepo: SecretRepository + Send + Sync,
     TAuth: AuthService + Send + Sync,
     TCrypto: CryptoService + Send + Sync,
 {
     user_repo: TUserRepo,
     vault_repo: TVaultRepo,
     envelope_repo: TEnvelopeRepo,
+    secret_repo: TSecretRepo,
     auth_service: Arc<TAuth>,
     crypto_service: TCrypto,
     rotation_in_progress: AtomicBool,
 }
 
-impl<TUserRepo, TVaultRepo, TEnvelopeRepo, TAuth, TCrypto>
-    UserServiceImpl<TUserRepo, TVaultRepo, TEnvelopeRepo, TAuth, TCrypto>
+impl<TUserRepo, TVaultRepo, TEnvelopeRepo, TSecretRepo, TAuth, TCrypto>
+    UserServiceImpl<TUserRepo, TVaultRepo, TEnvelopeRepo, TSecretRepo, TAuth, TCrypto>
 where
     TUserRepo: UserRepository + Send + Sync,
-    TVaultRepo: VaultRepository + Send + Sync,
+    TVaultRepo: VaultRepository + MasterKeyRotationRepository + Send + Sync,
     TEnvelopeRepo: VaultKeyEnvelopeRepository + Send + Sync,
+    TSecretRepo: SecretRepository + Send + Sync,
     TAuth: AuthService + Send + Sync,
     TCrypto: CryptoService + Send + Sync,
 {
@@ -131,6 +137,7 @@ where
         user_repo: TUserRepo,
         vault_repo: TVaultRepo,
         envelope_repo: TEnvelopeRepo,
+        secret_repo: TSecretRepo,
         auth_service: Arc<TAuth>,
         crypto_service: TCrypto,
     ) -> Self {
@@ -138,6 +145,7 @@ where
             user_repo,
             vault_repo,
             envelope_repo,
+            secret_repo,
             auth_service,
             crypto_service,
             rotation_in_progress: AtomicBool::new(false),
@@ -148,7 +156,9 @@ where
         &self,
         user_id: Uuid,
         master_key: &SecretBox<Vec<u8>>,
-    ) -> Result<(usize, usize, usize), AppError> {
+        validation_mode: RotationValidationMode,
+        max_secrets_validate_per_vault: usize,
+    ) -> Result<(usize, usize, usize, usize), AppError> {
         let accessible_vaults = self.vault_repo.get_accessible_vaults(user_id).await?;
         let owner_count = accessible_vaults
             .iter()
@@ -156,10 +166,22 @@ where
             .count();
         let shared_count = accessible_vaults.len().saturating_sub(owner_count);
 
-        self.decrypt_accessible_vault_envelopes(accessible_vaults, user_id, master_key)
+        let sample_count = self
+            .decrypt_accessible_vault_envelopes(
+                accessible_vaults,
+                user_id,
+                master_key,
+                validation_mode,
+                max_secrets_validate_per_vault,
+            )
             .await?;
 
-        Ok((owner_count + shared_count, owner_count, shared_count))
+        Ok((
+            owner_count + shared_count,
+            owner_count,
+            shared_count,
+            sample_count,
+        ))
     }
 
     async fn decrypt_accessible_vault_envelopes(
@@ -167,7 +189,11 @@ where
         accessible_vaults: Vec<AccessibleVault>,
         user_id: Uuid,
         master_key: &SecretBox<Vec<u8>>,
-    ) -> Result<(), AppError> {
+        validation_mode: RotationValidationMode,
+        max_secrets_validate_per_vault: usize,
+    ) -> Result<usize, AppError> {
+        let mut sample_count = 0usize;
+
         for access in accessible_vaults {
             let envelope = if access.vault.owner_user_id == user_id {
                 self.envelope_repo
@@ -186,10 +212,91 @@ where
             };
 
             let payload = Self::deserialize_envelope(&envelope)?;
-            let _ = self.crypto_service.decrypt(&payload, master_key).await?;
+            let vault_key = self.crypto_service.decrypt(&payload, master_key).await?;
+
+            if matches!(
+                validation_mode,
+                RotationValidationMode::VaultAndSampleSecret
+            ) && max_secrets_validate_per_vault > 0
+            {
+                let secrets = self.secret_repo.list_by_vault_id(access.vault.id).await?;
+                for secret in secrets.into_iter().take(max_secrets_validate_per_vault) {
+                    let secret_payload = Self::deserialize_envelope(&secret.secret_blob)?;
+                    let _ = self
+                        .crypto_service
+                        .decrypt(&secret_payload, &vault_key)
+                        .await?;
+                    sample_count = sample_count.saturating_add(1);
+                }
+            }
         }
 
-        Ok(())
+        Ok(sample_count)
+    }
+
+    async fn collect_rewrapped_accessible_vault_envelopes(
+        &self,
+        user_id: Uuid,
+        old_master_key: &SecretBox<Vec<u8>>,
+        new_master_key: &SecretBox<Vec<u8>>,
+    ) -> Result<
+        (
+            Vec<VaultEnvelopeUpdate>,
+            Vec<VaultShareEnvelopeUpdate>,
+            usize,
+            usize,
+        ),
+        AppError,
+    > {
+        let accessible_vaults = self.vault_repo.get_accessible_vaults(user_id).await?;
+        let mut owner_updates: Vec<VaultEnvelopeUpdate> = Vec::new();
+        let mut shared_updates: Vec<VaultShareEnvelopeUpdate> = Vec::new();
+
+        for access in accessible_vaults {
+            let envelope = if access.vault.owner_user_id == user_id {
+                self.envelope_repo
+                    .get_vault_key_envelope(access.vault.id)
+                    .await?
+                    .ok_or_else(|| {
+                        AppError::Storage("missing owner vault key envelope".to_string())
+                    })?
+            } else {
+                self.vault_repo
+                    .get_key_share(access.vault.id, user_id)
+                    .await?
+                    .ok_or_else(|| {
+                        AppError::Storage("missing shared vault key envelope".to_string())
+                    })?
+            };
+
+            let payload = Self::deserialize_envelope(&envelope)?;
+            let vault_key = self
+                .crypto_service
+                .decrypt(&payload, old_master_key)
+                .await?;
+            let rewrapped_payload = self
+                .crypto_service
+                .encrypt(&vault_key, new_master_key)
+                .await?;
+            let rewrapped_envelope = Self::serialize_envelope(&rewrapped_payload);
+
+            if access.vault.owner_user_id == user_id {
+                owner_updates.push(VaultEnvelopeUpdate {
+                    vault_id: access.vault.id,
+                    key_envelope: rewrapped_envelope,
+                });
+            } else {
+                shared_updates.push(VaultShareEnvelopeUpdate {
+                    vault_id: access.vault.id,
+                    user_id,
+                    key_envelope: rewrapped_envelope,
+                });
+            }
+        }
+
+        let owner_count = owner_updates.len();
+        let shared_count = shared_updates.len();
+        Ok((owner_updates, shared_updates, owner_count, shared_count))
     }
 
     fn serialize_envelope(payload: &EncryptedPayload) -> SecretBox<Vec<u8>> {
@@ -217,12 +324,13 @@ where
     }
 }
 
-impl<TUserRepo, TVaultRepo, TEnvelopeRepo, TAuth, TCrypto> UserService
-    for UserServiceImpl<TUserRepo, TVaultRepo, TEnvelopeRepo, TAuth, TCrypto>
+impl<TUserRepo, TVaultRepo, TEnvelopeRepo, TSecretRepo, TAuth, TCrypto> UserService
+    for UserServiceImpl<TUserRepo, TVaultRepo, TEnvelopeRepo, TSecretRepo, TAuth, TCrypto>
 where
     TUserRepo: UserRepository + Send + Sync,
-    TVaultRepo: VaultRepository + Send + Sync,
+    TVaultRepo: VaultRepository + MasterKeyRotationRepository + Send + Sync,
     TEnvelopeRepo: VaultKeyEnvelopeRepository + Send + Sync,
+    TSecretRepo: SecretRepository + Send + Sync,
     TAuth: AuthService + Send + Sync,
     TCrypto: CryptoService + Send + Sync,
 {
@@ -472,8 +580,30 @@ where
                 AccessDeniedReason::InvalidCredentials,
             ))?;
 
-        let (scanned_vaults, owner_vaults_rewrapped, shared_vaults_rewrapped) = self
-            .validate_accessible_vaults_with_master_key(request.user_id, &old_master_key)
+        let (scanned_vaults, _, _, _) = self
+            .validate_accessible_vaults_with_master_key(
+                request.user_id,
+                &old_master_key,
+                request.policy.validation_mode,
+                request.policy.max_secrets_validate_per_vault,
+            )
+            .await?;
+
+        let new_master_key = self
+            .auth_service
+            .derive_key_if_valid(
+                user.username.as_str(),
+                SecretBox::new(Box::new(new_password_bytes.clone())),
+            )
+            .await?
+            .ok_or(AppError::Internal)?;
+
+        let (owner_updates, shared_updates, owner_vaults_rewrapped, shared_vaults_rewrapped) = self
+            .collect_rewrapped_accessible_vault_envelopes(
+                request.user_id,
+                &old_master_key,
+                &new_master_key,
+            )
             .await?;
 
         let backup_service = BackupServiceImpl::new();
@@ -504,69 +634,93 @@ where
             backup_recovery_phrase = Some(recovery.recovery_phrase);
         }
 
-        let mutation_result = UserService::change_master_password(
-            self,
-            request.user_id,
-            SecretBox::new(Box::new(current_password_bytes)),
-            SecretBox::new(Box::new(new_password_bytes.clone())),
-        )
-        .await;
+        self.auth_service
+            .change_password(
+                user.username.as_str(),
+                SecretBox::new(Box::new(current_password_bytes)),
+                SecretBox::new(Box::new(new_password_bytes.clone())),
+            )
+            .await?;
 
-        if let Err(error) = mutation_result {
+        let new_password_envelope = self
+            .auth_service
+            .get_password_envelope(user.username.as_str())
+            .await?;
+
+        let old_password_envelope = self
+            .user_repo
+            .get_password_envelope_by_user_id(request.user_id)
+            .await?;
+        let old_password_envelope_bytes = old_password_envelope
+            .ok_or_else(|| AppError::Storage("missing password envelope".to_string()))?;
+
+        let apply_result = self
+            .vault_repo
+            .apply_master_key_rotation_atomically(
+                request.user_id,
+                new_password_envelope,
+                owner_updates,
+                shared_updates,
+            )
+            .await;
+
+        if let Err(error) = apply_result {
+            if let Err(rollback_error) = self
+                .auth_service
+                .upsert_password_envelope(user.username.as_str(), old_password_envelope_bytes)
+                .await
+            {
+                return Err(AppError::Storage(format!(
+                    "master key rotation failed and auth rollback failed: {error}; {rollback_error}"
+                )));
+            }
             return Err(error);
         }
 
-        let new_master_key = self
-            .auth_service
-            .derive_key_if_valid(
-                user.username.as_str(),
-                SecretBox::new(Box::new(new_password_bytes)),
+        let post_validation_result = self
+            .validate_accessible_vaults_with_master_key(
+                request.user_id,
+                &new_master_key,
+                request.policy.validation_mode,
+                request.policy.max_secrets_validate_per_vault,
             )
-            .await?
-            .ok_or(AppError::Internal)?;
-
-        let post_validation = self
-            .validate_accessible_vaults_with_master_key(request.user_id, &new_master_key)
             .await;
 
-        if let Err(validation_error) = post_validation {
-            if let (Some(backup_path), Some(recovery_phrase)) = (
-                backup_path_for_report.clone(),
-                backup_recovery_phrase,
-            ) {
-                let restore_result = backup_service.import_hvb_with_recovery_key(
-                    PathBuf::from(backup_path.as_str()).as_path(),
-                    &recovery_phrase,
-                    request.sqlite_db_path.as_path(),
-                );
+        let sample_secrets_validated = match post_validation_result {
+            Ok((_, _, _, sample_count)) => sample_count,
+            Err(validation_error) => {
+                if let (Some(backup_path), Some(recovery_phrase)) =
+                    (backup_path_for_report.clone(), backup_recovery_phrase)
+                {
+                    let restore_result = backup_service.import_hvb_with_recovery_key(
+                        PathBuf::from(backup_path.as_str()).as_path(),
+                        &recovery_phrase,
+                        request.sqlite_db_path.as_path(),
+                    );
 
-                if restore_result.is_ok() {
-                    if let Some(restored_password_envelope) = self
-                        .user_repo
-                        .get_password_envelope_by_user_id(request.user_id)
-                        .await?
-                    {
-                        self.auth_service
-                            .upsert_password_envelope(
-                                user.username.as_str(),
-                                restored_password_envelope,
-                            )
-                            .await?;
+                    if restore_result.is_ok() {
+                        if let Some(restored_password_envelope) = self
+                            .user_repo
+                            .get_password_envelope_by_user_id(request.user_id)
+                            .await?
+                        {
+                            self.auth_service
+                                .upsert_password_envelope(
+                                    user.username.as_str(),
+                                    restored_password_envelope,
+                                )
+                                .await?;
+                        }
+                        return Err(AppError::Storage(format!(
+                            "master key rotation failed, backup restored automatically: {validation_error}"
+                        )));
                     }
-                    return Err(AppError::Storage(format!(
-                        "master key rotation failed, backup restored automatically: {validation_error}"
-                    )));
                 }
+
+                return Err(validation_error);
             }
-
-            return Err(validation_error);
-        }
-
-        let sample_secrets_validated = match request.policy.validation_mode {
-            RotationValidationMode::VaultOpenOnly => 0,
-            RotationValidationMode::VaultAndSampleSecret => 0,
         };
-        let _ = request.policy.max_secrets_validate_per_vault;
+
         let _ = request.policy.keep_backup_on_success;
         let _ = request.actor_id;
 

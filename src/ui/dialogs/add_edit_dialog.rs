@@ -326,17 +326,33 @@ impl AddEditDialog {
         ssh_passphrase_entry: gtk4::Entry,
         secure_doc_mime_entry: gtk4::Entry,
         error_label: gtk4::Label,
+        source_vault_id_state: Rc<std::cell::RefCell<Option<Uuid>>>,
+        target_vault_id_state: Rc<std::cell::RefCell<Option<Uuid>>>,
+        vault_choices_state: Rc<std::cell::RefCell<Vec<(Uuid, String)>>>,
+        vaults_label: gtk4::Label,
+        vault_pills_row: gtk4::Box,
     ) where
         TSecret: SecretService + Send + Sync + 'static,
         TVault: VaultService + Send + Sync + 'static,
     {
+        type EditLoadResult = Result<
+            (
+                crate::models::SecretItem,
+                Option<String>,
+                Uuid,
+                Vec<(Uuid, String)>,
+            ),
+            crate::errors::AppError,
+        >;
+
         let (sender, receiver) = tokio::sync::oneshot::channel();
         std::thread::spawn(move || {
-            let result: Result<
-                (crate::models::SecretItem, Option<String>),
-                crate::errors::AppError,
-            > = runtime_handle.block_on(async move {
+            let result: EditLoadResult = runtime_handle.block_on(async move {
                 let vaults = vault_service.list_user_vaults(admin_user_id).await?;
+                let vault_choices = vaults
+                    .iter()
+                    .map(|vault| (vault.id, vault.name.clone()))
+                    .collect::<Vec<(Uuid, String)>>();
                 let mut found: Option<(Uuid, crate::models::SecretItem)> = None;
                 for vault in vaults {
                     let items = secret_service.list_by_vault(vault.id).await?;
@@ -348,7 +364,6 @@ impl AddEditDialog {
                 let (target_vault_id, item) = found.ok_or_else(|| {
                     crate::errors::AppError::NotFound("secret not found".to_string())
                 })?;
-
                 let existing_password =
                     if show_passwords_in_edit && matches!(item.secret_type, SecretType::Password) {
                         let vault_key = vault_service
@@ -372,14 +387,51 @@ impl AddEditDialog {
                         None
                     };
 
-                Ok((item, existing_password))
+                Ok((item, existing_password, target_vault_id, vault_choices))
             });
             let _ = sender.send(result);
         });
 
         glib::MainContext::default().spawn_local(async move {
             match receiver.await {
-                Ok(Ok((item, existing_password))) => {
+                Ok(Ok((item, existing_password, source_vault_id, vault_choices))) => {
+                    *source_vault_id_state.borrow_mut() = Some(source_vault_id);
+                    *target_vault_id_state.borrow_mut() = Some(source_vault_id);
+                    *vault_choices_state.borrow_mut() = vault_choices;
+
+                    while let Some(child) = vault_pills_row.first_child() {
+                        vault_pills_row.remove(&child);
+                    }
+
+                    let mut group_leader: Option<gtk4::CheckButton> = None;
+                    for (vault_id, vault_name) in vault_choices_state.borrow().iter() {
+                        let pill = gtk4::CheckButton::with_label(vault_name.as_str());
+                        pill.add_css_class("add-edit-vault-pill");
+
+                        if let Some(ref leader) = group_leader {
+                            pill.set_group(Some(leader));
+                        } else {
+                            group_leader = Some(pill.clone());
+                        }
+
+                        let target_for_toggle = Rc::clone(&target_vault_id_state);
+                        let id_for_toggle = *vault_id;
+                        pill.connect_toggled(move |btn| {
+                            if btn.is_active() {
+                                *target_for_toggle.borrow_mut() = Some(id_for_toggle);
+                            }
+                        });
+
+                        if *vault_id == source_vault_id {
+                            pill.set_active(true);
+                        }
+
+                        vault_pills_row.append(&pill);
+                    }
+
+                    vaults_label.set_visible(true);
+                    vault_pills_row.set_visible(true);
+
                     title_entry.set_text(item.title.as_deref().unwrap_or_default());
                     tags_entry.set_text(item.tags.as_deref().unwrap_or_default());
 

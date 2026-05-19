@@ -2,7 +2,7 @@
 
 Langue : FR | [EN](USER_GUIDE.en.md)
 
-Version cible documentée : `1.0.3`
+Version cible documentée : `1.1.0`
 
 ## Objectif
 
@@ -227,12 +227,14 @@ Depuis le profil, l'utilisateur peut consulter les réglages liés à la sécuri
 
 - l'activation TOTP ;
 - la politique d'auto-verrouillage ;
+- le changement de mot de passe maître avec rotation des enveloppes de clés de coffre ;
 - certaines préférences d'affichage selon le rôle et la configuration.
 
 Points d'attention :
 
 - activer le TOTP dès que possible ;
 - utiliser un délai d'auto-verrouillage court sur poste partagé ;
+- après un changement de mot de passe maître, vérifier rapidement l'accès aux coffres principaux ;
 - ne jamais laisser une session ouverte sans surveillance.
 
 Cet écran correspond à l'espace de gestion de la confiance utilisateur. C'est ici que se concentrent les réglages qui influencent directement le niveau de protection du coffre.
@@ -263,6 +265,7 @@ Avant un import :
 - nettoyer les colonnes inutiles ;
 - confirmer la destination correcte du coffre.
 - lire le résumé final et corriger les lignes signalées avant un second import ciblé.
+- consulter le chemin du rapport de rejets si affiché (fichier `logs/csv_import_rejects_*.txt`).
 
 Avant un export :
 
@@ -331,6 +334,12 @@ Capture 09c - Vue d'administration des utilisateurs (création, rôles, réiniti
 
 - vérifier la corbeille avant toute conclusion ;
 - consulter le journal d'audit si disponible.
+
+### L'import CSV échoue avec une erreur de déchiffrement
+
+- vérifier que le coffre cible est bien accessible avec la session en cours ;
+- se déconnecter puis se reconnecter si un changement de mot de passe maître vient d'être effectué ;
+- relancer l'import et contrôler le résumé des lignes rejetées.
 
 ## Références utiles
 
