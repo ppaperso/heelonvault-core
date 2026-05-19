@@ -7,6 +7,30 @@ use uuid::Uuid;
 
 pub type VaultKeyShareEnvelope = (Uuid, SecretBox<Vec<u8>>, Option<Uuid>);
 
+#[derive(Debug)]
+pub struct VaultEnvelopeUpdate {
+    pub vault_id: Uuid,
+    pub key_envelope: SecretBox<Vec<u8>>,
+}
+
+#[derive(Debug)]
+pub struct VaultShareEnvelopeUpdate {
+    pub vault_id: Uuid,
+    pub user_id: Uuid,
+    pub key_envelope: SecretBox<Vec<u8>>,
+}
+
+#[trait_variant::make(MasterKeyRotationRepository: Send)]
+pub trait LocalMasterKeyRotationRepository {
+    async fn apply_master_key_rotation_atomically(
+        &self,
+        user_id: Uuid,
+        password_envelope: SecretBox<Vec<u8>>,
+        owner_updates: Vec<VaultEnvelopeUpdate>,
+        shared_updates: Vec<VaultShareEnvelopeUpdate>,
+    ) -> Result<(), AppError>;
+}
+
 #[trait_variant::make(VaultRepository: Send)]
 pub trait LocalVaultRepository {
     async fn get_by_id(&self, vault_id: Uuid) -> Result<Option<Vault>, AppError>;
@@ -45,6 +69,12 @@ pub trait LocalVaultRepository {
         vault_id: Uuid,
         user_id: Uuid,
     ) -> Result<Option<SecretBox<Vec<u8>>>, AppError>;
+    async fn update_key_share_envelope(
+        &self,
+        vault_id: Uuid,
+        user_id: Uuid,
+        key_envelope: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError>;
     async fn delete_key_share(&self, vault_id: Uuid, user_id: Uuid) -> Result<(), AppError>;
     async fn delete_all_key_shares(&self, vault_id: Uuid) -> Result<(), AppError>;
     /// Returns all user_ids that have a key share for this vault.
@@ -371,6 +401,33 @@ impl VaultRepository for SqlxVaultRepository {
         }
     }
 
+    async fn update_key_share_envelope(
+        &self,
+        vault_id: Uuid,
+        user_id: Uuid,
+        key_envelope: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        let result = sqlx::query(
+            "UPDATE vault_key_shares
+             SET key_envelope = ?1,
+                 granted_at = CURRENT_TIMESTAMP
+             WHERE vault_id = ?2 AND user_id = ?3",
+        )
+        .bind(key_envelope.expose_secret().as_slice())
+        .bind(vault_id.to_string())
+        .bind(user_id.to_string())
+        .execute(&self.pool)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::Storage(
+                "vault key share not found for envelope update".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
     async fn delete_key_share(&self, vault_id: Uuid, user_id: Uuid) -> Result<(), AppError> {
         sqlx::query("DELETE FROM vault_key_shares WHERE vault_id = ?1 AND user_id = ?2")
             .bind(vault_id.to_string())
@@ -452,6 +509,77 @@ impl VaultRepository for SqlxVaultRepository {
         .await?;
 
         Ok(result.rows_affected())
+    }
+}
+
+impl MasterKeyRotationRepository for SqlxVaultRepository {
+    async fn apply_master_key_rotation_atomically(
+        &self,
+        user_id: Uuid,
+        password_envelope: SecretBox<Vec<u8>>,
+        owner_updates: Vec<VaultEnvelopeUpdate>,
+        shared_updates: Vec<VaultShareEnvelopeUpdate>,
+    ) -> Result<(), AppError> {
+        let mut tx = self.pool.begin().await?;
+
+        let user_update = sqlx::query(
+            "UPDATE users
+             SET password_envelope = ?1,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?2",
+        )
+        .bind(password_envelope.expose_secret().as_slice())
+        .bind(user_id.to_string())
+        .execute(&mut *tx)
+        .await?;
+
+        if user_update.rows_affected() == 0 {
+            return Err(AppError::NotFound(
+                "user not found for rotation".to_string(),
+            ));
+        }
+
+        for update in owner_updates {
+            let result = sqlx::query(
+                "UPDATE vaults
+                 SET vault_key_envelope = ?1,
+                     modified_at = datetime('now')
+                 WHERE id = ?2",
+            )
+            .bind(update.key_envelope.expose_secret().as_slice())
+            .bind(update.vault_id.to_string())
+            .execute(&mut *tx)
+            .await?;
+
+            if result.rows_affected() == 0 {
+                return Err(AppError::Storage(
+                    "vault not found for owner envelope update".to_string(),
+                ));
+            }
+        }
+
+        for update in shared_updates {
+            let result = sqlx::query(
+                "UPDATE vault_key_shares
+                 SET key_envelope = ?1,
+                     granted_at = datetime('now')
+                 WHERE vault_id = ?2 AND user_id = ?3",
+            )
+            .bind(update.key_envelope.expose_secret().as_slice())
+            .bind(update.vault_id.to_string())
+            .bind(update.user_id.to_string())
+            .execute(&mut *tx)
+            .await?;
+
+            if result.rows_affected() == 0 {
+                return Err(AppError::Storage(
+                    "vault key share not found for envelope update".to_string(),
+                ));
+            }
+        }
+
+        tx.commit().await?;
+        Ok(())
     }
 }
 

@@ -2,11 +2,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use chrono::Local;
-use genpdf::elements;
-use genpdf::error::Error as GenpdfError;
-use genpdf::fonts::{FontData, FontFamily};
-use genpdf::style::{Color, Style};
-use genpdf::{Alignment, Context, Element as _, Position};
 use sha2::{Digest, Sha256};
 use sqlx::{Row, SqlitePool};
 use thiserror::Error;
@@ -51,25 +46,6 @@ pub struct AuditReportService {
     db_pool: SqlitePool,
 }
 
-const LIBERATION_SANS_REGULAR: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/resources/fonts/LiberationSans-Regular.ttf"
-));
-const LIBERATION_SANS_BOLD: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/resources/fonts/LiberationSans-Bold.ttf"
-));
-const LIBERATION_SANS_ITALIC: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/resources/fonts/LiberationSans-Italic.ttf"
-));
-const LIBERATION_SANS_BOLD_ITALIC: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/resources/fonts/LiberationSans-BoldItalic.ttf"
-));
-const BRAND_GOLD_DARK: Color = Color::Rgb(143, 112, 51);
-const HEADER_PANEL: Color = Color::Rgb(26, 37, 47);
-
 impl AuditReportService {
     pub fn new(
         license_service: Arc<LicenseService>,
@@ -110,153 +86,40 @@ impl AuditReportService {
             .runtime_handle
             .block_on(self.collect_report_data(customer_name, report_period_days))?;
 
-        let fonts = initialize_pdf_fonts()?;
-
-        let mut document = genpdf::Document::new(fonts);
-        document.set_title("HeelonVault - Rapport d'audit");
-        document.set_paper_size(genpdf::PaperSize::A4);
-        let decorator = SignedReportDecorator::new(
-            report_data.hash_hex.clone(),
-            report_data.signature_b64.clone(),
-        );
-        document.set_page_decorator(decorator);
-
-        let mut content = elements::LinearLayout::vertical();
-
-        let mut date_line =
-            elements::Paragraph::new(format!("Date: {}", Local::now().format("%d/%m/%Y")));
-        date_line.set_alignment(Alignment::Right);
-        content.push(date_line);
-        content.push(
-            elements::Paragraph::new(format!(
-                "Periode analysee: {}",
-                period_label(report_period_days)
-            ))
-            .styled(
-                Style::new()
-                    .with_font_size(10)
-                    .with_color(Color::Rgb(90, 90, 90)),
-            ),
-        );
-        content.push(
-            elements::Paragraph::new(format!(
-                "Evenements exportes: {}",
-                report_data.audit_entries.len()
-            ))
-            .styled(
-                Style::new()
-                    .with_font_size(10)
-                    .with_color(Color::Rgb(90, 90, 90)),
-            ),
-        );
-        content.push(elements::Break::new(1));
-
-        content.push(
-            elements::Paragraph::new("REGISTRE DE TRAÇABILITÉ DES ACCÈS")
-                .aligned(Alignment::Center)
-                .styled(
-                    Style::new()
-                        .with_font_size(18)
-                        .with_color(Color::Rgb(0, 0, 0))
-                        .bold(),
-                ),
-        );
-        content.push(
-            elements::Paragraph::new(format!("Etabli pour : {customer_name}"))
-                .aligned(Alignment::Center)
-                .styled(
-                    Style::new()
-                        .with_font_size(11)
-                        .with_color(Color::Rgb(0, 0, 0))
-                        .italic(),
-                ),
-        );
-        content.push(elements::Break::new(0.8));
-        content.push(
-            elements::Paragraph::new("JOURNAL D'AUDIT SIGNE").styled(
-                Style::new()
-                    .with_font_size(14)
-                    .with_color(HEADER_PANEL)
-                    .bold(),
-            ),
-        );
-        content.push(elements::Break::new(0.35));
+        let mut lines = vec![
+            format!("Date: {}", Local::now().format("%d/%m/%Y")),
+            format!("Periode analysee: {}", period_label(report_period_days)),
+            format!("Evenements exportes: {}", report_data.audit_entries.len()),
+            String::new(),
+            "REGISTRE DE TRACABILITE DES ACCES".to_string(),
+            format!("Etabli pour : {customer_name}"),
+            "JOURNAL D'AUDIT SIGNE".to_string(),
+            String::new(),
+        ];
 
         if report_data.audit_entries.is_empty() {
-            content.push(
-                elements::Paragraph::new("Aucun evenement d'audit sur la periode selectionnee.")
-                    .styled(Style::new().italic().with_color(Color::Rgb(90, 90, 90))),
-            );
+            lines.push("Aucun evenement d'audit sur la periode selectionnee.".to_string());
         } else {
-            let mut table = elements::TableLayout::new(vec![2, 3, 2, 3, 4]);
-            table.set_cell_decorator(elements::FrameCellDecorator::new(true, true, false));
-
-            table
-                .row()
-                .element(
-                    elements::Paragraph::new("Date")
-                        .styled(Style::new().bold().with_color(HEADER_PANEL))
-                        .padded(1),
+            lines.push("Date | Action | Acteur | Cible | Detail".to_string());
+            lines.push(
+                "-----------------------------------------------------------------------"
+                    .to_string(),
+            );
+            lines.extend(report_data.audit_entries.iter().map(|entry| {
+                format!(
+                    "{} | {} | {} | {} | {}",
+                    entry.performed_at, entry.action, entry.actor, entry.target, entry.detail
                 )
-                .element(
-                    elements::Paragraph::new("Action")
-                        .styled(Style::new().bold().with_color(HEADER_PANEL))
-                        .padded(1),
-                )
-                .element(
-                    elements::Paragraph::new("Acteur")
-                        .styled(Style::new().bold().with_color(HEADER_PANEL))
-                        .padded(1),
-                )
-                .element(
-                    elements::Paragraph::new("Cible")
-                        .styled(Style::new().bold().with_color(HEADER_PANEL))
-                        .padded(1),
-                )
-                .element(
-                    elements::Paragraph::new("Détail")
-                        .styled(Style::new().bold().with_color(HEADER_PANEL))
-                        .padded(1),
-                )
-                .push()
-                .map_err(|error| ReportError::PdfWrite(error.to_string()))?;
-
-            for entry in &report_data.audit_entries {
-                table
-                    .row()
-                    .element(
-                        elements::Paragraph::new(entry.performed_at.as_str())
-                            .styled(Style::new().with_font_size(9))
-                            .padded(1),
-                    )
-                    .element(
-                        elements::Paragraph::new(entry.action.as_str())
-                            .styled(Style::new().with_font_size(9))
-                            .padded(1),
-                    )
-                    .element(
-                        elements::Paragraph::new(entry.actor.as_str())
-                            .styled(Style::new().with_font_size(9))
-                            .padded(1),
-                    )
-                    .element(
-                        elements::Paragraph::new(entry.target.as_str())
-                            .styled(Style::new().with_font_size(9))
-                            .padded(1),
-                    )
-                    .element(
-                        elements::Paragraph::new(entry.detail.as_str())
-                            .styled(Style::new().with_font_size(9))
-                            .padded(1),
-                    )
-                    .push()
-                    .map_err(|error| ReportError::PdfWrite(error.to_string()))?;
-            }
-
-            content.push(table);
+            }));
         }
 
-        document.push(content);
+        let footer_lines = vec![
+            format!("SHA-256: {}", report_data.hash_hex),
+            "Document certifie integre par HeelonVault.".to_string(),
+            format!("Signature ID: {}", report_data.signature_b64),
+        ];
+
+        let pdf_bytes = render_pdf_document(lines.as_slice(), footer_lines.as_slice())?;
 
         let mut output_path =
             dirs::download_dir().ok_or(ReportError::DownloadsDirectoryNotFound)?;
@@ -266,8 +129,7 @@ impl AuditReportService {
             Local::now().format("%Y%m%d")
         ));
 
-        document
-            .render_to_file(&output_path)
+        std::fs::write(&output_path, pdf_bytes)
             .map_err(|error| ReportError::PdfWrite(error.to_string()))?;
 
         Ok(GeneratedAuditReport {
@@ -388,19 +250,6 @@ impl AuditReportService {
 
 fn path_to_string(path: PathBuf) -> String {
     path.to_string_lossy().to_string()
-}
-
-fn initialize_pdf_fonts() -> Result<FontFamily<FontData>, ReportError> {
-    Ok(FontFamily {
-        regular: FontData::new(LIBERATION_SANS_REGULAR.to_vec(), None)
-            .map_err(|error| ReportError::FontInitialization(error.to_string()))?,
-        bold: FontData::new(LIBERATION_SANS_BOLD.to_vec(), None)
-            .map_err(|error| ReportError::FontInitialization(error.to_string()))?,
-        italic: FontData::new(LIBERATION_SANS_ITALIC.to_vec(), None)
-            .map_err(|error| ReportError::FontInitialization(error.to_string()))?,
-        bold_italic: FontData::new(LIBERATION_SANS_BOLD_ITALIC.to_vec(), None)
-            .map_err(|error| ReportError::FontInitialization(error.to_string()))?,
-    })
 }
 
 fn period_label(days: i64) -> String {
@@ -527,66 +376,120 @@ fn normalize_optional_text(value: Option<&str>) -> String {
         .to_string()
 }
 
-struct SignedReportDecorator {
-    hash_hex: String,
-    signature_b64: String,
-}
+fn render_pdf_document(lines: &[String], footer_lines: &[String]) -> Result<Vec<u8>, ReportError> {
+    const PAGE_WIDTH: i32 = 595;
+    const PAGE_HEIGHT: i32 = 842;
+    const LEFT_X: i32 = 36;
+    const TOP_Y: i32 = 806;
+    const LINE_STEP: i32 = 11;
+    const BOTTOM_RESERVED: i32 = 84;
+    const MAX_LINES: usize = ((TOP_Y - BOTTOM_RESERVED) / LINE_STEP) as usize;
 
-impl SignedReportDecorator {
-    fn new(hash_hex: String, signature_b64: String) -> Self {
-        Self {
-            hash_hex,
-            signature_b64,
-        }
-    }
-}
+    let line_chunks: Vec<&[String]> = lines.chunks(MAX_LINES.max(1)).collect();
+    let page_count = line_chunks.len().max(1);
 
-impl genpdf::PageDecorator for SignedReportDecorator {
-    fn decorate_page<'a>(
-        &mut self,
-        context: &Context,
-        mut area: genpdf::render::Area<'a>,
-        style: Style,
-    ) -> Result<genpdf::render::Area<'a>, GenpdfError> {
-        area.add_margins(10);
+    // Object numbering:
+    // 1: catalog, 2: pages, 3: Helvetica font, then per page: page object + content stream object.
+    let mut objects: Vec<(usize, String)> = Vec::new();
+    objects.push((1, "<< /Type /Catalog /Pages 2 0 R >>".to_string()));
 
-        let footer_reserved_height: genpdf::Mm = 14.0.into();
-        let line_y = area.size().height - footer_reserved_height;
-        let hash_y = line_y + genpdf::Mm::from(2.0);
-        let legal_y = line_y + genpdf::Mm::from(5.2);
-        let signature_y = line_y + genpdf::Mm::from(8.4);
-        let footer_style = style.with_font_size(5).with_color(Color::Rgb(95, 95, 95));
+    let mut kids = Vec::new();
+    for page_index in 0..page_count {
+        let page_obj = 4 + (page_index * 2);
+        let content_obj = page_obj + 1;
+        kids.push(format!("{} 0 R", page_obj));
 
-        area.draw_line(
-            vec![
-                Position::new(0, line_y),
-                Position::new(area.size().width, line_y),
-            ],
-            Style::new().with_color(BRAND_GOLD_DARK),
+        let page_dict = format!(
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {} {}] /Resources << /Font << /F1 3 0 R >> >> /Contents {} 0 R >>",
+            PAGE_WIDTH, PAGE_HEIGHT, content_obj
         );
+        objects.push((page_obj, page_dict));
 
-        let _ = area.print_str(
-            &context.font_cache,
-            Position::new(0, hash_y),
-            footer_style,
-            format!("SHA-256: {}", self.hash_hex),
-        )?;
-        let _ = area.print_str(
-            &context.font_cache,
-            Position::new(0, legal_y),
-            footer_style,
-            "Document certifié intègre par HeelonVault.",
-        )?;
-        let _ = area.print_str(
-            &context.font_cache,
-            Position::new(0, signature_y),
-            footer_style,
-            format!("Signature ID: {}", self.signature_b64),
-        )?;
+        let chunk = line_chunks
+            .get(page_index)
+            .copied()
+            .unwrap_or(&[] as &[String]);
 
-        area.set_height(line_y - genpdf::Mm::from(1.0));
-        Ok(area)
+        let mut stream = String::new();
+        stream.push_str("BT\n/F1 9 Tf\n");
+        stream.push_str(&format!("1 0 0 1 {} {} Tm\n", LEFT_X, TOP_Y));
+
+        for line in chunk {
+            stream.push_str(&format!("({}) Tj\n", escape_pdf_text(line.as_str())));
+            stream.push_str(&format!("0 -{} Td\n", LINE_STEP));
+        }
+
+        let footer_start_y = 54;
+        stream.push_str("/F1 6 Tf\n");
+        stream.push_str(&format!("1 0 0 1 {} {} Tm\n", LEFT_X, footer_start_y));
+        for footer in footer_lines {
+            stream.push_str(&format!("({}) Tj\n", escape_pdf_text(footer.as_str())));
+            stream.push_str("0 -8 Td\n");
+        }
+        stream.push_str("ET\n");
+
+        let content = format!(
+            "<< /Length {} >>\nstream\n{}endstream",
+            stream.len(),
+            stream
+        );
+        objects.push((content_obj, content));
     }
+
+    let pages_dict = format!(
+        "<< /Type /Pages /Count {} /Kids [{}] >>",
+        page_count,
+        kids.join(" ")
+    );
+    objects.push((2, pages_dict));
+    objects.push((
+        3,
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_string(),
+    ));
+
+    objects.sort_by_key(|(id, _)| *id);
+    let max_id = objects.last().map(|(id, _)| *id).unwrap_or(3);
+
+    let mut pdf = Vec::<u8>::new();
+    pdf.extend_from_slice(b"%PDF-1.4\n");
+
+    let mut offsets = vec![0usize; max_id + 1];
+    for (id, body) in &objects {
+        offsets[*id] = pdf.len();
+        pdf.extend_from_slice(format!("{} 0 obj\n{}\nendobj\n", id, body).as_bytes());
+    }
+
+    let xref_start = pdf.len();
+    pdf.extend_from_slice(format!("xref\n0 {}\n", max_id + 1).as_bytes());
+    pdf.extend_from_slice(b"0000000000 65535 f \n");
+    for offset in offsets.iter().take(max_id + 1).skip(1) {
+        pdf.extend_from_slice(format!("{:010} 00000 n \n", offset).as_bytes());
+    }
+
+    pdf.extend_from_slice(
+        format!(
+            "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{}\n%%EOF\n",
+            max_id + 1,
+            xref_start
+        )
+        .as_bytes(),
+    );
+
+    Ok(pdf)
+}
+
+fn escape_pdf_text(input: &str) -> String {
+    sanitize_pdf_text(input)
+        .replace('\\', "\\\\")
+        .replace('(', "\\(")
+        .replace(')', "\\)")
+}
+
+fn sanitize_pdf_text(input: &str) -> String {
+    input
+        .chars()
+        .map(|c| if c.is_ascii() { c } else { '?' })
+        .collect()
 }
 
 #[cfg(test)]

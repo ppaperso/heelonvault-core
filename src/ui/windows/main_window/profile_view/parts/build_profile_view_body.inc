@@ -43,19 +43,23 @@
         .spacing(18)
         .hexpand(true)
         .homogeneous(true)
+        .margin_start(6)
+        .margin_end(6)
+        .margin_top(6)
+        .margin_bottom(0)
         .build();
     sections_columns.add_css_class("profile-sections-columns");
 
     let sections_left = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(18)
+        .spacing(12)
         .hexpand(true)
         .build();
     sections_left.add_css_class("profile-sections-column");
 
     let sections_right = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(18)
+        .spacing(12)
         .hexpand(true)
         .build();
     sections_right.add_css_class("profile-sections-column");
@@ -64,9 +68,8 @@
     sections_columns.append(&sections_right);
     content.append(&sections_columns);
 
-    let info_frame = gtk4::Frame::builder()
-        .label(crate::tr!("profile-section-info").as_str())
-        .build();
+    let info_frame = adw::PreferencesGroup::new();
+    info_frame.set_title(crate::tr!("profile-section-info").as_str());
     info_frame.add_css_class("profile-section-frame");
     let info_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
@@ -83,24 +86,17 @@
     info_subtitle.add_css_class("profile-section-subtitle");
     info_subtitle.add_css_class("dim-label");
     info_box.append(&info_subtitle);
-    let username_label = gtk4::Label::new(Some(crate::tr!("profile-field-username").as_str()));
-    username_label.set_halign(Align::Start);
-    username_label.add_css_class("profile-field-label");
-    let username_entry = gtk4::Entry::new();
+    let username_entry = adw::EntryRow::new();
+    username_entry.set_title(crate::tr!("profile-field-username").as_str());
     username_entry.set_sensitive(false);
     username_entry.set_hexpand(true);
     username_entry.add_css_class("profile-field-entry");
-    let display_label =
-        gtk4::Label::new(Some(crate::tr!("profile-field-display-name").as_str()));
-    display_label.set_halign(Align::Start);
-    display_label.add_css_class("profile-field-label");
-    let display_entry = gtk4::Entry::new();
+    let display_entry = adw::EntryRow::new();
+    display_entry.set_title(crate::tr!("profile-field-display-name").as_str());
     display_entry.set_hexpand(true);
     display_entry.add_css_class("profile-field-entry");
-    let email_label = gtk4::Label::new(Some(crate::tr!("profile-field-email").as_str()));
-    email_label.set_halign(Align::Start);
-    email_label.add_css_class("profile-field-label");
-    let email_entry = gtk4::Entry::new();
+    let email_entry = adw::EntryRow::new();
+    email_entry.set_title(crate::tr!("profile-field-email").as_str());
     email_entry.set_hexpand(true);
     email_entry.add_css_class("profile-field-entry");
     let language_label = gtk4::Label::new(Some(crate::tr!("profile-language-title").as_str()));
@@ -120,12 +116,9 @@
         gtk4::DropDown::new(Some(language_items.clone()), None::<gtk4::Expression>);
     language_dropdown.add_css_class("profile-field-entry");
     language_dropdown.set_selected(0);
-    let current_email_pw_label = gtk4::Label::new(Some(
-        crate::tr!("profile-field-current-password-email-change").as_str(),
-    ));
-    current_email_pw_label.set_halign(Align::Start);
-    current_email_pw_label.add_css_class("profile-field-label");
-    let current_email_pw_entry = gtk4::PasswordEntry::new();
+    let current_email_pw_entry = adw::PasswordEntryRow::new();
+    current_email_pw_entry
+        .set_title(crate::tr!("profile-field-current-password-email-change").as_str());
     current_email_pw_entry.set_hexpand(true);
     current_email_pw_entry.add_css_class("profile-field-entry");
     let profile_status_label = gtk4::Label::new(None);
@@ -146,29 +139,25 @@
     save_profile_row.append(&save_profile_button);
 
     for widget in [
-        username_label.upcast_ref::<gtk4::Widget>(),
         username_entry.upcast_ref::<gtk4::Widget>(),
-        display_label.upcast_ref::<gtk4::Widget>(),
         display_entry.upcast_ref::<gtk4::Widget>(),
-        email_label.upcast_ref::<gtk4::Widget>(),
         email_entry.upcast_ref::<gtk4::Widget>(),
         language_label.upcast_ref::<gtk4::Widget>(),
         language_dropdown.upcast_ref::<gtk4::Widget>(),
         language_hint.upcast_ref::<gtk4::Widget>(),
-        current_email_pw_label.upcast_ref::<gtk4::Widget>(),
         current_email_pw_entry.upcast_ref::<gtk4::Widget>(),
         profile_status_label.upcast_ref::<gtk4::Widget>(),
         save_profile_row.upcast_ref::<gtk4::Widget>(),
     ] {
         info_box.append(widget);
     }
-    info_frame.set_child(Some(&info_box));
+    info_frame.add(&info_box);
     info_frame.set_hexpand(true);
     sections_left.append(&info_frame);
 
-    let password_change_frame = gtk4::Frame::builder()
-        .label(crate::tr!("profile-section-password-change").as_str())
-        .build();
+    let password_change_frame = adw::PreferencesGroup::new();
+    password_change_frame
+        .set_title(crate::tr!("profile-section-password-change").as_str());
     password_change_frame.add_css_class("profile-section-frame");
     let password_change_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
@@ -187,28 +176,18 @@
     password_change_subtitle.add_css_class("dim-label");
     password_change_box.append(&password_change_subtitle);
 
-    let current_pw_label =
-        gtk4::Label::new(Some(crate::tr!("profile-field-current-password").as_str()));
-    current_pw_label.set_halign(Align::Start);
-    current_pw_label.add_css_class("profile-field-label");
-    let current_pw_entry = gtk4::PasswordEntry::new();
+    let current_pw_entry = adw::PasswordEntryRow::new();
+    current_pw_entry.set_title(crate::tr!("profile-field-current-password").as_str());
     current_pw_entry.set_hexpand(true);
     current_pw_entry.add_css_class("profile-field-entry");
 
-    let new_pw_label =
-        gtk4::Label::new(Some(crate::tr!("profile-field-new-password").as_str()));
-    new_pw_label.set_halign(Align::Start);
-    new_pw_label.add_css_class("profile-field-label");
-    let new_pw_entry = gtk4::PasswordEntry::new();
+    let new_pw_entry = adw::PasswordEntryRow::new();
+    new_pw_entry.set_title(crate::tr!("profile-field-new-password").as_str());
     new_pw_entry.set_hexpand(true);
     new_pw_entry.add_css_class("profile-field-entry");
 
-    let confirm_pw_label = gtk4::Label::new(Some(
-        crate::tr!("profile-field-confirm-new-password").as_str(),
-    ));
-    confirm_pw_label.set_halign(Align::Start);
-    confirm_pw_label.add_css_class("profile-field-label");
-    let confirm_pw_entry = gtk4::PasswordEntry::new();
+    let confirm_pw_entry = adw::PasswordEntryRow::new();
+    confirm_pw_entry.set_title(crate::tr!("profile-field-confirm-new-password").as_str());
     confirm_pw_entry.set_hexpand(true);
     confirm_pw_entry.add_css_class("profile-field-entry");
 
@@ -242,24 +221,21 @@
     security_actions.append(&rotate_master_key_button);
 
     for widget in [
-        current_pw_label.upcast_ref::<gtk4::Widget>(),
         current_pw_entry.upcast_ref::<gtk4::Widget>(),
-        new_pw_label.upcast_ref::<gtk4::Widget>(),
         new_pw_entry.upcast_ref::<gtk4::Widget>(),
-        confirm_pw_label.upcast_ref::<gtk4::Widget>(),
         confirm_pw_entry.upcast_ref::<gtk4::Widget>(),
         password_change_status_label.upcast_ref::<gtk4::Widget>(),
         security_actions.upcast_ref::<gtk4::Widget>(),
     ] {
         password_change_box.append(widget);
     }
-    password_change_frame.set_child(Some(&password_change_box));
+    password_change_frame.add(&password_change_box);
     password_change_frame.set_hexpand(true);
     sections_right.append(&password_change_frame);
 
-    let security_prefs_frame = gtk4::Frame::builder()
-        .label(crate::tr!("profile-section-security-prefs").as_str())
-        .build();
+    let security_prefs_frame = adw::PreferencesGroup::new();
+    security_prefs_frame
+        .set_title(crate::tr!("profile-section-security-prefs").as_str());
     security_prefs_frame.add_css_class("profile-section-frame");
     let security_prefs_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
@@ -270,26 +246,25 @@
         .margin_end(12)
         .build();
 
-    let auto_lock_label =
-        gtk4::Label::new(Some(crate::tr!("profile-auto-lock-title").as_str()));
+    let auto_lock_label = gtk4::Label::new(Some(crate::tr!("profile-auto-lock-title").as_str()));
     auto_lock_label.set_halign(Align::Start);
     auto_lock_label.add_css_class("profile-field-label");
     let auto_lock_items = gtk4::StringList::new(&[
         crate::tr!("profile-auto-lock-1").as_str(),
         crate::tr!("profile-auto-lock-5").as_str(),
-        crate::tr!("profile-auto-lock-15").as_str(),
         crate::tr!("profile-auto-lock-30").as_str(),
         crate::tr!("profile-auto-lock-never").as_str(),
     ]);
-    let auto_lock_dropdown =
-        gtk4::DropDown::new(Some(auto_lock_items.clone()), None::<gtk4::Expression>);
+    let auto_lock_dropdown = gtk4::DropDown::new(
+        Some(auto_lock_items.clone()),
+        None::<gtk4::Expression>,
+    );
     auto_lock_dropdown.add_css_class("profile-field-entry");
 
-    let show_edit_passwords_label = gtk4::Label::new(Some(
-        crate::tr!("profile-show-edit-passwords-title").as_str(),
-    ));
-    show_edit_passwords_label.set_halign(Align::Start);
-    show_edit_passwords_label.add_css_class("profile-field-label");
+    let show_edit_passwords_switch = adw::SwitchRow::new();
+    show_edit_passwords_switch
+        .set_title(crate::tr!("profile-show-edit-passwords-title").as_str());
+    show_edit_passwords_switch.add_css_class("profile-field-entry");
     let show_edit_passwords_hint = gtk4::Label::new(Some(
         crate::tr!("profile-show-edit-passwords-hint").as_str(),
     ));
@@ -297,9 +272,6 @@
     show_edit_passwords_hint.set_wrap(true);
     show_edit_passwords_hint.add_css_class("dim-label");
     show_edit_passwords_hint.add_css_class("profile-section-subtitle");
-    let show_edit_passwords_switch = gtk4::Switch::new();
-    show_edit_passwords_switch.set_halign(Align::Start);
-
     let security_prefs_status_label = gtk4::Label::new(None);
     security_prefs_status_label.set_halign(Align::Start);
     security_prefs_status_label.set_wrap(true);
@@ -310,40 +282,34 @@
     for widget in [
         auto_lock_label.upcast_ref::<gtk4::Widget>(),
         auto_lock_dropdown.upcast_ref::<gtk4::Widget>(),
-        show_edit_passwords_label.upcast_ref::<gtk4::Widget>(),
         show_edit_passwords_switch.upcast_ref::<gtk4::Widget>(),
         show_edit_passwords_hint.upcast_ref::<gtk4::Widget>(),
         security_prefs_status_label.upcast_ref::<gtk4::Widget>(),
     ] {
         security_prefs_box.append(widget);
     }
-    security_prefs_frame.set_child(Some(&security_prefs_box));
+    security_prefs_frame.add(&security_prefs_box);
     security_prefs_frame.set_hexpand(true);
     sections_right.append(&security_prefs_frame);
 
-    let twofa_frame = gtk4::Frame::new(None);
-    twofa_frame.add_css_class("profile-section-frame");
-    let twofa_header = gtk4::Box::builder()
-        .orientation(Orientation::Horizontal)
-        .spacing(8)
-        .build();
-    let twofa_title = gtk4::Label::new(Some(crate::tr!("profile-section-2fa-title").as_str()));
-    twofa_title.add_css_class("profile-field-label");
-    twofa_title.set_halign(Align::Start);
+    // 2FA section: AdwPreferencesGroup + collapsed ExpanderRow (progressive disclosure)
+    let twofa_group = adw::PreferencesGroup::new();
+    twofa_group.set_hexpand(true);
+    let twofa_expander = adw::ExpanderRow::new();
+    twofa_expander.set_title(crate::tr!("profile-section-2fa-title").as_str());
+    twofa_expander.set_expanded(false);
     let twofa_badge_text = messages::twofa_badge_disabled();
     let twofa_state_badge = gtk4::Label::new(Some(twofa_badge_text.as_str()));
     twofa_state_badge.add_css_class("status-role-pill");
     twofa_state_badge.add_css_class("status-role-user");
-    twofa_state_badge.set_halign(Align::Start);
-    twofa_header.append(&twofa_title);
-    twofa_header.append(&twofa_state_badge);
-    twofa_frame.set_label_widget(Some(&twofa_header));
+    twofa_state_badge.set_valign(Align::Center);
+    twofa_expander.add_suffix(&twofa_state_badge);
     MainWindow::set_twofa_badge_state(&twofa_state_badge, false);
     let twofa_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
         .spacing(10)
-        .margin_top(12)
-        .margin_bottom(12)
+        .margin_top(8)
+        .margin_bottom(8)
         .margin_start(12)
         .margin_end(12)
         .build();
@@ -486,13 +452,12 @@
 
     twofa_box.append(&twofa_stack);
     twofa_box.append(&twofa_status_label);
-    twofa_frame.set_child(Some(&twofa_box));
-    twofa_frame.set_hexpand(true);
-    sections_right.append(&twofa_frame);
+    twofa_expander.add_row(&twofa_box);
+    twofa_group.add(&twofa_expander);
+    sections_right.append(&twofa_group);
 
-    let data_frame = gtk4::Frame::builder()
-        .label(crate::tr!("profile-section-data").as_str())
-        .build();
+    let data_frame = adw::PreferencesGroup::new();
+    data_frame.set_title(crate::tr!("profile-section-data").as_str());
     data_frame.add_css_class("profile-section-frame");
     let data_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
@@ -542,9 +507,76 @@
     ] {
         data_box.append(widget);
     }
-    data_frame.set_child(Some(&data_box));
+    data_frame.add(&data_box);
     data_frame.set_hexpand(true);
     sections_left.append(&data_frame);
+
+    let mut admin_frame_for_i18n: Option<adw::PreferencesGroup> = None;
+    let mut admin_subtitle_for_i18n: Option<gtk4::Label> = None;
+    let mut admin_users_button_for_i18n: Option<gtk4::Button> = None;
+    let mut admin_teams_button_for_i18n: Option<gtk4::Button> = None;
+    if is_admin {
+        let admin_frame = adw::PreferencesGroup::new();
+        admin_frame.set_title(crate::tr!("profile-section-admin-advanced").as_str());
+        admin_frame.add_css_class("profile-section-frame");
+
+        let admin_box = gtk4::Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(10)
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
+            .build();
+
+        let admin_subtitle =
+            gtk4::Label::new(Some(crate::tr!("profile-admin-advanced-subtitle").as_str()));
+        admin_subtitle.set_halign(Align::Start);
+        admin_subtitle.set_wrap(true);
+        admin_subtitle.add_css_class("profile-section-subtitle");
+        admin_subtitle.add_css_class("dim-label");
+
+        let admin_actions = gtk4::Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(8)
+            .hexpand(true)
+            .halign(Align::End)
+            .build();
+        admin_actions.add_css_class("profile-actions-row");
+
+        let admin_users_button =
+            gtk4::Button::with_label(crate::tr!("profile-admin-open-users").as_str());
+        admin_users_button.add_css_class("suggested-action");
+        admin_users_button.add_css_class("profile-action-btn");
+
+        let admin_teams_button =
+            gtk4::Button::with_label(crate::tr!("profile-admin-open-teams").as_str());
+        admin_teams_button.add_css_class("suggested-action");
+        admin_teams_button.add_css_class("profile-action-btn");
+
+        let on_open_users_from_profile = Rc::clone(&on_open_users_view);
+        admin_users_button.connect_clicked(move |_| {
+            on_open_users_from_profile();
+        });
+
+        let on_open_teams_from_profile = Rc::clone(&on_open_teams_view);
+        admin_teams_button.connect_clicked(move |_| {
+            on_open_teams_from_profile();
+        });
+
+        admin_actions.append(&admin_users_button);
+        admin_actions.append(&admin_teams_button);
+        admin_box.append(&admin_subtitle);
+        admin_box.append(&admin_actions);
+        admin_frame.add(&admin_box);
+        admin_frame.set_hexpand(true);
+        sections_right.append(&admin_frame);
+
+        admin_frame_for_i18n = Some(admin_frame);
+        admin_subtitle_for_i18n = Some(admin_subtitle);
+        admin_users_button_for_i18n = Some(admin_users_button);
+        admin_teams_button_for_i18n = Some(admin_teams_button);
+    }
 
     container.set_child(Some(&content));
 
@@ -553,21 +585,21 @@
     let intro_for_i18n = profile_intro.clone();
     let info_frame_for_i18n = info_frame.clone();
     let info_subtitle_for_i18n = info_subtitle.clone();
-    let username_label_for_i18n = username_label.clone();
-    let display_label_for_i18n = display_label.clone();
-    let email_label_for_i18n = email_label.clone();
+    let username_entry_for_i18n = username_entry.clone();
+    let display_entry_for_i18n = display_entry.clone();
+    let email_entry_for_i18n = email_entry.clone();
     let language_label_for_i18n = language_label.clone();
     let language_hint_for_i18n = language_hint.clone();
     let language_dropdown_for_i18n = language_dropdown.clone();
     let language_items_for_i18n = language_items.clone();
-    let current_email_pw_label_for_i18n = current_email_pw_label.clone();
+    let current_email_pw_entry_for_i18n = current_email_pw_entry.clone();
     let save_profile_button_for_i18n = save_profile_button.clone();
 
     let password_change_frame_for_i18n = password_change_frame.clone();
     let password_change_subtitle_for_i18n = password_change_subtitle.clone();
-    let current_pw_label_for_i18n = current_pw_label.clone();
-    let new_pw_label_for_i18n = new_pw_label.clone();
-    let confirm_pw_label_for_i18n = confirm_pw_label.clone();
+    let current_pw_entry_for_i18n = current_pw_entry.clone();
+    let new_pw_entry_for_i18n = new_pw_entry.clone();
+    let confirm_pw_entry_for_i18n = confirm_pw_entry.clone();
     let change_pw_button_for_i18n = change_pw_button.clone();
     let rotate_master_key_button_for_i18n = rotate_master_key_button.clone();
 
@@ -575,10 +607,10 @@
     let auto_lock_label_for_i18n = auto_lock_label.clone();
     let auto_lock_dropdown_for_i18n = auto_lock_dropdown.clone();
     let auto_lock_items_for_i18n = auto_lock_items.clone();
-    let show_edit_passwords_label_for_i18n = show_edit_passwords_label.clone();
+    let show_edit_passwords_switch_for_i18n = show_edit_passwords_switch.clone();
     let show_edit_passwords_hint_for_i18n = show_edit_passwords_hint.clone();
 
-    let twofa_title_for_i18n = twofa_title.clone();
+    let twofa_title_for_i18n = twofa_expander.clone();
     let twofa_disabled_copy_for_i18n = twofa_disabled_copy.clone();
     let twofa_activate_button_for_i18n = twofa_activate_button.clone();
     let twofa_setup_copy_for_i18n = twofa_setup_copy.clone();
@@ -603,6 +635,10 @@
     let import_title_for_i18n = import_title.clone();
     let import_subtitle_for_i18n = import_subtitle.clone();
     let import_button_for_i18n = import_button.clone();
+    let admin_frame_for_i18n = admin_frame_for_i18n.clone();
+    let admin_subtitle_for_i18n = admin_subtitle_for_i18n.clone();
+    let admin_users_button_for_i18n = admin_users_button_for_i18n.clone();
+    let admin_teams_button_for_i18n = admin_teams_button_for_i18n.clone();
 
     let on_language_changed_for_i18n = Rc::clone(&on_language_changed);
     let apply_profile_i18n: Rc<dyn Fn()> = Rc::new(move || {
@@ -610,15 +646,15 @@
         title_for_i18n.set_text(crate::tr!("profile-view-title").as_str());
         intro_for_i18n.set_text(crate::tr!("profile-view-intro").as_str());
 
-        info_frame_for_i18n.set_label(Some(crate::tr!("profile-section-info").as_str()));
+        info_frame_for_i18n.set_title(crate::tr!("profile-section-info").as_str());
         info_subtitle_for_i18n.set_text(crate::tr!("profile-section-info-subtitle").as_str());
-        username_label_for_i18n.set_text(crate::tr!("profile-field-username").as_str());
-        display_label_for_i18n.set_text(crate::tr!("profile-field-display-name").as_str());
-        email_label_for_i18n.set_text(crate::tr!("profile-field-email").as_str());
+        username_entry_for_i18n.set_title(crate::tr!("profile-field-username").as_str());
+        display_entry_for_i18n.set_title(crate::tr!("profile-field-display-name").as_str());
+        email_entry_for_i18n.set_title(crate::tr!("profile-field-email").as_str());
         language_label_for_i18n.set_text(crate::tr!("profile-language-title").as_str());
         language_hint_for_i18n.set_text(crate::tr!("profile-language-subtitle").as_str());
-        current_email_pw_label_for_i18n
-            .set_text(crate::tr!("profile-field-current-password-email-change").as_str());
+        current_email_pw_entry_for_i18n
+            .set_title(crate::tr!("profile-field-current-password-email-change").as_str());
         save_profile_button_for_i18n.set_label(crate::tr!("profile-save").as_str());
 
         let lang_selected = language_dropdown_for_i18n.selected();
@@ -633,14 +669,13 @@
         language_dropdown_for_i18n.set_selected(lang_selected.min(1));
 
         password_change_frame_for_i18n
-            .set_label(Some(crate::tr!("profile-section-password-change").as_str()));
+            .set_title(crate::tr!("profile-section-password-change").as_str());
         password_change_subtitle_for_i18n
             .set_text(crate::tr!("profile-section-password-change-subtitle").as_str());
-        current_pw_label_for_i18n
-            .set_text(crate::tr!("profile-field-current-password").as_str());
-        new_pw_label_for_i18n.set_text(crate::tr!("profile-field-new-password").as_str());
-        confirm_pw_label_for_i18n
-            .set_text(crate::tr!("profile-field-confirm-new-password").as_str());
+        current_pw_entry_for_i18n.set_title(crate::tr!("profile-field-current-password").as_str());
+        new_pw_entry_for_i18n.set_title(crate::tr!("profile-field-new-password").as_str());
+        confirm_pw_entry_for_i18n
+            .set_title(crate::tr!("profile-field-confirm-new-password").as_str());
         change_pw_button_for_i18n.set_label(crate::tr!("profile-change-button").as_str());
         change_pw_button_for_i18n
             .set_tooltip_text(Some(crate::tr!("profile-change-button-tooltip").as_str()));
@@ -650,7 +685,7 @@
             .set_tooltip_text(Some(crate::tr!("profile-rotate-button-tooltip").as_str()));
 
         security_prefs_frame_for_i18n
-            .set_label(Some(crate::tr!("profile-section-security-prefs").as_str()));
+            .set_title(crate::tr!("profile-section-security-prefs").as_str());
         auto_lock_label_for_i18n.set_text(crate::tr!("profile-auto-lock-title").as_str());
         let auto_lock_selected = auto_lock_dropdown_for_i18n.selected();
         auto_lock_items_for_i18n.splice(
@@ -659,18 +694,17 @@
             &[
                 crate::tr!("profile-auto-lock-1").as_str(),
                 crate::tr!("profile-auto-lock-5").as_str(),
-                crate::tr!("profile-auto-lock-15").as_str(),
                 crate::tr!("profile-auto-lock-30").as_str(),
                 crate::tr!("profile-auto-lock-never").as_str(),
             ],
         );
-        auto_lock_dropdown_for_i18n.set_selected(auto_lock_selected.min(4));
-        show_edit_passwords_label_for_i18n
-            .set_text(crate::tr!("profile-show-edit-passwords-title").as_str());
+        auto_lock_dropdown_for_i18n.set_selected(auto_lock_selected.min(3));
+        show_edit_passwords_switch_for_i18n
+            .set_title(crate::tr!("profile-show-edit-passwords-title").as_str());
         show_edit_passwords_hint_for_i18n
             .set_text(crate::tr!("profile-show-edit-passwords-hint").as_str());
 
-        twofa_title_for_i18n.set_text(crate::tr!("profile-section-2fa-title").as_str());
+        twofa_title_for_i18n.set_title(crate::tr!("profile-section-2fa-title").as_str());
         twofa_disabled_copy_for_i18n.set_text(crate::tr!("profile-2fa-disabled-copy").as_str());
         twofa_activate_button_for_i18n.set_label(crate::tr!("profile-2fa-activate").as_str());
         twofa_setup_copy_for_i18n.set_text(crate::tr!("profile-2fa-setup-copy").as_str());
@@ -700,13 +734,29 @@
             .is_some_and(|name| name == "enabled");
         MainWindow::set_twofa_badge_state(&twofa_badge_for_i18n, is_twofa_enabled);
 
-        data_frame_for_i18n.set_label(Some(crate::tr!("profile-section-data").as_str()));
+        data_frame_for_i18n.set_title(crate::tr!("profile-section-data").as_str());
         export_title_for_i18n.set_text(crate::tr!("profile-export-title").as_str());
         export_subtitle_for_i18n.set_text(crate::tr!("profile-export-subtitle").as_str());
         export_button_for_i18n.set_label(crate::tr!("profile-export-button").as_str());
         import_title_for_i18n.set_text(crate::tr!("profile-import-title").as_str());
         import_subtitle_for_i18n.set_text(crate::tr!("profile-import-subtitle").as_str());
         import_button_for_i18n.set_label(crate::tr!("profile-import-button").as_str());
+
+        if let Some(admin_frame) = admin_frame_for_i18n.as_ref() {
+            admin_frame.set_title(crate::tr!("profile-section-admin-advanced").as_str());
+        }
+        if let Some(admin_subtitle) = admin_subtitle_for_i18n.as_ref() {
+            admin_subtitle
+                .set_text(crate::tr!("profile-admin-advanced-subtitle").as_str());
+        }
+        if let Some(admin_users_button) = admin_users_button_for_i18n.as_ref() {
+            admin_users_button
+                .set_label(crate::tr!("profile-admin-open-users").as_str());
+        }
+        if let Some(admin_teams_button) = admin_teams_button_for_i18n.as_ref() {
+            admin_teams_button
+                .set_label(crate::tr!("profile-admin-open-teams").as_str());
+        }
 
         on_language_changed_for_i18n();
     });
@@ -839,9 +889,8 @@
                 let selected = match delay {
                     1 => 0,
                     5 => 1,
-                    15 => 2,
-                    30 => 3,
-                    0 => 4,
+                    30 => 2,
+                    0 => 3,
                     _ => 1,
                 };
                 auto_lock_for_load.set_selected(selected);
@@ -887,15 +936,26 @@
         let mins = match dropdown.selected() {
             0 => 1,
             1 => 5,
-            2 => 15,
-            3 => 30,
-            4 => 0,
+            2 => 30,
+            3 => 0,
             _ => 5,
+        };
+        if mins == 0 {
+            MainWindow::show_feedback_dialog(
+                &window_for_delay,
+                crate::tr!("profile-auto-lock-never-warning-title").as_str(),
+                crate::tr!("profile-auto-lock-never-warning-body").as_str(),
+            );
+        }
+        let status_message = if mins == 0 {
+            crate::tr!("profile-status-lock-delay-warning")
+        } else {
+            crate::tr!("profile-status-lock-delay-updating")
         };
         MainWindow::set_inline_status(
             &security_status_for_delay,
-            crate::tr!("profile-status-lock-delay-updating").as_str(),
-            "loading",
+            status_message.as_str(),
+            if mins == 0 { "error" } else { "loading" },
         );
 
         let (sender, receiver) = tokio::sync::oneshot::channel();
@@ -1458,9 +1518,19 @@
     let backup_for_export = Arc::clone(&backup_service);
     let database_path_for_export = database_path.clone();
     let actor_user_id_for_export: Uuid = user_id;
+    let is_admin_for_export = is_admin;
     let begin_critical_for_export = Rc::clone(&begin_critical_operation);
     let end_critical_for_export = Rc::clone(&end_critical_operation);
     export_button.connect_clicked(move |_| {
+        if !is_admin_for_export {
+            MainWindow::show_feedback_dialog(
+                &window_for_export,
+                crate::tr!("profile-export-admin-required-title").as_str(),
+                crate::tr!("profile-export-admin-required-body").as_str(),
+            );
+            return;
+        }
+
         let window_for_dialog = window_for_export.clone();
         let backup_for_dialog = Arc::clone(&backup_for_export);
         let backup_app_for_dialog = Arc::clone(&backup_app_for_export);
@@ -1528,6 +1598,7 @@
         let refresh_for_response = Rc::clone(&refresh_for_import);
         let begin_critical_for_response = Rc::clone(&begin_critical_for_import);
         let end_critical_for_response = Rc::clone(&end_critical_for_import);
+
         chooser.connect_response(move |dialog, response| {
             if response != gtk4::ResponseType::Accept {
                 dialog.destroy();
@@ -1563,55 +1634,242 @@
                 return;
             };
 
-            let (sender, receiver) = tokio::sync::oneshot::channel();
-            let import_for_task = Arc::clone(&import_for_response);
-            let secret_for_task = Arc::clone(&secret_for_response);
-            let vault_for_task = Arc::clone(&vault_for_response);
-            let runtime_for_task = runtime_for_response.clone();
-            begin_critical_for_response();
-            std::thread::spawn(move || {
-                let result = runtime_for_task.block_on(async move {
-                    import_for_task
-                        .import_csv(
-                            csv_path.as_path(),
-                            user_id,
-                            SecretBox::new(Box::new(master_key)),
-                            secret_for_task,
-                            vault_for_task,
-                        )
-                        .await
+            let preview = match import_for_response.preview_csv(csv_path.as_path()) {
+                Ok(preview) => preview,
+                Err(error) => {
+                    tracing::error!(error = %error, csv_file = %csv_path.display(), "csv import preview failed");
+                    MainWindow::show_feedback_dialog(
+                        &window_for_response,
+                        crate::tr!("profile-import-accept").as_str(),
+                        format!("Cannot read CSV preview:\n{}", error).as_str(),
+                    );
+                    return;
+                }
+            };
+
+            // Fetch accessible vaults to let user choose the import target.
+            let available_vaults: Vec<crate::models::Vault> = {
+                let vault_svc = Arc::clone(&vault_for_response);
+                let rt = runtime_for_response.clone();
+                match std::thread::spawn(move || {
+                    rt.block_on(vault_svc.list_user_vaults(user_id))
+                })
+                .join()
+                {
+                    Ok(Ok(v)) => v,
+                    _ => vec![],
+                }
+            };
+
+            let vault_combo = gtk4::ComboBoxText::new();
+            for vault in &available_vaults {
+                vault_combo.append(Some(&vault.id.to_string()), &vault.name);
+            }
+            if !available_vaults.is_empty() {
+                vault_combo.set_active(Some(0));
+            }
+            let vault_selector_box = gtk4::Box::new(gtk4::Orientation::Vertical, 6);
+            vault_selector_box.set_margin_top(12);
+            let vault_label = gtk4::Label::new(Some(
+                crate::tr!("profile-import-vault-label").as_str(),
+            ));
+            vault_label.set_xalign(0.0);
+            vault_selector_box.append(&vault_label);
+            vault_selector_box.append(&vault_combo);
+
+            let file_name = csv_path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("CSV file")
+                .to_string();
+
+            let preview_body = format!(
+                "{}\n{}\n{}\n\n{}",
+                crate::i18n::tr_args(
+                    "profile-import-preview-file",
+                    &[("file", crate::i18n::I18nArg::Str(file_name.as_str()))],
+                ),
+                crate::i18n::tr_args(
+                    "profile-import-preview-detected",
+                    &[("count", crate::i18n::I18nArg::Num(preview.total_rows as i64))],
+                ),
+                crate::i18n::tr_args(
+                    "profile-import-preview-ready",
+                    &[("count", crate::i18n::I18nArg::Num(preview.importable_rows as i64))],
+                ),
+                crate::tr!("profile-import-preview-confirm"),
+            );
+
+            let preview_dialog = adw::MessageDialog::new(
+                Some(&window_for_response),
+                Some(crate::tr!("profile-import-preview-title").as_str()),
+                Some(preview_body.as_str()),
+            );
+            preview_dialog.add_response("cancel", crate::tr!("common-cancel").as_str());
+            preview_dialog.add_response("import", crate::tr!("profile-import-accept").as_str());
+            preview_dialog.set_default_response(Some("import"));
+            preview_dialog.set_close_response("cancel");
+            preview_dialog.set_extra_child(Some(&vault_selector_box));
+
+            let window_for_preview = window_for_response.clone();
+            let import_for_preview = Arc::clone(&import_for_response);
+            let secret_for_preview = Arc::clone(&secret_for_response);
+            let vault_for_preview = Arc::clone(&vault_for_response);
+            let runtime_for_preview = runtime_for_response.clone();
+            let refresh_for_preview = Rc::clone(&refresh_for_response);
+            let begin_critical_for_preview = Rc::clone(&begin_critical_for_response);
+            let end_critical_for_preview = Rc::clone(&end_critical_for_response);
+            let vault_combo_for_preview = vault_combo.clone();
+
+            preview_dialog.connect_response(None, move |preview_dialog, preview_response| {
+                preview_dialog.close();
+                if preview_response != "import" {
+                    return;
+                }
+
+                let target_vault_id: Option<uuid::Uuid> = vault_combo_for_preview
+                    .active_id()
+                    .and_then(|id| uuid::Uuid::parse_str(&id).ok());
+
+                let progress_dialog = Rc::new(
+                    crate::ui::dialogs::import_progress_dialog::ImportProgressDialog::show(
+                        &window_for_preview,
+                        file_name.as_str(),
+                        preview.total_rows,
+                    ),
+                );
+                let progress_done = progress_dialog.completed_flag();
+                let import_started_at = std::time::Instant::now();
+                let (progress_tx, progress_rx) = std::sync::mpsc::channel::<
+                    crate::services::import_service::ImportProgressEvent,
+                >();
+
+                let progress_dialog_for_timer = Rc::clone(&progress_dialog);
+                glib::timeout_add_local(std::time::Duration::from_millis(80), move || {
+                    while let Ok(event) = progress_rx.try_recv() {
+                        match event {
+                            crate::services::import_service::ImportProgressEvent::Started {
+                                total_rows,
+                                importable_rows,
+                                failed_rows,
+                            } => {
+                                progress_dialog_for_timer.update(
+                                    failed_rows,
+                                    total_rows,
+                                    0,
+                                    failed_rows,
+                                    Some(&format!(
+                                        "Pre-flight: {} ready, {} to review",
+                                        importable_rows, failed_rows
+                                    )),
+                                );
+                            }
+                            crate::services::import_service::ImportProgressEvent::Progress {
+                                processed,
+                                total_rows,
+                                imported,
+                                failed,
+                                current_title,
+                            } => {
+                                progress_dialog_for_timer.update(
+                                    processed,
+                                    total_rows,
+                                    imported,
+                                    failed,
+                                    current_title.as_deref(),
+                                );
+                            }
+                        }
+                    }
+
+                    if progress_done.get() {
+                        glib::ControlFlow::Break
+                    } else {
+                        glib::ControlFlow::Continue
+                    }
                 });
-                let _ = sender.send(result);
+
+                let (sender, receiver) = tokio::sync::oneshot::channel();
+                let import_for_task = Arc::clone(&import_for_preview);
+                let secret_for_task = Arc::clone(&secret_for_preview);
+                let vault_for_task = Arc::clone(&vault_for_preview);
+                let runtime_for_task = runtime_for_preview.clone();
+                let csv_path_for_task = csv_path.clone();
+                let master_key_for_task = master_key.clone();
+                let file_name_for_result = file_name.clone();
+                begin_critical_for_preview();
+                std::thread::spawn(move || {
+                    let result = runtime_for_task.block_on(async move {
+                        import_for_task
+                            .import_csv(
+                                csv_path_for_task.as_path(),
+                                user_id,
+                                SecretBox::new(Box::new(master_key_for_task)),
+                                target_vault_id,
+                                secret_for_task,
+                                vault_for_task,
+                                Some(progress_tx),
+                            )
+                            .await
+                    });
+                    let _ = sender.send(result);
+                });
+
+                let window_for_result = window_for_preview.clone();
+                let refresh_for_result = Rc::clone(&refresh_for_preview);
+                let end_critical_for_result = Rc::clone(&end_critical_for_preview);
+                let progress_dialog_for_result = Rc::clone(&progress_dialog);
+                glib::MainContext::default().spawn_local(async move {
+                    let result = receiver.await;
+                    end_critical_for_result();
+                    match result {
+                        Ok(Ok(report)) => {
+                            refresh_for_result();
+                            progress_dialog_for_result.close();
+                            crate::ui::dialogs::import_progress_dialog::ImportProgressDialog::show_summary(
+                                &window_for_result,
+                                file_name_for_result.as_str(),
+                                report.total_rows,
+                                report.imported,
+                                report.failed,
+                                import_started_at.elapsed(),
+                                &report.failures,
+                                report.reject_report_path.as_deref(),
+                            );
+                        }
+                        Ok(Err(error)) => {
+                            progress_dialog_for_result.close();
+                            tracing::error!(
+                                error = %error,
+                                "csv import failed in profile view"
+                            );
+                            MainWindow::show_feedback_dialog(
+                                &window_for_result,
+                                crate::tr!("profile-import-accept").as_str(),
+                                crate::i18n::tr_args(
+                                    "profile-import-error-body",
+                                    &[("error", crate::i18n::I18nArg::Str(error.to_string().as_str()))],
+                                )
+                                .as_str(),
+                            );
+                        }
+                        Err(error) => {
+                            progress_dialog_for_result.close();
+                            tracing::error!(
+                                error = %error,
+                                "csv import worker channel failed"
+                            );
+                            MainWindow::show_feedback_dialog(
+                                &window_for_result,
+                                crate::tr!("profile-import-accept").as_str(),
+                                crate::tr!("profile-import-failed").as_str(),
+                            );
+                        }
+                    }
+                });
             });
 
-            let window_for_result = window_for_response.clone();
-            let refresh_for_result = Rc::clone(&refresh_for_response);
-            let end_critical_for_result = Rc::clone(&end_critical_for_response);
-            glib::MainContext::default().spawn_local(async move {
-                let result = receiver.await;
-                end_critical_for_result();
-                match result {
-                    Ok(Ok(count)) => {
-                        refresh_for_result();
-                        let message = crate::i18n::tr_args(
-                            "profile-import-success-body",
-                            &[("count", crate::i18n::I18nArg::Num(count as i64))],
-                        );
-                        MainWindow::show_feedback_dialog(
-                            &window_for_result,
-                            crate::tr!("profile-import-accept").as_str(),
-                            message.as_str(),
-                        );
-                    }
-                    _ => {
-                        MainWindow::show_feedback_dialog(
-                            &window_for_result,
-                            crate::tr!("profile-import-accept").as_str(),
-                            crate::tr!("profile-import-failed").as_str(),
-                        );
-                    }
-                }
-            });
+            preview_dialog.present();
         });
 
         chooser.show();

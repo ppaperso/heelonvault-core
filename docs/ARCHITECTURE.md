@@ -48,18 +48,18 @@ HeelonVault/
 ├── scripts/remove-core.sh          # Bibliothèque commune désinstallation Linux
 ├── scripts/remove-ubuntu.sh                # Désinstallation Ubuntu / Debian
 ├── scripts/remove-rhel.sh                  # Désinstallation Fedora / RHEL / Rocky / AlmaLinux
-├── update.sh                       # Mise a jour Rust-only + backup
 └── docs/
 ```
 
 ## Flux de demarrage
 
-1. `main.rs` initialise le runtime tokio.
-2. Ouverture de la base SQLite via `HEELONVAULT_DB_PATH`.
-3. Application des migrations SQL.
-4. Construction des repositories/services.
-5. Initialisation UI, authentification, puis fenêtre principale.
-6. Chargement des secrets et activation de la politique de session.
+1. `main.rs` applique les variables runtime de rendu GTK (dont `GSK_RENDERER`) avant de lancer Tokio.
+2. `main.rs` initialise le runtime tokio.
+3. Ouverture de la base SQLite via `HEELONVAULT_DB_PATH`.
+4. Application des migrations SQL.
+5. Construction des repositories/services.
+6. Initialisation UI, authentification, puis fenêtre principale.
+7. Chargement des secrets et activation de la politique de session.
 
 ## Vue UI principale
 
@@ -80,7 +80,20 @@ Conséquences:
 - fermeture de la fenêtre principale: déconnexion propre et retour à l'écran de login;
 - auto-lock: même comportement de déconnexion propre;
 - historique de connexions stocké dans `login_history`;
+- changement de mot de passe maître via `rotate_master_key_hardened`:
+  - rewrap des enveloppes de clés de coffres owner/shared,
+  - application atomique SQL des mutations critiques,
+  - validation pré/post rotation en mode `VaultAndSampleSecret`;
 - préférence utilisateur persistée `show_passwords_in_edit` pour l'édition des secrets de type mot de passe.
+
+## Import CSV (pipeline)
+
+Le flux d'import CSV combine une UX guidée et un traitement métier tolérant aux erreurs:
+
+- UI en 3 phases: prévisualisation, progression, résumé final;
+- dialogue dédié `import_progress_dialog` pour le suivi live;
+- traitement ligne par ligne côté service avec bilan agrégé (`imported`, `failed`, détails par ligne);
+- génération d'un rapport de rejets `csv_import_rejects_*.txt` dans `HEELONVAULT_LOG_DIR` (ou `./logs` par défaut) lorsque des lignes sont rejetées.
 
 ## Recherche
 

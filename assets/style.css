@@ -2182,7 +2182,8 @@ label.inline-status-error {
     margin-bottom: 2px;
 }
 
-frame.profile-section-frame {
+frame.profile-section-frame,
+preferencesgroup.profile-section-frame {
     border-radius: 14px;
     padding: 2px;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(243, 246, 243, 0.98));
@@ -2201,8 +2202,20 @@ frame.profile-section-frame {
 
 entry.profile-field-entry,
 passwordentry.profile-field-entry,
-dropdown.profile-field-entry {
+dropdown.profile-field-entry,
+entryrow.profile-field-entry,
+passwordentryrow.profile-field-entry,
+comborow.profile-field-entry,
+switchrow.profile-field-entry {
     min-height: 38px;
+}
+
+entryrow.profile-field-entry,
+passwordentryrow.profile-field-entry,
+comborow.profile-field-entry,
+switchrow.profile-field-entry {
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.88);
 }
 
 .profile-actions-row {
@@ -2219,7 +2232,57 @@ button.profile-action-btn {
     margin-top: 2px;
 }
 
-.profile-compact frame.profile-section-frame {
+.profile-view-content preferencesgroup {
+    transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.profile-view-content preferencesgroup:hover {
+    border-color: rgba(126, 206, 188, 0.78);
+    box-shadow: 0 10px 22px rgba(7, 57, 58, 0.10);
+}
+
+/* Badge styles for status indicators */
+.badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14);
+}
+
+.badge-disabled {
+    background: #e02424;
+    color: white;
+}
+
+.badge-enabled {
+    background: #33d417;
+    color: white;
+}
+
+label.status-role-pill {
+    box-shadow: 0 1px 2px rgba(7, 57, 58, 0.10);
+}
+
+label.status-role-user {
+    background: rgba(44, 62, 80, 0.14);
+    color: #2f3a4a;
+    border: 1px solid rgba(44, 62, 80, 0.26);
+}
+
+label.status-role-admin {
+    background: rgba(19, 161, 161, 0.18);
+    color: #0a4f4d;
+    border: 1px solid rgba(19, 161, 161, 0.36);
+}
+
+/* Reduce vertical spacing in PreferencesGroup */
+preferencesgroup {
+    margin-bottom: 12px;
+}
+
+.profile-compact frame.profile-section-frame,
+.profile-compact preferencesgroup.profile-section-frame {
     padding: 0;
 }
 
@@ -2256,6 +2319,94 @@ button.profile-action-btn {
     border: 1px solid rgba(164, 223, 207, 0.95);
 }
 
+.add-edit-dialog box.add-edit-type-pill-row {
+    margin-bottom: 4px;
+}
+
+.add-edit-dialog button.add-edit-type-pill {
+    padding: 7px 12px;
+}
+
+.add-edit-dialog button.add-edit-type-pill:checked {
+    border-color: rgba(7, 57, 58, 0.5);
+    background: linear-gradient(145deg, #1c7773, #13615d);
+    color: #f6fffd;
+}
+
+.add-edit-dialog grid.add-edit-common-grid {
+    margin-bottom: 4px;
+}
+
+/* Vault pills section */
+.add-edit-dialog label.add-edit-vaults-label {
+    margin-bottom: 8px;
+    margin-top: 0;
+}
+
+.add-edit-dialog box.add-edit-vault-pills-row {
+    margin-bottom: 4px;
+}
+
+.add-edit-dialog button.add-edit-vault-pill {
+    padding: 7px 12px;
+}
+
+.add-edit-dialog button.add-edit-vault-pill:checked {
+    border-color: rgba(7, 57, 58, 0.5);
+    background: linear-gradient(145deg, #1c7773, #13615d);
+    color: #f6fffd;
+}
+
+.add-edit-dialog button.add-edit-vault-pill:disabled {
+    opacity: 0.5;
+}
+
+.add-edit-dialog label.add-edit-vault-pill {
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(164, 223, 207, 0.95);
+    background: rgba(255, 255, 255, 0.98);
+    color: #0B3D3A;
+}
+
+.add-edit-dialog label.badge-inside-pill {
+    padding: 2px 6px;
+    font-size: 0.65em;
+    font-weight: 700;
+    border-radius: 4px;
+    margin-left: 6px;
+}
+
+.add-edit-dialog label.badge-current {
+    background: #1F8678;
+    color: white;
+}
+
+.add-edit-dialog label.badge-target {
+    background: #0E88B8;
+    color: white;
+}
+
+.add-edit-dialog label.add-edit-vaults-empty-label {
+    opacity: 0.6;
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+.add-edit-dialog box.add-edit-main-split {
+    margin-bottom: 4px;
+}
+
+.add-edit-dialog frame.add-edit-info-block,
+.add-edit-dialog frame.add-edit-secret-block {
+    min-width: 340px;
+}
+
+.add-edit-dialog box.add-edit-main-split.is-compact frame.add-edit-info-block,
+.add-edit-dialog box.add-edit-main-split.is-compact frame.add-edit-secret-block {
+    min-width: 0;
+}
+
 .add-edit-dialog dropdown.dialog-type-dropdown,
 .add-edit-dialog spinbutton.dialog-validity-spin {
     border-radius: 12px;
@@ -2274,6 +2425,13 @@ button.profile-action-btn {
 .add-edit-dialog textview.dialog-ssh-private-key-text {
     font-family: monospace;
     font-size: 0.92rem;
+}
+
+frame.add-edit-footer-card {
+    margin-top: 0;
+    margin-bottom: 8px;
+    margin-left: 16px;
+    margin-right: 16px;
 }
 
 .init-warning-banner {

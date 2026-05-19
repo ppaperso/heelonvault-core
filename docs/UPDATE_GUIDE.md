@@ -19,23 +19,22 @@ Ce guide decrit la mise a jour de HeelonVault dans son architecture Rust-only.
 
 1. L'application est deja installee via `scripts/install.sh` (auto-détection OS), ou explicitement via `scripts/install-ubuntu.sh` / `scripts/install-rhel.sh`.
 2. Vous avez les droits `sudo`.
-3. Le toolchain Rust est disponible (`cargo`).
-4. Vous etes dans le dossier source qui contient `update.sh`.
+3. Vous etes dans le dossier source de la version cible (avec `scripts/install.sh`, le binaire `heelonvault` et le dossier `migrations/`).
 
 ## Procedure de mise a jour
 
 ```bash
 cd /chemin/vers/HeelonVault
-sudo bash update.sh
+sudo ./scripts/install.sh
 ```
 
 Le script effectue:
 
-1. Verification des preconditions (`sudo`, `cargo`, dossier d'installation).
-2. Backup de `/opt/heelonvault`.
-3. Verification d'integrite de l'archive backup.
-4. Synchronisation des fichiers source vers `/opt/heelonvault` via `rsync`.
-5. Build release Rust (`cargo build --release`).
+1. Verification des preconditions et de l'integrite de l'artefact.
+2. Detection du mode de deploiement (personnel/entreprise) et des bases existantes.
+3. Backup automatique des bases detectees dans `/var/backups/heelonvault` (rotation des backups conservee).
+4. Redeploiement vers `/opt/heelonvault`.
+5. Regeneration du lanceur `run.sh`, integration desktop et verification des artefacts.
 
 ## Verifications post-update
 
@@ -57,13 +56,19 @@ cd /opt/heelonvault && cargo check
 Si une mise a jour doit etre annulee:
 
 ```bash
-# 1. Identifier le backup cible
+# 1. Revenir au code/source de la version precedente
+cd /chemin/vers/HeelonVault
+# exemple: git checkout <tag_precedent>
+
+# 2. Reinstaller cette version
+sudo ./scripts/install.sh
+
+# 3. Restaurer la base depuis un backup recent (choisir selon mode)
 ls -lth /var/backups/heelonvault/
+# personnel: heelonvault_user_<user>_backup_YYYYMMDD_HHMMSS.db
+# entreprise: heelonvault_enterprise_backup_YYYYMMDD_HHMMSS.db
 
-# 2. Restaurer installation
-sudo tar -xzf /var/backups/heelonvault/heelonvault_YYYYMMDD_HHMMSS.tar.gz -C /
-
-# 3. Relancer
+# 4. Relancer
 /opt/heelonvault/run.sh
 ```
 
@@ -80,10 +85,12 @@ Verifications fonctionnelles recommandees:
 9. Si la 2FA est activée, vérifier qu'un code TOTP valide ne peut pas être réutilisé immédiatement (anti-rejeu).
 10. Importer un CSV de test et vérifier que les URL non `http/https`, les fichiers trop volumineux et les champs anormalement longs sont rejetés.
 11. Après export backup/restauration, vérifier les permissions Linux avec `stat -c "%a %n" /chemin/backup.hvb` et `stat -c "%a %n" /chemin/heelonvault-rust.db` (valeur attendue: `600`).
+12. Changer le mot de passe maître, puis vérifier l'accès aux coffres principaux après reconnexion (rotation master key durcie).
+13. Vérifier le flux CSV en 3 étapes (prévisualisation, progression, résumé) et, en cas de rejet, noter le chemin `csv_import_rejects_*.txt` indiqué dans le résumé.
 
 ## Bonnes pratiques
 
-- Toujours lancer `update.sh` depuis le code source cible.
+- Toujours lancer `scripts/install.sh` (ou le wrapper OS explicite) depuis le code source cible.
 - Verifier l'espace disque avant mise a jour (`df -h /var/backups`).
 - Ne pas modifier les donnees pendant la mise a jour.
 - Conserver plusieurs backups recents avant nettoyage manuel.
@@ -92,4 +99,4 @@ Verifications fonctionnelles recommandees:
 
 - Ne pas reutiliser d'anciennes procedures `venv`/`pip`.
 - Ne pas modifier les anciens chemins Python (`/var/lib/heelonvault-shared`).
-- Ne pas contourner les erreurs backup: un echec backup doit bloquer l'update.
+- Ne pas contourner les erreurs backup: un echec backup doit bloquer la mise a jour.
