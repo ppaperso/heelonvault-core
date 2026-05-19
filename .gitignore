@@ -22,9 +22,11 @@ export-csv/
 backup_*.tar.gz
 backup_before_*/
 backup_pre_migration_*/
+*.db.bak-*
 
 # Logs
 logs/*.log
+logs/csv_import_rejects_*.txt
 logs/pylint_report*.txt
 *.log
 
