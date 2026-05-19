@@ -104,6 +104,14 @@ add-edit-field-title-placeholder = Readable secret name
 add-edit-field-tags-label = Tags (comma-separated)
 add-edit-field-tags-placeholder = prod, client-a, finance
 add-edit-field-type-label = Secret type
+add-edit-type-pill-password = Password
+add-edit-type-pill-api-token = API token
+add-edit-type-pill-ssh-key = SSH key
+add-edit-type-pill-document = Document
+add-edit-type-section-password = Password Fields
+add-edit-type-section-api-token = API Token Fields
+add-edit-type-section-ssh-key = SSH Key Fields
+add-edit-type-section-document = Document Fields
 add-edit-field-login-label = Username / Login
 add-edit-field-login-placeholder = alice@example.com
 add-edit-field-url-label = URL
@@ -111,6 +119,15 @@ add-edit-field-url-placeholder = https://example.com
 add-edit-field-notes-label = Notes
 add-edit-field-validity-label = Validity
 add-edit-field-validity-unlimited = Unlimited validity
+add-edit-current-vault-label = Current vault: { $name }
+add-edit-target-vault-label = Target vault: { $name }
+add-edit-target-vault-current = Target vault: { $name } (current)
+add-edit-change-vault-button = Change vault
+add-edit-change-vault-title = Change target vault
+add-edit-vaults-label = VAULTS
+add-edit-vault-badge-current = CURRENT
+add-edit-vault-badge-target = TARGET
+add-edit-vaults-empty = No other vault
 
 add-edit-button-back = ← Back
 add-edit-button-cancel = Cancel
@@ -254,6 +271,8 @@ profile-auto-lock-10 = 10 min
 profile-auto-lock-15 = 15 min
 profile-auto-lock-30 = 30 min
 profile-auto-lock-never = never
+profile-auto-lock-never-warning-title = Auto-lock disabled
+profile-auto-lock-never-warning-body = Choosing "never" disables automatic lock. This setting is non-compliant and significantly increases the risk of data theft or exposure if you leave your screen unattended.
 profile-show-edit-passwords-title = Show current password while editing
 profile-show-edit-passwords-hint = Shows masked dots in the editor password field, with an eye icon to reveal the current value.
 profile-section-2fa-title = 2FA
@@ -280,6 +299,7 @@ profile-import-button = Import data (CSV)
 
 profile-status-load-failed = Profile loading is temporarily unavailable.
 profile-status-lock-delay-updating = Updating auto-lock delay...
+profile-status-lock-delay-warning = Warning: auto-lock disabled (non-compliant, high data exposure risk).
 profile-status-lock-delay-updated = Auto-lock delay updated.
 profile-status-lock-delay-failed = Unable to update the auto-lock delay.
 profile-status-show-passwords-updating = Updating display preference...
@@ -330,6 +350,40 @@ profile-import-invalid-path = Invalid CSV path.
 profile-import-session-locked = Session is locked. Sign in again.
 profile-import-success-body = CSV import completed: { $count } secrets.
 profile-import-failed = CSV import failed.
+profile-import-preview-title = Import preview
+profile-import-preview-file = File: { $file }
+profile-import-preview-detected = Detected secrets: { $count }
+profile-import-preview-ready = Importable secrets: { $count }
+profile-import-preview-confirm = Continue with the import?
+profile-import-vault-label = Target vault:
+profile-import-progress-title = Import in progress
+profile-import-progress-file = File: { $file }
+profile-import-progress-preparing = Preparing import...
+profile-import-progress-processing = Processing: { $title }
+profile-import-progress-default = Importing secrets...
+profile-import-progress-stats = Processed { $processed }/{ $total } • Imported { $imported } • Failed { $failed }
+profile-import-progress-completed = Import completed
+profile-import-progress-summary = Imported { $imported } secrets • { $failed } failed
+profile-import-result-title = Import complete
+profile-import-result-subtitle = Source file: { $file }
+profile-import-result-summary = { $imported } imported • { $failed } failed • { $duration }
+profile-import-result-stat-total = Total rows
+profile-import-result-stat-imported = Imported
+profile-import-result-stat-failed = Failed
+profile-import-result-reject-report = Reject report generated at: { $path }
+profile-import-result-details-title = Items to review
+profile-import-result-no-failures = No rows need review.
+profile-import-summary-body = CSV import completed.
+
+    Detected: { $total }
+    Imported: { $imported }
+    Failed: { $failed }
+profile-import-summary-followup = Manual follow-up:
+profile-import-summary-item = Row { $row }: { $title } — { $reason }
+profile-import-summary-more = ... and { $count } more
+profile-import-error-body = CSV import failed:
+
+    { $error }
 
 profile-language-title = Language
 profile-language-subtitle = Sets the interface language for subsequent views.
@@ -363,6 +417,10 @@ profile-export-recovery-dialog-helper = Save your key using Copy, Print, or Save
 profile-export-recovery-confirm = I've recorded it
 profile-export-admin-required-title = Admin rights required
 profile-export-admin-required-body = Only an admin user can export the database.
+profile-section-admin-advanced = Advanced admin
+profile-admin-advanced-subtitle = Quick access to advanced administration tools.
+profile-admin-open-users = Open Users
+profile-admin-open-teams = Open Teams
 
 main-my-vaults-title = My vaults
 main-create-vault-button = New vault

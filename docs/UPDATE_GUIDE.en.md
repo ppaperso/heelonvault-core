@@ -19,23 +19,22 @@ This guide explains how to update HeelonVault in its Rust-only architecture.
 
 1. Application already installed with `scripts/install.sh` (OS auto-detection), or explicitly with `scripts/install-ubuntu.sh` / `scripts/install-rhel.sh`.
 2. `sudo` access.
-3. Rust toolchain available (`cargo`).
-4. You are in the source folder containing `update.sh`.
+3. You are in the target-version source folder (with `scripts/install.sh`, the `heelonvault` binary, and `migrations/`).
 
 ## Update Procedure
 
 ```bash
 cd /path/to/HeelonVault
-sudo bash update.sh
+sudo ./scripts/install.sh
 ```
 
 The script performs:
 
-1. precondition checks (`sudo`, `cargo`, install folder);
-2. backup of `/opt/heelonvault`;
-3. backup archive integrity checks;
-4. source sync to `/opt/heelonvault` using `rsync`;
-5. release build (`cargo build --release`).
+1. precondition checks and artifact integrity verification;
+2. deployment mode detection (personal/enterprise) and existing database detection;
+3. automatic database backups in `/var/backups/heelonvault` (with backup rotation);
+4. redeploy to `/opt/heelonvault`;
+5. `run.sh` regeneration, desktop integration, and artifact validation.
 
 ## Post-update checks
 
@@ -65,23 +64,31 @@ Recommended functional checks:
 9. When 2FA is enabled, verify a valid TOTP code cannot be reused immediately (replay guard).
 10. Import a test CSV and verify non-`http/https` URLs, oversized files, and abnormally long fields are rejected.
 11. After backup export/restore, verify Linux file permissions with `stat -c "%a %n" /path/to/backup.hvb` and `stat -c "%a %n" /path/to/heelonvault-rust.db` (expected value: `600`).
+12. Change the master password, then verify access to main vaults after re-login (hardened master-key rotation).
+13. Verify the 3-step CSV flow (preview, progress, summary) and, when rows are rejected, record the `csv_import_rejects_*.txt` path shown in the summary.
 
 ## Rollback
 
 ```bash
-# list backups
+# 1. Switch to previous source/release version
+cd /path/to/HeelonVault
+# example: git checkout <previous_tag>
+
+# 2. Reinstall that version
+sudo ./scripts/install.sh
+
+# 3. Restore DB from a recent backup (choose by deployment mode)
 ls -lth /var/backups/heelonvault/
+# personal: heelonvault_user_<user>_backup_YYYYMMDD_HHMMSS.db
+# enterprise: heelonvault_enterprise_backup_YYYYMMDD_HHMMSS.db
 
-# restore install
-sudo tar -xzf /var/backups/heelonvault/heelonvault_YYYYMMDD_HHMMSS.tar.gz -C /
-
-# relaunch
+# 4. Relaunch
 /opt/heelonvault/run.sh
 ```
 
 ## Best Practices
 
-- run `update.sh` from the target source version;
+- run `scripts/install.sh` (or explicit OS wrapper) from the target source version;
 - check free space before update (`df -h /var/backups`);
 - avoid modifying data during update;
 - keep multiple recent backups before cleanup.

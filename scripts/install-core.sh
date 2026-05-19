@@ -21,7 +21,8 @@ hv_init_common_vars() {
   HV_LOCAL_ICON_DIR="$HV_INSTALL_DIR/icons"
   HV_LOCAL_ICON_PATH="$HV_LOCAL_ICON_DIR/heelonvault.png"
   HV_SCRIPT_DIR="$script_dir"
-  HV_PRIMARY_ICON_SOURCE="$HV_SCRIPT_DIR/assets/icons/hicolor/256x256/apps/heelonvault.png"
+  HV_ROOT_DIR="$(dirname "$HV_SCRIPT_DIR")"
+  HV_PRIMARY_ICON_SOURCE="$HV_ROOT_DIR/assets/icons/hicolor/256x256/apps/heelonvault.png"
   HV_CHECKSUM_FILE="$HV_SCRIPT_DIR/heelonvault.sha256"
 
   HV_INVOKING_USER="${SUDO_USER:-root}"
@@ -77,20 +78,50 @@ hv_require_root() {
 }
 
 hv_verify_core_files() {
-  if [[ ! -f "$HV_SCRIPT_DIR/heelonvault" ]]; then
-    echo "[ERROR] Binaire 'heelonvault' introuvable dans $HV_SCRIPT_DIR"
+  local binary_location
+  local desktop_location
+  local migrations_location
+
+  # Chercher le binaire: d'abord dans ROOT_DIR, puis dans SCRIPT_DIR
+  if [[ -f "$HV_ROOT_DIR/heelonvault" ]]; then
+    binary_location="$HV_ROOT_DIR/heelonvault"
+  elif [[ -f "$HV_SCRIPT_DIR/heelonvault" ]]; then
+    binary_location="$HV_SCRIPT_DIR/heelonvault"
+  else
+    echo "[ERROR] Binaire 'heelonvault' introuvable dans $HV_ROOT_DIR ou $HV_SCRIPT_DIR"
     exit 1
   fi
 
-  if [[ ! -f "$HV_SCRIPT_DIR/heelonvault.desktop" ]]; then
-    echo "[ERROR] Fichier desktop 'heelonvault.desktop' introuvable dans $HV_SCRIPT_DIR"
+  # Chercher le desktop file: d'abord dans ROOT_DIR, puis dans SCRIPT_DIR
+  if [[ -f "$HV_ROOT_DIR/heelonvault.desktop" ]]; then
+    desktop_location="$HV_ROOT_DIR/heelonvault.desktop"
+  elif [[ -f "$HV_SCRIPT_DIR/heelonvault.desktop" ]]; then
+    desktop_location="$HV_SCRIPT_DIR/heelonvault.desktop"
+  else
+    echo "[ERROR] Fichier desktop 'heelonvault.desktop' introuvable dans $HV_ROOT_DIR ou $HV_SCRIPT_DIR"
     exit 1
   fi
 
+  # Chercher migrations: d'abord dans ROOT_DIR, puis dans SCRIPT_DIR
+  if [[ -d "$HV_ROOT_DIR/migrations" ]]; then
+    migrations_location="$HV_ROOT_DIR/migrations"
+  elif [[ -d "$HV_SCRIPT_DIR/migrations" ]]; then
+    migrations_location="$HV_SCRIPT_DIR/migrations"
+  else
+    echo "[ERROR] Dossier 'migrations' introuvable dans $HV_ROOT_DIR ou $HV_SCRIPT_DIR"
+    exit 1
+  fi
+
+  # Vérifier icône
   if [[ ! -f "$HV_PRIMARY_ICON_SOURCE" ]]; then
     echo "[ERROR] Icône principale introuvable : $HV_PRIMARY_ICON_SOURCE"
     exit 1
   fi
+
+  # Stocker les emplacements réels pour la suite
+  HV_BINARY_SOURCE="$binary_location"
+  HV_DESKTOP_SOURCE="$desktop_location"
+  HV_MIGRATIONS_SOURCE="$migrations_location"
 }
 
 hv_verify_checksum() {
@@ -222,6 +253,55 @@ hv_detect_existing_installation() {
   fi
 }
 
+hv_display_target_paths() {
+  local confirm
+
+  echo ""
+  echo "╔══════════════════════════════════════════════════════╗"
+  echo "║       Validation des chemins d'installation         ║"
+  echo "╚══════════════════════════════════════════════════════╝"
+  echo ""
+  echo "  Dossiers SYSTÈME qui seront créés/modifiés :"
+  echo "  • Installation binaire  : $HV_INSTALL_DIR"
+  echo "  • Lanceurs bureau       : $HV_SYSTEM_APPS_DIR"
+  echo "  • Icônes système        : $HV_ICON_THEME_DIR/*/apps/"
+  echo "  • Backups données       : $HV_BACKUP_DIR"
+  echo ""
+  
+  if [[ "$HV_DEPLOY_MODE" == "enterprise" ]]; then
+    echo "  Dossiers ENTREPRISE (multi-utilisateur) :"
+    echo "  • Base de données      : $HV_ENTERPRISE_DB_FILE"
+    echo "  • Logs                 : $HV_ENTERPRISE_LOG_DIR"
+  else
+    echo "  Dossier UTILISATEUR ($HV_INVOKING_USER) :"
+    echo "  • Base de données      : $HV_USER_DB_FILE"
+  fi
+  echo ""
+
+  if [[ "$HV_FRESH_INSTALL" == false ]]; then
+    echo "  ⚠  MISE À JOUR DÉTECTÉE:"
+    if [[ "$HV_HAS_ACTIVE_DB" == true ]]; then
+      echo "  • Base existante sera CONSERVÉE"
+    fi
+    if [[ "$HV_HAS_LEGACY_DB" == true ]]; then
+      echo "  • Base legacy sera BACKUPÉE avant modification"
+    fi
+  fi
+  echo ""
+
+  if [[ "$HV_NON_INTERACTIVE" == "1" ]]; then
+    echo "  [auto] Mode non interactif : poursuite sans confirmation"
+    return
+  fi
+
+  read -rp "  Confirmer l'installation à ces chemins ? [o/N] : " confirm
+  if [[ "${confirm,,}" != "o" ]]; then
+    echo ""
+    echo "[INFO] Installation annulée."
+    exit 0
+  fi
+}
+
 hv_manage_backups() {
   local timestamp
   local backup_file
@@ -283,12 +363,24 @@ hv_deploy_files() {
     chmod 750 "$HV_ENTERPRISE_DATA_DIR" "$HV_ENTERPRISE_LOG_DIR"
   fi
 
-  cp "$HV_SCRIPT_DIR/heelonvault" "$HV_INSTALL_DIR/"
-  cp "$HV_SCRIPT_DIR/heelonvault.desktop" "$HV_INSTALL_DIR/"
+  cp "$HV_BINARY_SOURCE" "$HV_INSTALL_DIR/"
+  cp "$HV_DESKTOP_SOURCE" "$HV_INSTALL_DIR/"
+  cp -r "$HV_MIGRATIONS_SOURCE" "$HV_INSTALL_DIR/"
 
   for f in README.md QUICKSTART.md; do
-    [[ -f "$HV_SCRIPT_DIR/$f" ]] && cp "$HV_SCRIPT_DIR/$f" "$HV_INSTALL_DIR/"
+    if [[ -f "$HV_ROOT_DIR/$f" ]]; then
+      cp "$HV_ROOT_DIR/$f" "$HV_INSTALL_DIR/"
+    elif [[ -f "$HV_SCRIPT_DIR/$f" ]]; then
+      cp "$HV_SCRIPT_DIR/$f" "$HV_INSTALL_DIR/"
+    fi
   done
+
+  # Corriger le propriétaire du répertoire de données utilisateur si hérité d'un autre UID
+  local user_data_dir="$HV_INVOKING_HOME/.local/share/heelonvault"
+  if [[ -d "$user_data_dir" ]] && [[ "$(stat -c '%u' "$user_data_dir")" != "$(id -u "$HV_INVOKING_USER" 2>/dev/null || echo 0)" ]]; then
+    echo "[WARN] Répertoire données utilisateur ($user_data_dir) appartient à un autre UID — chown appliqué"
+    chown "$HV_INVOKING_USER":"$HV_INVOKING_USER" "$user_data_dir"
+  fi
 }
 
 hv_generate_run_script() {
@@ -346,12 +438,26 @@ hv_install_icons() {
   local size
   local src
   local dst
+  local assets_dir
+
+  # Déterminer où sont les assets
+  if [[ -d "$HV_ROOT_DIR/assets" ]]; then
+    assets_dir="$HV_ROOT_DIR/assets"
+  elif [[ -d "$HV_SCRIPT_DIR/assets" ]]; then
+    assets_dir="$HV_SCRIPT_DIR/assets"
+  else
+    echo "[WARN] Dossier assets introuvable, installation des icônes ignorée"
+    return
+  fi
 
   echo "[INFO] Installation des icônes..."
-  install -m 644 "$HV_PRIMARY_ICON_SOURCE" "$HV_LOCAL_ICON_PATH"
+  local primary_icon="$assets_dir/icons/hicolor/256x256/apps/heelonvault.png"
+  if [[ -f "$primary_icon" ]]; then
+    install -m 644 "$primary_icon" "$HV_LOCAL_ICON_PATH"
+  fi
 
   for size in 48x48 128x128 256x256; do
-    src="$HV_SCRIPT_DIR/assets/icons/hicolor/$size/apps/heelonvault.png"
+    src="$assets_dir/icons/hicolor/$size/apps/heelonvault.png"
     dst="$HV_ICON_THEME_DIR/$size/apps"
     if [[ -f "$src" ]]; then
       mkdir -p "$dst"
@@ -476,7 +582,7 @@ hv_print_dry_run_plan() {
   echo "[DRY-RUN] Aucun changement système n'a été appliqué."
   echo "[DRY-RUN] Profil visé : $HV_DEPLOY_MODE"
   echo "[DRY-RUN] Déploiement prévu dans : $HV_INSTALL_DIR"
-  echo "[DRY-RUN] Binaire source : $HV_SCRIPT_DIR/heelonvault"
+  echo "[DRY-RUN] Binaire source : $HV_BINARY_SOURCE"
   echo "[DRY-RUN] run.sh cible : $HV_INSTALL_DIR/run.sh"
   echo "[DRY-RUN] Desktop entries : $HV_DESKTOP_PATH et $HV_LEGACY_DESKTOP_PATH"
   echo "[DRY-RUN] Icônes thème : $HV_ICON_THEME_DIR/{48x48,128x128,256x256}/apps"
@@ -503,6 +609,7 @@ hv_run_common_install_flow() {
   hv_verify_checksum
   hv_select_deploy_mode
   hv_detect_existing_installation
+  hv_display_target_paths
 
   if [[ "$HV_DRY_RUN" == "1" ]]; then
     hv_print_dry_run_plan

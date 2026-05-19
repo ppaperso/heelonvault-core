@@ -32,6 +32,12 @@ pub trait LocalSecretRepository {
         secret_id: Uuid,
         encrypted_secret_blob: SecretBox<Vec<u8>>,
     ) -> Result<(), AppError>;
+    async fn move_secret_to_vault(
+        &self,
+        secret_id: Uuid,
+        target_vault_id: Uuid,
+        encrypted_secret_blob: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError>;
     async fn increment_usage_count(&self, secret_id: Uuid) -> Result<(), AppError>;
     async fn soft_delete(&self, secret_id: Uuid) -> Result<(), AppError>;
     async fn restore_secret(&self, secret_id: Uuid, vault_id: Uuid) -> Result<(), AppError>;
@@ -337,6 +343,64 @@ impl SecretRepository for SqlxSecretRepository {
             return Err(AppError::Storage(
                 "secret not found for blob update".to_string(),
             ));
+        }
+
+        Ok(())
+    }
+
+    async fn move_secret_to_vault(
+        &self,
+        secret_id: Uuid,
+        target_vault_id: Uuid,
+        encrypted_secret_blob: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        let row_opt = sqlx::query(
+            "SELECT blob_storage
+             FROM secret_items
+             WHERE id = ?1 AND deleted_at IS NULL",
+        )
+        .bind(secret_id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let row =
+            row_opt.ok_or_else(|| AppError::Storage("secret not found for move".to_string()))?;
+        let blob_storage_raw: String = row.try_get("blob_storage")?;
+        let blob_storage = Self::parse_blob_storage_db(&blob_storage_raw)?;
+
+        let result = match blob_storage {
+            BlobStorage::Inline => {
+                sqlx::query(
+                    "UPDATE secret_items
+                     SET vault_id = ?1,
+                         secret_blob = ?2,
+                         file_blob_ref = NULL
+                     WHERE id = ?3 AND deleted_at IS NULL",
+                )
+                .bind(target_vault_id.to_string())
+                .bind(encrypted_secret_blob.expose_secret().as_slice())
+                .bind(secret_id.to_string())
+                .execute(&self.pool)
+                .await
+            }
+            BlobStorage::File => {
+                sqlx::query(
+                    "UPDATE secret_items
+                     SET vault_id = ?1,
+                         file_blob_ref = ?2,
+                         secret_blob = NULL
+                     WHERE id = ?3 AND deleted_at IS NULL",
+                )
+                .bind(target_vault_id.to_string())
+                .bind(encrypted_secret_blob.expose_secret().as_slice())
+                .bind(secret_id.to_string())
+                .execute(&self.pool)
+                .await
+            }
+        }?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::Storage("secret not found for move".to_string()));
         }
 
         Ok(())

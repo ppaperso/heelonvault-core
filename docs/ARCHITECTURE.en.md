@@ -53,12 +53,13 @@ HeelonVault/
 
 ## Startup Flow
 
-1. `main.rs` starts the tokio runtime.
-2. Open SQLite with `HEELONVAULT_DB_PATH`.
-3. Apply SQL migrations.
-4. Build repositories and services.
-5. Initialize UI and authentication.
-6. Load secrets and session policy.
+1. `main.rs` applies GTK rendering runtime variables (including `GSK_RENDERER`) before starting Tokio.
+2. `main.rs` starts the tokio runtime.
+3. Open SQLite with `HEELONVAULT_DB_PATH`.
+4. Apply SQL migrations.
+5. Build repositories and services.
+6. Initialize UI and authentication.
+7. Load secrets and session policy.
 
 ## Main UI View
 
@@ -79,7 +80,20 @@ Effects:
 - closing main window performs secure logout and returns to login;
 - auto-lock uses the same secure logout path;
 - login history is persisted in `login_history`;
+- master password change via `rotate_master_key_hardened`:
+  - owner/shared vault key-envelope rewrap,
+  - atomic SQL apply for critical mutations,
+  - pre/post rotation validation in `VaultAndSampleSecret` mode;
 - `show_passwords_in_edit` preference is persisted per user.
+
+## CSV Import (Pipeline)
+
+The CSV import flow combines guided UX with fault-tolerant processing:
+
+- 3-phase UI: preview, progress, final summary;
+- dedicated `import_progress_dialog` for live progress;
+- row-by-row service processing with aggregated report (`imported`, `failed`, per-row details);
+- reject-report file `csv_import_rejects_*.txt` written in `HEELONVAULT_LOG_DIR` (or `./logs` fallback) when rows are rejected.
 
 ## Search
 
@@ -124,3 +138,35 @@ cargo test
 - active runtime and operational scripts are Rust-only;
 - legacy artifacts may remain without affecting current execution;
 - docs and scripts must stay aligned with Rust-only flows.
+
+## Architecture Decision - Zero-warning supply chain (P2)
+
+Context:
+
+- `cargo audit` reports unmaintained/yanked crates in the legacy PDF dependency chain.
+- Project policy now targets strict `0 warning` (no permanent allowlist).
+
+Decision:
+
+1. Replace legacy `genpdf` dependency with a maintained PDF architecture.
+2. Remove unnecessary transitive dependency features that introduce risky crates.
+3. Enforce a CI-blocking policy for advisories, yanked crates, and unmaintained crates.
+
+Options evaluated:
+
+- legacy `genpdf`: rejected (obsolete chain, persistent audit warnings)
+- maintained `genpdf` forks: possible fast transition, but still tied to legacy PDF transitive stack
+- minimal internal PDF writer (no external PDF dependency): selected target to guarantee `cargo audit = 0 warning`
+
+Implementation constraints:
+
+- keep PDF audit report generation (no feature regression);
+- preserve SHA-256 hash + Ed25519 signature in the generated document;
+- validate Linux/Fedora/macOS/Windows before merge.
+
+Definition of done (mandatory):
+
+- `cargo audit` => 0 warnings;
+- `cargo clippy --all-targets --all-features -- -D warnings` => pass;
+- multi-platform CI => green;
+- no permanent exception added to policy.

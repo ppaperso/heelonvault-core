@@ -2,12 +2,103 @@
 
 use std::sync::Arc;
 
+use heelonvault_rust::errors::AppError;
+use heelonvault_rust::models::SecretItem;
+use heelonvault_rust::repositories::secret_repository::SecretRepository;
 use heelonvault_rust::repositories::user_repository::SqlxUserRepository;
+use heelonvault_rust::repositories::vault_repository::SqlxVaultRepository;
 use heelonvault_rust::services::auth_service::AuthServiceImpl;
 use heelonvault_rust::services::crypto_service::CryptoServiceImpl;
 use heelonvault_rust::services::user_service::{UserProfileUpdate, UserService, UserServiceImpl};
+use heelonvault_rust::services::vault_service::VaultKeyEnvelopeRepository;
+use secrecy::SecretBox;
 use sqlx::sqlite::SqlitePoolOptions;
 use uuid::Uuid;
+
+#[derive(Clone, Default)]
+struct DummyEnvelopeRepo;
+
+#[derive(Clone, Default)]
+struct DummySecretRepo;
+
+impl VaultKeyEnvelopeRepository for DummyEnvelopeRepo {
+    async fn get_vault_key_envelope(
+        &self,
+        _: Uuid,
+    ) -> Result<Option<SecretBox<Vec<u8>>>, AppError> {
+        Ok(None)
+    }
+}
+
+impl SecretRepository for DummySecretRepo {
+    async fn get_by_id(&self, _: Uuid) -> Result<Option<SecretItem>, AppError> {
+        Ok(None)
+    }
+
+    async fn list_by_vault_id(&self, _: Uuid) -> Result<Vec<SecretItem>, AppError> {
+        Ok(vec![])
+    }
+
+    async fn list_trash_by_vault_id(&self, _: Uuid) -> Result<Vec<SecretItem>, AppError> {
+        Ok(vec![])
+    }
+
+    async fn list_all_trash_by_owner_id(&self, _: Uuid) -> Result<Vec<SecretItem>, AppError> {
+        Ok(vec![])
+    }
+
+    async fn insert_secret_blob(
+        &self,
+        _: &SecretItem,
+        _: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn update_secret_metadata(
+        &self,
+        _: Uuid,
+        _: Option<String>,
+        _: Option<String>,
+        _: Option<String>,
+        _: Option<String>,
+    ) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn update_secret_blob(&self, _: Uuid, _: SecretBox<Vec<u8>>) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn move_secret_to_vault(
+        &self,
+        _: Uuid,
+        _: Uuid,
+        _: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn increment_usage_count(&self, _: Uuid) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn soft_delete(&self, _: Uuid) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn restore_secret(&self, _: Uuid, _: Uuid) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn permanent_delete(&self, _: Uuid, _: Uuid) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn empty_trash(&self, _: Uuid) -> Result<usize, AppError> {
+        Ok(0)
+    }
+}
 
 async fn setup_pool() -> Result<sqlx::SqlitePool, String> {
     let pool = SqlitePoolOptions::new()
@@ -63,9 +154,23 @@ async fn insert_user(pool: &sqlx::SqlitePool, user_id: Uuid) -> Result<(), Strin
 
 fn build_service(
     pool: sqlx::SqlitePool,
-) -> UserServiceImpl<SqlxUserRepository, AuthServiceImpl<CryptoServiceImpl>> {
+) -> UserServiceImpl<
+    SqlxUserRepository,
+    SqlxVaultRepository,
+    DummyEnvelopeRepo,
+    DummySecretRepo,
+    AuthServiceImpl<CryptoServiceImpl>,
+    CryptoServiceImpl,
+> {
     let auth_service = Arc::new(AuthServiceImpl::new(CryptoServiceImpl::with_defaults()));
-    UserServiceImpl::new(SqlxUserRepository::new(pool), auth_service)
+    UserServiceImpl::new(
+        SqlxUserRepository::new(pool.clone()),
+        SqlxVaultRepository::new(pool),
+        DummyEnvelopeRepo,
+        DummySecretRepo,
+        auth_service,
+        CryptoServiceImpl::with_defaults(),
+    )
 }
 
 #[tokio::test]

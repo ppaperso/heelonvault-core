@@ -38,7 +38,12 @@
         let on_logout_for_close = Rc::clone(&on_logout);
         let critical_ops_for_close = Rc::clone(&critical_ops_in_flight);
         window.connect_close_request(move |win| {
+            info!("main window close requested");
             if critical_ops_for_close.get() > 0 {
+                warn!(
+                    critical_ops_in_flight = critical_ops_for_close.get(),
+                    "main window close deferred because a critical operation is still running"
+                );
                 Self::show_feedback_dialog(
 					win,
 					"Opération en cours",
@@ -52,6 +57,8 @@
                 win.height(),
                 win.is_fullscreen(),
             );
+
+            info!("main window state persisted, routing close request to logout flow");
 
             if let Some(callback) = on_logout_for_close.borrow().as_ref() {
                 callback();
@@ -904,6 +911,15 @@
             create_window.present();
         });
 
+        let main_stack_for_profile_admin_users = center_panel.main_stack.clone();
+        let on_open_users_from_profile: Rc<dyn Fn()> = Rc::new(move || {
+            main_stack_for_profile_admin_users.set_visible_child_name("users_view");
+        });
+        let main_stack_for_profile_admin_teams = center_panel.main_stack.clone();
+        let on_open_teams_from_profile: Rc<dyn Fn()> = Rc::new(move || {
+            main_stack_for_profile_admin_teams.set_visible_child_name("teams_view");
+        });
+
         let profile_view = Self::build_profile_view(
             window.clone(),
             runtime_handle.clone(),
@@ -918,6 +934,8 @@
             database_path.clone(),
             admin_user_id,
             is_admin,
+            Rc::clone(&on_open_users_from_profile),
+            Rc::clone(&on_open_teams_from_profile),
             profile_button.clone(),
             Rc::clone(&critical_ops_in_flight),
             Rc::clone(&auto_lock_timeout_secs),

@@ -2,7 +2,7 @@
 
 Language: EN | [FR](USER_GUIDE.md)
 
-Documented target version: `1.0.3`
+Documented target version: `1.1.0`
 
 ## Purpose
 
@@ -227,12 +227,14 @@ From the profile area, users can review security- and session-related settings, 
 
 - TOTP activation;
 - auto-lock policy;
+- master password change with vault key-envelope rotation;
 - some display preferences depending on role and configuration.
 
 Key recommendations:
 
 - enable TOTP as early as possible;
 - use a short auto-lock delay on shared workstations;
+- after changing the master password, quickly verify access to main vaults;
 - never leave an open session unattended.
 
 This screen is the core user trust area of the product. It contains the settings that most directly affect protection of the vault and session behavior.
@@ -251,11 +253,19 @@ Depending on granted permissions, HeelonVault supports:
 - `.hvb` export;
 - operations constrained by RBAC rules.
 
+The CSV import flow is now explicit and guided:
+
+- **Step 1 - Preview**: after selecting a file, the app shows detected secrets, importable rows, and rows that require manual review.
+- **Step 2 - Progress**: during import, a dedicated window displays live progress (processed/imported/failed).
+- **Step 3 - Final summary**: the app shows a detailed report (total/imported/failed) and lists the first non-imported rows with reasons for manual correction.
+
 Before importing:
 
 - verify file format and encoding;
 - clean unnecessary columns;
 - confirm the correct target vault.
+- review the final summary and fix flagged rows before running a focused re-import.
+- check the reject-report path when shown (`logs/csv_import_rejects_*.txt`).
 
 Before exporting:
 
@@ -324,6 +334,12 @@ Capture 09c - User administration view (create users, roles, reset, delete).
 
 - check the trash first;
 - review the audit log if available.
+
+### CSV import fails with a decryption error
+
+- verify the target vault is accessible in the current session;
+- sign out and sign in again if a master password change was just performed;
+- retry the import and review the rejected-row summary.
 
 ## Useful references
 

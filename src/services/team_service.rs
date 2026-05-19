@@ -1113,6 +1113,16 @@ mod tests {
                 .get(&(vault_id, user_id))
                 .map(|b| SecretBox::new(Box::new(b.clone()))))
         }
+        async fn update_key_share_envelope(
+            &self,
+            vault_id: Uuid,
+            user_id: Uuid,
+            key_envelope: SecretBox<Vec<u8>>,
+        ) -> Result<(), AppError> {
+            self.lock_key_shares()?
+                .insert((vault_id, user_id), key_envelope.expose_secret().clone());
+            Ok(())
+        }
         async fn delete_key_share(&self, vault_id: Uuid, user_id: Uuid) -> Result<(), AppError> {
             self.lock_key_shares()?.remove(&(vault_id, user_id));
             Ok(())
