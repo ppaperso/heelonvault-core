@@ -9,6 +9,14 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — Sprint v1.1.0
 
+### Rotation master key (hardening)
+
+- Service `user_service`: flux durci `rotate_master_key_hardened` active avec validation pre/post rotation.
+- Rewrap des enveloppes de cles de coffres owner/shared applique via mutation atomique SQL.
+- Validation de secrets echantillons branchee dans le mode `VaultAndSampleSecret`.
+- Verification manuelle confirmee: changement de master key effectif en execution applicative.
+- Verification automatique confirmee: passage large `cargo test` vert.
+
 ### UX import CSV (premium)
 
 - `profile_view`: refonte du flux d'import CSV avec 3 etapes utilisateur:

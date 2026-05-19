@@ -53,12 +53,13 @@ HeelonVault/
 
 ## Startup Flow
 
-1. `main.rs` starts the tokio runtime.
-2. Open SQLite with `HEELONVAULT_DB_PATH`.
-3. Apply SQL migrations.
-4. Build repositories and services.
-5. Initialize UI and authentication.
-6. Load secrets and session policy.
+1. `main.rs` applies GTK rendering runtime variables (including `GSK_RENDERER`) before starting Tokio.
+2. `main.rs` starts the tokio runtime.
+3. Open SQLite with `HEELONVAULT_DB_PATH`.
+4. Apply SQL migrations.
+5. Build repositories and services.
+6. Initialize UI and authentication.
+7. Load secrets and session policy.
 
 ## Main UI View
 
@@ -79,7 +80,20 @@ Effects:
 - closing main window performs secure logout and returns to login;
 - auto-lock uses the same secure logout path;
 - login history is persisted in `login_history`;
+- master password change via `rotate_master_key_hardened`:
+  - owner/shared vault key-envelope rewrap,
+  - atomic SQL apply for critical mutations,
+  - pre/post rotation validation in `VaultAndSampleSecret` mode;
 - `show_passwords_in_edit` preference is persisted per user.
+
+## CSV Import (Pipeline)
+
+The CSV import flow combines guided UX with fault-tolerant processing:
+
+- 3-phase UI: preview, progress, final summary;
+- dedicated `import_progress_dialog` for live progress;
+- row-by-row service processing with aggregated report (`imported`, `failed`, per-row details);
+- reject-report file `csv_import_rejects_*.txt` written in `HEELONVAULT_LOG_DIR` (or `./logs` fallback) when rows are rejected.
 
 ## Search
 

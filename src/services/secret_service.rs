@@ -59,6 +59,14 @@ pub trait LocalSecretService {
         plaintext_secret: Option<SecretBox<Vec<u8>>>,
         vault_key: SecretBox<Vec<u8>>,
     ) -> Result<(), AppError>;
+    /// Move one secret to another vault (with payload re-encryption).
+    async fn move_secret(
+        &self,
+        secret_id: Uuid,
+        target_vault_id: Uuid,
+        source_vault_key: SecretBox<Vec<u8>>,
+        target_vault_key: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError>;
     /// List non-deleted secrets for one vault.
     async fn list_by_vault(&self, vault_id: Uuid) -> Result<Vec<SecretItem>, AppError>;
     /// List trashed secrets for one vault.
@@ -257,6 +265,39 @@ where
         }
 
         Ok(())
+    }
+
+    async fn move_secret(
+        &self,
+        secret_id: Uuid,
+        target_vault_id: Uuid,
+        source_vault_key: SecretBox<Vec<u8>>,
+        target_vault_key: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        let item = self
+            .secret_repo
+            .get_by_id(secret_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("secret not found".to_string()))?;
+
+        if item.vault_id == target_vault_id {
+            return Ok(());
+        }
+
+        let payload = Self::deserialize_payload(&item.secret_blob)?;
+        let plaintext = self
+            .crypto_service
+            .decrypt(&payload, &source_vault_key)
+            .await?;
+        let encrypted_for_target = self
+            .crypto_service
+            .encrypt(&plaintext, &target_vault_key)
+            .await?;
+        let serialized_payload = Self::serialize_payload(&encrypted_for_target);
+
+        self.secret_repo
+            .move_secret_to_vault(secret_id, target_vault_id, serialized_payload)
+            .await
     }
 
     async fn list_by_vault(&self, vault_id: Uuid) -> Result<Vec<SecretItem>, AppError> {
@@ -552,6 +593,24 @@ mod tests {
             let item = items
                 .get_mut(&secret_id)
                 .ok_or_else(|| AppError::Storage("secret not found for update".to_string()))?;
+            item.blob = encrypted_secret_blob.expose_secret().clone();
+            Ok(())
+        }
+
+        async fn move_secret_to_vault(
+            &self,
+            secret_id: Uuid,
+            target_vault_id: Uuid,
+            encrypted_secret_blob: SecretBox<Vec<u8>>,
+        ) -> Result<(), AppError> {
+            let mut items = self.lock_items()?;
+            let item = items
+                .get_mut(&secret_id)
+                .ok_or_else(|| AppError::Storage("secret not found for move".to_string()))?;
+            if item.deleted {
+                return Err(AppError::Storage("secret not found for move".to_string()));
+            }
+            item.vault_id = target_vault_id;
             item.blob = encrypted_secret_blob.expose_secret().clone();
             Ok(())
         }
@@ -979,6 +1038,82 @@ mod tests {
         assert_eq!(
             listed[0].metadata_json.as_deref(),
             Some("{\"category\":\"Infra\"}")
+        );
+    }
+
+    #[tokio::test]
+    async fn move_secret_transfers_item_between_vaults() {
+        let repo = StubSecretRepository::default();
+        let service =
+            SecretServiceImpl::new(repo, StubCryptoService, Arc::new(StubAuditLogService));
+        let source_vault_id = Uuid::new_v4();
+        let target_vault_id = Uuid::new_v4();
+        let source_key = SecretBox::new(Box::new(vec![1_u8; 32]));
+        let target_key = SecretBox::new(Box::new(vec![2_u8; 32]));
+
+        let created_result = service
+            .create_secret(
+                source_vault_id,
+                SecretType::Password,
+                Some("Move me".to_string()),
+                None,
+                None,
+                None,
+                SecretBox::new(Box::new(b"secret-before-move".to_vec())),
+                SecretBox::new(Box::new(source_key.expose_secret().clone())),
+            )
+            .await;
+        assert!(created_result.is_ok(), "create should succeed");
+        let created = match created_result {
+            Ok(value) => value,
+            Err(_) => return,
+        };
+
+        let move_result = service
+            .move_secret(
+                created.id,
+                target_vault_id,
+                SecretBox::new(Box::new(source_key.expose_secret().clone())),
+                SecretBox::new(Box::new(target_key.expose_secret().clone())),
+            )
+            .await;
+        assert!(move_result.is_ok(), "move should succeed");
+        if move_result.is_err() {
+            return;
+        }
+
+        let source_items_result = service.list_by_vault(source_vault_id).await;
+        assert!(source_items_result.is_ok(), "source list should succeed");
+        let source_items = match source_items_result {
+            Ok(value) => value,
+            Err(_) => return,
+        };
+        assert!(source_items.is_empty());
+
+        let target_items_result = service.list_by_vault(target_vault_id).await;
+        assert!(target_items_result.is_ok(), "target list should succeed");
+        let target_items = match target_items_result {
+            Ok(value) => value,
+            Err(_) => return,
+        };
+        assert_eq!(target_items.len(), 1);
+        assert_eq!(target_items[0].id, created.id);
+
+        let decrypted_result = service
+            .get_secret(
+                created.id,
+                SecretBox::new(Box::new(target_key.expose_secret().clone())),
+            )
+            .await;
+        assert!(decrypted_result.is_ok(), "get after move should succeed");
+        let decrypted = match decrypted_result {
+            Ok(value) => value,
+            Err(_) => return,
+        };
+        assert_eq!(decrypted.vault_id, target_vault_id);
+        assert_eq!(
+            decrypted.secret_value.expose_secret().as_slice(),
+            b"secret-before-move"
         );
     }
 
