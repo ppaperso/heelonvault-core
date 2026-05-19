@@ -115,6 +115,39 @@
         let type_dropdown = gtk4::DropDown::builder().model(&type_items).build();
         type_dropdown.add_css_class("dialog-type-dropdown");
         type_dropdown.set_selected(SecretType::Password.dropdown_index());
+        type_dropdown.set_visible(false);
+
+        let type_pill_row = gtk4::Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(8)
+            .build();
+        type_pill_row.add_css_class("add-edit-type-pill-row");
+
+        let type_pill_password = gtk4::ToggleButton::with_label(
+            crate::tr!("add-edit-type-pill-password").as_str(),
+        );
+        type_pill_password.add_css_class("add-edit-type-pill");
+        type_pill_password.set_active(true);
+
+        let type_pill_api =
+            gtk4::ToggleButton::with_label(crate::tr!("add-edit-type-pill-api-token").as_str());
+        type_pill_api.add_css_class("add-edit-type-pill");
+        type_pill_api.set_group(Some(&type_pill_password));
+
+        let type_pill_ssh =
+            gtk4::ToggleButton::with_label(crate::tr!("add-edit-type-pill-ssh-key").as_str());
+        type_pill_ssh.add_css_class("add-edit-type-pill");
+        type_pill_ssh.set_group(Some(&type_pill_password));
+
+        let type_pill_doc =
+            gtk4::ToggleButton::with_label(crate::tr!("add-edit-type-pill-document").as_str());
+        type_pill_doc.add_css_class("add-edit-type-pill");
+        type_pill_doc.set_group(Some(&type_pill_password));
+
+        type_pill_row.append(&type_pill_password);
+        type_pill_row.append(&type_pill_api);
+        type_pill_row.append(&type_pill_ssh);
+        type_pill_row.append(&type_pill_doc);
 
         let dynamic_stack = gtk4::Stack::builder()
             .transition_type(gtk4::StackTransitionType::SlideLeftRight)
@@ -160,6 +193,53 @@
                 }
             }
         });
+
+        {
+            let dropdown = type_dropdown.clone();
+            type_pill_password.connect_clicked(move |_| {
+                if dropdown.selected() != SecretType::Password.dropdown_index() {
+                    dropdown.set_selected(SecretType::Password.dropdown_index());
+                }
+            });
+        }
+        {
+            let dropdown = type_dropdown.clone();
+            type_pill_api.connect_clicked(move |_| {
+                if dropdown.selected() != SecretType::ApiToken.dropdown_index() {
+                    dropdown.set_selected(SecretType::ApiToken.dropdown_index());
+                }
+            });
+        }
+        {
+            let dropdown = type_dropdown.clone();
+            type_pill_ssh.connect_clicked(move |_| {
+                if dropdown.selected() != SecretType::SshKey.dropdown_index() {
+                    dropdown.set_selected(SecretType::SshKey.dropdown_index());
+                }
+            });
+        }
+        {
+            let dropdown = type_dropdown.clone();
+            type_pill_doc.connect_clicked(move |_| {
+                if dropdown.selected() != SecretType::SecureDocument.dropdown_index() {
+                    dropdown.set_selected(SecretType::SecureDocument.dropdown_index());
+                }
+            });
+        }
+
+        {
+            let pill_password = type_pill_password.clone();
+            let pill_api = type_pill_api.clone();
+            let pill_ssh = type_pill_ssh.clone();
+            let pill_doc = type_pill_doc.clone();
+            type_dropdown.connect_selected_notify(move |dropdown| {
+                let selected = SecretType::from_dropdown_index(dropdown.selected());
+                pill_password.set_active(matches!(selected, Some(SecretType::Password)));
+                pill_api.set_active(matches!(selected, Some(SecretType::ApiToken)));
+                pill_ssh.set_active(matches!(selected, Some(SecretType::SshKey)));
+                pill_doc.set_active(matches!(selected, Some(SecretType::SecureDocument)));
+            });
+        }
 
         let (username_row, username_entry) = Self::build_labeled_entry(
             crate::tr!("add-edit-field-login-label").as_str(),
@@ -224,6 +304,28 @@
         error_label.add_css_class("login-error");
         error_label.set_halign(Align::Start);
         error_label.set_wrap(true);
+
+        // Vault switching state (Create + Edit)
+        let source_vault_id_state: Rc<std::cell::RefCell<Option<Uuid>>> =
+            Rc::new(std::cell::RefCell::new(None));
+        let target_vault_id_state: Rc<std::cell::RefCell<Option<Uuid>>> =
+            Rc::new(std::cell::RefCell::new(None));
+        let vault_choices_state: Rc<std::cell::RefCell<Vec<(Uuid, String)>>> =
+            Rc::new(std::cell::RefCell::new(Vec::new()));
+
+        let vaults_label = gtk4::Label::new(Some(crate::tr!("add-edit-vaults-label").as_str()));
+        vaults_label.add_css_class("login-field-label");
+        vaults_label.add_css_class("add-edit-vaults-label");
+        vaults_label.set_halign(Align::Start);
+        vaults_label.set_visible(false);
+
+        let vault_pills_row = gtk4::Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(8)
+            .build();
+        vault_pills_row.add_css_class("add-edit-vault-pills-row");
+        vault_pills_row.set_visible(false);
+        
         error_label.set_visible(false);
 
         let button_row = gtk4::Box::builder()
@@ -336,6 +438,7 @@
         let mode_for_save = mode;
         let admin_master_for_save_seed = admin_master_key.clone();
         let initial_password_snapshot_for_save = Rc::clone(&initial_password_snapshot);
+        let selected_target_vault_for_save = Rc::clone(&target_vault_id_state);
         save_button.connect_clicked(move |_| {
             error_for_save.set_visible(false);
             error_for_save.set_text("");
@@ -421,6 +524,8 @@
                 Some(Value::Object(metadata).to_string())
             };
 
+            let selected_target_vault_id = *selected_target_vault_for_save.borrow();
+
             let mut secret_text = match selected_type {
                 SecretType::Password => password_for_save.text().to_string(),
                 SecretType::ApiToken => api_token_for_save.text().to_string(),
@@ -478,16 +583,20 @@
                     let target_vault_id = match mode_for_save {
                         DialogMode::CreateInVault(vid) => vid,
                         DialogMode::Create => {
-                            let vaults = vault_service_for_task
-                                .list_user_vaults(admin_user_id)
-                                .await?;
-                            vaults
-                                .into_iter()
-                                .next()
-                                .ok_or_else(|| {
-                                    crate::errors::AppError::NotFound("vault not found".to_string())
-                                })?
-                                .id
+                            if let Some(chosen) = selected_target_vault_id {
+                                chosen
+                            } else {
+                                let vaults = vault_service_for_task
+                                    .list_user_vaults(admin_user_id)
+                                    .await?;
+                                vaults
+                                    .into_iter()
+                                    .next()
+                                    .ok_or_else(|| {
+                                        crate::errors::AppError::NotFound("vault not found".to_string())
+                                    })?
+                                    .id
+                            }
                         }
                         DialogMode::Edit(secret_id) => {
                             let vaults = vault_service_for_task
@@ -506,8 +615,41 @@
                             })?
                         }
                     };
+                    let effective_target_vault_id = if matches!(mode_for_save, DialogMode::Edit(_)) {
+                        selected_target_vault_id.unwrap_or(target_vault_id)
+                    } else {
+                        target_vault_id
+                    };
+
+                    if let DialogMode::Edit(secret_id) = mode_for_save {
+                        if effective_target_vault_id != target_vault_id {
+                            let source_vault_key = vault_service_for_task
+                                .open_vault_for_user(
+                                    admin_user_id,
+                                    target_vault_id,
+                                    SecretBox::new(Box::new(admin_master_for_task.clone())),
+                                )
+                                .await?;
+                            let destination_vault_key = vault_service_for_task
+                                .open_vault_for_user(
+                                    admin_user_id,
+                                    effective_target_vault_id,
+                                    SecretBox::new(Box::new(admin_master_for_task.clone())),
+                                )
+                                .await?;
+                            secret_service_for_task
+                                .move_secret(
+                                    secret_id,
+                                    effective_target_vault_id,
+                                    SecretBox::new(Box::new(source_vault_key.expose_secret().clone())),
+                                    SecretBox::new(Box::new(destination_vault_key.expose_secret().clone())),
+                                )
+                                .await?;
+                        }
+                    }
+
                     let access = vault_service_for_task
-                        .get_vault_access_for_user(admin_user_id, target_vault_id)
+                        .get_vault_access_for_user(admin_user_id, effective_target_vault_id)
                         .await?
                         .ok_or({
                             crate::errors::AppError::Authorization(
@@ -528,7 +670,7 @@
                     let vault_key = vault_service_for_task
                         .open_vault_for_user(
                             admin_user_id,
-                            target_vault_id,
+                            effective_target_vault_id,
                             SecretBox::new(Box::new(admin_master_for_task.clone())),
                         )
                         .await?;
@@ -537,7 +679,7 @@
                         DialogMode::Create | DialogMode::CreateInVault(_) => {
                             secret_service_for_task
                                 .create_secret(
-                                    target_vault_id,
+                                    effective_target_vault_id,
                                     secret_type,
                                     Some(title_for_task),
                                     metadata_for_task,
@@ -599,18 +741,63 @@
         button_row.append(&cancel_button);
         button_row.append(&save_button);
 
-        form_box.append(&title_row);
-        form_box.append(&category_row);
-        form_box.append(&tags_row);
-        form_box.append(&type_label);
-        form_box.append(&type_dropdown);
-        form_box.append(&dynamic_stack);
-        form_box.append(&username_row);
-        form_box.append(&url_row);
-        form_box.append(&notes_label);
-        form_box.append(&notes_scrolled);
-        form_box.append(&validity_label);
-        form_box.append(&validity_box);
+        let main_split = gtk4::Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(14)
+            .build();
+        main_split.add_css_class("add-edit-main-split");
+        main_split.set_hexpand(true);
+        main_split.set_homogeneous(true);
+
+        let info_block = gtk4::Frame::new(None);
+        info_block.add_css_class("dialog-type-frame");
+        info_block.add_css_class("add-edit-info-block");
+        info_block.set_hexpand(true);
+
+        let info_box = gtk4::Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(12)
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
+            .build();
+        info_box.append(&title_row);
+        info_box.append(&category_row);
+        info_box.append(&tags_row);
+        info_box.append(&username_row);
+        info_box.append(&url_row);
+        info_box.append(&notes_label);
+        info_box.append(&notes_scrolled);
+        info_box.append(&validity_label);
+        info_box.append(&validity_box);
+        info_block.set_child(Some(&info_box));
+
+        let secret_block = gtk4::Frame::new(None);
+        secret_block.add_css_class("dialog-type-frame");
+        secret_block.add_css_class("add-edit-secret-block");
+        secret_block.set_hexpand(true);
+
+        let secret_box = gtk4::Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(12)
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
+            .build();
+        secret_box.append(&vaults_label);
+        secret_box.append(&vault_pills_row);
+        secret_box.append(&type_label);
+        secret_box.append(&type_pill_row);
+        secret_box.append(&type_dropdown);
+        secret_box.append(&dynamic_stack);
+        secret_block.set_child(Some(&secret_box));
+
+        main_split.append(&info_block);
+        main_split.append(&secret_block);
+
+        form_box.append(&main_split);
         form_box.append(&error_label);
         form_box.append(&button_row);
 
@@ -618,6 +805,75 @@
         root.append(&header_card);
         root.append(&form_card);
         container.set_child(Some(&root));
+
+        {
+            let runtime_for_vaults = runtime_handle.clone();
+            let vault_service_for_vaults = Arc::clone(&vault_service);
+            let pills_row_for_vaults = vault_pills_row.clone();
+            let vaults_label_for_vaults = vaults_label.clone();
+            let target_state_for_vaults = Rc::clone(&target_vault_id_state);
+            let choices_for_vaults = Rc::clone(&vault_choices_state);
+            let source_for_vaults = Rc::clone(&source_vault_id_state);
+
+            let (sender, receiver) = tokio::sync::oneshot::channel();
+            std::thread::spawn(move || {
+                let result = runtime_for_vaults.block_on(async move {
+                    vault_service_for_vaults.list_user_vaults(admin_user_id).await
+                });
+                let _ = sender.send(result);
+            });
+
+            glib::MainContext::default().spawn_local(async move {
+                if let Ok(Ok(vaults)) = receiver.await {
+                    let choices = vaults
+                        .into_iter()
+                        .map(|vault| (vault.id, vault.name))
+                        .collect::<Vec<(Uuid, String)>>();
+                    *choices_for_vaults.borrow_mut() = choices.clone();
+
+                    if source_for_vaults.borrow().is_none() {
+                        *target_state_for_vaults.borrow_mut() = choices.first().map(|(id, _)| *id);
+                    }
+
+                    while let Some(child) = pills_row_for_vaults.first_child() {
+                        pills_row_for_vaults.remove(&child);
+                    }
+
+                    let mut group_leader: Option<gtk4::CheckButton> = None;
+                    for (vault_id, vault_name) in choices {
+                        let pill = gtk4::CheckButton::with_label(vault_name.as_str());
+                        pill.add_css_class("add-edit-vault-pill");
+                        if let Some(ref leader) = group_leader {
+                            pill.set_group(Some(leader));
+                        } else {
+                            group_leader = Some(pill.clone());
+                        }
+
+                        let target_state_for_toggle = Rc::clone(&target_state_for_vaults);
+                        pill.connect_toggled(move |btn| {
+                            if btn.is_active() {
+                                *target_state_for_toggle.borrow_mut() = Some(vault_id);
+                            }
+                        });
+
+                        if target_state_for_vaults
+                            .borrow()
+                            .map(|selected| selected == vault_id)
+                            .unwrap_or(false)
+                        {
+                            pill.set_active(true);
+                        }
+
+                        pills_row_for_vaults.append(&pill);
+                    }
+
+                    let has_choices = !choices_for_vaults.borrow().is_empty();
+                    vaults_label_for_vaults.set_visible(has_choices);
+                    pills_row_for_vaults.set_visible(has_choices);
+                }
+            });
+        }
+
 
         if let DialogMode::Edit(secret_id) = mode {
             type_dropdown.set_sensitive(false);
@@ -645,6 +901,11 @@
                 ssh_passphrase_entry.clone(),
                 secure_doc_mime_entry.clone(),
                 error_label.clone(),
+                            Rc::clone(&source_vault_id_state),
+                            Rc::clone(&target_vault_id_state),
+                            Rc::clone(&vault_choices_state),
+                            vaults_label.clone(),
+                            vault_pills_row.clone(),
             );
         }
 

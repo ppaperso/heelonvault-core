@@ -1,4 +1,5 @@
 use super::*;
+use libadwaita as adw;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn build_profile_view<
@@ -23,7 +24,9 @@ pub(crate) fn build_profile_view<
     vault_service: Arc<TVault>,
     database_path: PathBuf,
     user_id: Uuid,
-    _is_admin: bool,
+    is_admin: bool,
+    on_open_users_view: Rc<dyn Fn()>,
+    on_open_teams_view: Rc<dyn Fn()>,
     profile_badge: gtk4::MenuButton,
     critical_ops_in_flight: Rc<Cell<u32>>,
     auto_lock_timeout_secs: Rc<Cell<u64>>,
