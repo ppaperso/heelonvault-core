@@ -48,18 +48,18 @@ HeelonVault/
 ├── scripts/remove-core.sh          # Bibliothèque commune désinstallation Linux
 ├── scripts/remove-ubuntu.sh                # Désinstallation Ubuntu / Debian
 ├── scripts/remove-rhel.sh                  # Désinstallation Fedora / RHEL / Rocky / AlmaLinux
-├── update.sh                       # Mise a jour Rust-only + backup
 └── docs/
 ```
 
 ## Flux de demarrage
 
-1. `main.rs` initialise le runtime tokio.
-2. Ouverture de la base SQLite via `HEELONVAULT_DB_PATH`.
-3. Application des migrations SQL.
-4. Construction des repositories/services.
-5. Initialisation UI, authentification, puis fenêtre principale.
-6. Chargement des secrets et activation de la politique de session.
+1. `main.rs` applique les variables runtime de rendu GTK (dont `GSK_RENDERER`) avant de lancer Tokio.
+2. `main.rs` initialise le runtime tokio.
+3. Ouverture de la base SQLite via `HEELONVAULT_DB_PATH`.
+4. Application des migrations SQL.
+5. Construction des repositories/services.
+6. Initialisation UI, authentification, puis fenêtre principale.
+7. Chargement des secrets et activation de la politique de session.
 
 ## Vue UI principale
 
@@ -80,7 +80,20 @@ Conséquences:
 - fermeture de la fenêtre principale: déconnexion propre et retour à l'écran de login;
 - auto-lock: même comportement de déconnexion propre;
 - historique de connexions stocké dans `login_history`;
+- changement de mot de passe maître via `rotate_master_key_hardened`:
+  - rewrap des enveloppes de clés de coffres owner/shared,
+  - application atomique SQL des mutations critiques,
+  - validation pré/post rotation en mode `VaultAndSampleSecret`;
 - préférence utilisateur persistée `show_passwords_in_edit` pour l'édition des secrets de type mot de passe.
+
+## Import CSV (pipeline)
+
+Le flux d'import CSV combine une UX guidée et un traitement métier tolérant aux erreurs:
+
+- UI en 3 phases: prévisualisation, progression, résumé final;
+- dialogue dédié `import_progress_dialog` pour le suivi live;
+- traitement ligne par ligne côté service avec bilan agrégé (`imported`, `failed`, détails par ligne);
+- génération d'un rapport de rejets `csv_import_rejects_*.txt` dans `HEELONVAULT_LOG_DIR` (ou `./logs` par défaut) lorsque des lignes sont rejetées.
 
 ## Recherche
 
@@ -143,3 +156,35 @@ cargo test
 - Le runtime et les scripts operationnels actifs sont Rust-only.
 - Des artefacts legacy peuvent subsister (ex. repertoires vides), sans impact sur l'execution courante.
 - Les docs et scripts operationnels doivent rester alignes sur le flux Rust-only.
+
+## Decision architecture - Supply chain zero warning (P2)
+
+Contexte:
+
+- `cargo audit` remonte des crates non maintenues/yanked dans la chaine PDF historique.
+- La politique projet cible desormais `0 warning` (aucune allowlist permanente).
+
+Decision retenue:
+
+1. Remplacer la dependance `genpdf` historique par une architecture PDF maintenue.
+2. Supprimer les features de dependances transitive inutiles qui introduisent des crates a risque.
+3. Enforcer en CI une politique bloquante sur advisories, crates yanked et non maintenues.
+
+Options comparees:
+
+- `genpdf` historique: rejete (chaine obsolete, warnings audit persistants)
+- fork `genpdf` maintenu: option de transition rapide, mais dependances PDF historiques encore presentes
+- writer PDF interne minimal (sans dependance PDF externe): retenu pour implementation cible afin de garantir `cargo audit = 0 warning`
+
+Contraintes d'implementation:
+
+- conserver la generation de rapport d'audit PDF (pas de regression fonctionnelle);
+- conserver hash SHA-256 + signature Ed25519 dans le document;
+- valider Linux/Fedora/macOS/Windows avant merge.
+
+Definition of done (obligatoire):
+
+- `cargo audit` => 0 warning;
+- `cargo clippy --all-targets --all-features -- -D warnings` => OK;
+- CI multi-plateforme => verte;
+- aucune exception permanente ajoutee dans la policy.

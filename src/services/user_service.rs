@@ -1,12 +1,70 @@
 use secrecy::{ExposeSecret, SecretBox};
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::errors::{AccessDeniedReason, AppError};
+use crate::models::AccessibleVault;
 use crate::models::User;
+use crate::repositories::secret_repository::SecretRepository;
 use crate::repositories::user_repository::UserRepository;
+use crate::repositories::vault_repository::{
+    MasterKeyRotationRepository, VaultEnvelopeUpdate, VaultRepository, VaultShareEnvelopeUpdate,
+};
 use crate::services::auth_service::AuthService;
+use crate::services::backup_service::{BackupService, BackupServiceImpl};
+use crate::services::crypto_service::{CryptoService, EncryptedPayload, NONCE_LEN};
+use crate::services::vault_service::VaultKeyEnvelopeRepository;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RotationValidationMode {
+    VaultOpenOnly,
+    VaultAndSampleSecret,
+}
+
+#[derive(Debug, Clone)]
+pub struct MasterKeyRotationPolicy {
+    pub require_backup: bool,
+    pub keep_backup_on_success: bool,
+    pub validation_mode: RotationValidationMode,
+    pub max_secrets_validate_per_vault: usize,
+}
+
+impl Default for MasterKeyRotationPolicy {
+    fn default() -> Self {
+        Self {
+            require_backup: true,
+            keep_backup_on_success: false,
+            validation_mode: RotationValidationMode::VaultAndSampleSecret,
+            max_secrets_validate_per_vault: 1,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MasterKeyRotationRequest {
+    pub user_id: Uuid,
+    pub actor_id: Uuid,
+    pub sqlite_db_path: PathBuf,
+    pub backup_file_path: Option<PathBuf>,
+    pub current_password: SecretBox<Vec<u8>>,
+    pub new_password: SecretBox<Vec<u8>>,
+    pub policy: MasterKeyRotationPolicy,
+}
+
+#[derive(Debug, Clone)]
+pub struct MasterKeyRotationReport {
+    pub rotation_id: Uuid,
+    pub backup_path: Option<String>,
+    pub scanned_vaults: usize,
+    pub owner_vaults_rewrapped: usize,
+    pub shared_vaults_rewrapped: usize,
+    pub sample_secrets_validated: usize,
+    pub elapsed_ms: u128,
+}
 
 #[derive(Debug)]
 pub struct UserProfileUpdate {
@@ -41,34 +99,240 @@ pub trait LocalUserService {
         current_password: SecretBox<Vec<u8>>,
         new_password: SecretBox<Vec<u8>>,
     ) -> Result<(), AppError>;
+    async fn rotate_master_key_hardened(
+        &self,
+        request: MasterKeyRotationRequest,
+    ) -> Result<MasterKeyRotationReport, AppError>;
 }
 
-pub struct UserServiceImpl<TRepo, TAuth>
+pub struct UserServiceImpl<TUserRepo, TVaultRepo, TEnvelopeRepo, TSecretRepo, TAuth, TCrypto>
 where
-    TRepo: UserRepository + Send + Sync,
+    TUserRepo: UserRepository + Send + Sync,
+    TVaultRepo: VaultRepository + MasterKeyRotationRepository + Send + Sync,
+    TEnvelopeRepo: VaultKeyEnvelopeRepository + Send + Sync,
+    TSecretRepo: SecretRepository + Send + Sync,
     TAuth: AuthService + Send + Sync,
+    TCrypto: CryptoService + Send + Sync,
 {
-    user_repo: TRepo,
+    user_repo: TUserRepo,
+    vault_repo: TVaultRepo,
+    envelope_repo: TEnvelopeRepo,
+    secret_repo: TSecretRepo,
     auth_service: Arc<TAuth>,
+    crypto_service: TCrypto,
+    rotation_in_progress: AtomicBool,
 }
 
-impl<TRepo, TAuth> UserServiceImpl<TRepo, TAuth>
+impl<TUserRepo, TVaultRepo, TEnvelopeRepo, TSecretRepo, TAuth, TCrypto>
+    UserServiceImpl<TUserRepo, TVaultRepo, TEnvelopeRepo, TSecretRepo, TAuth, TCrypto>
 where
-    TRepo: UserRepository + Send + Sync,
+    TUserRepo: UserRepository + Send + Sync,
+    TVaultRepo: VaultRepository + MasterKeyRotationRepository + Send + Sync,
+    TEnvelopeRepo: VaultKeyEnvelopeRepository + Send + Sync,
+    TSecretRepo: SecretRepository + Send + Sync,
     TAuth: AuthService + Send + Sync,
+    TCrypto: CryptoService + Send + Sync,
 {
-    pub fn new(user_repo: TRepo, auth_service: Arc<TAuth>) -> Self {
+    pub fn new(
+        user_repo: TUserRepo,
+        vault_repo: TVaultRepo,
+        envelope_repo: TEnvelopeRepo,
+        secret_repo: TSecretRepo,
+        auth_service: Arc<TAuth>,
+        crypto_service: TCrypto,
+    ) -> Self {
         Self {
             user_repo,
+            vault_repo,
+            envelope_repo,
+            secret_repo,
             auth_service,
+            crypto_service,
+            rotation_in_progress: AtomicBool::new(false),
         }
+    }
+
+    async fn validate_accessible_vaults_with_master_key(
+        &self,
+        user_id: Uuid,
+        master_key: &SecretBox<Vec<u8>>,
+        validation_mode: RotationValidationMode,
+        max_secrets_validate_per_vault: usize,
+    ) -> Result<(usize, usize, usize, usize), AppError> {
+        let accessible_vaults = self.vault_repo.get_accessible_vaults(user_id).await?;
+        let owner_count = accessible_vaults
+            .iter()
+            .filter(|access| access.vault.owner_user_id == user_id)
+            .count();
+        let shared_count = accessible_vaults.len().saturating_sub(owner_count);
+
+        let sample_count = self
+            .decrypt_accessible_vault_envelopes(
+                accessible_vaults,
+                user_id,
+                master_key,
+                validation_mode,
+                max_secrets_validate_per_vault,
+            )
+            .await?;
+
+        Ok((
+            owner_count + shared_count,
+            owner_count,
+            shared_count,
+            sample_count,
+        ))
+    }
+
+    async fn decrypt_accessible_vault_envelopes(
+        &self,
+        accessible_vaults: Vec<AccessibleVault>,
+        user_id: Uuid,
+        master_key: &SecretBox<Vec<u8>>,
+        validation_mode: RotationValidationMode,
+        max_secrets_validate_per_vault: usize,
+    ) -> Result<usize, AppError> {
+        let mut sample_count = 0usize;
+
+        for access in accessible_vaults {
+            let envelope = if access.vault.owner_user_id == user_id {
+                self.envelope_repo
+                    .get_vault_key_envelope(access.vault.id)
+                    .await?
+                    .ok_or_else(|| {
+                        AppError::Storage("missing owner vault key envelope".to_string())
+                    })?
+            } else {
+                self.vault_repo
+                    .get_key_share(access.vault.id, user_id)
+                    .await?
+                    .ok_or_else(|| {
+                        AppError::Storage("missing shared vault key envelope".to_string())
+                    })?
+            };
+
+            let payload = Self::deserialize_envelope(&envelope)?;
+            let vault_key = self.crypto_service.decrypt(&payload, master_key).await?;
+
+            if matches!(
+                validation_mode,
+                RotationValidationMode::VaultAndSampleSecret
+            ) && max_secrets_validate_per_vault > 0
+            {
+                let secrets = self.secret_repo.list_by_vault_id(access.vault.id).await?;
+                for secret in secrets.into_iter().take(max_secrets_validate_per_vault) {
+                    let secret_payload = Self::deserialize_envelope(&secret.secret_blob)?;
+                    let _ = self
+                        .crypto_service
+                        .decrypt(&secret_payload, &vault_key)
+                        .await?;
+                    sample_count = sample_count.saturating_add(1);
+                }
+            }
+        }
+
+        Ok(sample_count)
+    }
+
+    async fn collect_rewrapped_accessible_vault_envelopes(
+        &self,
+        user_id: Uuid,
+        old_master_key: &SecretBox<Vec<u8>>,
+        new_master_key: &SecretBox<Vec<u8>>,
+    ) -> Result<
+        (
+            Vec<VaultEnvelopeUpdate>,
+            Vec<VaultShareEnvelopeUpdate>,
+            usize,
+            usize,
+        ),
+        AppError,
+    > {
+        let accessible_vaults = self.vault_repo.get_accessible_vaults(user_id).await?;
+        let mut owner_updates: Vec<VaultEnvelopeUpdate> = Vec::new();
+        let mut shared_updates: Vec<VaultShareEnvelopeUpdate> = Vec::new();
+
+        for access in accessible_vaults {
+            let envelope = if access.vault.owner_user_id == user_id {
+                self.envelope_repo
+                    .get_vault_key_envelope(access.vault.id)
+                    .await?
+                    .ok_or_else(|| {
+                        AppError::Storage("missing owner vault key envelope".to_string())
+                    })?
+            } else {
+                self.vault_repo
+                    .get_key_share(access.vault.id, user_id)
+                    .await?
+                    .ok_or_else(|| {
+                        AppError::Storage("missing shared vault key envelope".to_string())
+                    })?
+            };
+
+            let payload = Self::deserialize_envelope(&envelope)?;
+            let vault_key = self
+                .crypto_service
+                .decrypt(&payload, old_master_key)
+                .await?;
+            let rewrapped_payload = self
+                .crypto_service
+                .encrypt(&vault_key, new_master_key)
+                .await?;
+            let rewrapped_envelope = Self::serialize_envelope(&rewrapped_payload);
+
+            if access.vault.owner_user_id == user_id {
+                owner_updates.push(VaultEnvelopeUpdate {
+                    vault_id: access.vault.id,
+                    key_envelope: rewrapped_envelope,
+                });
+            } else {
+                shared_updates.push(VaultShareEnvelopeUpdate {
+                    vault_id: access.vault.id,
+                    user_id,
+                    key_envelope: rewrapped_envelope,
+                });
+            }
+        }
+
+        let owner_count = owner_updates.len();
+        let shared_count = shared_updates.len();
+        Ok((owner_updates, shared_updates, owner_count, shared_count))
+    }
+
+    fn serialize_envelope(payload: &EncryptedPayload) -> SecretBox<Vec<u8>> {
+        let mut bytes = Vec::with_capacity(NONCE_LEN + payload.ciphertext.expose_secret().len());
+        bytes.extend_from_slice(&payload.nonce);
+        bytes.extend_from_slice(payload.ciphertext.expose_secret().as_slice());
+        SecretBox::new(Box::new(bytes))
+    }
+
+    fn deserialize_envelope(bytes: &SecretBox<Vec<u8>>) -> Result<EncryptedPayload, AppError> {
+        if bytes.expose_secret().len() < NONCE_LEN {
+            return Err(AppError::Storage(
+                "vault key envelope is invalid".to_string(),
+            ));
+        }
+
+        let mut nonce = [0_u8; NONCE_LEN];
+        nonce.copy_from_slice(&bytes.expose_secret()[0..NONCE_LEN]);
+        let ciphertext = bytes.expose_secret()[NONCE_LEN..].to_vec();
+
+        Ok(EncryptedPayload {
+            nonce,
+            ciphertext: SecretBox::new(Box::new(ciphertext)),
+        })
     }
 }
 
-impl<TRepo, TAuth> UserService for UserServiceImpl<TRepo, TAuth>
+impl<TUserRepo, TVaultRepo, TEnvelopeRepo, TSecretRepo, TAuth, TCrypto> UserService
+    for UserServiceImpl<TUserRepo, TVaultRepo, TEnvelopeRepo, TSecretRepo, TAuth, TCrypto>
 where
-    TRepo: UserRepository + Send + Sync,
+    TUserRepo: UserRepository + Send + Sync,
+    TVaultRepo: VaultRepository + MasterKeyRotationRepository + Send + Sync,
+    TEnvelopeRepo: VaultKeyEnvelopeRepository + Send + Sync,
+    TSecretRepo: SecretRepository + Send + Sync,
     TAuth: AuthService + Send + Sync,
+    TCrypto: CryptoService + Send + Sync,
 {
     async fn get_user_profile(&self, user_id: Uuid) -> Result<User, AppError> {
         let user = self
@@ -183,6 +447,20 @@ where
             ));
         }
 
+        let current_password_bytes = current_password.expose_secret().clone();
+        let new_password_bytes = new_password.expose_secret().clone();
+
+        let old_master_key = self
+            .auth_service
+            .derive_key_if_valid(
+                user.username.as_str(),
+                SecretBox::new(Box::new(current_password_bytes)),
+            )
+            .await?
+            .ok_or(AppError::Authorization(
+                AccessDeniedReason::InvalidCredentials,
+            ))?;
+
         self.auth_service
             .change_password(user.username.as_str(), current_password, new_password)
             .await?;
@@ -196,8 +474,265 @@ where
             .update_password_envelope(user_id, password_envelope)
             .await?;
 
+        let new_master_key = self
+            .auth_service
+            .derive_key_if_valid(
+                user.username.as_str(),
+                SecretBox::new(Box::new(new_password_bytes)),
+            )
+            .await?
+            .ok_or(AppError::Internal)?;
+
+        // Re-wrap all accessible vault key envelopes so existing secrets remain decryptable
+        // with the new user master key after password rotation.
+        let accessible_vaults = self.vault_repo.get_accessible_vaults(user_id).await?;
+        for access in accessible_vaults {
+            let envelope = if access.vault.owner_user_id == user_id {
+                self.envelope_repo
+                    .get_vault_key_envelope(access.vault.id)
+                    .await?
+                    .ok_or_else(|| {
+                        AppError::Storage("missing owner vault key envelope".to_string())
+                    })?
+            } else {
+                self.vault_repo
+                    .get_key_share(access.vault.id, user_id)
+                    .await?
+                    .ok_or_else(|| {
+                        AppError::Storage("missing shared vault key envelope".to_string())
+                    })?
+            };
+
+            let payload = Self::deserialize_envelope(&envelope)?;
+            let vault_key = self
+                .crypto_service
+                .decrypt(&payload, &old_master_key)
+                .await?;
+            let rewrapped_payload = self
+                .crypto_service
+                .encrypt(&vault_key, &new_master_key)
+                .await?;
+            let rewrapped_envelope = Self::serialize_envelope(&rewrapped_payload);
+
+            if access.vault.owner_user_id == user_id {
+                self.vault_repo
+                    .update_vault_key_envelope(access.vault.id, rewrapped_envelope)
+                    .await?;
+            } else {
+                self.vault_repo
+                    .update_key_share_envelope(access.vault.id, user_id, rewrapped_envelope)
+                    .await?;
+            }
+        }
+
         info!(user_id = %user_id, "master password changed");
         Ok(())
+    }
+
+    async fn rotate_master_key_hardened(
+        &self,
+        request: MasterKeyRotationRequest,
+    ) -> Result<MasterKeyRotationReport, AppError> {
+        let started = std::time::Instant::now();
+        let rotation_id = Uuid::new_v4();
+
+        if self
+            .rotation_in_progress
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return Err(AppError::Conflict(
+                "master key rotation already in progress".to_string(),
+            ));
+        }
+
+        struct RotationResetGuard<'a> {
+            flag: &'a AtomicBool,
+        }
+
+        impl<'a> Drop for RotationResetGuard<'a> {
+            fn drop(&mut self) {
+                self.flag.store(false, Ordering::SeqCst);
+            }
+        }
+
+        let _rotation_reset = RotationResetGuard {
+            flag: &self.rotation_in_progress,
+        };
+
+        let user = self
+            .user_repo
+            .get_by_id(request.user_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("user not found".to_string()))?;
+
+        let current_password_bytes = request.current_password.expose_secret().clone();
+        let new_password_bytes = request.new_password.expose_secret().clone();
+
+        let old_master_key = self
+            .auth_service
+            .derive_key_if_valid(
+                user.username.as_str(),
+                SecretBox::new(Box::new(current_password_bytes.clone())),
+            )
+            .await?
+            .ok_or(AppError::Authorization(
+                AccessDeniedReason::InvalidCredentials,
+            ))?;
+
+        let (scanned_vaults, _, _, _) = self
+            .validate_accessible_vaults_with_master_key(
+                request.user_id,
+                &old_master_key,
+                request.policy.validation_mode,
+                request.policy.max_secrets_validate_per_vault,
+            )
+            .await?;
+
+        let new_master_key = self
+            .auth_service
+            .derive_key_if_valid(
+                user.username.as_str(),
+                SecretBox::new(Box::new(new_password_bytes.clone())),
+            )
+            .await?
+            .ok_or(AppError::Internal)?;
+
+        let (owner_updates, shared_updates, owner_vaults_rewrapped, shared_vaults_rewrapped) = self
+            .collect_rewrapped_accessible_vault_envelopes(
+                request.user_id,
+                &old_master_key,
+                &new_master_key,
+            )
+            .await?;
+
+        let backup_service = BackupServiceImpl::new();
+        let mut backup_path_for_report: Option<String> = None;
+        let mut backup_recovery_phrase: Option<secrecy::SecretString> = None;
+
+        if request.policy.require_backup {
+            let backup_path = if let Some(path) = request.backup_file_path.clone() {
+                path
+            } else {
+                let stamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map_err(|_err| AppError::Internal)?
+                    .as_secs();
+                request
+                    .sqlite_db_path
+                    .with_extension(format!("master-rotation-{rotation_id}-{stamp}.hvb"))
+            };
+
+            let recovery = backup_service.generate_recovery_key()?;
+            backup_service.export_hvb_with_recovery_key(
+                request.sqlite_db_path.as_path(),
+                backup_path.as_path(),
+                &recovery.recovery_phrase,
+            )?;
+
+            backup_path_for_report = Some(backup_path.to_string_lossy().to_string());
+            backup_recovery_phrase = Some(recovery.recovery_phrase);
+        }
+
+        self.auth_service
+            .change_password(
+                user.username.as_str(),
+                SecretBox::new(Box::new(current_password_bytes)),
+                SecretBox::new(Box::new(new_password_bytes.clone())),
+            )
+            .await?;
+
+        let new_password_envelope = self
+            .auth_service
+            .get_password_envelope(user.username.as_str())
+            .await?;
+
+        let old_password_envelope = self
+            .user_repo
+            .get_password_envelope_by_user_id(request.user_id)
+            .await?;
+        let old_password_envelope_bytes = old_password_envelope
+            .ok_or_else(|| AppError::Storage("missing password envelope".to_string()))?;
+
+        let apply_result = self
+            .vault_repo
+            .apply_master_key_rotation_atomically(
+                request.user_id,
+                new_password_envelope,
+                owner_updates,
+                shared_updates,
+            )
+            .await;
+
+        if let Err(error) = apply_result {
+            if let Err(rollback_error) = self
+                .auth_service
+                .upsert_password_envelope(user.username.as_str(), old_password_envelope_bytes)
+                .await
+            {
+                return Err(AppError::Storage(format!(
+                    "master key rotation failed and auth rollback failed: {error}; {rollback_error}"
+                )));
+            }
+            return Err(error);
+        }
+
+        let post_validation_result = self
+            .validate_accessible_vaults_with_master_key(
+                request.user_id,
+                &new_master_key,
+                request.policy.validation_mode,
+                request.policy.max_secrets_validate_per_vault,
+            )
+            .await;
+
+        let sample_secrets_validated = match post_validation_result {
+            Ok((_, _, _, sample_count)) => sample_count,
+            Err(validation_error) => {
+                if let (Some(backup_path), Some(recovery_phrase)) =
+                    (backup_path_for_report.clone(), backup_recovery_phrase)
+                {
+                    let restore_result = backup_service.import_hvb_with_recovery_key(
+                        PathBuf::from(backup_path.as_str()).as_path(),
+                        &recovery_phrase,
+                        request.sqlite_db_path.as_path(),
+                    );
+
+                    if restore_result.is_ok() {
+                        if let Some(restored_password_envelope) = self
+                            .user_repo
+                            .get_password_envelope_by_user_id(request.user_id)
+                            .await?
+                        {
+                            self.auth_service
+                                .upsert_password_envelope(
+                                    user.username.as_str(),
+                                    restored_password_envelope,
+                                )
+                                .await?;
+                        }
+                        return Err(AppError::Storage(format!(
+                            "master key rotation failed, backup restored automatically: {validation_error}"
+                        )));
+                    }
+                }
+
+                return Err(validation_error);
+            }
+        };
+
+        let _ = request.policy.keep_backup_on_success;
+        let _ = request.actor_id;
+
+        Ok(MasterKeyRotationReport {
+            rotation_id,
+            backup_path: backup_path_for_report,
+            scanned_vaults,
+            owner_vaults_rewrapped,
+            shared_vaults_rewrapped,
+            sample_secrets_validated,
+            elapsed_ms: started.elapsed().as_millis(),
+        })
     }
 
     async fn update_show_passwords_in_edit(

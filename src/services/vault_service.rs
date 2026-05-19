@@ -602,6 +602,15 @@ mod tests {
             Ok(None)
         }
 
+        async fn update_key_share_envelope(
+            &self,
+            _: Uuid,
+            _: Uuid,
+            _: SecretBox<Vec<u8>>,
+        ) -> Result<(), AppError> {
+            Ok(())
+        }
+
         async fn delete_key_share(&self, _: Uuid, _: Uuid) -> Result<(), AppError> {
             Ok(())
         }

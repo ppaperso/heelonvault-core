@@ -9,6 +9,29 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — v1.1.0 sprint
 
+### Master key rotation (hardening)
+
+- `user_service`: hardened `rotate_master_key_hardened` flow enabled with pre/post rotation validation.
+- Owner/shared vault key-envelope rewrap now applied through an atomic SQL mutation.
+- Sample-secret validation is wired into `VaultAndSampleSecret` mode.
+- Manual verification confirmed: master key change succeeds in real application runtime.
+- Automated verification confirmed: broad `cargo test` run is green.
+
+### CSV import UX (premium)
+
+- `profile_view`: redesigned CSV import into a 3-step user flow:
+  - file preview (detected/importable/manual-review rows),
+  - visible progress during import,
+  - final detailed summary including rows that require manual follow-up.
+- `import_service`: switched to row-level fault tolerance with a structured summary report (`imported`, `failed`, per-row details) instead of one opaque global failure.
+- `ui/dialogs/import_progress_dialog`: new dedicated import progress dialog.
+- Full FR/EN localization for new import messages (preview, progress, summary, error details).
+
+### Legacy migration v0.4 -> v1.1
+
+- Added `scripts/export-legacy-v0.4-to-csv.py` to export legacy databases to a CSV format compatible with v1.1 import.
+- Supports legacy layouts via `--profile`, `--workspace-uuid`, or explicit `--db-path` + `--salt-path`.
+
 ### v1.1.0 technical debt (issues #5, #6, #7, #8, #9)
 
 - `main`: moved `env::set_var("GSK_RENDERER", "gl")` before Tokio runtime initialization.

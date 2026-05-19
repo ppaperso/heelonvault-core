@@ -104,6 +104,14 @@ add-edit-field-title-placeholder = Nom lisible du secret
 add-edit-field-tags-label = Tags (separes par des virgules)
 add-edit-field-tags-placeholder = prod, client-a, finance
 add-edit-field-type-label = Type de secret
+add-edit-type-pill-password = Mot de passe
+add-edit-type-pill-api-token = Token API
+add-edit-type-pill-ssh-key = Cle SSH
+add-edit-type-pill-document = Document
+add-edit-type-section-password = Champs Mot de passe
+add-edit-type-section-api-token = Champs Token API
+add-edit-type-section-ssh-key = Champs Cle SSH
+add-edit-type-section-document = Champs Document
 add-edit-field-login-label = Nom d'utilisateur / Login
 add-edit-field-login-placeholder = alice@example.com
 add-edit-field-url-label = URL
@@ -111,6 +119,15 @@ add-edit-field-url-placeholder = https://example.com
 add-edit-field-notes-label = Notes
 add-edit-field-validity-label = Validite
 add-edit-field-validity-unlimited = Validite illimitee
+add-edit-current-vault-label = Coffre actuel : { $name }
+add-edit-target-vault-label = Coffre cible : { $name }
+add-edit-target-vault-current = Coffre cible : { $name } (actuel)
+add-edit-change-vault-button = Changer de coffre
+add-edit-change-vault-title = Changer le coffre cible
+add-edit-vaults-label = COFFRES
+add-edit-vault-badge-current = ACTUEL
+add-edit-vault-badge-target = CIBLE
+add-edit-vaults-empty = Aucun autre coffre
 
 add-edit-button-back = ← Retour
 add-edit-button-cancel = Annuler
@@ -254,6 +271,8 @@ profile-auto-lock-10 = 10 min
 profile-auto-lock-15 = 15 min
 profile-auto-lock-30 = 30 min
 profile-auto-lock-never = jamais
+profile-auto-lock-never-warning-title = Verrouillage automatique desactive
+profile-auto-lock-never-warning-body = Choisir "jamais" desactive le verrouillage automatique. Cette configuration est non conforme et augmente fortement le risque de vol ou d'exposition des donnees si vous quittez votre ecran.
 profile-show-edit-passwords-title = Affichage du mot de passe actuel en mode modification
 profile-show-edit-passwords-hint = Affiche des etoiles dans le champ mot de passe de l'editeur, avec icone oeil pour le reveler.
 profile-section-2fa-title = 2FA
@@ -280,6 +299,7 @@ profile-import-button = Importer des donnees (CSV)
 
 profile-status-load-failed = Chargement du profil indisponible pour le moment.
 profile-status-lock-delay-updating = Mise a jour du delai de verrouillage...
+profile-status-lock-delay-warning = Attention: verrouillage automatique desactive (non conforme, risque eleve de fuite de donnees).
 profile-status-lock-delay-updated = Delai de verrouillage automatique mis a jour.
 profile-status-lock-delay-failed = Impossible de mettre a jour le delai de verrouillage.
 profile-status-show-passwords-updating = Mise a jour de la preference d'affichage...
@@ -330,6 +350,40 @@ profile-import-invalid-path = Chemin CSV invalide.
 profile-import-session-locked = Session verrouillee, reconnectez-vous.
 profile-import-success-body = Import CSV termine: { $count } secrets.
 profile-import-failed = Echec de l'import CSV.
+profile-import-preview-title = Apercu de l'import
+profile-import-preview-file = Fichier : { $file }
+profile-import-preview-detected = Secrets detectes : { $count }
+profile-import-preview-ready = Secrets importables : { $count }
+profile-import-preview-confirm = Continuer l'import ?
+profile-import-vault-label = Coffre de destination :
+profile-import-progress-title = Import en cours
+profile-import-progress-file = Fichier : { $file }
+profile-import-progress-preparing = Preparation de l'import...
+profile-import-progress-processing = Traitement : { $title }
+profile-import-progress-default = Import des secrets en cours...
+profile-import-progress-stats = Traites { $processed }/{ $total } • Importes { $imported } • Echecs { $failed }
+profile-import-progress-completed = Import termine
+profile-import-progress-summary = Importes { $imported } secrets • { $failed } echec(s)
+profile-import-result-title = Import termine
+profile-import-result-subtitle = Fichier source : { $file }
+profile-import-result-summary = { $imported } importes • { $failed } en echec • { $duration }
+profile-import-result-stat-total = Total des lignes
+profile-import-result-stat-imported = Importees
+profile-import-result-stat-failed = En echec
+profile-import-result-reject-report = Rapport des rejets genere a : { $path }
+profile-import-result-details-title = Elements a revoir
+profile-import-result-no-failures = Aucune ligne a revoir.
+profile-import-summary-body = Import CSV termine.
+
+    Detectes : { $total }
+    Importes : { $imported }
+    Echecs : { $failed }
+profile-import-summary-followup = Suivi manuel :
+profile-import-summary-item = Ligne { $row } : { $title } — { $reason }
+profile-import-summary-more = ... et { $count } de plus
+profile-import-error-body = Import CSV impossible :
+
+    { $error }
 
 profile-language-title = Langue
 profile-language-subtitle = Definit la langue de l'interface pour les prochaines vues.
@@ -363,6 +417,10 @@ profile-export-recovery-dialog-helper = Sauvegardez votre cle via Copier, Imprim
 profile-export-recovery-confirm = J'ai note
 profile-export-admin-required-title = Droit admin necessaire
 profile-export-admin-required-body = Seul un utilisateur admin peut exporter la base de donnees.
+profile-section-admin-advanced = Admin avance
+profile-admin-advanced-subtitle = Acces rapide aux outils d'administration avances.
+profile-admin-open-users = Ouvrir Utilisateurs
+profile-admin-open-teams = Ouvrir Equipes
 
 main-my-vaults-title = Mes coffres
 main-create-vault-button = Nouveau coffre
