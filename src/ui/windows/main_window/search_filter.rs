@@ -170,10 +170,7 @@ pub(super) fn parse_search_terms(query: &str) -> Vec<(Option<String>, String)> {
     let mut i = 0;
     while i < raw.len() {
         let t = raw[i];
-        if t.ends_with(':')
-            && !t.starts_with(':')
-            && i + 1 < raw.len()
-            && !raw[i + 1].contains(':')
+        if t.ends_with(':') && !t.starts_with(':') && i + 1 < raw.len() && !raw[i + 1].contains(':')
         {
             tokens.push(format!("{}{}", t, raw[i + 1]));
             i += 2;

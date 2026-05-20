@@ -421,7 +421,9 @@ pub(super) fn build_vault_sidebar_row(
     drag_source.set_actions(gtk4::gdk::DragAction::MOVE);
     let vault_id_str = vault_id.to_string();
     drag_source.connect_prepare(move |_src, _x, _y| {
-        Some(gtk4::gdk::ContentProvider::for_value(&vault_id_str.to_value()))
+        Some(gtk4::gdk::ContentProvider::for_value(
+            &vault_id_str.to_value(),
+        ))
     });
     // Dim the row slightly while dragging for visual feedback
     let row_for_drag = row.clone();
