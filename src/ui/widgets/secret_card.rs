@@ -22,6 +22,8 @@ pub struct SecretRowData {
     pub is_shared_vault: bool,
     pub can_edit: bool,
     pub can_delete: bool,
+    /// When non-empty, show a vault badge (used during cross-vault search).
+    pub vault_name: String,
 }
 
 /// A modern card widget for displaying a secret item
@@ -101,6 +103,16 @@ impl SecretCard {
             shared_badge.add_css_class("secret-badge");
             shared_badge.add_css_class("badge-usage");
             badges_box.append(&shared_badge);
+        }
+
+        // Vault badge: shown during cross-vault search to identify the origin vault
+        if !data.vault_name.is_empty() {
+            let vault_badge = Label::new(Some(&format!("🗄 {}", data.vault_name)));
+            vault_badge.set_single_line_mode(true);
+            vault_badge.set_ellipsize(EllipsizeMode::End);
+            vault_badge.add_css_class("secret-badge");
+            vault_badge.add_css_class("badge-vault");
+            badges_box.append(&vault_badge);
         }
 
         // --- SEPARATOR ---

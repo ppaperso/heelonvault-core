@@ -18,6 +18,7 @@ pub(super) struct SecretFilterMeta {
     pub(super) category_text: String,
     pub(super) tags_text: String,
     pub(super) type_text: String,
+    pub(super) vault_name_text: String,
     pub(super) kind: SecretKind,
     pub(super) original_rank: usize,
     pub(super) is_weak: bool,
@@ -56,4 +57,7 @@ pub(super) struct SecretRowView {
     pub(super) color_class: String,
     pub(super) health: String,
     pub(super) usage_count: u32,
+    pub(super) vault_name: String,
+    /// (is_shared, can_write, can_admin) — used to set button sensitivity
+    pub(super) vault_access: (bool, bool, bool),
 }

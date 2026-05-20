@@ -93,6 +93,12 @@ pub trait LocalVaultRepository {
         user_id: Uuid,
         team_id: Uuid,
     ) -> Result<u64, AppError>;
+    /// Update the display sort order for an owned vault.
+    async fn update_vault_sort_order(
+        &self,
+        vault_id: Uuid,
+        sort_order: i64,
+    ) -> Result<(), AppError>;
 }
 
 pub struct SqlxVaultRepository {
@@ -185,7 +191,7 @@ impl VaultRepository for SqlxVaultRepository {
 
     async fn list_by_user_id(&self, user_id: Uuid) -> Result<Vec<Vault>, AppError> {
         let rows = sqlx::query(
-            "SELECT id, owner_user_id, name FROM vaults WHERE owner_user_id = ?1 AND deleted_at IS NULL ORDER BY LOWER(name)",
+            "SELECT id, owner_user_id, name FROM vaults WHERE owner_user_id = ?1 AND deleted_at IS NULL ORDER BY sort_order, LOWER(name)",
         )
         .bind(user_id.to_string())
         .fetch_all(&self.pool)
@@ -510,6 +516,21 @@ impl VaultRepository for SqlxVaultRepository {
 
         Ok(result.rows_affected())
     }
+
+    async fn update_vault_sort_order(
+        &self,
+        vault_id: Uuid,
+        sort_order: i64,
+    ) -> Result<(), AppError> {
+        sqlx::query(
+            "UPDATE vaults SET sort_order = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+        )
+        .bind(sort_order)
+        .bind(vault_id.to_string())
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
 }
 
 impl MasterKeyRotationRepository for SqlxVaultRepository {
@@ -608,7 +629,8 @@ mod tests {
                 name TEXT NOT NULL,
                 vault_key_envelope BLOB,
                 vault_key_version INTEGER NOT NULL DEFAULT 1,
-                deleted_at TEXT
+                deleted_at TEXT,
+                sort_order INTEGER NOT NULL DEFAULT 0
             )",
         )
         .execute(&pool)

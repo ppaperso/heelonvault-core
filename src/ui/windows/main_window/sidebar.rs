@@ -331,6 +331,14 @@ pub(super) fn build_vault_sidebar_row(
         .margin_end(10)
         .build();
 
+    // Drag handle — indicates the row is reorderable
+    let drag_handle = gtk4::Image::from_icon_name("open-menu-symbolic");
+    drag_handle.set_pixel_size(16);
+    drag_handle.add_css_class("vault-drag-handle");
+    drag_handle.set_opacity(0.4);
+    drag_handle.set_tooltip_text(Some(crate::tr!("main-vault-drag-tooltip").as_str()));
+    content.append(&drag_handle);
+
     let icon = gtk4::Image::from_icon_name("folder-symbolic");
     icon.set_pixel_size(18);
     icon.add_css_class("main-sidebar-icon");
@@ -407,5 +415,30 @@ pub(super) fn build_vault_sidebar_row(
 
     row.set_child(Some(&content));
     row.set_widget_name(format!("vault-{}", vault_id).as_str());
+
+    // ── DragSource: provides vault_id as plain text ───────────────────────
+    let drag_source = gtk4::DragSource::new();
+    drag_source.set_actions(gtk4::gdk::DragAction::MOVE);
+    let vault_id_str = vault_id.to_string();
+    drag_source.connect_prepare(move |_src, _x, _y| {
+        Some(gtk4::gdk::ContentProvider::for_value(&vault_id_str.to_value()))
+    });
+    // Dim the row slightly while dragging for visual feedback
+    let row_for_drag = row.clone();
+    let row_for_icon = row.clone();
+    drag_source.connect_drag_begin(move |src, _drag| {
+        row_for_drag.add_css_class("vault-row-dragging");
+        // Use a visual snapshot of the row as the drag icon to avoid
+        // displaying the raw vault UUID string during the drag gesture.
+        let paintable = gtk4::WidgetPaintable::new(Some(&row_for_icon));
+        src.set_icon(Some(&paintable), 0, 0);
+    });
+    let row_for_end = row.clone();
+    drag_source.connect_drag_end(move |_src, _drag, _delete| {
+        row_for_end.remove_css_class("vault-row-dragging");
+    });
+    row.add_controller(drag_source);
+    // ─────────────────────────────────────────────────────────────────────
+
     row
 }

@@ -47,6 +47,15 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 - Validation automatique exécutée après refactor: `cargo test --workspace` et `cargo clippy --workspace --all-targets -- -D warnings`.
 
+### UX recherche — barre multi-coffre et popover d'aide premium
+
+- `shell.rs`: ajout du bouton toggle **MultiCoffre** à gauche de la barre de recherche ; remplace l'ancienne détection automatique de mode.
+- Correction : suppression de `selectable(true)` sur le label du popover d'aide — empêchait le retour du focus à la fenêtre principale après un clic droit (gel apparent de l'interface).
+- Correction : `parse_search_terms` — la syntaxe `champ: valeur` (espace après le deux-points) est désormais identique à `champ:valeur`.
+- Redesign du popover d'aide (`?`) : structure en trois sections (`caption-heading` + `dim-label` + `monospace`), icône `help-browser-symbolic`, largeur fixe 348 px, `autohide(true)`.
+- Refactorisation : `ContentShell` struct avec closure `refresh_i18n` centralisée ; `new_body.inc` délègue tous les mises à jour i18n de la barre en un seul appel.
+- Clés i18n FR/EN structurées : `main-search-help-no-prefix-title`, `main-search-help-no-prefix-body`, `main-search-help-prefix-title`, `main-search-help-fields`, `main-search-help-examples`, `main-search-help-fuzzy`.
+
 ### Sécurité dépendances (issue #13)
 
 - Mise à jour transitive de la chaîne TLS dans `Cargo.lock`: `rustls-webpki` `0.103.10` -> `0.103.13`, `rustls` `0.23.37` -> `0.23.40`.

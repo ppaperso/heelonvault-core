@@ -11,6 +11,7 @@ use serde_json::Value;
 use tokio::runtime::Handle;
 use uuid::Uuid;
 
+use crate::models::SecretItem;
 use crate::services::secret_service::SecretService;
 use crate::services::vault_service::VaultService;
 use crate::ui::dialogs::add_edit_dialog::DialogMode;
@@ -36,6 +37,132 @@ pub(super) fn evaluate_password_strength_label(secret_value: &str) -> String {
     crate::tr!("main-strength-weak")
 }
 
+/// Decode a single `SecretItem` into a `SecretRowView`.
+/// Returns `None` if the secret cannot be opened (wrong key, corrupt, etc.).
+async fn build_secret_row<TSecret>(
+    item: SecretItem,
+    secret_service: &Arc<TSecret>,
+    vault_key: &secrecy::SecretBox<Vec<u8>>,
+    vault_name: String,
+    vault_access: (bool, bool, bool),
+) -> Option<SecretRowView>
+where
+    TSecret: SecretService + Send + Sync + 'static,
+{
+    let secret_result = secret_service
+        .get_secret(
+            item.id,
+            SecretBox::new(Box::new(vault_key.expose_secret().clone())),
+        )
+        .await;
+    let secret_value = match secret_result {
+        Ok(secret) => {
+            String::from_utf8(secret.secret_value.expose_secret().clone()).unwrap_or_default()
+        }
+        Err(_) => String::new(),
+    };
+
+    let (login, email, url, notes, category) = match item.metadata_json.as_deref() {
+        Some(raw) => match serde_json::from_str::<Value>(raw) {
+            Ok(value) => {
+                let login = value
+                    .get("login")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                let email = value
+                    .get("email")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                let url = value
+                    .get("url")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                let notes = value
+                    .get("notes")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                let category = value
+                    .get("category")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                (login, email, url, notes, category)
+            }
+            Err(_) => (
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ),
+        },
+        None => (
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+        ),
+    };
+
+    let (icon_name, type_label_text) = match item.secret_type {
+        crate::models::SecretType::Password => (
+            "dialog-password-symbolic",
+            crate::tr!("secret-type-password"),
+        ),
+        crate::models::SecretType::ApiToken => {
+            ("dialog-key-symbolic", crate::tr!("secret-type-api-token"))
+        }
+        crate::models::SecretType::SshKey => {
+            ("network-wired-symbolic", crate::tr!("secret-type-ssh-key"))
+        }
+        crate::models::SecretType::SecureDocument => (
+            "folder-documents-symbolic",
+            crate::tr!("secret-type-secure-document"),
+        ),
+    };
+    let (color_class, kind) = match item.secret_type {
+        crate::models::SecretType::Password => ("secret-type-password", SecretKind::Password),
+        crate::models::SecretType::ApiToken => ("secret-type-token", SecretKind::ApiToken),
+        crate::models::SecretType::SshKey => ("secret-type-ssh", SecretKind::SshKey),
+        crate::models::SecretType::SecureDocument => {
+            ("secret-type-document", SecretKind::SecureDocument)
+        }
+    };
+
+    let title = item.title.unwrap_or_else(|| type_label_text.clone());
+    let created_at = item
+        .created_at
+        .unwrap_or_else(|| crate::tr!("login-history-unavailable"));
+    let health = evaluate_password_strength_label(secret_value.as_str());
+    let tags = item.tags.clone().unwrap_or_default();
+
+    Some(SecretRowView {
+        secret_id: item.id,
+        icon_name: icon_name.to_string(),
+        type_label: type_label_text.to_string(),
+        title,
+        created_at,
+        login,
+        email,
+        url,
+        notes,
+        category,
+        tags,
+        secret_value,
+        kind,
+        color_class: color_class.to_string(),
+        health,
+        usage_count: item.usage_count,
+        vault_name,
+        vault_access,
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn refresh_secret_flow<TSecret, TVault>(
     application: adw::Application,
@@ -53,6 +180,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
     toast_overlay: adw::ToastOverlay,
     filter_runtime: FilterRuntime,
     editor_launcher: Rc<RefCell<Option<Rc<dyn Fn(DialogMode)>>>>,
+    search_all_vaults: bool,
 ) where
     TSecret: SecretService + Send + Sync + 'static,
     TVault: VaultService + Send + Sync + 'static,
@@ -70,160 +198,107 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
     let (sender, receiver) = tokio::sync::oneshot::channel();
     std::thread::spawn(move || {
         let result: Result<
-            (Option<(Uuid, bool, bool, bool)>, Vec<SecretRowView>, bool),
+            (Option<(Uuid, bool, bool, bool)>, Vec<SecretRowView>, bool, bool),
             crate::errors::AppError,
         > = runtime_for_loader.block_on(async move {
-            let vaults = vault_for_loader.list_user_vaults(admin_user_id).await?;
-            let resolved_selected_id =
-                selected_vault_id.or_else(|| vaults.first().map(|vault| vault.id));
-            let Some(selected_id) = resolved_selected_id else {
-                return Ok((None, Vec::new(), true));
-            };
-
-            let selected_vault = match vaults.into_iter().find(|vault| vault.id == selected_id) {
-                Some(value) => value,
-                None => return Ok((None, Vec::new(), false)),
-            };
-            let access = vault_for_loader
-                .get_vault_access_for_user(admin_user_id, selected_vault.id)
-                .await?
-                .ok_or({
-                    crate::errors::AppError::Authorization(
-                        crate::errors::AccessDeniedReason::VaultAccessDenied,
-                    )
-                })?;
-            let is_shared = selected_vault.owner_user_id != admin_user_id;
-            let can_write = access.role.can_write();
-            let can_admin = access.role.can_admin();
-            let vault_state = Some((selected_vault.id, is_shared, can_write, can_admin));
-
-            let vault_key = vault_for_loader
-                .open_vault_for_user(
-                    admin_user_id,
-                    selected_vault.id,
-                    SecretBox::new(Box::new(admin_master_for_loader.clone())),
-                )
-                .await?;
-
-            let items = secret_for_loader.list_by_vault(selected_vault.id).await?;
-            let mut rows = Vec::with_capacity(items.len());
-            for item in items {
-                let secret_result = secret_for_loader
-                    .get_secret(
-                        item.id,
-                        SecretBox::new(Box::new(vault_key.expose_secret().clone())),
-                    )
-                    .await;
-                let secret_value = match secret_result {
-                    Ok(secret) => String::from_utf8(secret.secret_value.expose_secret().clone())
-                        .unwrap_or_default(),
-                    Err(_) => String::new(),
-                };
-
-                let (login, email, url, notes, category) = match item.metadata_json.as_deref() {
-                    Some(raw) => match serde_json::from_str::<Value>(raw) {
-                        Ok(value) => {
-                            let login = value
-                                .get("login")
-                                .and_then(Value::as_str)
-                                .unwrap_or_default()
-                                .to_string();
-                            let email = value
-                                .get("email")
-                                .and_then(Value::as_str)
-                                .unwrap_or_default()
-                                .to_string();
-                            let url = value
-                                .get("url")
-                                .and_then(Value::as_str)
-                                .unwrap_or_default()
-                                .to_string();
-                            let notes = value
-                                .get("notes")
-                                .and_then(Value::as_str)
-                                .unwrap_or_default()
-                                .to_string();
-                            let category = value
-                                .get("category")
-                                .and_then(Value::as_str)
-                                .unwrap_or_default()
-                                .to_string();
-                            (login, email, url, notes, category)
+            if search_all_vaults {
+                // ── Global cross-vault search ─────────────────────────────────
+                let vaults = vault_for_loader.list_user_vaults(admin_user_id).await?;
+                let mut all_rows: Vec<SecretRowView> = Vec::new();
+                for vault in vaults {
+                    let access = match vault_for_loader
+                        .get_vault_access_for_user(admin_user_id, vault.id)
+                        .await?
+                    {
+                        Some(a) => a,
+                        None => continue,
+                    };
+                    let vault_key = match vault_for_loader
+                        .open_vault_for_user(
+                            admin_user_id,
+                            vault.id,
+                            SecretBox::new(Box::new(admin_master_for_loader.clone())),
+                        )
+                        .await
+                    {
+                        Ok(k) => k,
+                        Err(_) => continue,
+                    };
+                    let items = match secret_for_loader.list_by_vault(vault.id).await {
+                        Ok(i) => i,
+                        Err(_) => continue,
+                    };
+                    let is_shared = vault.owner_user_id != admin_user_id;
+                    let can_write = access.role.can_write();
+                    let can_admin = access.role.can_admin();
+                    for item in items {
+                        let row = build_secret_row(
+                            item,
+                            &secret_for_loader,
+                            &vault_key,
+                            vault.name.clone(),
+                            (is_shared, can_write, can_admin),
+                        )
+                        .await;
+                        if let Some(r) = row {
+                            all_rows.push(r);
                         }
-                        Err(_) => (
-                            String::new(),
-                            String::new(),
-                            String::new(),
-                            String::new(),
-                            String::new(),
-                        ),
-                    },
-                    None => (
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                    ),
+                    }
+                }
+                Ok((None, all_rows, false, true))
+            } else {
+                // ── Single-vault mode (normal) ────────────────────────────────
+                let vaults = vault_for_loader.list_user_vaults(admin_user_id).await?;
+                let resolved_selected_id =
+                    selected_vault_id.or_else(|| vaults.first().map(|vault| vault.id));
+                let Some(selected_id) = resolved_selected_id else {
+                    return Ok((None, Vec::new(), true, false));
                 };
 
-                let (icon_name, type_label_text) = match item.secret_type {
-                    crate::models::SecretType::Password => (
-                        "dialog-password-symbolic",
-                        crate::tr!("secret-type-password"),
-                    ),
-                    crate::models::SecretType::ApiToken => {
-                        ("dialog-key-symbolic", crate::tr!("secret-type-api-token"))
-                    }
-                    crate::models::SecretType::SshKey => {
-                        ("network-wired-symbolic", crate::tr!("secret-type-ssh-key"))
-                    }
-                    crate::models::SecretType::SecureDocument => (
-                        "folder-documents-symbolic",
-                        crate::tr!("secret-type-secure-document"),
-                    ),
-                };
-                let (color_class, kind) = match item.secret_type {
-                    crate::models::SecretType::Password => {
-                        ("secret-type-password", SecretKind::Password)
-                    }
-                    crate::models::SecretType::ApiToken => {
-                        ("secret-type-token", SecretKind::ApiToken)
-                    }
-                    crate::models::SecretType::SshKey => ("secret-type-ssh", SecretKind::SshKey),
-                    crate::models::SecretType::SecureDocument => {
-                        ("secret-type-document", SecretKind::SecureDocument)
-                    }
-                };
+                let selected_vault =
+                    match vaults.into_iter().find(|vault| vault.id == selected_id) {
+                        Some(value) => value,
+                        None => return Ok((None, Vec::new(), false, false)),
+                    };
+                let access = vault_for_loader
+                    .get_vault_access_for_user(admin_user_id, selected_vault.id)
+                    .await?
+                    .ok_or({
+                        crate::errors::AppError::Authorization(
+                            crate::errors::AccessDeniedReason::VaultAccessDenied,
+                        )
+                    })?;
+                let is_shared = selected_vault.owner_user_id != admin_user_id;
+                let can_write = access.role.can_write();
+                let can_admin = access.role.can_admin();
+                let vault_state =
+                    Some((selected_vault.id, is_shared, can_write, can_admin));
 
-                let title = item.title.unwrap_or_else(|| type_label_text.clone());
-                let created_at = item
-                    .created_at
-                    .unwrap_or_else(|| crate::tr!("login-history-unavailable"));
-                let health = evaluate_password_strength_label(secret_value.as_str());
-                let tags = item.tags.clone().unwrap_or_default();
+                let vault_key = vault_for_loader
+                    .open_vault_for_user(
+                        admin_user_id,
+                        selected_vault.id,
+                        SecretBox::new(Box::new(admin_master_for_loader.clone())),
+                    )
+                    .await?;
 
-                rows.push(SecretRowView {
-                    secret_id: item.id,
-                    icon_name: icon_name.to_string(),
-                    type_label: type_label_text.to_string(),
-                    title,
-                    created_at,
-                    login,
-                    email,
-                    url,
-                    notes,
-                    category,
-                    tags,
-                    secret_value,
-                    kind,
-                    color_class: color_class.to_string(),
-                    health,
-                    usage_count: item.usage_count,
-                });
+                let items = secret_for_loader.list_by_vault(selected_vault.id).await?;
+                let mut rows = Vec::with_capacity(items.len());
+                for item in items {
+                    if let Some(r) = build_secret_row(
+                        item,
+                        &secret_for_loader,
+                        &vault_key,
+                        String::new(),
+                        (is_shared, can_write, can_admin),
+                    )
+                    .await
+                    {
+                        rows.push(r);
+                    }
+                }
+                Ok((vault_state, rows, false, false))
             }
-
-            Ok((vault_state, rows, false))
         });
         let _ = sender.send(result);
     });
@@ -231,7 +306,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
     let active_vault_for_receiver = Rc::clone(&active_vault_id);
     glib::MainContext::default().spawn_local(async move {
         match receiver.await {
-            Ok(Ok((vault_state, items, no_selection))) => {
+            Ok(Ok((vault_state, items, no_selection, is_global))) => {
                 if let Some((vault_id, _, _, _)) = vault_state {
                     *active_vault_for_receiver.borrow_mut() = Some(vault_id);
                 }
@@ -245,7 +320,9 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                     return;
                 }
 
-                if vault_state.is_none() {
+                // In global search mode vault_state is intentionally None (cross-vault)
+                // — only treat a None vault_state as an error in single-vault mode.
+                if vault_state.is_none() && !is_global {
                     *active_vault_for_receiver.borrow_mut() = None;
                     empty_title.set_text("Coffre non disponible");
                     empty_copy.set_text(
@@ -299,6 +376,14 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         .unwrap_or(0)
                         > 1;
 
+                    // In multi-vault search mode the vault_state is None, so use
+                    // the per-item vault_access tuple instead.
+                    let (item_shared, item_can_write, item_can_admin) = if vault_state.is_some() {
+                        (shared_vault, can_write, can_admin)
+                    } else {
+                        item.vault_access
+                    };
+
                     let card_data = SecretRowData {
                         secret_id: item.secret_id,
                         icon_name: item.icon_name.clone(),
@@ -312,9 +397,10 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         health: item.health.clone(),
                         usage_count: item.usage_count,
                         is_duplicate,
-                        is_shared_vault: shared_vault,
-                        can_edit: !shared_vault || can_write,
-                        can_delete: !shared_vault || can_admin,
+                        is_shared_vault: item_shared,
+                        can_edit: !item_shared || item_can_write,
+                        can_delete: !item_shared || item_can_admin,
+                        vault_name: item.vault_name.clone(),
                     };
 
                     let card = Rc::new(SecretCard::new(card_data));
@@ -396,6 +482,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                                     toast_overlay_for_refresh.clone(),
                                     filter_for_refresh.clone(),
                                     editor_launcher_for_refresh.clone(),
+                                    false,
                                 );
                             }
                         });
@@ -454,6 +541,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                                     item.tags.clone(),
                                     item.created_at.clone(),
                                     item.health.clone(),
+                                    item.vault_name.clone(),
                                 ]
                                 .join(" ")
                                 .as_str(),
@@ -483,6 +571,9 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                                 ]
                                 .join(" ")
                                 .as_str(),
+                            ),
+                            vault_name_text: search_filter::normalize_search_text(
+                                item.vault_name.as_str(),
                             ),
                             kind,
                             original_rank,

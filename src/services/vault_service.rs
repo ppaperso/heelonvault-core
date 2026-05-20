@@ -76,6 +76,13 @@ pub trait LocalVaultService {
     ) -> Result<bool, AppError>;
     /// Permanently delete a vault after ownership and share constraints checks.
     async fn delete_vault(&self, requester_id: Uuid, vault_id: Uuid) -> Result<(), AppError>;
+    /// Update the display sort order for a vault (owner only).
+    async fn update_vault_sort_order(
+        &self,
+        requester_id: Uuid,
+        vault_id: Uuid,
+        sort_order: i64,
+    ) -> Result<(), AppError>;
 }
 
 pub struct VaultServiceImpl<TVaultRepo, TEnvelopeRepo, TUserRepo, TTeamRepo, TAuditSvc, TCrypto>
@@ -446,6 +453,31 @@ where
 
         Ok(())
     }
+
+    async fn update_vault_sort_order(
+        &self,
+        requester_id: Uuid,
+        vault_id: Uuid,
+        sort_order: i64,
+    ) -> Result<(), AppError> {
+        let permission = self
+            .vault_repo
+            .get_vault_with_permission(requester_id, vault_id)
+            .await?
+            .ok_or(AppError::Authorization(
+                AccessDeniedReason::VaultAccessDenied,
+            ))?;
+
+        if permission.vault.owner_user_id != requester_id {
+            return Err(AppError::Authorization(
+                AccessDeniedReason::VaultAccessDenied,
+            ));
+        }
+
+        self.vault_repo
+            .update_vault_sort_order(vault_id, sort_order)
+            .await
+    }
 }
 
 #[cfg(test)]
@@ -638,6 +670,14 @@ mod tests {
             _: Uuid,
         ) -> Result<u64, AppError> {
             Ok(0)
+        }
+
+        async fn update_vault_sort_order(
+            &self,
+            _vault_id: Uuid,
+            _sort_order: i64,
+        ) -> Result<(), AppError> {
+            Ok(())
         }
     }
 

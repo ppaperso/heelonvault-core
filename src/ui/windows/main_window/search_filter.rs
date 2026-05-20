@@ -162,11 +162,32 @@ pub(super) fn token_matches_haystack(token: &str, haystack: &str) -> bool {
 }
 
 pub(super) fn parse_search_terms(query: &str) -> Vec<(Option<String>, String)> {
-    query
-        .split_whitespace()
+    // Pre-process: join tokens that end with ':' with the immediately following
+    // token so that "field: value" (space after colon) is treated the same as
+    // "field:value".
+    let raw: Vec<&str> = query.split_whitespace().collect();
+    let mut tokens: Vec<String> = Vec::with_capacity(raw.len());
+    let mut i = 0;
+    while i < raw.len() {
+        let t = raw[i];
+        if t.ends_with(':')
+            && !t.starts_with(':')
+            && i + 1 < raw.len()
+            && !raw[i + 1].contains(':')
+        {
+            tokens.push(format!("{}{}", t, raw[i + 1]));
+            i += 2;
+        } else {
+            tokens.push(t.to_string());
+            i += 1;
+        }
+    }
+
+    tokens
+        .into_iter()
         .filter_map(|term| {
             let Some((raw_key, raw_value)) = term.split_once(':') else {
-                let token = normalize_search_text(term);
+                let token = normalize_search_text(&term);
                 if token.is_empty() {
                     return None;
                 }
@@ -174,7 +195,7 @@ pub(super) fn parse_search_terms(query: &str) -> Vec<(Option<String>, String)> {
             };
 
             if raw_key.is_empty() || raw_value.is_empty() {
-                let token = normalize_search_text(term);
+                let token = normalize_search_text(&term);
                 if token.is_empty() {
                     return None;
                 }
@@ -196,7 +217,8 @@ pub(super) fn parse_search_terms(query: &str) -> Vec<(Option<String>, String)> {
                 "category" | "categorie" | "cat" => "category",
                 "tag" | "tags" => "tags",
                 "type" | "kind" => "type",
-                _ => return Some((None, normalize_search_text(term))),
+                "vault" | "coffre" | "vault-name" => "vault",
+                _ => return Some((None, normalize_search_text(&term))),
             };
 
             Some((Some(key.to_string()), value))
@@ -223,6 +245,63 @@ pub(super) fn matches_search_term(
         Some("category") => token_matches_haystack(value, meta.category_text.as_str()),
         Some("tags") => token_matches_haystack(value, meta.tags_text.as_str()),
         Some("type") => token_matches_haystack(value, meta.type_text.as_str()),
+        Some("vault") => token_matches_haystack(value, meta.vault_name_text.as_str()),
         _ => token_matches_haystack(value, meta.searchable_text.as_str()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::windows::main_window::SecretKind;
+
+    fn make_meta(vault_name: &str) -> SecretFilterMeta {
+        SecretFilterMeta {
+            searchable_text: normalize_search_text(vault_name),
+            title_text: String::new(),
+            login_text: String::new(),
+            email_text: String::new(),
+            url_text: String::new(),
+            notes_text: String::new(),
+            category_text: String::new(),
+            tags_text: String::new(),
+            type_text: String::new(),
+            vault_name_text: normalize_search_text(vault_name),
+            kind: SecretKind::Password,
+            original_rank: 0,
+            is_weak: false,
+            is_duplicate: false,
+        }
+    }
+
+    #[test]
+    fn vault_field_matches_exact() {
+        let meta = make_meta("Perso");
+        let terms = parse_search_terms("vault:perso");
+        assert_eq!(terms.len(), 1);
+        assert!(matches_search_term(&meta, &terms[0]));
+    }
+
+    #[test]
+    fn coffre_alias_matches() {
+        let meta = make_meta("Travail");
+        let terms = parse_search_terms("coffre:travail");
+        assert_eq!(terms.len(), 1);
+        assert!(matches_search_term(&meta, &terms[0]));
+    }
+
+    #[test]
+    fn vault_field_does_not_match_other_vault() {
+        let meta = make_meta("Perso");
+        let terms = parse_search_terms("vault:travail");
+        assert!(!matches_search_term(&meta, &terms[0]));
+    }
+
+    #[test]
+    fn vault_name_included_in_global_search() {
+        let meta = make_meta("Banque");
+        // Plain unqualified term should match via searchable_text (which includes vault name)
+        let terms = parse_search_terms("banque");
+        assert!(matches_search_term(&meta, &terms[0]));
     }
 }

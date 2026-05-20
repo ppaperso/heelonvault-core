@@ -47,6 +47,15 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 - Automated validation run after refactor: `cargo test --workspace` and `cargo clippy --workspace --all-targets -- -D warnings`.
 
+### Search UX — multi-vault toggle and premium help popover
+
+- `shell.rs`: added **MultiVault** toggle button to the left of the search bar; replaces the previous auto-detection mode-switch.
+- Fix: removed `selectable(true)` from the help popover label — it blocked focus return to the main window after a right-click (apparent freeze).
+- Fix: `parse_search_terms` — `field: value` syntax (space after colon) now behaves identically to `field:value`.
+- Redesigned help (`?`) popover: three structured sections (`caption-heading` + `dim-label` + `monospace`), `help-browser-symbolic` icon, fixed 348 px width, `autohide(true)`.
+- Refactor: `ContentShell` struct with a centralized `refresh_i18n` closure; `new_body.inc` delegates all shell i18n updates through a single call.
+- Structured FR/EN i18n keys: `main-search-help-no-prefix-title`, `main-search-help-no-prefix-body`, `main-search-help-prefix-title`, `main-search-help-fields`, `main-search-help-examples`, `main-search-help-fuzzy`.
+
 ### Dependency security (issue #13)
 
 - Updated the transitive TLS chain in `Cargo.lock`: `rustls-webpki` `0.103.10` -> `0.103.13`, `rustls` `0.23.37` -> `0.23.40`.

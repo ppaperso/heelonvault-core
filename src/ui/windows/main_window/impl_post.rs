@@ -534,6 +534,7 @@ impl MainWindow {
         toast_overlay: adw::ToastOverlay,
         filter_runtime: FilterRuntime,
         editor_launcher: Rc<RefCell<Option<Rc<dyn Fn(DialogMode)>>>>,
+        search_all_vaults: bool,
     ) where
         TSecret: SecretService + Send + Sync + 'static,
         TVault: VaultService + Send + Sync + 'static,
@@ -554,6 +555,7 @@ impl MainWindow {
             toast_overlay,
             filter_runtime,
             editor_launcher,
+            search_all_vaults,
         );
     }
 }
