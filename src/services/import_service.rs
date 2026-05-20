@@ -582,9 +582,9 @@ impl ImportService for ImportServiceImpl {
 
         let mut imported_count = 0usize;
         let mut failures = outcome.failures;
-        let mut processed_count = failures.len();
+        let initial_processed_offset = failures.len();
 
-        for row in outcome.rows {
+        for (row_index, row) in outcome.rows.into_iter().enumerate() {
             let secret_title = row.title_display();
             let password_bytes = row.password.into_bytes();
             let metadata = serde_json::to_string(&CsvImportMetadata {
@@ -637,8 +637,8 @@ impl ImportService for ImportServiceImpl {
                 }
             }
 
-            processed_count += 1;
             if let Some(progress) = progress.as_ref() {
+                let processed_count = initial_processed_offset + row_index + 1;
                 let _ = progress.send(ImportProgressEvent::Progress {
                     processed: processed_count,
                     total_rows: outcome.total_rows,
