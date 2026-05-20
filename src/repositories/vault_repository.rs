@@ -522,13 +522,11 @@ impl VaultRepository for SqlxVaultRepository {
         vault_id: Uuid,
         sort_order: i64,
     ) -> Result<(), AppError> {
-        sqlx::query(
-            "UPDATE vaults SET sort_order = ?1 WHERE id = ?2 AND deleted_at IS NULL",
-        )
-        .bind(sort_order)
-        .bind(vault_id.to_string())
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE vaults SET sort_order = ?1 WHERE id = ?2 AND deleted_at IS NULL")
+            .bind(sort_order)
+            .bind(vault_id.to_string())
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 }

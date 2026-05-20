@@ -186,23 +186,16 @@ pub(super) fn build_content_shell(
         let examples_lbl_r = examples_lbl.clone();
         let fuzzy_lbl_r = fuzzy_lbl.clone();
         Rc::new(move || {
+            multivault_toggle_r.set_label(crate::tr!("main-search-multivault-label").as_str());
             multivault_toggle_r
-                .set_label(crate::tr!("main-search-multivault-label").as_str());
-            multivault_toggle_r.set_tooltip_text(Some(
-                crate::tr!("main-search-multivault-tooltip").as_str(),
-            ));
-            search_entry_r.set_placeholder_text(Some(
-                crate::tr!("main-search-placeholder").as_str(),
-            ));
-            help_button_r
-                .set_tooltip_text(Some(crate::tr!("main-search-help-tooltip").as_str()));
+                .set_tooltip_text(Some(crate::tr!("main-search-multivault-tooltip").as_str()));
+            search_entry_r
+                .set_placeholder_text(Some(crate::tr!("main-search-placeholder").as_str()));
+            help_button_r.set_tooltip_text(Some(crate::tr!("main-search-help-tooltip").as_str()));
             help_title_lbl_r.set_text(crate::tr!("main-search-help-title").as_str());
-            no_prefix_title_lbl_r
-                .set_text(crate::tr!("main-search-help-no-prefix-title").as_str());
-            no_prefix_body_lbl_r
-                .set_text(crate::tr!("main-search-help-no-prefix-body").as_str());
-            prefix_title_lbl_r
-                .set_text(crate::tr!("main-search-help-prefix-title").as_str());
+            no_prefix_title_lbl_r.set_text(crate::tr!("main-search-help-no-prefix-title").as_str());
+            no_prefix_body_lbl_r.set_text(crate::tr!("main-search-help-no-prefix-body").as_str());
+            prefix_title_lbl_r.set_text(crate::tr!("main-search-help-prefix-title").as_str());
             fields_lbl_r.set_text(crate::tr!("main-search-help-fields").as_str());
             examples_lbl_r.set_text(crate::tr!("main-search-help-examples").as_str());
             fuzzy_lbl_r.set_text(crate::tr!("main-search-help-fuzzy").as_str());

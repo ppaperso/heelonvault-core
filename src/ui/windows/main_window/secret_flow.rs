@@ -198,7 +198,12 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
     let (sender, receiver) = tokio::sync::oneshot::channel();
     std::thread::spawn(move || {
         let result: Result<
-            (Option<(Uuid, bool, bool, bool)>, Vec<SecretRowView>, bool, bool),
+            (
+                Option<(Uuid, bool, bool, bool)>,
+                Vec<SecretRowView>,
+                bool,
+                bool,
+            ),
             crate::errors::AppError,
         > = runtime_for_loader.block_on(async move {
             if search_all_vaults {
@@ -255,11 +260,11 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                     return Ok((None, Vec::new(), true, false));
                 };
 
-                let selected_vault =
-                    match vaults.into_iter().find(|vault| vault.id == selected_id) {
-                        Some(value) => value,
-                        None => return Ok((None, Vec::new(), false, false)),
-                    };
+                let selected_vault = match vaults.into_iter().find(|vault| vault.id == selected_id)
+                {
+                    Some(value) => value,
+                    None => return Ok((None, Vec::new(), false, false)),
+                };
                 let access = vault_for_loader
                     .get_vault_access_for_user(admin_user_id, selected_vault.id)
                     .await?
@@ -271,8 +276,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                 let is_shared = selected_vault.owner_user_id != admin_user_id;
                 let can_write = access.role.can_write();
                 let can_admin = access.role.can_admin();
-                let vault_state =
-                    Some((selected_vault.id, is_shared, can_write, can_admin));
+                let vault_state = Some((selected_vault.id, is_shared, can_write, can_admin));
 
                 let vault_key = vault_for_loader
                     .open_vault_for_user(
