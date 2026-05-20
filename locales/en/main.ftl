@@ -521,3 +521,17 @@ profile-export-save-key-failed = Failed to save the TXT file.
 license-status-community = Community Edition
 license-status-professional = Professional Edition
 license-status-invalid = Invalid License
+
+## Search help
+main-search-multivault-label = MultiVault
+main-search-multivault-tooltip = Search across all vaults
+main-search-help-tooltip = Search help
+main-search-help-title = Search help
+main-search-help-no-prefix-title = Without field prefix
+main-search-help-no-prefix-body = Searches: title, type, login, email, URL, notes, category, tags, vault name
+main-search-help-prefix-title = With field:value prefix
+main-search-help-fields = title/name · login/user · email/mail · url/site · notes · category/cat · tag/tags · type · vault/coffre
+main-search-help-examples = e.g.: login:alice · vault:perso · title:gmail · url:google
+main-search-help-fuzzy = ≈ Fuzzy matching active — 1 typo tolerated
+main-search-help-close = Close
+main-vault-drag-tooltip = Drag to reorder vaults

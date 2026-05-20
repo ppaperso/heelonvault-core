@@ -201,15 +201,40 @@ Capture 05 - Trash view with restore and purge actions for deleted items.
 
 ## 7. Screen 6 - Search and organization
 
-HeelonVault supports multi-field search across the main secret metadata.
+HeelonVault supports real-time multi-field search across all secret data.
 
-Screen role:
+### Search mode
 
-- reduce the time needed to access information;
-- keep the vault structured over time;
-- preserve smooth day-to-day usage even with a large number of secrets.
+- **Active vault (default)**: search is scoped to the vault selected in the left sidebar.
+- **MultiVault**: activate the **MultiVault** toggle button to the left of the search bar to search across all accessible vaults simultaneously.
 
-To keep the vault readable:
+### Search without a prefix
+
+A term typed on its own is matched against all fields: title, type, login, email, URL, notes, category, tags, and vault name. Fuzzy matching tolerates one typo.
+
+### `field:value` syntax
+
+To target a specific field, use `field:value` syntax (with or without a space after the colon):
+
+| Accepted keys | Field searched |
+|---|---|
+| `title`, `name`, `titre`, `nom` | Title |
+| `login`, `user`, `username`, `identifiant` | Login |
+| `email`, `mail` | Email |
+| `url`, `site`, `domaine`, `domain` | URL |
+| `notes`, `note` | Notes |
+| `category`, `categorie`, `cat` | Category |
+| `tag`, `tags` | Tags |
+| `type`, `kind` | Secret type |
+| `vault`, `coffre`, `vault-name` | Vault name |
+
+Examples: `login:alice` · `vault:perso` · `title:gmail` · `url:google`
+
+The `?` button to the right of the search bar shows this reference directly in the app.
+
+### Best practices
+
+Improve search relevance with consistent organization:
 
 - adopt a stable naming convention;
 - use tags consistently;
@@ -219,7 +244,7 @@ Screenshot placeholder: Screen 6 - search
 
 ![Screen 6 - Search and navigation](../assets/images/user-guide/hv_dashboard_empty.png)
 
-Capture 06 - Search bar and left-side navigation used to organize and quickly retrieve secrets.
+Capture 06 - Search bar with MultiVault toggle and help button, left-side navigation.
 
 ## 8. Screen 7 - Profile and security
 

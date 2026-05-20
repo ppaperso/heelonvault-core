@@ -1163,6 +1163,14 @@ mod tests {
             guard.retain(|(_, u), _| *u != user_id);
             Ok((before - guard.len()) as u64)
         }
+
+        async fn update_vault_sort_order(
+            &self,
+            _vault_id: Uuid,
+            _sort_order: i64,
+        ) -> Result<(), AppError> {
+            Ok(())
+        }
     }
 
     #[derive(Default)]

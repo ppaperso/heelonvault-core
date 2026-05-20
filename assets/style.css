@@ -1592,6 +1592,12 @@
         border: 1px solid rgba(255, 193, 7, 0.25);
     }
 
+    .badge-vault {
+        background: rgba(100, 80, 180, 0.10);
+        color: #5B3E9E;
+        border: 1px solid rgba(100, 80, 180, 0.25);
+    }
+
     /* Card separator */
     .secret-card-separator {
         opacity: 0.1;
@@ -2099,6 +2105,15 @@ list.main-category-list row:selected {
     color: #1B7D78;
     opacity: 0.95;
 }
+
+.vault-drag-handle {
+    opacity: 0.3;
+}
+
+.vault-row-dragging {
+    opacity: 0.5;
+}
+
 
 .vault-share-role-badge {
     border-radius: 999px;

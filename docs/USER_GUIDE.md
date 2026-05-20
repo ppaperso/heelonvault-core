@@ -201,15 +201,40 @@ Capture 05 - Corbeille avec actions de restauration et purge des éléments supp
 
 ## 7. Écran 6 - Recherche et organisation
 
-HeelonVault prend en charge une recherche multi-champs sur les informations principales des secrets.
+HeelonVault prend en charge une recherche multi-champs en temps réel sur l'ensemble des données des secrets.
 
-Rôle de l'écran :
+### Mode de recherche
 
-- réduire le temps d'accès à l'information ;
-- structurer le coffre sur la durée ;
-- rendre l'usage quotidien fluide, même avec un volume élevé de secrets.
+- **Coffre actif (défaut)** : la recherche porte sur le coffre sélectionné dans le panneau latéral.
+- **MultiCoffre** : activez le bouton **MultiCoffre** à gauche de la barre de recherche pour étendre la recherche à tous les coffres accessibles simultanément.
 
-Pour garder un coffre lisible :
+### Recherche sans préfixe
+
+Un terme tapé seul est recherché dans tous les champs : titre, type, login, email, URL, notes, catégorie, tags et nom du coffre. La correspondance floue tolère une faute de frappe.
+
+### Syntaxe `champ:valeur`
+
+Pour cibler un champ précis, utilisez la syntaxe `champ:valeur` (avec ou sans espace après le deux-points) :
+
+| Clés acceptées | Champ recherché |
+|---|---|
+| `title`, `titre`, `name`, `nom` | Titre |
+| `login`, `user`, `username`, `identifiant` | Login |
+| `email`, `mail` | Email |
+| `url`, `site`, `domaine`, `domain` | URL |
+| `notes`, `note` | Notes |
+| `category`, `categorie`, `cat` | Catégorie |
+| `tag`, `tags` | Tags |
+| `type`, `kind` | Type de secret |
+| `vault`, `coffre`, `vault-name` | Nom du coffre |
+
+Exemples : `login:alice` · `coffre:perso` · `titre:gmail` · `url:google`
+
+Le bouton `?` à droite de la barre affiche ce récapitulatif directement dans l'application.
+
+### Bonnes pratiques
+
+Renforcer la pertinence de la recherche avec une organisation cohérente :
 
 - adopter une convention de nommage stable ;
 - utiliser les tags de manière cohérente ;
@@ -219,7 +244,7 @@ Emplacement capture d'écran : Écran 6 - recherche
 
 ![Écran 6 - Recherche et navigation](../assets/images/user-guide/hv_dashboard_empty.png)
 
-Capture 06 - Barre de recherche et navigation latérale pour organiser et retrouver rapidement les secrets.
+Capture 06 - Barre de recherche avec toggle MultiCoffre et bouton d'aide, navigation latérale.
 
 ## 8. Écran 7 - Profil et sécurité
 

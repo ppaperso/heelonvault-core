@@ -521,3 +521,17 @@ profile-export-save-key-failed = Echec de l'enregistrement TXT.
 license-status-community = Edition Communautaire
 license-status-professional = Edition Professionnelle
 license-status-invalid = Licence invalide
+
+## Aide à la recherche
+main-search-multivault-label = MultiCoffre
+main-search-multivault-tooltip = Activer la recherche dans tous les coffres
+main-search-help-tooltip = Aide sur la recherche
+main-search-help-title = Aide à la recherche
+main-search-help-no-prefix-title = Sans préfixe de champ
+main-search-help-no-prefix-body = Cherche dans : titre, type, login, email, URL, notes, catégorie, tags, nom du coffre
+main-search-help-prefix-title = Avec champ:valeur
+main-search-help-fields = title/titre · login/user · email/mail · url/site · notes · category/cat · tag/tags · type · vault/coffre
+main-search-help-examples = Ex : login:alice · coffre:perso · titre:gmail · url:google
+main-search-help-fuzzy = ≈ Correspondance floue active — 1 faute de frappe tolérée
+main-search-help-close = Fermer
+main-vault-drag-tooltip = Glisser pour reorganiser les coffres

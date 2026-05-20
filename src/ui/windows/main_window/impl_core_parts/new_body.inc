@@ -18,6 +18,7 @@
         let auto_lock_timeout_secs = Rc::new(Cell::new(Self::DEFAULT_AUTO_LOCK_TIMEOUT_SECS));
         let session_master_key = Rc::new(RefCell::new(admin_master_key));
         let active_vault_id: Rc<RefCell<Option<Uuid>>> = Rc::new(RefCell::new(None));
+        let is_global_search = Rc::new(Cell::new(false));
         let on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
         let on_logout: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
         let critical_ops_in_flight = Rc::new(Cell::new(0_u32));
@@ -497,6 +498,7 @@
                     toast_for_secret_refresh.clone(),
                     filter_for_secret_refresh.clone(),
                     editor_launcher_for_secret_refresh.clone(),
+                    false,
                 );
             });
 
@@ -1419,21 +1421,25 @@
         header_bar.pack_end(&panic_button);
         root.append(&header_bar);
 
-        let (content, search_entry) =
+        let content_shell =
             shell::build_content_shell(&sidebar_panel.frame, &center_panel.frame);
+        let content = content_shell.container;
+        let search_entry = content_shell.search_entry;
+        let multivault_toggle = content_shell.multivault_toggle;
+        let shell_refresh_i18n = content_shell.refresh_i18n;
         root.append(&content);
         toast_overlay.set_child(Some(&root));
         window.set_content(Some(&toast_overlay));
 
         let main_i18n_refresh: Rc<dyn Fn()> = {
             let sidebar_i18n_refresh = Rc::clone(&sidebar_i18n_refresh);
+            let shell_refresh_i18n = Rc::clone(&shell_refresh_i18n);
             let profile_button = profile_button.clone();
             let profile_title = profile_title.clone();
             let add_button = add_button.clone();
             let trash_button = trash_button.clone();
             let panic_button = panic_button.clone();
             let panic_lbl = panic_lbl.clone();
-            let search_entry = search_entry.clone();
             let status_total_chip = center_panel.status_total_chip.clone();
             let status_non_compliant_chip = center_panel.status_non_compliant_chip.clone();
             let sort_recent_button = center_panel.sort_recent_button.clone();
@@ -1456,6 +1462,7 @@
             let teams_intro = teams_intro.clone();
             Rc::new(move || {
                 sidebar_i18n_refresh();
+                shell_refresh_i18n();
                 profile_button
                     .set_tooltip_text(Some(crate::tr!("main-last-logins-tooltip").as_str()));
                 profile_title.set_text(crate::tr!("main-last-logins-title").as_str());
@@ -1463,8 +1470,6 @@
                 trash_button.set_tooltip_text(Some(crate::tr!("main-trash-tooltip").as_str()));
                 panic_button.set_tooltip_text(Some(crate::tr!("main-panic-tooltip").as_str()));
                 panic_lbl.set_text(crate::tr!("main-panic-label").as_str());
-                search_entry
-                    .set_placeholder_text(Some(crate::tr!("main-search-placeholder").as_str()));
                 status_total_chip
                     .set_tooltip_text(Some(crate::tr!("main-status-total-tooltip").as_str()));
                 status_non_compliant_chip.set_tooltip_text(Some(
@@ -1576,6 +1581,65 @@
             Self::apply_filters(&flow_for_risk_sort, &filter_for_risk_sort);
         });
 
+        // Closures for triggering (re)load used by the search handler
+        let global_search_reload = {
+            let app = application.clone();
+            let parent_window = window.clone();
+            let runtime = runtime_handle.clone();
+            let secret_service = Arc::clone(&secret_service);
+            let vault_service = Arc::clone(&vault_service);
+            let toast_overlay = toast_overlay.clone();
+            let session_master = Rc::clone(&session_master_key);
+            let active_vault_id = Rc::clone(&active_vault_id);
+            let secret_flow = secret_flow_for_refresh.clone();
+            let stack = stack_for_refresh.clone();
+            let empty_title = empty_title_for_refresh.clone();
+            let empty_copy = empty_copy_for_refresh.clone();
+            let filter_runtime = filter_runtime.clone();
+            let editor_launcher = Rc::clone(&editor_launcher);
+            Rc::new(move |all_vaults: bool| {
+                let Some(master_key) = Self::snapshot_session_master_key(&session_master) else {
+                    empty_title.set_text(crate::tr!("main-session-locked-title").as_str());
+                    empty_copy.set_text(crate::tr!("main-session-locked-description").as_str());
+                    stack.set_visible_child_name("empty");
+                    return;
+                };
+                Self::refresh_secret_flow(
+                    app.clone(),
+                    parent_window.clone(),
+                    runtime.clone(),
+                    Arc::clone(&secret_service),
+                    Arc::clone(&vault_service),
+                    admin_user_id,
+                    master_key,
+                    secret_flow.clone(),
+                    stack.clone(),
+                    empty_title.clone(),
+                    empty_copy.clone(),
+                    active_vault_id.clone(),
+                    toast_overlay.clone(),
+                    filter_runtime.clone(),
+                    editor_launcher.clone(),
+                    all_vaults,
+                );
+            })
+        };
+        // ── MultiVault toggle ─────────────────────────────────────────────
+        {
+            let is_global_search_for_toggle = Rc::clone(&is_global_search);
+            let global_reload_for_toggle = Rc::clone(&global_search_reload);
+            let filter_for_toggle = filter_runtime.clone();
+            let search_entry_for_toggle = search_entry.clone();
+            multivault_toggle.connect_toggled(move |toggle| {
+                let is_global = toggle.is_active();
+                is_global_search_for_toggle.set(is_global);
+                // Sync current search text so the reload applies it immediately
+                *filter_for_toggle.search_text.borrow_mut() =
+                    search_entry_for_toggle.text().to_string();
+                global_reload_for_toggle(is_global);
+            });
+        }
+        // ── Search text filter (mode is now driven solely by the toggle) ──
         let flow_for_search = center_panel.secret_flow.clone();
         let filter_for_search = filter_runtime.clone();
         search_entry.connect_search_changed(move |entry| {
@@ -1623,6 +1687,7 @@
                     toast_overlay.clone(),
                     filter_runtime.clone(),
                     editor_launcher.clone(),
+                    false,
                 );
             })
         };
@@ -1651,6 +1716,82 @@
                     }
                 }
             });
+
+        // ── Drag-and-drop reordering for "My Vaults" list ────────────────────
+        {
+            let drop_target = gtk4::DropTarget::new(
+                glib::types::Type::STRING,
+                gtk4::gdk::DragAction::MOVE,
+            );
+            let my_vaults_list_for_drop = sidebar_panel.my_vaults_list.clone();
+            let vault_service_for_drop = Arc::clone(&vault_service);
+            let runtime_for_drop = runtime_handle.clone();
+            let refresh_for_drop = Rc::clone(&refresh_vault_sections);
+            drop_target.connect_drop(move |_target, value, _x, y| {
+                let Ok(vault_id_str) = value.get::<String>() else {
+                    return false;
+                };
+                let Ok(dragged_id) = vault_id_str.parse::<uuid::Uuid>() else {
+                    return false;
+                };
+
+                // Collect ordered vault IDs from the current row list
+                let mut vault_ids: Vec<uuid::Uuid> = Vec::new();
+                let mut cursor = my_vaults_list_for_drop.first_child();
+                while let Some(child) = cursor {
+                    if let Some(row) = child.downcast_ref::<gtk4::ListBoxRow>() {
+                        if let Some(id) = Self::vault_id_from_row(row) {
+                            vault_ids.push(id);
+                        }
+                    }
+                    cursor = child.next_sibling();
+                }
+
+                // Determine the drop index based on Y coordinate
+                let target_index = my_vaults_list_for_drop
+                    .row_at_y(y as i32)
+                    .map(|row| row.index() as usize)
+                    .unwrap_or(vault_ids.len());
+
+                // Reorder: remove dragged_id, insert at target_index
+                vault_ids.retain(|id| *id != dragged_id);
+                let insert_pos = target_index.min(vault_ids.len());
+                vault_ids.insert(insert_pos, dragged_id);
+
+                // Persist new sort orders asynchronously
+                let vault_service_task = Arc::clone(&vault_service_for_drop);
+                let runtime_task = runtime_for_drop.clone();
+                let refresh_task = Rc::clone(&refresh_for_drop);
+                let ordered = vault_ids;
+                glib::MainContext::default().spawn_local(async move {
+                    let (sender, receiver) = tokio::sync::oneshot::channel();
+                    std::thread::spawn(move || {
+                        let result = runtime_task.block_on(async move {
+                            for (idx, vault_id) in ordered.iter().enumerate() {
+                                vault_service_task
+                                    .update_vault_sort_order(
+                                        admin_user_id,
+                                        *vault_id,
+                                        idx as i64,
+                                    )
+                                    .await?;
+                            }
+                            Ok::<(), crate::errors::AppError>(())
+                        });
+                        let _ = sender.send(result);
+                    });
+                    if matches!(receiver.await, Ok(Ok(()))) {
+                        refresh_task();
+                    }
+                });
+
+                true
+            });
+            sidebar_panel
+                .my_vaults_list
+                .add_controller(drop_target);
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         sidebar_panel
             .shared_vaults_list
