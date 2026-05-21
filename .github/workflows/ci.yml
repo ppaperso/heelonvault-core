@@ -210,7 +210,7 @@ jobs:
         run: ./dist/smoke-test.sh --remove ./dist/remove.sh
 
       - name: Upload Fedora binary artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: fedora-binary
           path: target/release/heelonvault
@@ -282,7 +282,7 @@ jobs:
         run: ./dist/smoke-test.sh --remove ./dist/remove.sh
 
       - name: Upload Linux binary artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: linux-binary
           path: target/release/heelonvault
@@ -335,7 +335,7 @@ jobs:
           otool -L target/release/heelonvault
 
       - name: Upload macOS binary artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: macos-binary
           path: target/release/heelonvault
@@ -389,7 +389,7 @@ jobs:
           sha256sum target/release/heelonvault.exe
 
       - name: Upload Windows binary artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: windows-binary
           path: target/release/heelonvault.exe
@@ -461,7 +461,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download Fedora binary artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: fedora-binary
           path: ./binary
@@ -488,7 +488,7 @@ jobs:
           cat heelonvault-linux-x86_64.tar.gz.sha256
 
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: linux-tarball
           path: |
@@ -507,7 +507,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download macOS binary artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: macos-binary
           path: ./binary
@@ -528,7 +528,7 @@ jobs:
           cat heelonvault-macos-arm64.dmg.sha256
 
       - name: Upload DMG artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: macos-dmg
           path: |
@@ -550,7 +550,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download Windows binary artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: windows-binary
           path: ./binary
@@ -583,7 +583,7 @@ jobs:
           cat heelonvault-windows-x86_64.msi.sha256
 
       - name: Upload MSI artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: windows-msi
           path: |
@@ -608,7 +608,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download all packaged artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           path: ./artifacts
 
