@@ -146,7 +146,7 @@
         match main_for_unlock.try_pin_unlock(&pin) {
             Ok(master_key) => {
                 win_for_unlock.close();
-                on_unlocked_for_btn(master_key);
+                on_unlocked_for_btn(Some(master_key));
             }
             Err(PinUnlockError::WrongPin { remaining }) => {
                 locked_for_unlock.set(false);
@@ -169,9 +169,7 @@
                 // back to full master-password login.
                 warn!("PIN cache exhausted after max failed attempts — falling back to full login");
                 win_for_unlock.close();
-                // Treat as "use master password" — on_use_master_password will be
-                // called via the fallback path that the caller sets up.
-                on_unlocked_for_btn(Vec::new()); // empty vec signals exhaustion to caller
+                on_unlocked_for_btn(None); // None signals cache exhaustion to caller
             }
         }
     };
