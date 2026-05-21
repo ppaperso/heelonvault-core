@@ -58,6 +58,9 @@ use heelonvault_rust::services::vault_service::{VaultKeyEnvelopeRepository, Vaul
 use heelonvault_rust::ui::dialogs::login_dialog::{
     AuthenticatedSession, BootstrapServicesContext, LoginDialog,
 };
+use heelonvault_rust::ui::dialogs::pin_unlock_dialog::{
+    PinUnlockDialog, PIN_HARD_TIMEOUT as DIALOG_PIN_HARD_TIMEOUT,
+};
 use heelonvault_rust::ui::windows::main_window::MainWindow;
 use uuid::Uuid;
 
@@ -570,19 +573,71 @@ fn run_application(
                     let active_main_for_logout = Rc::clone(&active_main_for_success);
                     let present_for_logout = Rc::clone(&present_holder_for_logout);
                     main_for_success.set_on_logout(Rc::new(move || {
-                        info!("main window logout requested, clearing sensitive session and returning to login");
-                        main_for_logout.clear_sensitive_session();
-                        main_for_logout.window().set_visible(false);
-                        *active_main_for_logout.borrow_mut() = None;
-                        info!("main window logout completed, login screen will be presented again");
-                        if let Some(present_login_cb) = present_for_logout.borrow().as_ref() {
-                            present_login_cb.as_ref()();
+                        let user_id = main_for_logout.session_user_id();
+                        if main_for_logout.has_pin_cache(user_id, DIALOG_PIN_HARD_TIMEOUT) {
+                            // PIN cache valide : verrouiller sans vider le cache,
+                            // puis afficher la dialog PIN (même chemin que l'auto-lock).
+                            info!("logout intercepted by PIN cache — showing PIN unlock dialog");
+                            main_for_logout.lock_session_keep_pin();
+                            main_for_logout.trigger_pin_lock();
+                        } else {
+                            // Pas de PIN cache : déconnexion complète.
+                            info!("main window logout requested, clearing sensitive session and returning to login");
+                            main_for_logout.clear_sensitive_session();
+                            main_for_logout.window().set_visible(false);
+                            *active_main_for_logout.borrow_mut() = None;
+                            info!("main window logout completed, login screen will be presented again");
+                            if let Some(present_login_cb) = present_for_logout.borrow().as_ref() {
+                                present_login_cb.as_ref()();
+                            }
                         }
                     }));
 
                     let main_for_auto_lock = Rc::clone(&main_for_success);
                     main_for_success.set_on_auto_lock(Rc::new(move || {
-                        main_for_auto_lock.trigger_logout();
+                        // If a valid PIN cache exists for this user, show the PIN unlock
+                        // dialog instead of forcing a full master-password re-entry.
+                        let user_id = main_for_auto_lock.session_user_id();
+                        if main_for_auto_lock.has_pin_cache(user_id, DIALOG_PIN_HARD_TIMEOUT) {
+                            main_for_auto_lock.trigger_pin_lock();
+                        } else {
+                            main_for_auto_lock.trigger_logout();
+                        }
+                    }));
+
+                    // PIN lock callback: shows the PinUnlockDialog.
+                    // On success the master key is restored and the auto-lock timer restarted.
+                    // On fallback ("use master password") we trigger a full logout + re-login.
+                    let main_for_pin_lock = Rc::clone(&main_for_success);
+                    let present_for_pin_fallback = Rc::clone(&present_holder_for_logout);
+                    main_for_success.set_on_pin_lock(Rc::new(move || {
+                        let main_inner = Rc::clone(&main_for_pin_lock);
+                        let main_for_on_unlocked = Rc::clone(&main_for_pin_lock);
+                        let main_for_fallback = Rc::clone(&main_for_pin_lock);
+                        let present_fallback = Rc::clone(&present_for_pin_fallback);
+                        let dialog = PinUnlockDialog::new(
+                            main_inner.window(),
+                            Rc::clone(&main_inner),
+                            move |master_key| {
+                                if master_key.is_empty() {
+                                    // Exhausted — fall back to full login.
+                                    main_for_on_unlocked.trigger_logout();
+                                    return;
+                                }
+                                main_for_on_unlocked.set_session_master_key(master_key);
+                                main_for_on_unlocked.activate_auto_lock();
+                                info!("PIN unlock successful — session restored");
+                            },
+                            move || {
+                                // User chose "use master password".
+                                main_for_fallback.clear_pin_cache();
+                                main_for_fallback.trigger_logout();
+                                if let Some(present_login_cb) = present_fallback.borrow().as_ref() {
+                                    present_login_cb.as_ref()();
+                                }
+                            },
+                        );
+                        dialog.present();
                     }));
 
                     *active_main_for_success.borrow_mut() = Some(Rc::clone(&main_for_success));

@@ -1,4 +1,5 @@
 use super::*;
+use crate::services::pin_cache_service::{PinCache, PinUnlockError};
 
 impl MainWindow {
     pub fn window(&self) -> &adw::ApplicationWindow {
@@ -13,6 +14,47 @@ impl MainWindow {
         let mut current = self.session_master_key.borrow_mut();
         current.zeroize();
         *current = key;
+    }
+
+    /// Store a freshly created `PinCache`, replacing any previous one.
+    pub fn set_pin_cache(&self, cache: PinCache) {
+        *self.pin_cache.borrow_mut() = Some(cache);
+    }
+
+    /// Remove and zeroize the PIN cache (ZeroizeOnDrop ensures secure wipe).
+    pub fn clear_pin_cache(&self) {
+        let _ = self.pin_cache.borrow_mut().take();
+    }
+
+    /// Returns `true` if a valid (non-exhausted, non-expired) PIN cache exists
+    /// for the given user.
+    pub fn has_pin_cache(&self, user_id: uuid::Uuid, hard_timeout: std::time::Duration) -> bool {
+        if let Some(ref c) = *self.pin_cache.borrow() {
+            c.user_id() == user_id && !c.is_exhausted() && !c.is_expired(hard_timeout)
+        } else {
+            false
+        }
+    }
+
+    /// Try to unlock with the given PIN.
+    ///
+    /// Returns the decrypted master key bytes on success, or `PinUnlockError`
+    /// otherwise.  If `Exhausted` is returned the cache has already been
+    /// cleared.
+    pub fn try_pin_unlock(&self, pin: &str) -> Result<Vec<u8>, PinUnlockError> {
+        let mut guard = self.pin_cache.borrow_mut();
+        match guard.as_mut() {
+            None => Err(PinUnlockError::Exhausted),
+            Some(cache) => match cache.try_unwrap(pin) {
+                Ok(key) => Ok(key.to_vec()),
+                Err(PinUnlockError::Exhausted) => {
+                    drop(guard);
+                    self.clear_pin_cache();
+                    Err(PinUnlockError::Exhausted)
+                }
+                Err(e) => Err(e),
+            },
+        }
     }
 
     pub fn refresh_entries(&self) {
@@ -48,6 +90,7 @@ impl MainWindow {
 
     pub fn clear_sensitive_session(&self) {
         self.deactivate_auto_lock();
+        self.clear_pin_cache();
         {
             let mut key = self.session_master_key.borrow_mut();
             key.zeroize();
@@ -58,8 +101,34 @@ impl MainWindow {
         }
     }
 
+    /// Zeroes the session master key and disarms the auto-lock timer,
+    /// WITHOUT wiping the PIN cache. Used when the user locks manually
+    /// while a valid PIN cache exists so that re-entry uses PIN.
+    pub fn lock_session_keep_pin(&self) {
+        self.deactivate_auto_lock();
+        {
+            let mut key = self.session_master_key.borrow_mut();
+            key.zeroize();
+            key.clear();
+        }
+    }
+
     pub fn set_on_logout(&self, callback: Rc<dyn Fn()>) {
         *self.on_logout.borrow_mut() = Some(callback);
+    }
+
+    pub fn set_on_pin_lock(&self, callback: Rc<dyn Fn()>) {
+        *self.on_pin_lock.borrow_mut() = Some(callback);
+    }
+
+    pub fn trigger_pin_lock(&self) {
+        if let Some(callback) = self.on_pin_lock.borrow().as_ref() {
+            callback();
+        }
+    }
+
+    pub fn session_user_id(&self) -> uuid::Uuid {
+        self.session_user_id
     }
 
     pub fn trigger_logout(&self) {
@@ -421,6 +490,7 @@ impl MainWindow {
         auto_lock_armed: Rc<Cell<bool>>,
         on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
         session_master_key: Rc<RefCell<Vec<u8>>>,
+        pin_cache: Rc<RefCell<Option<crate::services::pin_cache_service::PinCache>>>,
         show_passwords_in_edit_pref: Rc<Cell<bool>>,
         on_import_completed_refresh: Rc<dyn Fn()>,
         on_language_changed: Rc<dyn Fn()>,
@@ -458,6 +528,7 @@ impl MainWindow {
             auto_lock_armed,
             on_auto_lock,
             session_master_key,
+            pin_cache,
             show_passwords_in_edit_pref,
             on_import_completed_refresh,
             on_language_changed,

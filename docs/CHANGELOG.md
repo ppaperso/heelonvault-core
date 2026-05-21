@@ -9,6 +9,21 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — Sprint v1.1.0
 
+### Déverrouillage rapide par code PIN
+
+- Nouveau service `pin_cache_service` : cache en mémoire de la clé maître protégée par Argon2id (8 Mio, t=3) + AES-256-GCM, jamais persisté sur disque.
+- Dialogue `pin_setup_dialog` : activation et désactivation du PIN depuis le profil utilisateur (4 à 8 chiffres).
+- Dialogue `pin_unlock_dialog` : saisie du PIN lors du déverrouillage automatique de session.
+- Intégration auto-lock : un logout provoque un verrouillage PIN (si actif) plutôt qu'une déconnexion complète, conservant la session en mémoire.
+- Sécurité : 3 tentatives maximum par cache, timeout dur 12 h, liaison `user_id` (empêche le rejeu inter-sessions), nonce AES-GCM aléatoire par activation, effacement `zeroize` sur `Drop`.
+- Localisation FR/EN complète des messages PIN (entrée, erreur, limite, timeout, activation/désactivation).
+
+### Durcissement mémoire — cycle de vie de la clé maître (PR mémoire #1)
+
+- `try_pin_unlock` retourne désormais `Zeroizing<Vec<u8>>` : la garantie d'effacement est portée par le type.
+- Callback `on_unlocked` redesigné en `Option<Zeroizing<Vec<u8>>>` : `Some(clé)` en succès, `None` si le cache est épuisé — supprime l'idiome `Vec::new()` comme signal sémantique.
+- Suppression du `key.to_vec()` dans `try_pin_unlock` qui retirait silencieusement la garantie de zeroize.
+
 ### Rotation master key (hardening)
 
 - Service `user_service`: flux durci `rotate_master_key_hardened` active avec validation pre/post rotation.

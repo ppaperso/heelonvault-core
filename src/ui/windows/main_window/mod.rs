@@ -33,6 +33,7 @@ use crate::services::backup_service::BackupService;
 use crate::services::import_service::ImportService;
 use crate::services::license_service::LicenseService;
 use crate::services::login_history_service::list_recent_logins;
+use crate::services::pin_cache_service::PinCache;
 use crate::services::secret_service::SecretService;
 use crate::services::team_service::TeamService;
 use crate::services::totp_service::TotpService;
@@ -103,8 +104,11 @@ pub struct MainWindow {
     auto_lock_source: Rc<RefCell<Option<glib::SourceId>>>,
     auto_lock_armed: Rc<Cell<bool>>,
     session_master_key: Rc<RefCell<Vec<u8>>>,
+    pin_cache: Rc<RefCell<Option<PinCache>>>,
     on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
+    on_pin_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
     on_logout: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
+    session_user_id: uuid::Uuid,
     #[allow(dead_code)]
     audit_service: Rc<Arc<crate::services::audit_service::AuditService>>,
 }
