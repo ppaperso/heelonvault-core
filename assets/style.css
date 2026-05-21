@@ -2481,3 +2481,44 @@ frame.add-edit-footer-card {
     font-weight: 700;
     color: #0A5F5C;
 }
+
+/* ── PIN Quick-Unlock ──────────────────────────────────────────────────────── */
+
+.pin-unlock-window {
+    border-radius: 12px;
+}
+
+.pin-unlock-icon {
+    color: alpha(@accent_color, 0.75);
+    margin-bottom: 4px;
+}
+
+.pin-unlock-heading {
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.pin-digit-entry {
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
+}
+
+.pin-feedback-label {
+    font-size: 0.88rem;
+    margin-top: 2px;
+}
+
+.pin-fallback-btn {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-top: 2px;
+}
+
+.pin-setup-window {
+    border-radius: 12px;
+}
+
+.profile-section-separator {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
