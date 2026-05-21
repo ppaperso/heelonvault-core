@@ -2,9 +2,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.4",
   "version": 1,
-  "serialNumber": "urn:uuid:0067a228-9dc0-4441-879c-4fa336e9f260",
+  "serialNumber": "urn:uuid:99a6ac7c-c5f3-4bc7-a4cb-42c997e274aa",
   "metadata": {
-    "timestamp": "2026-05-15T14:51:54.417680779Z",
+    "timestamp": "2026-05-21T13:03:37.359291723Z",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -2135,6 +2135,41 @@
         {
           "type": "vcs",
           "url": "https://github.com/rayon-rs/either"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.35",
+      "author": "Henri Sivonen <hsivonen@hsivonen.fi>",
+      "name": "encoding_rs",
+      "version": "0.8.35",
+      "description": "A Gecko-oriented implementation of the Encoding Standard",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+        }
+      ],
+      "purl": "pkg:cargo/encoding_rs@0.8.35",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/encoding_rs/"
+        },
+        {
+          "type": "website",
+          "url": "https://docs.rs/encoding_rs/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/hsivonen/encoding_rs"
         }
       ]
     },
@@ -9217,6 +9252,7 @@
         "registry+https://github.com/rust-lang/crates.io-index#csv@1.4.0",
         "registry+https://github.com/rust-lang/crates.io-index#dirs@5.0.1",
         "registry+https://github.com/rust-lang/crates.io-index#ed25519-dalek@2.2.0",
+        "registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.35",
         "registry+https://github.com/rust-lang/crates.io-index#fluent-templates@0.9.4",
         "registry+https://github.com/rust-lang/crates.io-index#getrandom@0.3.4",
         "registry+https://github.com/rust-lang/crates.io-index#gio@0.20.12",
@@ -9650,6 +9686,12 @@
     },
     {
       "ref": "registry+https://github.com/rust-lang/crates.io-index#either@1.15.0"
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.35",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4"
+      ]
     },
     {
       "ref": "registry+https://github.com/rust-lang/crates.io-index#equivalent@1.0.2"

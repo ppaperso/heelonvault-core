@@ -1,10 +1,17 @@
 name: CI
 
 # Governance:
-# - PR: Tier 1 (validation) + Tier 2 (dev platform build) — fast feedback
-# - Push develop/main: Tier 1 + Tier 3 (build matrix) + Tier 4 (release gates)
-# - Push tags (v*): Same as main + artifact creation
-# - workflow_dispatch: Manual override for full matrix
+# ┌──────────────────┬──────────────┬────────────────────┬──────────────────────────────┐
+# │ Event            │ Tier 1       │ Tier 2/3           │ Tier 4+                      │
+# ├──────────────────┼──────────────┼────────────────────┼──────────────────────────────┤
+# │ pull_request     │ validate     │ fedora-dev (quick) │ —                            │
+# │ push main/dev    │ validate     │ fedora-prod        │ sbom-check                   │
+# │ push tag v*      │ validate     │ fedora + all 3     │ sbom + packaging + release   │
+# │ workflow_dispatch│ validate     │ fedora + on-demand │ sbom                         │
+# └──────────────────┴──────────────┴────────────────────┴──────────────────────────────┘
+#
+# On-demand platform builds: use "Run workflow" on GitHub and check the platform boxes.
+# Cancel-in-progress: enabled for branches (not tags) — successive main pushes cancel old runs.
 
 on:
   pull_request:
@@ -18,6 +25,24 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      build_ubuntu:
+        description: 'Build Linux/Ubuntu reference platform'
+        type: boolean
+        default: false
+      build_macos:
+        description: 'Build macOS (arm64)'
+        type: boolean
+        default: false
+      build_windows:
+        description: 'Build Windows (x86_64)'
+        type: boolean
+        default: false
+
+# Cancel in-progress runs for branches; never cancel tag releases.
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.event.pull_request.number || '' }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -63,10 +88,11 @@ jobs:
         run: desktop-file-validate heelonvault.desktop
 
   # ============================================================================
-  # TIER 2: DEV PLATFORM (Fast feedback on PR) — build validation only
+  # TIER 2: PR FEEDBACK — lightweight Fedora compile check (PRs only)
   # ============================================================================
   build-fedora-dev:
-    name: Tier 2 • Build & validate on Fedora (target platform)
+    name: Tier 2 • Build on Fedora (PR check — no smoke tests)
+    if: github.event_name == 'pull_request'
     needs: [validate-source]
     runs-on: ubuntu-24.04
     container: fedora:latest
@@ -109,81 +135,10 @@ jobs:
         run: desktop-file-validate heelonvault.desktop
 
   # ============================================================================
-  # TIER 3: BUILD MATRIX (Cross-platform validation) — push only
+  # TIER 3: BUILD MATRIX
+  #   • Fedora (production) — every non-PR event (push main, tags, dispatch)
+  #   • Ubuntu / macOS / Windows — tags and workflow_dispatch only
   # ============================================================================
-  build-linux-reference:
-    name: Tier 3 • Build Linux (Ubuntu reference platform)
-    if: github.event_name != 'pull_request'
-    needs: [validate-source]
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            desktop-file-utils \
-            pkg-config \
-            libgtk-4-dev \
-            libadwaita-1-dev \
-            libsqlite3-dev \
-            libglib2.0-dev \
-            libglib2.0-dev-bin
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-bin: false
-
-      - name: Build release binary
-        run: cargo build --release --locked
-
-      - name: Compile tests
-        run: cargo test --locked --all-targets --no-run
-
-      - name: Package distribution
-        run: |
-          set -euo pipefail
-
-          rm -rf dist
-          mkdir -p dist
-          cp target/release/heelonvault dist/
-          cp scripts/install.sh dist/install.sh
-          cp scripts/install-core.sh dist/install-core.sh
-          cp scripts/install-ubuntu.sh dist/install-ubuntu.sh
-          cp scripts/install-rhel.sh dist/install-rhel.sh
-          cp scripts/remove.sh dist/remove.sh
-          cp scripts/remove-core.sh dist/remove-core.sh
-          cp scripts/remove-ubuntu.sh dist/remove-ubuntu.sh
-          cp scripts/remove-rhel.sh dist/remove-rhel.sh
-          cp scripts/smoke-test.sh dist/smoke-test.sh
-          cp heelonvault.desktop dist/
-          cp README.md dist/
-          cp docs/QUICKSTART.md dist/
-          cp -r assets dist/
-          (cd dist && sha256sum heelonvault > heelonvault.sha256)
-          chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh dist/heelonvault dist/smoke-test.sh
-
-      - name: Smoke test – Ubuntu install
-        run: ./dist/smoke-test.sh --install ./dist/install.sh
-
-      - name: Smoke test – Ubuntu uninstall
-        run: ./dist/smoke-test.sh --remove ./dist/remove.sh
-
-      - name: Upload Linux binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-binary
-          path: target/release/heelonvault
-          retention-days: 1
-
   build-fedora-production:
     name: Tier 3 • Build Fedora (production target)
     if: github.event_name != 'pull_request'
@@ -235,21 +190,18 @@ jobs:
           rm -rf dist
           mkdir -p dist
           cp target/release/heelonvault dist/
-          cp scripts/install.sh dist/install.sh
-          cp scripts/install-core.sh dist/install-core.sh
-          cp scripts/install-ubuntu.sh dist/install-ubuntu.sh
-          cp scripts/install-rhel.sh dist/install-rhel.sh
-          cp scripts/remove.sh dist/remove.sh
-          cp scripts/remove-core.sh dist/remove-core.sh
-          cp scripts/remove-ubuntu.sh dist/remove-ubuntu.sh
-          cp scripts/remove-rhel.sh dist/remove-rhel.sh
-          cp scripts/smoke-test.sh dist/smoke-test.sh
+          for f in install.sh install-core.sh install-ubuntu.sh install-rhel.sh \
+                   remove.sh remove-core.sh remove-ubuntu.sh remove-rhel.sh smoke-test.sh; do
+            cp "scripts/$f" "dist/$f"
+          done
           cp heelonvault.desktop dist/
           cp README.md dist/
           cp docs/QUICKSTART.md dist/
           cp -r assets dist/
           (cd dist && sha256sum heelonvault > heelonvault.sha256)
-          chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh dist/heelonvault dist/smoke-test.sh
+          chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh \
+                    dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh \
+                    dist/heelonvault dist/smoke-test.sh
 
       - name: Smoke test – Fedora install
         run: ./dist/smoke-test.sh --install ./dist/install.sh
@@ -258,15 +210,89 @@ jobs:
         run: ./dist/smoke-test.sh --remove ./dist/remove.sh
 
       - name: Upload Fedora binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: fedora-binary
+          path: target/release/heelonvault
+          retention-days: 7
+
+  build-linux-reference:
+    name: Tier 3 • Build Linux (Ubuntu reference platform)
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_ubuntu == 'true')
+    needs: [validate-source]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            desktop-file-utils \
+            pkg-config \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            libsqlite3-dev \
+            libglib2.0-dev \
+            libglib2.0-dev-bin
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: Compile tests
+        run: cargo test --locked --all-targets --no-run
+
+      - name: Package distribution
+        run: |
+          set -euo pipefail
+
+          rm -rf dist
+          mkdir -p dist
+          cp target/release/heelonvault dist/
+          for f in install.sh install-core.sh install-ubuntu.sh install-rhel.sh \
+                   remove.sh remove-core.sh remove-ubuntu.sh remove-rhel.sh smoke-test.sh; do
+            cp "scripts/$f" "dist/$f"
+          done
+          cp heelonvault.desktop dist/
+          cp README.md dist/
+          cp docs/QUICKSTART.md dist/
+          cp -r assets dist/
+          (cd dist && sha256sum heelonvault > heelonvault.sha256)
+          chmod +x dist/install.sh dist/install-ubuntu.sh dist/install-rhel.sh \
+                    dist/remove.sh dist/remove-ubuntu.sh dist/remove-rhel.sh \
+                    dist/heelonvault dist/smoke-test.sh
+
+      - name: Smoke test – Ubuntu install
+        run: ./dist/smoke-test.sh --install ./dist/install.sh
+
+      - name: Smoke test – Ubuntu uninstall
+        run: ./dist/smoke-test.sh --remove ./dist/remove.sh
+
+      - name: Upload Linux binary artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: linux-binary
           path: target/release/heelonvault
           retention-days: 1
 
   build-macos:
     name: Tier 3 • Build macOS
-    if: github.event_name != 'pull_request'
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_macos == 'true')
     needs: [validate-source]
     runs-on: macos-14
 
@@ -309,7 +335,7 @@ jobs:
           otool -L target/release/heelonvault
 
       - name: Upload macOS binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: macos-binary
           path: target/release/heelonvault
@@ -317,11 +343,11 @@ jobs:
 
   build-windows:
     name: Tier 3 • Build Windows
-    if: github.event_name != 'pull_request'
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_windows == 'true')
     needs: [validate-source]
     runs-on: windows-2022
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     defaults:
       run:
         shell: msys2 {0}
@@ -363,23 +389,20 @@ jobs:
           sha256sum target/release/heelonvault.exe
 
       - name: Upload Windows binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: windows-binary
           path: target/release/heelonvault.exe
           retention-days: 1
 
   # ============================================================================
-  # TIER 4: RELEASE GATES (Supply-chain & SBOM validation) — push only
+  # TIER 4: RELEASE GATES (Supply-chain & SBOM) — non-PR events
+  #   Depends only on build-fedora-production (not the full platform matrix).
   # ============================================================================
   check-sbom:
     name: Tier 4 • Check SBOM is up-to-date
     if: github.event_name != 'pull_request'
-    needs:
-      - build-linux-reference
-      - build-fedora-production
-      - build-macos
-      - build-windows
+    needs: [build-fedora-production]
     runs-on: ubuntu-24.04
 
     steps:
@@ -425,14 +448,12 @@ jobs:
           echo "SBOM is up-to-date (${COUNT} pURLs matched)."
 
   # ============================================================================
-  # TIER 5: RELEASE ARTIFACTS (Packaging & GitHub Release) — push/tags only
+  # TIER 5: RELEASE ARTIFACTS (Packaging & GitHub Release) — tags only
   # ============================================================================
   package-linux-tarball:
     name: Tier 5 • Package Linux tarball
-    if: github.event_name != 'pull_request'
-    needs:
-      - build-fedora-production
-      - check-sbom
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-fedora-production, check-sbom]
     runs-on: ubuntu-24.04
 
     steps:
@@ -440,7 +461,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download Fedora binary artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: fedora-binary
           path: ./binary
@@ -450,14 +471,10 @@ jobs:
           set -euo pipefail
           mkdir -p heelonvault-dist
           cp ./binary/heelonvault heelonvault-dist/
-          cp scripts/install.sh heelonvault-dist/
-          cp scripts/install-core.sh heelonvault-dist/
-          cp scripts/install-ubuntu.sh heelonvault-dist/
-          cp scripts/install-rhel.sh heelonvault-dist/
-          cp scripts/remove.sh heelonvault-dist/
-          cp scripts/remove-core.sh heelonvault-dist/
-          cp scripts/remove-ubuntu.sh heelonvault-dist/
-          cp scripts/remove-rhel.sh heelonvault-dist/
+          for f in install.sh install-core.sh install-ubuntu.sh install-rhel.sh \
+                   remove.sh remove-core.sh remove-ubuntu.sh remove-rhel.sh; do
+            cp "scripts/$f" "heelonvault-dist/$f"
+          done
           cp heelonvault.desktop heelonvault-dist/
           cp README.md heelonvault-dist/
           cp docs/QUICKSTART.md heelonvault-dist/
@@ -471,7 +488,7 @@ jobs:
           cat heelonvault-linux-x86_64.tar.gz.sha256
 
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: linux-tarball
           path: |
@@ -481,10 +498,8 @@ jobs:
 
   package-macos-dmg:
     name: Tier 5 • Package macOS DMG
-    if: github.event_name != 'pull_request'
-    needs:
-      - build-macos
-      - check-sbom
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-macos, check-sbom]
     runs-on: macos-14
 
     steps:
@@ -492,7 +507,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download macOS binary artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: macos-binary
           path: ./binary
@@ -513,7 +528,7 @@ jobs:
           cat heelonvault-macos-arm64.dmg.sha256
 
       - name: Upload DMG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: macos-dmg
           path: |
@@ -523,13 +538,9 @@ jobs:
 
   package-windows-msi:
     name: Tier 5 • Package Windows MSI
-    if: github.event_name != 'pull_request'
-    needs:
-      - build-windows
-      - check-sbom
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, check-sbom]
     runs-on: windows-2022
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     defaults:
       run:
         shell: msys2 {0}
@@ -539,7 +550,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download Windows binary artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: windows-binary
           path: ./binary
@@ -572,7 +583,7 @@ jobs:
           cat heelonvault-windows-x86_64.msi.sha256
 
       - name: Upload MSI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: windows-msi
           path: |
@@ -582,7 +593,7 @@ jobs:
 
   create-github-release:
     name: Tier 5 • Create GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name != 'pull_request'
+    if: startsWith(github.ref, 'refs/tags/v')
     needs:
       - check-sbom
       - package-linux-tarball
@@ -597,7 +608,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download all packaged artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: ./artifacts
 
@@ -612,11 +623,16 @@ jobs:
           ls -lah release-assets/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: release-assets/*
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+        run: |
+          TAG="${{ github.ref_name }}"
+          PRERELEASE_FLAG=""
+          if [[ "$TAG" =~ -[a-zA-Z] ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+          gh release create "$TAG" \
+            --title "HeelonVault $TAG" \
+            --generate-notes \
+            $PRERELEASE_FLAG \
+            release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
