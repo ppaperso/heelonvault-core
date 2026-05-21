@@ -7,6 +7,7 @@ use gtk4::prelude::*;
 use gtk4::{Align, InputPurpose, Orientation};
 use libadwaita as adw;
 use tracing::warn;
+use zeroize::Zeroizing;
 
 use crate::services::pin_cache_service::PinUnlockError;
 use crate::ui::windows::main_window::MainWindow;
@@ -24,12 +25,13 @@ impl PinUnlockDialog {
     /// Build and return the dialog.
     ///
     /// * `main` — the active `MainWindow` (for `try_pin_unlock` + session key restore)
-    /// * `on_unlocked` — called with the master-key bytes once the PIN is verified
+    /// * `on_unlocked` — called with `Some(master_key)` once the PIN is verified, or
+    ///   `None` when the cache is exhausted (caller should fall back to full login)
     /// * `on_use_master_password` — called when the user chooses "Use master password"
     pub fn new(
         parent: &adw::ApplicationWindow,
         main: Rc<MainWindow>,
-        on_unlocked: impl Fn(Vec<u8>) + 'static,
+        on_unlocked: impl Fn(Option<Zeroizing<Vec<u8>>>) + 'static,
         on_use_master_password: impl Fn() + 'static,
     ) -> Self {
         include!("parts/new_body.inc")
