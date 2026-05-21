@@ -217,7 +217,7 @@ A term typed on its own is matched against all fields: title, type, login, email
 To target a specific field, use `field:value` syntax (with or without a space after the colon):
 
 | Accepted keys | Field searched |
-|---|---|
+| --- | --- |
 | `title`, `name`, `titre`, `nom` | Title |
 | `login`, `user`, `username`, `identifiant` | Login |
 | `email`, `mail` | Email |
@@ -253,9 +253,39 @@ From the profile area, users can review security- and session-related settings, 
 - TOTP activation;
 - auto-lock policy;
 - master password change with vault key-envelope rotation;
+- PIN Quick-Unlock activation;
 - some display preferences depending on role and configuration.
 
-Key recommendations:
+### PIN Quick-Unlock
+
+HeelonVault provides a PIN-based quick-unlock to avoid retyping the master password after every auto-lock event.
+
+**Activation** (Profile → Session security section):
+
+1. Click "Enable PIN".
+2. Enter a 4-to-8 digit PIN code.
+3. Confirm the PIN.
+4. The PIN is active immediately for the current session.
+
+**Usage during auto-lock**:
+
+- When auto-lock triggers (after the configured inactivity timeout), the PIN entry dialog appears.
+- Enter the PIN and press "Unlock".
+- Up to 3 attempts are allowed before the cache is wiped.
+- After 3 failed attempts or 12 hours of inactivity, the system automatically falls back to the full master-password login.
+- The "Use master password" button lets the user switch to the full login flow at any time.
+
+**Deactivation**:
+
+- From the profile, click "Disable PIN" to wipe the cache immediately.
+
+**Security boundaries to keep in mind**:
+
+- The PIN does not replace the master password; it only speeds up session unlock.
+- The PIN cache exists only in RAM and disappears when the application closes.
+- Do not reuse a PIN you already use elsewhere (phone lock screen, bank card, etc.).
+
+General recommendations:
 
 - enable TOTP as early as possible;
 - use a short auto-lock delay on shared workstations;

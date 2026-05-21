@@ -9,6 +9,21 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — v1.1.0 sprint
 
+### PIN Quick-Unlock
+
+- New `pin_cache_service`: in-memory master-key cache protected by Argon2id (8 MiB, t=3) + AES-256-GCM, never persisted to disk.
+- `pin_setup_dialog`: PIN activation and deactivation from the user profile view (4–8 digits).
+- `pin_unlock_dialog`: PIN entry dialog displayed when the auto-lock fires.
+- Auto-lock integration: a logout now triggers a PIN lock (when a PIN is set) instead of a full disconnect, preserving the session in memory.
+- Security: 3 attempts maximum per cache, 12-hour hard timeout, `user_id` binding (prevents cross-session replay), random AES-GCM nonce per activation, `zeroize` wipe on `Drop`.
+- Full FR/EN localization for all PIN messages (entry, error, limit, timeout, enable/disable).
+
+### Memory hardening — master key lifecycle (memory PR #1)
+
+- `try_pin_unlock` now returns `Zeroizing<Vec<u8>>`: the zeroize guarantee is enforced by the type system.
+- `on_unlocked` callback redesigned as `Option<Zeroizing<Vec<u8>>>`: `Some(key)` on success, `None` on cache exhaustion — eliminates the `Vec::new()` sentinel-value idiom.
+- Removed the `key.to_vec()` in `try_pin_unlock` that silently stripped the zeroize guarantee.
+
 ### Master key rotation (hardening)
 
 - `user_service`: hardened `rotate_master_key_hardened` flow enabled with pre/post rotation validation.

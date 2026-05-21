@@ -20,7 +20,9 @@
         let active_vault_id: Rc<RefCell<Option<Uuid>>> = Rc::new(RefCell::new(None));
         let is_global_search = Rc::new(Cell::new(false));
         let on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
+        let on_pin_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
         let on_logout: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
+        let pin_cache: Rc<RefCell<Option<crate::services::pin_cache_service::PinCache>>> = Rc::new(RefCell::new(None));
         let critical_ops_in_flight = Rc::new(Cell::new(0_u32));
         let audit_report_service = Arc::new(AuditReportService::new(
             Arc::clone(&license_service),
@@ -945,6 +947,7 @@
             Rc::clone(&auto_lock_armed),
             Rc::clone(&on_auto_lock),
             Rc::clone(&session_master_key),
+            Rc::clone(&pin_cache),
             Rc::clone(&show_passwords_in_edit_pref),
             Rc::clone(&refresh_list),
             Rc::clone(&on_main_i18n_refresh_bridge),
@@ -1896,8 +1899,11 @@
             auto_lock_source,
             auto_lock_armed,
             session_master_key,
+            pin_cache,
             on_auto_lock,
+            on_pin_lock,
             on_logout,
+            session_user_id: admin_user_id,
             audit_service: Rc::new(audit_service),
         }
 }
