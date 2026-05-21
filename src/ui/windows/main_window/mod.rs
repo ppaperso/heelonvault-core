@@ -22,7 +22,7 @@ use sqlx::{Row, SqlitePool};
 use tokio::runtime::Handle;
 use tracing::{info, warn};
 use uuid::Uuid;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::models::LicenseTier;
 use crate::services::admin_service::AdminService;

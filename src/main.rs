@@ -619,12 +619,12 @@ fn run_application(
                             main_inner.window(),
                             Rc::clone(&main_inner),
                             move |master_key| {
-                                if master_key.is_empty() {
+                                let Some(key) = master_key else {
                                     // Exhausted — fall back to full login.
                                     main_for_on_unlocked.trigger_logout();
                                     return;
-                                }
-                                main_for_on_unlocked.set_session_master_key(master_key);
+                                };
+                                main_for_on_unlocked.set_session_master_key(key.to_vec());
                                 main_for_on_unlocked.activate_auto_lock();
                                 info!("PIN unlock successful — session restored");
                             },

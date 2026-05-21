@@ -41,12 +41,12 @@ impl MainWindow {
     /// Returns the decrypted master key bytes on success, or `PinUnlockError`
     /// otherwise.  If `Exhausted` is returned the cache has already been
     /// cleared.
-    pub fn try_pin_unlock(&self, pin: &str) -> Result<Vec<u8>, PinUnlockError> {
+    pub fn try_pin_unlock(&self, pin: &str) -> Result<Zeroizing<Vec<u8>>, PinUnlockError> {
         let mut guard = self.pin_cache.borrow_mut();
         match guard.as_mut() {
             None => Err(PinUnlockError::Exhausted),
             Some(cache) => match cache.try_unwrap(pin) {
-                Ok(key) => Ok(key.to_vec()),
+                Ok(key) => Ok(key),
                 Err(PinUnlockError::Exhausted) => {
                     drop(guard);
                     self.clear_pin_cache();
