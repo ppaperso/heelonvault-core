@@ -63,3 +63,5 @@ browser_integration/.webext-credentials
 
 # SPDX / REUSE (généré, pas source)
 .reuse/dep5
+# cargo-cyclonedx default output (non-officiel, spec 1.3 — utiliser sbom.cyclonedx.json)
+*.cdx.json
