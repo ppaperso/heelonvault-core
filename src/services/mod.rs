@@ -12,6 +12,7 @@ pub mod import_service;
 pub mod license_service;
 pub mod login_history_service;
 pub mod password_service;
+pub mod pin_cache_service;
 pub mod secret_service;
 pub mod team_service;
 pub mod totp_service;

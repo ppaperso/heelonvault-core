@@ -535,3 +535,27 @@ main-search-help-examples = Ex : login:alice · coffre:perso · titre:gmail · u
 main-search-help-fuzzy = ≈ Correspondance floue active — 1 faute de frappe tolérée
 main-search-help-close = Fermer
 main-vault-drag-tooltip = Glisser pour reorganiser les coffres
+
+## PIN Déverrouillage rapide
+pin-unlock-title = Déverrouillage rapide
+pin-unlock-prompt = Saisissez votre code PIN pour déverrouiller la session.
+pin-unlock-entry-placeholder = PIN (4–8 chiffres)
+pin-unlock-button = Déverrouiller
+pin-use-master-password = Utiliser la master key
+pin-error-empty = Veuillez saisir votre PIN.
+pin-error-wrong = PIN incorrect. { $remaining } tentative(s) restante(s).
+pin-error-wrong-last = PIN incorrect. Dernière tentative — la session sera verrouillée.
+pin-setup-title = PIN de déverrouillage rapide
+pin-setup-description = Définissez un code PIN court pour déverrouiller rapidement votre session après le verrouillage automatique. Le PIN enveloppe votre master key en mémoire — il n'est jamais stocké sur disque.
+pin-setup-length-hint = Le PIN doit contenir { $min }–{ $max } chiffres uniquement.
+pin-setup-entry-placeholder = Nouveau PIN (4–8 chiffres)
+pin-setup-confirm-placeholder = Confirmer le PIN
+pin-setup-save = Enregistrer le PIN
+pin-setup-disable = Désactiver le PIN
+pin-setup-error-mismatch = Les PIN ne correspondent pas.
+pin-setup-error-internal = Échec de la configuration du PIN
+pin-status-active = PIN actif
+pin-status-inactive = Sans PIN
+profile-pin-title = PIN de déverrouillage rapide
+profile-pin-hint = Évite de ressaisir la master key après le verrouillage automatique.
+profile-pin-configure = Configurer

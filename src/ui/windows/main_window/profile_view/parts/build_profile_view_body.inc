@@ -272,6 +272,49 @@
     show_edit_passwords_hint.set_wrap(true);
     show_edit_passwords_hint.add_css_class("dim-label");
     show_edit_passwords_hint.add_css_class("profile-section-subtitle");
+
+    // ── PIN quick-unlock section ─────────────────────────────────────────
+    let pin_separator = gtk4::Separator::new(gtk4::Orientation::Horizontal);
+    pin_separator.add_css_class("profile-section-separator");
+
+    let pin_row = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Horizontal)
+        .spacing(12)
+        .hexpand(true)
+        .build();
+    let pin_label_box = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(2)
+        .hexpand(true)
+        .build();
+    let pin_title = gtk4::Label::new(Some(crate::tr!("profile-pin-title").as_str()));
+    pin_title.set_halign(Align::Start);
+    pin_title.add_css_class("profile-field-label");
+    let pin_hint = gtk4::Label::new(Some(crate::tr!("profile-pin-hint").as_str()));
+    pin_hint.set_halign(Align::Start);
+    pin_hint.set_wrap(true);
+    pin_hint.add_css_class("dim-label");
+    pin_hint.add_css_class("caption");
+    pin_label_box.append(&pin_title);
+    pin_label_box.append(&pin_hint);
+    let pin_status_badge = gtk4::Label::new(None);
+    pin_status_badge.add_css_class("status-role-pill");
+    pin_status_badge.set_valign(Align::Center);
+    let pin_active = pin_cache.borrow().is_some();
+    if pin_active {
+        pin_status_badge.set_text(crate::tr!("pin-status-active").as_str());
+        pin_status_badge.add_css_class("status-role-user");
+    } else {
+        pin_status_badge.set_text(crate::tr!("pin-status-inactive").as_str());
+        pin_status_badge.add_css_class("status-role-disabled");
+    }
+    pin_row.append(&pin_label_box);
+    pin_row.append(&pin_status_badge);
+    let pin_setup_button = gtk4::Button::with_label(crate::tr!("profile-pin-configure").as_str());
+    pin_setup_button.add_css_class("profile-action-btn");
+    pin_setup_button.add_css_class("flat");
+    pin_row.append(&pin_setup_button);
+
     let security_prefs_status_label = gtk4::Label::new(None);
     security_prefs_status_label.set_halign(Align::Start);
     security_prefs_status_label.set_wrap(true);
@@ -284,6 +327,8 @@
         auto_lock_dropdown.upcast_ref::<gtk4::Widget>(),
         show_edit_passwords_switch.upcast_ref::<gtk4::Widget>(),
         show_edit_passwords_hint.upcast_ref::<gtk4::Widget>(),
+        pin_separator.upcast_ref::<gtk4::Widget>(),
+        pin_row.upcast_ref::<gtk4::Widget>(),
         security_prefs_status_label.upcast_ref::<gtk4::Widget>(),
     ] {
         security_prefs_box.append(widget);
@@ -1070,6 +1115,44 @@
                 }
             }
         });
+    });
+    // ── PIN setup button handler ─────────────────────────────────────────────
+    let win_for_pin = window.clone();
+    let session_for_pin = Rc::clone(&session_master_key);
+    let pin_cache_for_setup = Rc::clone(&pin_cache);
+    let pin_status_badge_for_setup = pin_status_badge.clone();
+    pin_setup_button.connect_clicked(move |_| {
+        let key_snapshot = {
+            let k = session_for_pin.borrow();
+            if k.is_empty() {
+                return;
+            }
+            secrecy::SecretBox::new(Box::new(k.clone()))
+        };
+        let currently_active = pin_cache_for_setup.borrow().is_some();
+        let pin_cache_for_created = Rc::clone(&pin_cache_for_setup);
+        let badge_for_created = pin_status_badge_for_setup.clone();
+        let pin_cache_for_disabled = Rc::clone(&pin_cache_for_setup);
+        let badge_for_disabled = pin_status_badge_for_setup.clone();
+        let dialog = crate::ui::dialogs::pin_setup_dialog::PinSetupDialog::new(
+            &win_for_pin,
+            key_snapshot,
+            user_id,
+            move |new_cache| {
+                *pin_cache_for_created.borrow_mut() = Some(new_cache);
+                badge_for_created.set_text(crate::tr!("pin-status-active").as_str());
+                badge_for_created.remove_css_class("status-role-disabled");
+                badge_for_created.add_css_class("status-role-user");
+            },
+            move || {
+                let _ = pin_cache_for_disabled.borrow_mut().take();
+                badge_for_disabled.set_text(crate::tr!("pin-status-inactive").as_str());
+                badge_for_disabled.remove_css_class("status-role-user");
+                badge_for_disabled.add_css_class("status-role-disabled");
+            },
+            currently_active,
+        );
+        dialog.present();
     });
     save_profile_button.connect_clicked(move |_| {
         MainWindow::set_inline_status(

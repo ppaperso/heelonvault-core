@@ -34,6 +34,7 @@ pub(crate) fn build_profile_view<
     auto_lock_armed: Rc<Cell<bool>>,
     on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
     session_master_key: Rc<RefCell<Vec<u8>>>,
+    pin_cache: Rc<RefCell<Option<crate::services::pin_cache_service::PinCache>>>,
     show_passwords_in_edit_pref: Rc<Cell<bool>>,
     on_import_completed_refresh: Rc<dyn Fn()>,
     on_language_changed: Rc<dyn Fn()>,

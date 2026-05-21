@@ -535,3 +535,27 @@ main-search-help-examples = e.g.: login:alice · vault:perso · title:gmail · u
 main-search-help-fuzzy = ≈ Fuzzy matching active — 1 typo tolerated
 main-search-help-close = Close
 main-vault-drag-tooltip = Drag to reorder vaults
+
+## PIN Quick-Unlock
+pin-unlock-title = Quick unlock
+pin-unlock-prompt = Enter your PIN to unlock your session.
+pin-unlock-entry-placeholder = PIN (4–8 digits)
+pin-unlock-button = Unlock
+pin-use-master-password = Use master password
+pin-error-empty = Please enter your PIN.
+pin-error-wrong = Wrong PIN. { $remaining } attempt(s) remaining.
+pin-error-wrong-last = Wrong PIN. Last attempt — the session will lock after this.
+pin-setup-title = Quick-unlock PIN
+pin-setup-description = Set a short PIN to quickly unlock your session after auto-lock. The PIN wraps your master key in memory — it is never stored on disk.
+pin-setup-length-hint = PIN must be { $min }–{ $max } digits only.
+pin-setup-entry-placeholder = New PIN (4–8 digits)
+pin-setup-confirm-placeholder = Confirm PIN
+pin-setup-save = Save PIN
+pin-setup-disable = Disable PIN
+pin-setup-error-mismatch = PINs do not match.
+pin-setup-error-internal = Failed to set PIN
+pin-status-active = PIN active
+pin-status-inactive = No PIN
+profile-pin-title = Quick-unlock PIN
+profile-pin-hint = Avoids re-entering your master password after auto-lock.
+profile-pin-configure = Configure

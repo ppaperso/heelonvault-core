@@ -217,7 +217,7 @@ Un terme tapé seul est recherché dans tous les champs : titre, type, login, em
 Pour cibler un champ précis, utilisez la syntaxe `champ:valeur` (avec ou sans espace après le deux-points) :
 
 | Clés acceptées | Champ recherché |
-|---|---|
+| --- | --- |
 | `title`, `titre`, `name`, `nom` | Titre |
 | `login`, `user`, `username`, `identifiant` | Login |
 | `email`, `mail` | Email |
@@ -253,9 +253,39 @@ Depuis le profil, l'utilisateur peut consulter les réglages liés à la sécuri
 - l'activation TOTP ;
 - la politique d'auto-verrouillage ;
 - le changement de mot de passe maître avec rotation des enveloppes de clés de coffre ;
+- l'activation du code PIN de déverrouillage rapide ;
 - certaines préférences d'affichage selon le rôle et la configuration.
 
-Points d'attention :
+### Code PIN de déverrouillage rapide
+
+HeelonVault propose un déverrouillage rapide par code PIN pour éviter de ressaisir le mot de passe maître après chaque verrouillage automatique.
+
+**Activation** (section Profil → Sécurité de session) :
+
+1. Cliquer sur « Activer le code PIN ».
+2. Saisir un code PIN de 4 à 8 chiffres.
+3. Confirmer le code PIN.
+4. Le PIN est actif immédiatement pour la session en cours.
+
+**Utilisation lors du déverrouillage automatique** :
+
+- Lors d'un verrouillage par inactivité (délai configuré), la fenêtre de saisie du PIN s'affiche.
+- Saisir le code PIN et appuyer sur « Déverrouiller ».
+- En cas d'erreur, 3 tentatives sont autorisées avant que le cache ne soit effacé.
+- Après 3 échecs ou 12 h d'inactivité, le système bascule automatiquement vers la connexion par mot de passe maître.
+- Le bouton « Utiliser le mot de passe » permet de revenir à tout moment à la connexion complète.
+
+**Désactivation** :
+
+- Depuis le profil, cliquer sur « Désactiver le code PIN » pour supprimer le cache immédiatement.
+
+**Limites de sécurité à retenir** :
+
+- Le PIN ne remplace pas le mot de passe maître ; il accélère uniquement le déverrouillage de session.
+- Le cache PIN est strictement en mémoire vive et disparaît à la fermeture de l'application.
+- Ne pas choisir un PIN identique à un code déjà utilisé par ailleurs (téléphone, carte bancaire).
+
+Points d'attention généraux :
 
 - activer le TOTP dès que possible ;
 - utiliser un délai d'auto-verrouillage court sur poste partagé ;
