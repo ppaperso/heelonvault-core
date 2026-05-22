@@ -62,11 +62,10 @@ See [SECURITY.md](SECURITY.md).
 
 ```text
 HeelonVault/
-├── src/                   # Main Rust runtime
-│   ├── services/          # Business logic (crypto, auth, TOTP, backup...)
-│   ├── repositories/      # SQLite access layer
-│   ├── models/            # Domain types
-│   └── ui/                # GTK4 / libadwaita UI
+├── crates/
+│   ├── heelonvault-core/      # Public library (crates.io)
+│   ├── heelonvault-app/       # GTK4 / libadwaita binary
+│   └── sqlx-shim/             # Local SQLx shim
 ├── migrations/            # SQL migrations
 ├── assets/                # Bundled GTK assets (CSS, icons, images)
 ├── resources/             # Non-migrated resources (fonts)
@@ -84,6 +83,9 @@ HeelonVault/
 └── scripts/remove-rhel.sh         # Fedora / RHEL / Rocky Linux / AlmaLinux uninstaller
 ```
 
+> **Premium**: `heelonvault-premium` lives in a separate private repository.
+> The community version of this repo never accesses it.
+
 ---
 
 ## Quick Start
@@ -99,8 +101,8 @@ Dev database: `data/heelonvault-rust-dev.db`
 ### Build and lint
 
 ```bash
-cargo check
-cargo clippy -- -D warnings
+cargo check --workspace
+cargo clippy --workspace -- -D warnings
 ```
 
 ### Packaged Linux installation

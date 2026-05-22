@@ -79,11 +79,10 @@ Consulter [SECURITY.md](SECURITY.md) pour la politique de divulgation responsabl
 
 ```text
 HeelonVault/
-├── src/                   # Runtime principal Rust
-│   ├── services/          # Logique métier (crypto, auth, TOTP, backup…)
-│   ├── repositories/      # Couche d'accès SQLite
-│   ├── models/            # Types de domaine
-│   └── ui/                # Widgets GTK4 / libadwaita
+├── crates/
+│   ├── heelonvault-core/      # Bibliothèque publique (crates.io)
+│   ├── heelonvault-app/       # Binaire GTK4 / libadwaita
+│   └── sqlx-shim/             # Shim local SQLx
 ├── migrations/            # 14 migrations SQL (sqlx)
 ├── assets/                # Assets GTK embarqués (CSS, icônes, images)
 ├── resources/             # Ressources non délocalisées (fonts)
@@ -91,7 +90,7 @@ HeelonVault/
 ├── docs/                  # Documentation technique et architecture
 ├── data/                  # Base de données dev locale
 ├── logs/                  # Logs runtime
-├── Cargo.toml             # Manifest Cargo
+├── Cargo.toml             # Workspace root
 ├── clippy.toml            # Politique Clippy sécurité
 ├── LICENSE                # Licence Apache 2.0
 ├── docs/THIRD_PARTY_LICENSES.md  # Inventaire des bibliothèques tierces
@@ -105,6 +104,9 @@ HeelonVault/
 ├── scripts/remove-ubuntu.sh       # Désinstallateur Ubuntu / Debian
 └── scripts/remove-rhel.sh         # Désinstallateur Fedora / RHEL / Rocky / AlmaLinux
 ```
+
+> **Premium** : `heelonvault-premium` est maintenu dans un dépôt privé séparé.
+> La version communautaire de ce dépôt n'y accède pas.
 
 ---
 
@@ -121,8 +123,8 @@ Base de données dev : `data/heelonvault-rust-dev.db`
 ### Vérification build et lint
 
 ```bash
-cargo check
-cargo clippy -- -D warnings
+cargo check --workspace
+cargo clippy --workspace -- -D warnings
 ```
 
 ### Installation Linux packagée

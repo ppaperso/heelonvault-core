@@ -2,12 +2,12 @@
 
 Language: EN | [FR](QUICKSTART.fr.md)
 
-Documented quickstart version: `1.0.0`
+Documented quickstart version: `1.1.0`
 
 ## 1. Build Check
 
 ```bash
-cargo check
+cargo check --workspace
 ```
 
 ## 2. Run in Development
@@ -27,7 +27,7 @@ Development database path:
 ```bash
 cargo test secret_repository:: -- --nocapture
 cargo test secret_service:: -- --nocapture
-cargo test --test login_history_integration
+cargo test --workspace --test login_history_integration
 ```
 
 ## 3bis. Recommended UI checks

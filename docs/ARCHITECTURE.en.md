@@ -25,31 +25,38 @@ UI (gtk4/libadwaita)
 
 ## Active Structure
 
+HeelonVault is organized as a **Cargo workspace** (Open Core model):
+
 ```text
 HeelonVault/
-├── src/
-│   ├── main.rs
-│   ├── ui/
-│   ├── services/
-│   ├── repositories/
-│   ├── models/
-│   ├── config/
-│   └── errors.rs
-├── migrations/
-├── tests/
-├── Cargo.toml
-├── scripts/run.sh
-├── scripts/run-dev.sh
-├── scripts/install.sh              # Unified installer (OS detection)
-├── scripts/install-core.sh         # Shared Linux install library
-├── scripts/install-ubuntu.sh               # Ubuntu / Debian installer
-├── scripts/install-rhel.sh                 # Fedora / RHEL / Rocky Linux / AlmaLinux installer
-├── scripts/remove.sh               # Unified uninstaller (OS detection)
-├── scripts/remove-core.sh          # Shared Linux uninstall library
-├── scripts/remove-ubuntu.sh                # Ubuntu / Debian uninstaller
-├── scripts/remove-rhel.sh                  # Fedora / RHEL / Rocky Linux / AlmaLinux uninstaller
+├── crates/
+│   ├── heelonvault-core/          # Public library (crates.io v1.1.0)
+│   ├── heelonvault-app/           # GTK4 binary (Open Core assembler)
+│   └── sqlx-shim/                 # Local SQLx shim (publish = false)
+├── migrations/                    # SQL migrations applied at startup
+├── assets/                        # Embedded GTK assets (CSS, icons)
+├── resources/                     # Non-localized resources (fonts)
+├── tests/                         # Integration tests
+├── docs/                          # Technical documentation
+├── Cargo.toml                     # Workspace root (resolver = "2")
+├── .cargo/config.toml             # Compiler flags + local patches
+├── scripts/run.sh                 # Production launcher
+├── scripts/run-dev.sh             # Development launcher
+├── scripts/install.sh             # Unified installer (OS detection)
+├── scripts/install-core.sh        # Shared Linux install library
+├── scripts/install-ubuntu.sh      # Ubuntu / Debian installer
+├── scripts/install-rhel.sh        # Fedora / RHEL / Rocky Linux installer
+├── scripts/remove.sh              # Unified uninstaller (OS detection)
+├── scripts/remove-core.sh         # Shared Linux uninstall library
+├── scripts/remove-ubuntu.sh       # Ubuntu / Debian uninstaller
+├── scripts/remove-rhel.sh         # Fedora / RHEL / Rocky Linux uninstaller
 └── docs/
 ```
+
+> **Premium**: `heelonvault-premium` lives in a separate private Git repository
+> (`ppaperso/HeelonVault-Premium`). It is referenced in `heelonvault-app`
+> as an optional git dependency (`features = ["licensing"]`). Community builds
+> never access the private repo.
 
 ## Startup Flow
 
@@ -129,8 +136,12 @@ HEELONVAULT_LOG_LEVEL=warn ./scripts/run.sh
 ## Validation
 
 ```bash
-cargo check
-cargo test
+# Community build
+cargo check --workspace
+cargo test --workspace
+
+# Premium build (requires access to the private repo, or local patch)
+cargo check -p heelonvault-app --features licensing
 ```
 
 ## Migration Notes
@@ -143,20 +154,19 @@ cargo test
 
 Context:
 
-- `cargo audit` reports unmaintained/yanked crates in the legacy PDF dependency chain.
-- Project policy now targets strict `0 warning` (no permanent allowlist).
+- `cargo audit` reported unmaintained/yanked crates in the legacy PDF dependency chain.
+- Project policy targets strict `0 warning` (no permanent allowlist).
 
-Decision:
+Current status:
 
-1. Replace legacy `genpdf` dependency with a maintained PDF architecture.
+- ✅ **RUSTSEC-2023-0071 eliminated**: the `rsa` crate (PKCS#1 v1.5 timing side-channel) was removed from the dependency tree when sqlx was upgraded from 0.8 to 0.9 (Phase 5e). `cargo audit` now reports **0 vulnerabilities** across 431 dependencies.
+- ⏳ **PDF**: the legacy `genpdf` dependency is still pending replacement (no active advisory today, but poorly maintained chain). The decision to replace it with a minimal internal PDF writer remains in effect.
+
+Decision for PDF:
+
+1. Replace `genpdf` with a maintained PDF architecture or a minimal internal writer.
 2. Remove unnecessary transitive dependency features that introduce risky crates.
 3. Enforce a CI-blocking policy for advisories, yanked crates, and unmaintained crates.
-
-Options evaluated:
-
-- legacy `genpdf`: rejected (obsolete chain, persistent audit warnings)
-- maintained `genpdf` forks: possible fast transition, but still tied to legacy PDF transitive stack
-- minimal internal PDF writer (no external PDF dependency): selected target to guarantee `cargo audit = 0 warning`
 
 Implementation constraints:
 

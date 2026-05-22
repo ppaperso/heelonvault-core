@@ -25,31 +25,38 @@ UI (gtk4/libadwaita)
 
 ## Structure active
 
+HeelonVault est organisé en **workspace Cargo** (modèle Open Core) :
+
 ```text
 HeelonVault/
-├── src/
-│   ├── main.rs                     # Bootstrap runtime + UI
-│   ├── ui/                         # Fenetres + dialogues GTK/adw
-│   ├── services/                   # Regles metier
-│   ├── repositories/               # Acces DB (SQLx)
-│   ├── models/                     # Types metier
-│   ├── config/                     # Constantes/config runtime
-│   └── errors.rs                   # Erreurs applicatives
-├── migrations/                     # Migrations SQL appliquees au demarrage
-├── tests/                          # Tests integration/securite
-├── Cargo.toml
-├── scripts/run.sh                  # Launcher production
-├── scripts/run-dev.sh              # Launcher developpement
-├── scripts/install.sh              # Installation unifiée (détection OS)
-├── scripts/install-core.sh         # Bibliothèque commune install Linux
-├── scripts/install-ubuntu.sh               # Installation Ubuntu / Debian
-├── scripts/install-rhel.sh                 # Installation Fedora / RHEL / Rocky / AlmaLinux
-├── scripts/remove.sh               # Désinstallation unifiée (détection OS)
-├── scripts/remove-core.sh          # Bibliothèque commune désinstallation Linux
-├── scripts/remove-ubuntu.sh                # Désinstallation Ubuntu / Debian
-├── scripts/remove-rhel.sh                  # Désinstallation Fedora / RHEL / Rocky / AlmaLinux
+├── crates/
+│   ├── heelonvault-core/          # Bibliothèque publique (crates.io v1.1.0)
+│   ├── heelonvault-app/           # Binaire GTK4 (assembleur Open Core)
+│   └── sqlx-shim/                 # Shim local SQLx (publish = false)
+├── migrations/                    # Migrations SQL appliquées au démarrage
+├── assets/                        # Assets GTK embarqués (CSS, icônes)
+├── resources/                     # Ressources non délocalisées (fonts)
+├── tests/                         # Tests d'intégration
+├── docs/                          # Documentation technique
+├── Cargo.toml                     # Workspace root (resolver = "2")
+├── .cargo/config.toml             # Flags de compilation + patches locaux
+├── scripts/run.sh                 # Launcher production
+├── scripts/run-dev.sh             # Launcher développement
+├── scripts/install.sh             # Installation unifiée (détection OS)
+├── scripts/install-core.sh        # Bibliothèque commune install Linux
+├── scripts/install-ubuntu.sh      # Installation Ubuntu / Debian
+├── scripts/install-rhel.sh        # Installation Fedora / RHEL / Rocky / AlmaLinux
+├── scripts/remove.sh              # Désinstallation unifiée (détection OS)
+├── scripts/remove-core.sh         # Bibliothèque commune désinstallation Linux
+├── scripts/remove-ubuntu.sh       # Désinstallation Ubuntu / Debian
+├── scripts/remove-rhel.sh         # Désinstallation Fedora / RHEL / Rocky / AlmaLinux
 └── docs/
 ```
+
+> **Premium** : `heelonvault-premium` est maintenu dans un dépôt Git privé séparé
+> (`ppaperso/HeelonVault-Premium`). Il est référencé dans `heelonvault-app`
+> comme dépendance git optionnelle (`features = ["licensing"]`). Le build
+> communautaire n'y accède jamais.
 
 ## Flux de demarrage
 
@@ -144,11 +151,15 @@ HEELONVAULT_LOG_LEVEL=warn ./scripts/run.sh
 
 ## Tests et validation
 
-Depuis la racine du dépôt:
+Depuis la racine du dépôt :
 
 ```bash
-cargo check
-cargo test
+# Build communautaire
+cargo check --workspace
+cargo test --workspace
+
+# Build premium (nécessite l'accès au dépôt privé ou le patch local)
+cargo check -p heelonvault-app --features licensing
 ```
 
 ## Notes migration
@@ -157,34 +168,33 @@ cargo test
 - Des artefacts legacy peuvent subsister (ex. repertoires vides), sans impact sur l'execution courante.
 - Les docs et scripts operationnels doivent rester alignes sur le flux Rust-only.
 
-## Decision architecture - Supply chain zero warning (P2)
+## Décision architecture - Supply chain zero warning (P2)
 
-Contexte:
+Contexte :
 
-- `cargo audit` remonte des crates non maintenues/yanked dans la chaine PDF historique.
-- La politique projet cible desormais `0 warning` (aucune allowlist permanente).
+- `cargo audit` remontait des crates non maintenues/yanked dans la chaîne PDF historique.
+- La politique projet cible `0 warning` (aucune allowlist permanente).
 
-Decision retenue:
+État courant :
 
-1. Remplacer la dependance `genpdf` historique par une architecture PDF maintenue.
-2. Supprimer les features de dependances transitive inutiles qui introduisent des crates a risque.
+- ✅ **RUSTSEC-2023-0071 éliminé** : le crate `rsa` (timing side-channel PKCS#1 v1.5) a été supprimé de l'arbre de dépendances lors de la mise à jour sqlx 0.8 → 0.9 (Phase 5e). `cargo audit` : **0 vulnérabilité** sur 431 dépendances.
+- ⏳ **PDF** : la dépendance `genpdf` historique reste à traiter (aucune advisory active à ce jour, mais chaîne peu maintenue). La décision de la remplacer par un writer PDF minimal interne est maintenue.
+
+Décision retenue pour PDF :
+
+1. Remplacer `genpdf` par une architecture PDF maintenue ou un writer interne minimal.
+2. Supprimer les features de dépendances transitives inutiles.
 3. Enforcer en CI une politique bloquante sur advisories, crates yanked et non maintenues.
 
-Options comparees:
+Contraintes d'implémentation :
 
-- `genpdf` historique: rejete (chaine obsolete, warnings audit persistants)
-- fork `genpdf` maintenu: option de transition rapide, mais dependances PDF historiques encore presentes
-- writer PDF interne minimal (sans dependance PDF externe): retenu pour implementation cible afin de garantir `cargo audit = 0 warning`
-
-Contraintes d'implementation:
-
-- conserver la generation de rapport d'audit PDF (pas de regression fonctionnelle);
-- conserver hash SHA-256 + signature Ed25519 dans le document;
+- conserver la génération de rapport d'audit PDF (pas de régression fonctionnelle) ;
+- conserver hash SHA-256 + signature Ed25519 dans le document ;
 - valider Linux/Fedora/macOS/Windows avant merge.
 
-Definition of done (obligatoire):
+Définition de done (obligatoire) :
 
-- `cargo audit` => 0 warning;
-- `cargo clippy --all-targets --all-features -- -D warnings` => OK;
-- CI multi-plateforme => verte;
-- aucune exception permanente ajoutee dans la policy.
+- `cargo audit` => 0 warning ;
+- `cargo clippy --all-targets --all-features -- -D warnings` => OK ;
+- CI multi-plateforme => verte ;
+- aucune exception permanente ajoutée dans la policy.

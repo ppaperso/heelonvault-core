@@ -2,12 +2,12 @@
 
 Langue : FR | [EN](QUICKSTART.md)
 
-Version rapide documentee : `1.0.0`
+Version rapide documentee : `1.1.0`
 
 ## 1. Verification du build
 
 ```bash
-cargo check
+cargo check --workspace
 ```
 
 ## 2. Lancement en developpement
@@ -27,7 +27,7 @@ Chemin de la base de developpement :
 ```bash
 cargo test secret_repository:: -- --nocapture
 cargo test secret_service:: -- --nocapture
-cargo test --test login_history_integration
+cargo test --workspace --test login_history_integration
 ```
 
 ## 3 bis. Verifications UI recommandees

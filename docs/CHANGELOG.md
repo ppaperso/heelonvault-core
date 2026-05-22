@@ -9,6 +9,27 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — Sprint v1.1.0
 
+### Infrastructure — Polyrepo Open Core (Phase 5f)
+
+- `heelonvault-core v1.1.0` publié sur [crates.io](https://crates.io/crates/heelonvault-core) : la bibliothèque cœur est désormais un artefact public réutilisable.
+- `heelonvault-premium` extrait dans un dépôt privé séparé (`ppaperso/HeelonVault-Premium`) : le code premium n'est plus exposé dans le dépôt public.
+- `heelonvault-app` référence le premium via dépendance git optionnelle ; le build communautaire (`cargo check --workspace`) ne télécharge jamais le dépôt privé.
+- `.cargo/config.toml` : patches locaux configurés pour le développement conjoint (pas de réseau requis en local).
+- VSCode workspace mis à jour en mode multi-root (HeelonVault + HeelonVault-Premium).
+
+### Infrastructure — Mise à jour SQLx 0.8 → 0.9 et élimination RSA (Phase 5e)
+
+- Dépendance `sqlx` passée de `0.8` à `0.9` dans `heelonvault-core` et `sqlx-shim` (API compatible, aucune modification applicative).
+- **Vulnérabilité RUSTSEC-2023-0071 éliminée** : le crate `rsa` (timing side-channel sur PKCS#1 v1.5) était une dépendance transitive de sqlx 0.8 ; il n'est plus présent dans l'arbre de dépendances.
+- `cargo audit` : 0 vulnérabilités actives (431 dépendances analysées).
+
+### Infrastructure — MSRV 1.94 → 1.95
+
+- `rust-version = "1.95"` aligné dans les 4 membres du workspace (`heelonvault-core`, `heelonvault-app`, `heelonvault-premium`, `sqlx-shim`).
+- Toolchain stable mise à jour à `1.95.0` (rustc 59807616e, 2026-04-14).
+- Aucun nouveau lint Clippy à corriger avec 1.95.0.
+
+
 ### Badge d'état PIN et minuteur de session
 
 - Ajout d'un badge cliquable **« PIN actif »** dans la barre de titre, synchronisé en temps réel avec l'état du cache PIN.
