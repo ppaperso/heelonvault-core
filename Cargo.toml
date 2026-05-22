@@ -2,6 +2,7 @@
 members = [
     "crates/heelonvault-core",
     "crates/heelonvault-app",
+    "crates/heelonvault-premium",
     "crates/sqlx-shim",
 ]
 resolver = "2"

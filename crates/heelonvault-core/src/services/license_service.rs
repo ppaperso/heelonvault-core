@@ -474,8 +474,17 @@ impl LicenseService {
     }
 
     #[cfg(test)]
-    pub(crate) fn set_cached_license_for_tests(&mut self, license: License) {
+    pub fn set_cached_license_for_tests(&mut self, license: License) {
         self.cached_license = Some(license);
+    }
+
+    /// Creates a `LicenseService` with a pre-loaded license.
+    /// Intended for use in integration tests from external crates (e.g. heelonvault-premium).
+    #[doc(hidden)]
+    pub fn new_with_cached_license(license: License) -> Self {
+        let mut s = Self::new();
+        s.cached_license = Some(license);
+        s
     }
 }
 

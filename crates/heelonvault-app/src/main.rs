@@ -49,12 +49,8 @@ use heelonvault_core::repositories::team_repository::SqlxTeamRepository;
 use heelonvault_core::repositories::user_repository::{SqlxUserRepository, UserRepository};
 use heelonvault_core::repositories::vault_repository::SqlxVaultRepository;
 use heelonvault_core::services::admin_service::bootstrap_first_admin;
-#[cfg(feature = "premium")]
-use heelonvault_core::services::admin_service::AdminServiceImpl;
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::admin_service::CommunityAdminService;
-#[cfg(feature = "premium")]
-use heelonvault_core::services::audit_log_service::AuditLogServiceImpl;
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::audit_log_service::NoOpAuditLogService;
 #[cfg(feature = "premium")]
@@ -73,11 +69,15 @@ use heelonvault_core::services::password_service::PasswordServiceImpl;
 use heelonvault_core::services::secret_service::SecretServiceImpl;
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::team_service::CommunityTeamService;
-#[cfg(feature = "premium")]
-use heelonvault_core::services::team_service::TeamServiceImpl;
 use heelonvault_core::services::totp_service::SqliteTotpService;
 use heelonvault_core::services::user_service::{UserService, UserServiceImpl};
 use heelonvault_core::services::vault_service::{VaultKeyEnvelopeRepository, VaultServiceImpl};
+#[cfg(feature = "premium")]
+use heelonvault_premium::services::admin_service_impl::AdminServiceImpl;
+#[cfg(feature = "premium")]
+use heelonvault_premium::services::audit_log_service_impl::AuditLogServiceImpl;
+#[cfg(feature = "premium")]
+use heelonvault_premium::services::team_service_impl::TeamServiceImpl;
 use uuid::Uuid;
 
 type VaultServiceHandle = VaultServiceImpl<

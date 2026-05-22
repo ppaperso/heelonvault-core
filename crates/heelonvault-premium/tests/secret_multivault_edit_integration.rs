@@ -1,5 +1,4 @@
 #![allow(clippy::disallowed_methods)]
-#![cfg(feature = "premium")]
 
 use std::sync::Arc;
 
@@ -10,13 +9,13 @@ use heelonvault_core::repositories::secret_repository::SqlxSecretRepository;
 use heelonvault_core::repositories::team_repository::SqlxTeamRepository;
 use heelonvault_core::repositories::user_repository::{SqlxUserRepository, UserRepository};
 use heelonvault_core::repositories::vault_repository::SqlxVaultRepository;
-use heelonvault_core::services::audit_log_service::AuditLogServiceImpl;
 use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl};
 use heelonvault_core::services::crypto_service::CryptoServiceImpl;
 use heelonvault_core::services::secret_service::{SecretService, SecretServiceImpl};
 use heelonvault_core::services::vault_service::{
     VaultKeyEnvelopeRepository, VaultService, VaultServiceImpl,
 };
+use heelonvault_premium::services::audit_log_service_impl::AuditLogServiceImpl;
 use secrecy::{ExposeSecret, SecretBox};
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::{Row, SqlitePool};

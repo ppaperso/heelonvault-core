@@ -16,12 +16,13 @@ path = "src/main.rs"
 # C'est le SEUL endroit où l'édition compilée est décidée.
 [features]
 default   = []
-premium   = ["heelonvault-core/premium"]
+premium   = ["dep:heelonvault-premium", "heelonvault-core/premium"]
 licensing = ["premium", "heelonvault-core/licensing"]
 
 [dependencies]
 # Core library locale (aucun cycle possible : core ne dépend pas d'app)
-heelonvault-core = { path = "../heelonvault-core" }
+heelonvault-core    = { path = "../heelonvault-core" }
+heelonvault-premium = { path = "../heelonvault-premium", optional = true }
 
 # Dépendances directes de main.rs (wiring des services, assembly layer)
 # Ces crates sont aussi dans heelonvault-core mais Cargo n'exporte pas

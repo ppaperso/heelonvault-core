@@ -2,8 +2,6 @@ pub mod access_control;
 pub mod admin_service;
 pub mod audit_log_service;
 pub mod audit_report_provider;
-#[cfg(feature = "premium")]
-pub mod audit_report_service;
 pub mod audit_service;
 pub mod auth_policy_service;
 pub mod auth_service;

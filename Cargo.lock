@@ -1437,6 +1437,7 @@ dependencies = [
  "glib-build-tools",
  "gtk4",
  "heelonvault-core",
+ "heelonvault-premium",
  "hex",
  "libadwaita",
  "secrecy",
@@ -1493,6 +1494,25 @@ dependencies = [
  "uuid",
  "zeroize",
  "zxcvbn",
+]
+
+[[package]]
+name = "heelonvault-premium"
+version = "1.1.0"
+dependencies = [
+ "chrono",
+ "dirs",
+ "getrandom 0.3.4",
+ "heelonvault-core",
+ "hex",
+ "secrecy",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
