@@ -1218,6 +1218,52 @@
         margin-bottom: 0;
     }
 
+    headerbar button.header-pin-badge {
+        padding: 0;
+        min-height: 0;
+        min-width: 0;
+        border-radius: 999px;
+        box-shadow: none;
+    }
+
+    headerbar button.header-pin-badge:hover label {
+        box-shadow: 0 2px 6px rgba(7, 57, 58, 0.20);
+        filter: brightness(0.95);
+    }
+
+    /* Override pill colors for the dark header background */
+    headerbar button.header-pin-badge label.status-role-user {
+        background: rgba(255, 255, 255, 0.20);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    headerbar button.header-pin-badge label.status-role-disabled {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    /* Warning state (≤ 2 h, > 15 min) — amber ring */
+    headerbar button.header-pin-badge label.status-role-user.pin-status-warning {
+        background: rgba(255, 180, 30, 0.14);
+        color: #FFD580;
+        border: 1px solid rgba(255, 180, 30, 0.55);
+    }
+
+    /* Critical state (≤ 15 min) — amber filled + pulse */
+    headerbar button.header-pin-badge label.status-role-user.pin-status-critical {
+        background: rgba(255, 155, 0, 0.26);
+        color: #FFE47F;
+        border: 1px solid rgba(255, 180, 30, 0.70);
+        animation: pin-badge-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pin-badge-pulse {
+        0%, 100% { opacity: 1.0; }
+        50%       { opacity: 0.65; }
+    }
+
     headerbar .heelonys-seal-compact {
         padding: 3px 7px;
         border-radius: 8px;

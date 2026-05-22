@@ -38,6 +38,7 @@ pub(crate) fn build_profile_view<
     show_passwords_in_edit_pref: Rc<Cell<bool>>,
     on_import_completed_refresh: Rc<dyn Fn()>,
     on_language_changed: Rc<dyn Fn()>,
+    on_pin_state_changed: Rc<dyn Fn(bool)>,
 ) -> ProfileViewWidgets
 where
     TUser: UserService + Send + Sync + 'static,
