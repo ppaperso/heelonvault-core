@@ -2,6 +2,8 @@
 /target/
 /**/*.rs.bk
 /Cargo.lock.bak
+# Binaire de développement copié depuis target/release/
+/heelonvault
 
 # Database files (SENSITIVE)
 *.db
