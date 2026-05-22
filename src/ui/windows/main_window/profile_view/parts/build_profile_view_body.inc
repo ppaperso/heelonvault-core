@@ -1121,6 +1121,7 @@
     let session_for_pin = Rc::clone(&session_master_key);
     let pin_cache_for_setup = Rc::clone(&pin_cache);
     let pin_status_badge_for_setup = pin_status_badge.clone();
+    let on_pin_state_for_setup = Rc::clone(&on_pin_state_changed);
     pin_setup_button.connect_clicked(move |_| {
         let key_snapshot = {
             let k = session_for_pin.borrow();
@@ -1132,8 +1133,10 @@
         let currently_active = pin_cache_for_setup.borrow().is_some();
         let pin_cache_for_created = Rc::clone(&pin_cache_for_setup);
         let badge_for_created = pin_status_badge_for_setup.clone();
+        let on_pin_state_for_created = Rc::clone(&on_pin_state_for_setup);
         let pin_cache_for_disabled = Rc::clone(&pin_cache_for_setup);
         let badge_for_disabled = pin_status_badge_for_setup.clone();
+        let on_pin_state_for_disabled = Rc::clone(&on_pin_state_for_setup);
         let dialog = crate::ui::dialogs::pin_setup_dialog::PinSetupDialog::new(
             &win_for_pin,
             key_snapshot,
@@ -1143,12 +1146,14 @@
                 badge_for_created.set_text(crate::tr!("pin-status-active").as_str());
                 badge_for_created.remove_css_class("status-role-disabled");
                 badge_for_created.add_css_class("status-role-user");
+                on_pin_state_for_created(true);
             },
             move || {
                 let _ = pin_cache_for_disabled.borrow_mut().take();
                 badge_for_disabled.set_text(crate::tr!("pin-status-inactive").as_str());
                 badge_for_disabled.remove_css_class("status-role-user");
                 badge_for_disabled.add_css_class("status-role-disabled");
+                on_pin_state_for_disabled(false);
             },
             currently_active,
         );

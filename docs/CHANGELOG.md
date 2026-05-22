@@ -9,6 +9,22 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — Sprint v1.1.0
 
+### Badge d'état PIN et minuteur de session
+
+- Ajout d'un badge cliquable **« PIN actif »** dans la barre de titre, synchronisé en temps réel avec l'état du cache PIN.
+- Trois états visuels progressifs selon le temps restant :
+  - **Nominal** (> 2 h) : badge blanc semi-transparent standard.
+  - **Avertissement** (≤ 2 h, > 15 min) : bordure et texte ambre — indication visuelle de renouvellement conseillé.
+  - **Critique** (≤ 15 min) : fond ambre rempli, texte « PIN · Xm », animation `pulse` 2 s.
+- Infobulle permanente sur le badge : _« Session sécurisée par PIN — Expire dans Xh Ym »_.
+- Timer GLib 60 s géré par fermeture interne (`glib::timeout_add_local`) : annulation propre via `SourceId::remove()` à chaque chemin de sortie (déconnexion, épuisement des tentatives, quitter).
+- Cycle de vie étanche : badge et timer se réinitialisent immédiatement sur tout chemin de sortie ; le double-remove est prévenu par mise à `None` du `SourceId` avant le retour `Break`.
+- Méthode `PinCache::remaining(hard_timeout) -> Duration` ajoutée (retourne `ZERO` si déjà expiré).
+- Correction : couleur du texte badge illisible sur le fond sombre de la barre de titre (règles CSS `headerbar button.header-pin-badge label`).
+- Correction : badge restait « PIN actif » après expiration automatique du cache (synchronisation via `on_pin_state_cb`).
+- Correction : bouton « Quitter l'application » manquant sur la fenêtre de déverrouillage PIN.
+- Localisation FR/EN : nouvelle clé `pin-tooltip-secure`.
+
 ### Déverrouillage rapide par code PIN
 
 - Nouveau service `pin_cache_service` : cache en mémoire de la clé maître protégée par Argon2id (8 Mio, t=3) + AES-256-GCM, jamais persisté sur disque.

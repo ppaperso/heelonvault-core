@@ -9,6 +9,22 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — v1.1.0 sprint
 
+### PIN status badge and session countdown timer
+
+- Added a clickable **"PIN active"** badge in the title bar, kept in real-time sync with the PIN cache state.
+- Three progressive visual states based on remaining session time:
+  - **Nominal** (> 2 h): standard semi-transparent white badge.
+  - **Warning** (≤ 2 h, > 15 min): amber border and text — visual cue that session renewal is advisable.
+  - **Critical** (≤ 15 min): amber-filled badge, text changes to "PIN · Xm", 2-second `pulse` animation.
+- Permanent tooltip on the badge: _"PIN-secured session — Expires in Xh Ym"_.
+- 60-second GLib timer managed by an inner closure (`glib::timeout_add_local`): cleanly cancelled via `SourceId::remove()` on every exit path (logout, cache exhaustion, quit).
+- Hermetic lifecycle: badge and timer are reset immediately on every exit path; double-remove is prevented by setting `SourceId` to `None` before returning `Break`.
+- Added `PinCache::remaining(hard_timeout) -> Duration` method (returns `ZERO` if already expired).
+- Fix: badge text was unreadable against the dark title-bar background (CSS rules for `headerbar button.header-pin-badge label`).
+- Fix: badge remained "PIN active" after automatic cache expiry (synced via `on_pin_state_cb`).
+- Fix: missing "Quit application" button on the PIN unlock dialog.
+- FR/EN localization: new key `pin-tooltip-secure`.
+
 ### PIN Quick-Unlock
 
 - New `pin_cache_service`: in-memory master-key cache protected by Argon2id (8 MiB, t=3) + AES-256-GCM, never persisted to disk.

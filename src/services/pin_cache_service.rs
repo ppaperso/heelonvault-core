@@ -137,6 +137,12 @@ impl PinCache {
         self.created_at.elapsed() >= hard_timeout
     }
 
+    /// Returns the time remaining before the hard-timeout expires.
+    /// Returns `Duration::ZERO` if the cache is already expired.
+    pub fn remaining(&self, hard_timeout: Duration) -> Duration {
+        hard_timeout.saturating_sub(self.created_at.elapsed())
+    }
+
     /// The user-id this cache is bound to.
     pub fn user_id(&self) -> Uuid {
         self.user_id

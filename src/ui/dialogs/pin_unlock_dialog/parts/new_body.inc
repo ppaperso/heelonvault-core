@@ -94,6 +94,13 @@
     fallback_button.set_hexpand(true);
     btn_row.append(&fallback_button);
 
+    let quit_button =
+        gtk4::Button::with_label(crate::tr!("pin-quit-application").as_str());
+    quit_button.add_css_class("flat");
+    quit_button.add_css_class("pin-quit-btn");
+    quit_button.set_hexpand(true);
+    btn_row.append(&quit_button);
+
     body.append(&btn_row);
     root.append(&body);
     window.set_child(Some(&root));
@@ -194,6 +201,19 @@
         main_for_fallback.clear_pin_cache();
         win_for_fallback.close();
         on_use_master_password();
+    });
+
+    // ── Quit button ──────────────────────────────────────────────────────
+    let main_for_quit = Rc::clone(&main);
+    let win_for_quit = window.clone();
+    let parent_for_quit = parent.clone();
+    quit_button.connect_clicked(move |_| {
+        let app = parent_for_quit.application();
+        main_for_quit.clear_sensitive_session();
+        win_for_quit.close();
+        if let Some(app) = app {
+            app.quit();
+        }
     });
 
     Self { window }

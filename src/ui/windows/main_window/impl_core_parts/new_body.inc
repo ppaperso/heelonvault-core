@@ -22,6 +22,7 @@
         let on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
         let on_pin_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
         let on_logout: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
+        let on_pin_state_cb: Rc<RefCell<Option<Rc<dyn Fn(bool)>>>> = Rc::new(RefCell::new(None));
         let pin_cache: Rc<RefCell<Option<crate::services::pin_cache_service::PinCache>>> = Rc::new(RefCell::new(None));
         let critical_ops_in_flight = Rc::new(Cell::new(0_u32));
         let audit_report_service = Arc::new(AuditReportService::new(
@@ -168,6 +169,167 @@
             .spacing(6)
             .build();
         user_identity_box.append(&profile_button);
+
+        // ── PIN status badge (header bar) ─────────────────────────────────────
+        let header_pin_label = gtk4::Label::new(Some(
+            crate::tr!("pin-status-inactive").as_str(),
+        ));
+        header_pin_label.add_css_class("status-role-pill");
+        header_pin_label.add_css_class("header-badge");
+        header_pin_label.add_css_class("status-role-disabled");
+        let header_pin_btn = gtk4::Button::new();
+        header_pin_btn.add_css_class("flat");
+        header_pin_btn.add_css_class("header-pin-badge");
+        header_pin_btn.set_child(Some(&header_pin_label));
+        // ── PIN badge state helpers ────────────────────────────────────────────
+        fn fmt_pin_remaining(secs: u64) -> String {
+            let h = secs / 3600;
+            let m = (secs % 3600) / 60;
+            if h > 0 { format!("{h}h {m:02}m") } else { format!("{}m", m.max(1)) }
+        }
+        fn apply_pin_badge_visual(
+            label: &gtk4::Label,
+            btn: &gtk4::Button,
+            remaining_secs: u64,
+        ) {
+            const WARN_SECS: u64 = 2 * 3600;
+            const CRIT_SECS: u64 = 15 * 60;
+            label.remove_css_class("pin-status-nominal");
+            label.remove_css_class("pin-status-warning");
+            label.remove_css_class("pin-status-critical");
+            if remaining_secs > WARN_SECS {
+                label.set_text(crate::tr!("pin-status-active").as_str());
+                label.add_css_class("pin-status-nominal");
+            } else if remaining_secs > CRIT_SECS {
+                label.set_text(crate::tr!("pin-status-active").as_str());
+                label.add_css_class("pin-status-warning");
+            } else {
+                let m = (remaining_secs / 60).max(1);
+                label.set_text(&format!("PIN · {m}m"));
+                label.add_css_class("pin-status-critical");
+            }
+            let remaining_str = fmt_pin_remaining(remaining_secs);
+            btn.set_tooltip_text(Some(
+                crate::i18n::tr_args(
+                    "pin-tooltip-secure",
+                    &[("remaining", crate::i18n::I18nArg::Str(remaining_str.as_str()))],
+                )
+                .as_str(),
+            ));
+        }
+
+        let pin_badge_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
+        let header_pin_label_for_state = header_pin_label.clone();
+        let header_pin_btn_for_state = header_pin_btn.clone();
+        let pin_badge_timer_for_state = Rc::clone(&pin_badge_timer);
+        let pin_cache_for_state = Rc::clone(&pin_cache);
+        let on_pin_state_changed: Rc<dyn Fn(bool)> = Rc::new(move |active: bool| {
+            if active {
+                header_pin_label_for_state.remove_css_class("status-role-disabled");
+                header_pin_label_for_state.add_css_class("status-role-user");
+                let remaining_secs = pin_cache_for_state
+                    .borrow()
+                    .as_ref()
+                    .map(|c| {
+                        c.remaining(
+                            crate::ui::dialogs::pin_unlock_dialog::PIN_HARD_TIMEOUT,
+                        )
+                        .as_secs()
+                    })
+                    .unwrap_or(43200);
+                apply_pin_badge_visual(
+                    &header_pin_label_for_state,
+                    &header_pin_btn_for_state,
+                    remaining_secs,
+                );
+                // Cancel any running timer before starting a fresh one
+                if let Some(old) = pin_badge_timer_for_state.borrow_mut().take() {
+                    old.remove();
+                }
+                let label_for_tick = header_pin_label_for_state.clone();
+                let btn_for_tick = header_pin_btn_for_state.clone();
+                let cache_for_tick = Rc::clone(&pin_cache_for_state);
+                let timer_for_tick = Rc::clone(&pin_badge_timer_for_state);
+                let source_id = glib::timeout_add_local(
+                    std::time::Duration::from_secs(60),
+                    move || {
+                        let rem = cache_for_tick
+                            .borrow()
+                            .as_ref()
+                            .map(|c| {
+                                c.remaining(
+                                    crate::ui::dialogs::pin_unlock_dialog::PIN_HARD_TIMEOUT,
+                                )
+                                .as_secs()
+                            })
+                            .unwrap_or(0);
+                        if rem == 0 {
+                            label_for_tick
+                                .set_text(crate::tr!("pin-status-inactive").as_str());
+                            label_for_tick.remove_css_class("status-role-user");
+                            label_for_tick.add_css_class("status-role-disabled");
+                            label_for_tick.remove_css_class("pin-status-nominal");
+                            label_for_tick.remove_css_class("pin-status-warning");
+                            label_for_tick.remove_css_class("pin-status-critical");
+                            btn_for_tick.set_tooltip_text(None);
+                            *timer_for_tick.borrow_mut() = None;
+                            return glib::ControlFlow::Break;
+                        }
+                        apply_pin_badge_visual(&label_for_tick, &btn_for_tick, rem);
+                        glib::ControlFlow::Continue
+                    },
+                );
+                *pin_badge_timer_for_state.borrow_mut() = Some(source_id);
+            } else {
+                if let Some(source) = pin_badge_timer_for_state.borrow_mut().take() {
+                    source.remove();
+                }
+                header_pin_label_for_state
+                    .set_text(crate::tr!("pin-status-inactive").as_str());
+                header_pin_label_for_state.remove_css_class("status-role-user");
+                header_pin_label_for_state.add_css_class("status-role-disabled");
+                header_pin_label_for_state.remove_css_class("pin-status-nominal");
+                header_pin_label_for_state.remove_css_class("pin-status-warning");
+                header_pin_label_for_state.remove_css_class("pin-status-critical");
+                header_pin_btn_for_state.set_tooltip_text(None);
+            }
+        });
+        *on_pin_state_cb.borrow_mut() = Some(Rc::clone(&on_pin_state_changed));
+        let win_for_header_pin = window.clone();
+        let session_for_header_pin = Rc::clone(&session_master_key);
+        let pin_cache_for_header_pin = Rc::clone(&pin_cache);
+        let on_pin_state_for_header = Rc::clone(&on_pin_state_changed);
+        header_pin_btn.connect_clicked(move |_| {
+            let key_snapshot = {
+                let k = session_for_header_pin.borrow();
+                if k.is_empty() {
+                    return;
+                }
+                secrecy::SecretBox::new(Box::new(k.clone()))
+            };
+            let currently_active = pin_cache_for_header_pin.borrow().is_some();
+            let cache_for_created = Rc::clone(&pin_cache_for_header_pin);
+            let state_for_created = Rc::clone(&on_pin_state_for_header);
+            let cache_for_disabled = Rc::clone(&pin_cache_for_header_pin);
+            let state_for_disabled = Rc::clone(&on_pin_state_for_header);
+            let dialog = crate::ui::dialogs::pin_setup_dialog::PinSetupDialog::new(
+                &win_for_header_pin,
+                key_snapshot,
+                admin_user_id,
+                move |new_cache| {
+                    *cache_for_created.borrow_mut() = Some(new_cache);
+                    state_for_created(true);
+                },
+                move || {
+                    let _ = cache_for_disabled.borrow_mut().take();
+                    state_for_disabled(false);
+                },
+                currently_active,
+            );
+            dialog.present();
+        });
+        user_identity_box.append(&header_pin_btn);
+
         if is_admin {
             let admin_badge = gtk4::Label::new(Some(crate::tr!("main-admin-badge").as_str()));
             admin_badge.add_css_class("header-badge");
@@ -951,6 +1113,7 @@
             Rc::clone(&show_passwords_in_edit_pref),
             Rc::clone(&refresh_list),
             Rc::clone(&on_main_i18n_refresh_bridge),
+            Rc::clone(&on_pin_state_changed),
         );
         center_panel.main_stack.add_titled(
             &profile_view.container,
@@ -1903,6 +2066,7 @@
             on_auto_lock,
             on_pin_lock,
             on_logout,
+            on_pin_state_cb,
             session_user_id: admin_user_id,
             audit_service: Rc::new(audit_service),
         }

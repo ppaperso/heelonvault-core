@@ -279,6 +279,18 @@ HeelonVault provides a PIN-based quick-unlock to avoid retyping the master passw
 
 - From the profile, click "Disable PIN" to wipe the cache immediately.
 
+**Session-time indicator in the title bar**:
+
+When the PIN is active, a "PIN active" badge appears in the application title bar. The badge changes appearance based on the time remaining before the cache expires:
+
+- **Nominal** (more than 2 hours remaining): standard semi-transparent white text, normal behaviour.
+- **Warning** (between 15 min and 2 h): amber border and text — consider logging out and back in to renew the session if needed.
+- **Critical** (less than 15 min): amber-filled badge with a pulsing animation, text shows "PIN · Xm" (X = minutes remaining). The cache will expire within the displayed minute count.
+
+Hovering over the badge shows a tooltip with the exact time remaining (e.g. "Expires in 1h 23m"). Clicking the badge opens the PIN management panel in the profile view.
+
+The badge and its countdown timer are automatically removed when the cache expires, when the session is unlocked with the master password, or when the application is closed.
+
 **Security boundaries to keep in mind**:
 
 - The PIN does not replace the master password; it only speeds up session unlock.
