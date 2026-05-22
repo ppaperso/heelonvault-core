@@ -1427,11 +1427,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
-name = "heelonvault-rust"
+name = "heelonvault-app"
+version = "1.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dirs",
+ "gio",
+ "glib-build-tools",
+ "gtk4",
+ "heelonvault-core",
+ "libadwaita",
+ "secrecy",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "heelonvault-core"
 version = "1.1.0"
 dependencies = [
  "aes-gcm",
- "anyhow",
  "argon2",
  "base64",
  "bip39",
@@ -1444,7 +1464,6 @@ dependencies = [
  "fluent-templates",
  "getrandom 0.3.4",
  "gio",
- "glib-build-tools",
  "gtk4",
  "hex",
  "image",
@@ -1463,7 +1482,6 @@ dependencies = [
  "tokio",
  "totp-rs",
  "tracing",
- "tracing-appender",
  "tracing-subscriber",
  "trait-variant",
  "unic-langid",

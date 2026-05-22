@@ -1,0 +1,56 @@
+[package]
+name = "heelonvault-app"
+version = "1.1.0"
+edition = "2021"
+rust-version = "1.80"
+authors = ["ppaperso <ppaperso@users.noreply.github.com>"]
+license = "Apache-2.0"
+description = "HeelonVault — Binaire GTK4/Libadwaita (assembleur Open Core)"
+repository = "https://github.com/ppaperso/HeelonVault"
+
+[[bin]]
+name = "heelonvault"
+path = "src/main.rs"
+
+# Les features sont activées ici par l'assembleur et propagées vers heelonvault-core.
+# C'est le SEUL endroit où l'édition compilée est décidée.
+[features]
+default   = []
+premium   = ["heelonvault-core/premium"]
+licensing = ["premium", "heelonvault-core/licensing"]
+
+[dependencies]
+# Core library locale (aucun cycle possible : core ne dépend pas d'app)
+heelonvault-core = { path = "../heelonvault-core" }
+
+# Dépendances directes de main.rs (wiring des services, assembly layer)
+# Ces crates sont aussi dans heelonvault-core mais Cargo n'exporte pas
+# les transitive deps — le binaire doit les déclarer explicitement.
+sqlx    = { path = "../sqlx-shim" }
+secrecy = "0.10"
+chrono  = { version = "0.4", features = ["std"] }
+uuid    = { version = "1.16", features = ["serde", "v4"] }
+dirs    = "5.0"
+
+# --- UI — GTK4 / Libadwaita ---
+gtk4       = "0.9"
+libadwaita = { version = "0.7", features = ["v1_2", "v1_4"] }
+gio        = "0.20"
+
+# --- Glue binaire / point d'entrée ---
+# anyhow : uniquement dans main.rs pour la glue de haut niveau.
+# thiserror reste dans heelonvault-core pour les types de bibliothèque.
+anyhow = "1.0"
+tokio  = { version = "1.44", features = ["macros", "rt-multi-thread"] }
+
+# --- Instrumentation ---
+tracing = "0.1"
+# Initialisation du système de logs : uniquement dans le binaire, jamais dans
+# une bibliothèque.
+tracing-appender    = "0.2"
+tracing-subscriber  = { version = "0.3", features = ["env-filter", "fmt", "json", "time"] }
+
+[build-dependencies]
+# Compilation des ressources GTK GLib (gresources.xml → .gresource)
+# Note Phase 4b : build.rs devra référencer ../../assets/ depuis crates/heelonvault-app/
+glib-build-tools = "0.20"

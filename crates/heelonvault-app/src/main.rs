@@ -30,52 +30,52 @@ use tracing_subscriber::fmt::time::FormatTime;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
-use heelonvault_rust::config::constants::APP_ID;
-use heelonvault_rust::errors::AppError;
-use heelonvault_rust::models::UserRole;
+use heelonvault_core::config::constants::APP_ID;
+use heelonvault_core::errors::AppError;
+use heelonvault_core::models::UserRole;
 #[cfg(feature = "premium")]
-use heelonvault_rust::repositories::audit_log_repository::SqlxAuditLogRepository;
-use heelonvault_rust::repositories::secret_repository::SqlxSecretRepository;
-use heelonvault_rust::repositories::team_repository::SqlxTeamRepository;
-use heelonvault_rust::repositories::user_repository::{SqlxUserRepository, UserRepository};
-use heelonvault_rust::repositories::vault_repository::SqlxVaultRepository;
-use heelonvault_rust::services::admin_service::bootstrap_first_admin;
+use heelonvault_core::repositories::audit_log_repository::SqlxAuditLogRepository;
+use heelonvault_core::repositories::secret_repository::SqlxSecretRepository;
+use heelonvault_core::repositories::team_repository::SqlxTeamRepository;
+use heelonvault_core::repositories::user_repository::{SqlxUserRepository, UserRepository};
+use heelonvault_core::repositories::vault_repository::SqlxVaultRepository;
+use heelonvault_core::services::admin_service::bootstrap_first_admin;
 #[cfg(feature = "premium")]
-use heelonvault_rust::services::admin_service::AdminServiceImpl;
+use heelonvault_core::services::admin_service::AdminServiceImpl;
 #[cfg(not(feature = "premium"))]
-use heelonvault_rust::services::admin_service::CommunityAdminService;
+use heelonvault_core::services::admin_service::CommunityAdminService;
 #[cfg(feature = "premium")]
-use heelonvault_rust::services::audit_log_service::AuditLogServiceImpl;
+use heelonvault_core::services::audit_log_service::AuditLogServiceImpl;
 #[cfg(not(feature = "premium"))]
-use heelonvault_rust::services::audit_log_service::NoOpAuditLogService;
+use heelonvault_core::services::audit_log_service::NoOpAuditLogService;
 #[cfg(feature = "premium")]
-use heelonvault_rust::services::audit_service::AuditAction;
-use heelonvault_rust::services::audit_service::AuditService;
-use heelonvault_rust::services::auth_policy_service::{AuthPolicyService, SqlxAuthPolicyService};
-use heelonvault_rust::services::auth_service::{AuthService, AuthServiceImpl};
-use heelonvault_rust::services::backup_application_service::BackupApplicationServiceImpl;
-use heelonvault_rust::services::backup_service::{BackupService, BackupServiceImpl};
-use heelonvault_rust::services::crypto_service::CryptoServiceImpl;
-use heelonvault_rust::services::import_service::ImportServiceImpl;
+use heelonvault_core::services::audit_service::AuditAction;
+use heelonvault_core::services::audit_service::AuditService;
+use heelonvault_core::services::auth_policy_service::{AuthPolicyService, SqlxAuthPolicyService};
+use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl};
+use heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl;
+use heelonvault_core::services::backup_service::{BackupService, BackupServiceImpl};
+use heelonvault_core::services::crypto_service::CryptoServiceImpl;
+use heelonvault_core::services::import_service::ImportServiceImpl;
 #[cfg(feature = "licensing")]
-use heelonvault_rust::services::license_service::LicenseService;
-use heelonvault_rust::services::login_history_service::record_successful_login;
-use heelonvault_rust::services::password_service::PasswordServiceImpl;
-use heelonvault_rust::services::secret_service::SecretServiceImpl;
+use heelonvault_core::services::license_service::LicenseService;
+use heelonvault_core::services::login_history_service::record_successful_login;
+use heelonvault_core::services::password_service::PasswordServiceImpl;
+use heelonvault_core::services::secret_service::SecretServiceImpl;
 #[cfg(not(feature = "premium"))]
-use heelonvault_rust::services::team_service::CommunityTeamService;
+use heelonvault_core::services::team_service::CommunityTeamService;
 #[cfg(feature = "premium")]
-use heelonvault_rust::services::team_service::TeamServiceImpl;
-use heelonvault_rust::services::totp_service::SqliteTotpService;
-use heelonvault_rust::services::user_service::{UserService, UserServiceImpl};
-use heelonvault_rust::services::vault_service::{VaultKeyEnvelopeRepository, VaultServiceImpl};
-use heelonvault_rust::ui::dialogs::login_dialog::{
+use heelonvault_core::services::team_service::TeamServiceImpl;
+use heelonvault_core::services::totp_service::SqliteTotpService;
+use heelonvault_core::services::user_service::{UserService, UserServiceImpl};
+use heelonvault_core::services::vault_service::{VaultKeyEnvelopeRepository, VaultServiceImpl};
+use heelonvault_core::ui::dialogs::login_dialog::{
     AuthenticatedSession, BootstrapServicesContext, LoginDialog,
 };
-use heelonvault_rust::ui::dialogs::pin_unlock_dialog::{
+use heelonvault_core::ui::dialogs::pin_unlock_dialog::{
     PinUnlockDialog, PIN_HARD_TIMEOUT as DIALOG_PIN_HARD_TIMEOUT,
 };
-use heelonvault_rust::ui::windows::main_window::MainWindow;
+use heelonvault_core::ui::windows::main_window::MainWindow;
 use uuid::Uuid;
 
 type VaultServiceHandle = VaultServiceImpl<
@@ -411,8 +411,8 @@ fn run_application(
                 ._license_service
                 .get_cached()
                 .map(|license| match license.tier {
-                    heelonvault_rust::models::LicenseTier::Community => "Licence free".to_string(),
-                    heelonvault_rust::models::LicenseTier::Professional => {
+                    heelonvault_core::models::LicenseTier::Community => "Licence free".to_string(),
+                    heelonvault_core::models::LicenseTier::Professional => {
                         format!("Licence pro - {}", license.customer_name)
                     }
                 })
@@ -508,12 +508,12 @@ fn run_application(
                     );
                     let is_admin = user_profile
                         .as_ref()
-                        .map(|u| matches!(u.role, heelonvault_rust::models::UserRole::Admin))
+                        .map(|u| matches!(u.role, heelonvault_core::models::UserRole::Admin))
                         .unwrap_or(false);
                     if let Some(language) =
                         user_profile.as_ref().map(|u| u.preferred_language.clone())
                     {
-                        let _ = heelonvault_rust::i18n::set_language(language.as_str());
+                        let _ = heelonvault_core::i18n::set_language(language.as_str());
                     }
 
                     let main_window_build_started = Instant::now();
@@ -522,10 +522,10 @@ fn run_application(
                         ._license_service
                         .get_cached()
                         .map(|license| match license.tier {
-                            heelonvault_rust::models::LicenseTier::Community => {
+                            heelonvault_core::models::LicenseTier::Community => {
                                 "Licence free".to_string()
                             }
-                            heelonvault_rust::models::LicenseTier::Professional => {
+                            heelonvault_core::models::LicenseTier::Professional => {
                                 format!("Licence pro - {}", license.customer_name)
                             }
                         })
@@ -768,10 +768,10 @@ fn init_logging() -> Result<WorkerGuard> {
     const SENSITIVE_TARGETS: &[&str] = &[
         "vault::crypto",
         "auth::session",
-        "heelonvault_rust::services::crypto_service",
-        "heelonvault_rust::services::secret_service",
-        "heelonvault_rust::services::auth_service",
-        "heelonvault_rust::services::vault_service",
+        "heelonvault_core::services::crypto_service",
+        "heelonvault_core::services::secret_service",
+        "heelonvault_core::services::auth_service",
+        "heelonvault_core::services::vault_service",
     ];
 
     let default_level = if cfg!(debug_assertions) {

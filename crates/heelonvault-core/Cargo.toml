@@ -1,0 +1,94 @@
+[package]
+name = "heelonvault-core"
+version = "1.1.0"
+edition = "2021"
+rust-version = "1.80"
+authors = ["ppaperso <ppaperso@users.noreply.github.com>"]
+license = "Apache-2.0"
+description = "HeelonVault — Core library (models, services, repositories, errors, i18n)"
+repository = "https://github.com/ppaperso/HeelonVault"
+
+[lib]
+name = "heelonvault_core"
+path = "src/lib.rs"
+
+# Les features premium/licensing sont déclarées ici pour permettre la
+# compilation conditionnelle du code dans heelonvault-core (models, services).
+# Elles sont ACTIVÉES par l'assembleur (heelonvault-app) via la propagation
+# Cargo : heelonvault-app/premium → heelonvault-core/premium.
+# Contrainte anti-cycle respectée : heelonvault-core ne connaît PAS heelonvault-app.
+[features]
+default   = []
+premium   = []
+licensing = ["premium"]
+
+[dependencies]
+# Shim SQLx (workspace local — même source que la racine)
+sqlx = { path = "../sqlx-shim" }
+
+# --- Cryptographie & sécurité mémoire ---
+aes-gcm       = "0.10"
+argon2        = "0.5"
+base64        = "0.22"
+bip39         = "2.1"
+ed25519-dalek = { version = "2.1", features = ["std"] }
+getrandom     = "0.3"
+hex           = "0.4"
+secrecy       = "0.10"
+sha2          = "0.10"
+zeroize       = "1.8"
+
+# --- Sérialisation ---
+serde      = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# --- Gestion d'erreurs (types de bibliothèque) ---
+thiserror = "2.0"
+
+# --- Async & traits ---
+tokio         = { version = "1.44", features = ["macros", "rt-multi-thread", "sync"] }
+trait-variant = "0.1"
+
+# --- Datetime ---
+chrono = { version = "0.4", features = ["std"] }
+time   = { version = "0.3", features = ["serde", "formatting", "parsing"] }
+
+# --- Import CSV / données ---
+csv         = "1.3"
+encoding_rs = "0.8"
+url         = "2.5"
+
+# --- Système de fichiers ---
+dirs = "5.0"
+
+# --- Internationalisation ---
+fluent-templates = "0.9"
+unic-langid      = "0.9"
+
+# --- TOTP & QR Code ---
+totp-rs = { version = "5.6", features = ["gen_secret", "otpauth"] }
+qrcode  = { version = "0.14", default-features = false, features = ["image"] }
+image   = { version = "0.25", default-features = false, features = ["png"] }
+
+# --- Utilitaires ---
+uuid    = { version = "1.16", features = ["serde", "v4"] }
+zxcvbn  = "2.2"
+
+# --- UI — GTK4 / Libadwaita ---
+# Note Phase 5 : le split UI→heelonvault-app (nettoyage des deps GTK de core)
+# sera fait lors de la séparation en repos distincts. Pour Phase 4b, toute
+# l'arborescence src/ui/ reste dans heelonvault-core.
+gtk4       = "0.9"
+libadwaita = { version = "0.7", features = ["v1_2", "v1_4"] }
+gio        = "0.20"
+
+# Instrumentation (macros info!/warn!/error! uniquement — pas d'init subscriber)
+tracing = "0.1"
+
+[dev-dependencies]
+criterion  = "0.5"
+proptest   = "1.6"
+rstest     = "0.24"
+tempfile   = "3"
+# Init subscriber pour les tests uniquement (ne jamais init dans le code de lib)
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

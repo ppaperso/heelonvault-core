@@ -4,6 +4,7 @@
 /Cargo.lock.bak
 # Binaire de développement copié depuis target/release/
 /heelonvault
+/structure.txt
 
 # Database files (SENSITIVE)
 *.db
