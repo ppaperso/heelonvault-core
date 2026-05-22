@@ -67,3 +67,6 @@ browser_integration/.webext-credentials
 .reuse/dep5
 # cargo-cyclonedx default output (non-officiel, spec 1.3 — utiliser sbom.cyclonedx.json)
 *.cdx.json
+
+# Artefacts Rust générés à la racine (cargo test --no-run, rustc direct)
+librust_out.rlib
