@@ -279,6 +279,18 @@ HeelonVault propose un déverrouillage rapide par code PIN pour éviter de ressa
 
 - Depuis le profil, cliquer sur « Désactiver le code PIN » pour supprimer le cache immédiatement.
 
+**Indicateur de temps de session dans la barre de titre** :
+
+Lorsque le PIN est actif, un badge « PIN actif » apparaît dans la barre de titre de la fenêtre. Ce badge évolue visuellement en fonction du temps restant avant l'expiration du cache :
+
+- **Nominal** (plus de 2 h restantes) : texte blanc semi-transparent, comportement standard.
+- **Avertissement** (entre 15 min et 2 h) : bordure et texte ambre — envisager de se redéconnecter pour renouveler la session si besoin.
+- **Critique** (moins de 15 min) : badge fond ambre avec animation pulsante, texte affiche « PIN · Xm » (X = minutes restantes). Le cache expirera dans la minute indiquée.
+
+Survoler le badge affiche une infobulle indiquant le temps exact restant (ex. « Expire dans 1h 23m »). Cliquer sur le badge ouvre le panneau de gestion PIN dans la vue profil.
+
+Le badge et son minuteur sont automatiquement supprimés lorsque le cache expire, que la session est déverrouillée avec le mot de passe maître, ou que l'application est fermée.
+
 **Limites de sécurité à retenir** :
 
 - Le PIN ne remplace pas le mot de passe maître ; il accélère uniquement le déverrouillage de session.

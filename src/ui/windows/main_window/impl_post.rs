@@ -24,6 +24,9 @@ impl MainWindow {
     /// Remove and zeroize the PIN cache (ZeroizeOnDrop ensures secure wipe).
     pub fn clear_pin_cache(&self) {
         let _ = self.pin_cache.borrow_mut().take();
+        if let Some(cb) = self.on_pin_state_cb.borrow().as_ref() {
+            cb(false);
+        }
     }
 
     /// Returns `true` if a valid (non-exhausted, non-expired) PIN cache exists
@@ -494,6 +497,7 @@ impl MainWindow {
         show_passwords_in_edit_pref: Rc<Cell<bool>>,
         on_import_completed_refresh: Rc<dyn Fn()>,
         on_language_changed: Rc<dyn Fn()>,
+        on_pin_state_changed: Rc<dyn Fn(bool)>,
     ) -> ProfileViewWidgets
     where
         TUser: UserService + Send + Sync + 'static,
@@ -532,6 +536,7 @@ impl MainWindow {
             show_passwords_in_edit_pref,
             on_import_completed_refresh,
             on_language_changed,
+            on_pin_state_changed,
         )
     }
 

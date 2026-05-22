@@ -108,6 +108,7 @@ pub struct MainWindow {
     on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
     on_pin_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
     on_logout: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
+    on_pin_state_cb: Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>,
     session_user_id: uuid::Uuid,
     #[allow(dead_code)]
     audit_service: Rc<Arc<crate::services::audit_service::AuditService>>,
