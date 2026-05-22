@@ -1619,15 +1619,7 @@
     #[cfg(feature = "premium")]
     let end_critical_for_export = Rc::clone(&end_critical_operation);
     export_button.connect_clicked(move |_| {
-        if !is_admin_for_export {
-            MainWindow::show_feedback_dialog(
-                &window_for_export,
-                heelonvault_core::tr!("profile-export-admin-required-title").as_str(),
-                heelonvault_core::tr!("profile-export-admin-required-body").as_str(),
-            );
-            return;
-        }
-
+        if is_admin_for_export {
         #[cfg(feature = "premium")]
         {
         let window_for_dialog = window_for_export.clone();
@@ -1669,6 +1661,13 @@
             run_export,
         });
         } // end #[cfg(feature = "premium")]
+        } else {
+            MainWindow::show_feedback_dialog(
+                &window_for_export,
+                heelonvault_core::tr!("profile-export-admin-required-title").as_str(),
+                heelonvault_core::tr!("profile-export-admin-required-body").as_str(),
+            );
+        }
     });
 
     let window_for_import = window.clone();
