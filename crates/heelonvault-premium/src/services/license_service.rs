@@ -494,7 +494,7 @@ impl Default for LicenseService {
 
 fn decode_key_material(input: &str) -> Result<Vec<u8>, String> {
     let normalized_hex = sanitize_hex_input(input);
-    if normalized_hex.len() % 2 == 0 {
+    if normalized_hex.len().is_multiple_of(2) {
         if let Ok(bytes) = hex::decode(normalized_hex.as_str()) {
             return Ok(bytes);
         }

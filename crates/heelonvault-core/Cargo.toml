@@ -2,7 +2,7 @@
 name = "heelonvault-core"
 version = "1.1.0"
 edition = "2021"
-rust-version = "1.80"
+rust-version = "1.94"
 authors = ["ppaperso <ppaperso@users.noreply.github.com>"]
 license = "Apache-2.0"
 description  = "Core cryptography and storage library for HeelonVault"
@@ -17,12 +17,9 @@ name = "heelonvault_core"
 path = "src/lib.rs"
 
 [dependencies]
-# Shim SQLx (workspace local — même source que la racine)
-# NOTE: cette path-dep empêche la publication directe sur crates.io.
-# Bloqueur documenté : cargo audit signale rsa (RUSTSEC-2023-0071) via sqlx-mysql
-# (dep optionnelle non compilée de la meta-crate sqlx 0.8).
-# Résolution prévue : montée en sqlx 0.9 (supprime rsa de l'arbre).
-sqlx = { path = "../sqlx-shim" }
+sqlx = { version = "0.9", default-features = false, features = [
+    "runtime-tokio", "tls-rustls-ring-webpki", "sqlite", "migrate", "time", "uuid"
+] }
 
 # --- Cryptographie & sécurité mémoire ---
 aes-gcm       = "0.10"

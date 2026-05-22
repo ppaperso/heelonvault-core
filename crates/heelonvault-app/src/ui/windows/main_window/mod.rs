@@ -41,14 +41,10 @@ use heelonvault_core::models::LicenseTier;
 use heelonvault_core::services::admin_service::AdminService;
 #[cfg(feature = "premium")]
 use heelonvault_core::services::audit_report_provider::ReportError;
-#[cfg(feature = "premium")]
-use heelonvault_premium::services::audit_report_service::AuditReportService;
 use heelonvault_core::services::auth_policy_service::AuthPolicyService;
 use heelonvault_core::services::backup_application_service::BackupApplicationService;
 use heelonvault_core::services::backup_service::BackupService;
 use heelonvault_core::services::import_service::ImportService;
-#[cfg(feature = "licensing")]
-use heelonvault_premium::services::license_service::LicenseService;
 use heelonvault_core::services::login_history_service::list_recent_logins;
 use heelonvault_core::services::pin_cache_service::PinCache;
 use heelonvault_core::services::secret_service::SecretService;
@@ -56,6 +52,10 @@ use heelonvault_core::services::team_service::TeamService;
 use heelonvault_core::services::totp_service::TotpService;
 use heelonvault_core::services::user_service::UserService;
 use heelonvault_core::services::vault_service::VaultService;
+#[cfg(feature = "premium")]
+use heelonvault_premium::services::audit_report_service::AuditReportService;
+#[cfg(feature = "licensing")]
+use heelonvault_premium::services::license_service::LicenseService;
 
 mod auto_lock;
 mod center;
