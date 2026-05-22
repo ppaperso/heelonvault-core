@@ -16,8 +16,8 @@ path = "src/lib.rs"
 # Bibliothèque core HeelonVault (traits, modèles, dépôts, erreurs, i18n).
 heelonvault-core = { path = "../heelonvault-core" }
 
-# SQLx (même shim que le workspace — accès BD dans AuditReportService)
-sqlx = { path = "../sqlx-shim" }
+# SQLx (registry — accès BD dans AuditReportService)
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "sqlite", "migrate", "time", "uuid"] }
 
 # Cryptographie / sécurité mémoire
 ed25519-dalek = { version = "2.1", features = ["std"] }
@@ -52,5 +52,5 @@ tracing = "0.1"
 [dev-dependencies]
 # Tests d'intégration premium
 tempfile   = "3"
-sqlx       = { path = "../sqlx-shim" }
+sqlx       = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "sqlite", "migrate", "time", "uuid"] }
 tokio      = { version = "1.44", features = ["rt-multi-thread", "macros"] }
