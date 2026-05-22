@@ -1,5 +1,7 @@
 #![allow(clippy::items_after_test_module, clippy::type_complexity)]
 
+mod ui;
+
 use std::cell::{Cell, RefCell};
 use std::env;
 use std::fs;
@@ -30,6 +32,13 @@ use tracing_subscriber::fmt::time::FormatTime;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
+use crate::ui::dialogs::login_dialog::{
+    AuthenticatedSession, BootstrapServicesContext, LoginDialog,
+};
+use crate::ui::dialogs::pin_unlock_dialog::{
+    PinUnlockDialog, PIN_HARD_TIMEOUT as DIALOG_PIN_HARD_TIMEOUT,
+};
+use crate::ui::windows::main_window::MainWindow;
 use heelonvault_core::config::constants::APP_ID;
 use heelonvault_core::errors::AppError;
 use heelonvault_core::models::UserRole;
@@ -69,13 +78,6 @@ use heelonvault_core::services::team_service::TeamServiceImpl;
 use heelonvault_core::services::totp_service::SqliteTotpService;
 use heelonvault_core::services::user_service::{UserService, UserServiceImpl};
 use heelonvault_core::services::vault_service::{VaultKeyEnvelopeRepository, VaultServiceImpl};
-use heelonvault_core::ui::dialogs::login_dialog::{
-    AuthenticatedSession, BootstrapServicesContext, LoginDialog,
-};
-use heelonvault_core::ui::dialogs::pin_unlock_dialog::{
-    PinUnlockDialog, PIN_HARD_TIMEOUT as DIALOG_PIN_HARD_TIMEOUT,
-};
-use heelonvault_core::ui::windows::main_window::MainWindow;
 use uuid::Uuid;
 
 type VaultServiceHandle = VaultServiceImpl<

@@ -14,9 +14,11 @@ fn missing_markers(log_content: &str, required_markers: &[&str]) -> Vec<String> 
 #[test]
 fn lifecycle_log_markers_exist_in_source_code() {
     let main_rs = include_str!("../../heelonvault-app/src/main.rs");
-    let main_window_close =
-        include_str!("../src/ui/windows/main_window/impl_core_parts/new_body.inc");
-    let login_close = include_str!("../src/ui/dialogs/login_dialog/parts/new_body.inc");
+    let main_window_close = include_str!(
+        "../../heelonvault-app/src/ui/windows/main_window/impl_core_parts/new_body.inc"
+    );
+    let login_close =
+        include_str!("../../heelonvault-app/src/ui/dialogs/login_dialog/parts/new_body.inc");
 
     let startup_markers = [
         "tokio runtime started",

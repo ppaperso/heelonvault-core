@@ -114,6 +114,33 @@ pub fn tr_args(key: &str, args: &[(&str, I18nArg<'_>)]) -> String {
     tr_with_lang_args(key, active_lang().as_str(), args)
 }
 
+/// Validate a TOTP code format (must be 6 ASCII digits).
+/// Returns a localised error message string when invalid, `None` when valid.
+pub fn validate_totp_code_format(code: &str) -> Option<String> {
+    if code.trim().is_empty() {
+        return Some(tr("profile-totp-code-empty-error"));
+    }
+    if code.len() != 6 || !code.chars().all(|c| c.is_ascii_digit()) {
+        return Some(tr("profile-totp-code-format-error"));
+    }
+    None
+}
+
+/// Localised message for an invalid TOTP code during profile TOTP setup.
+pub fn profile_totp_code_invalid_error() -> String {
+    tr("profile-totp-code-invalid-error")
+}
+
+/// Localised error message for login TOTP prompt.
+/// Returns the "missing code" message when `code` is blank, otherwise the "invalid code" message.
+pub fn login_totp_error_message(code: &str) -> String {
+    if code.trim().is_empty() {
+        tr("login-totp-code-missing-error")
+    } else {
+        tr("login-totp-code-invalid-error")
+    }
+}
+
 #[macro_export]
 macro_rules! tr {
     ($key:expr) => {{

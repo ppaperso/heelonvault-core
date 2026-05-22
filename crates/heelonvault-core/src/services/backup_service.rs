@@ -11,9 +11,9 @@ use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::Engine;
 use bip39::{Language, Mnemonic};
-use gtk4::glib::{Checksum, ChecksumType};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use tracing::info;
 use zeroize::Zeroizing;
 
@@ -103,13 +103,10 @@ impl BackupServiceImpl {
     }
 
     fn sha256_hex(bytes: &[u8]) -> Result<String, AppError> {
-        let mut checksum = Checksum::new(ChecksumType::Sha256)
-            .ok_or_else(|| AppError::Validation("failed to initialize SHA-256".to_string()))?;
-        checksum.update(bytes);
-        checksum
-            .string()
-            .map(|value| value.to_string())
-            .ok_or_else(|| AppError::Validation("failed to finalize SHA-256".to_string()))
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        let result = hasher.finalize();
+        Ok(hex::encode(result))
     }
 
     fn generate_nonce() -> Result<[u8; BACKUP_NONCE_LEN], AppError> {

@@ -74,14 +74,6 @@ image   = { version = "0.25", default-features = false, features = ["png"] }
 uuid    = { version = "1.16", features = ["serde", "v4"] }
 zxcvbn  = "2.2"
 
-# --- UI — GTK4 / Libadwaita ---
-# Note Phase 5 : le split UI→heelonvault-app (nettoyage des deps GTK de core)
-# sera fait lors de la séparation en repos distincts. Pour Phase 4b, toute
-# l'arborescence src/ui/ reste dans heelonvault-core.
-gtk4       = "0.9"
-libadwaita = { version = "0.7", features = ["v1_2", "v1_4"] }
-gio        = "0.20"
-
 # Instrumentation (macros info!/warn!/error! uniquement — pas d'init subscriber)
 tracing = "0.1"
 
