@@ -17,7 +17,7 @@ path = "src/main.rs"
 [features]
 default   = []
 premium   = ["dep:heelonvault-premium", "heelonvault-core/premium"]
-licensing = ["premium", "heelonvault-core/licensing"]
+licensing = ["premium"]
 
 [dependencies]
 # Core library locale (aucun cycle possible : core ne dépend pas d'app)

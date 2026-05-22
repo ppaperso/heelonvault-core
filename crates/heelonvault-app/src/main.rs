@@ -62,8 +62,6 @@ use heelonvault_core::services::backup_application_service::BackupApplicationSer
 use heelonvault_core::services::backup_service::{BackupService, BackupServiceImpl};
 use heelonvault_core::services::crypto_service::CryptoServiceImpl;
 use heelonvault_core::services::import_service::ImportServiceImpl;
-#[cfg(feature = "licensing")]
-use heelonvault_core::services::license_service::LicenseService;
 use heelonvault_core::services::login_history_service::record_successful_login;
 use heelonvault_core::services::password_service::PasswordServiceImpl;
 use heelonvault_core::services::secret_service::SecretServiceImpl;
@@ -76,6 +74,8 @@ use heelonvault_core::services::vault_service::{VaultKeyEnvelopeRepository, Vaul
 use heelonvault_premium::services::admin_service_impl::AdminServiceImpl;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::audit_log_service_impl::AuditLogServiceImpl;
+#[cfg(feature = "licensing")]
+use heelonvault_premium::services::license_service::LicenseService;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::team_service_impl::TeamServiceImpl;
 use uuid::Uuid;

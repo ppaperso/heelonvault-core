@@ -10,8 +10,6 @@ pub mod backup_service;
 pub mod crypto_service;
 pub mod import_service;
 pub mod license_provider;
-#[cfg(feature = "licensing")]
-pub mod license_service;
 pub mod login_history_service;
 pub mod password_service;
 pub mod pin_cache_service;

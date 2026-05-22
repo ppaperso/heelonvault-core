@@ -7,7 +7,7 @@ use gtk4::{Align, Orientation};
 use libadwaita as adw;
 use sha2::{Digest, Sha256};
 
-use heelonvault_core::services::license_service::LicenseService;
+use heelonvault_premium::services::license_service::LicenseService;
 
 pub(super) fn build_certification_menu_item(icon_name: &str, label: &str) -> gtk4::Button {
     let button = gtk4::Button::new();

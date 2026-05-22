@@ -12,15 +12,14 @@ repository = "https://github.com/ppaperso/HeelonVault"
 name = "heelonvault_core"
 path = "src/lib.rs"
 
-# Les features premium/licensing sont déclarées ici pour permettre la
+# Les features premium sont déclarées ici pour permettre la
 # compilation conditionnelle du code dans heelonvault-core (models, services).
 # Elles sont ACTIVÉES par l'assembleur (heelonvault-app) via la propagation
 # Cargo : heelonvault-app/premium → heelonvault-core/premium.
 # Contrainte anti-cycle respectée : heelonvault-core ne connaît PAS heelonvault-app.
 [features]
-default   = []
-premium   = []
-licensing = ["premium"]
+default = []
+premium = []
 
 [dependencies]
 # Shim SQLx (workspace local — même source que la racine)
@@ -31,7 +30,6 @@ aes-gcm       = "0.10"
 argon2        = "0.5"
 base64        = "0.22"
 bip39         = "2.1"
-ed25519-dalek = { version = "2.1", features = ["std"] }
 getrandom     = "0.3"
 hex           = "0.4"
 secrecy       = "0.10"

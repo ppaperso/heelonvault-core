@@ -1,8 +1,6 @@
-#![cfg(feature = "licensing")]
-
-use crate::models::{License, LicenseTier};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
+use heelonvault_core::models::{License, LicenseTier};
 use hex::FromHex;
 use serde::Deserialize;
 use serde_json::Value;

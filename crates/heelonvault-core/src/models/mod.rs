@@ -6,9 +6,7 @@ pub mod user;
 pub mod vault;
 
 pub use audit_log::{AuditAction, AuditLogEntry};
-pub use license::LicenseTier;
-#[cfg(feature = "licensing")]
-pub use license::{License, SignedLicense};
+pub use license::{License, LicenseTier, SignedLicense};
 pub use secret_item::{BlobStorage, SecretItem, SecretType};
 pub use team::{Team, TeamMember, TeamMemberRole};
 pub use user::{User, UserRole};

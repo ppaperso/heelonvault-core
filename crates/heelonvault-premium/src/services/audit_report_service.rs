@@ -6,9 +6,9 @@ use sha2::{Digest, Sha256};
 use sqlx::{Row, SqlitePool};
 use tokio::runtime::Handle;
 
+use crate::services::license_service::{AuditSigningError, LicenseService};
 use heelonvault_core::models::LicenseTier;
 use heelonvault_core::services::audit_report_provider::{GeneratedAuditReport, ReportError};
-use heelonvault_core::services::license_service::{AuditSigningError, LicenseService};
 
 pub struct AuditReportService {
     license_service: Arc<LicenseService>,
@@ -465,8 +465,8 @@ fn sanitize_pdf_text(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{AuditReportService, ReportError};
+    use crate::services::license_service::LicenseService;
     use heelonvault_core::models::{License, LicenseTier};
-    use heelonvault_core::services::license_service::LicenseService;
     use sqlx::sqlite::SqlitePoolOptions;
     use std::sync::{Arc, Mutex, OnceLock};
     use tempfile::tempdir;
