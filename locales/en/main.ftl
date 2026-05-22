@@ -561,3 +561,13 @@ pin-tooltip-secure = PIN-secured session — Expires in { $remaining }
 profile-pin-title = Quick-unlock PIN
 profile-pin-hint = Avoids re-entering your master password after auto-lock.
 profile-pin-configure = Configure
+
+## Edition and upgrade
+feature-not-available-title = Feature not available
+feature-not-available-body = This feature requires the Professional edition.
+upgrade-to-professional = Upgrade to Professional
+license-expired-title = License expired
+license-expired-body = Your HeelonVault Professional license has expired. Renew your license to continue using advanced features.
+feature-name-user-management = User management
+feature-name-team-management = Team management
+feature-name-audit-report = Certified audit report

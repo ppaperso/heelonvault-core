@@ -26,7 +26,7 @@ impl MainWindow {
         backup_app_service: Arc<TBackupApp>,
         import_service: Arc<TImport>,
         audit_service: Arc<crate::services::audit_service::AuditService>,
-        license_service: Arc<LicenseService>,
+        #[cfg(feature = "licensing")] license_service: Arc<LicenseService>,
         database_pool: SqlitePool,
         database_path: PathBuf,
         admin_user_id: Uuid,

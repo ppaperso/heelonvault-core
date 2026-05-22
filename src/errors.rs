@@ -78,6 +78,10 @@ pub enum AppError {
     Crypto(String),
     #[error("authorization error: {0}")]
     Authorization(AccessDeniedReason),
+    #[error("feature not available in this edition: {0}")]
+    FeatureNotAvailable(&'static str),
+    #[error("the license has expired")]
+    LicenseExpired,
     #[error("shutdown in progress")]
     ShutdownInProgress,
     #[error("internal error")]

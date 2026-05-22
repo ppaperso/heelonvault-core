@@ -1,44 +1,16 @@
+#![cfg(feature = "premium")]
+
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use chrono::Local;
 use sha2::{Digest, Sha256};
 use sqlx::{Row, SqlitePool};
-use thiserror::Error;
 use tokio::runtime::Handle;
 
 use crate::models::LicenseTier;
+use crate::services::audit_report_provider::{GeneratedAuditReport, ReportError};
 use crate::services::license_service::{AuditSigningError, LicenseService};
-
-#[derive(Debug, Error)]
-pub enum ReportError {
-    #[error("a Professional or Enterprise license is required")]
-    LicenseRequired,
-    #[error("audit signing key is missing")]
-    SigningKeyMissing,
-    #[error("downloads directory not found")]
-    DownloadsDirectoryNotFound,
-    #[error("failed to initialize PDF fonts: {0}")]
-    FontInitialization(String),
-    #[error("failed to load audit log entries: {0}")]
-    AuditData(String),
-    #[error("failed to sign audit report: {0}")]
-    Signature(String),
-    #[error("failed to render or write PDF: {0}")]
-    PdfWrite(String),
-}
-
-pub struct GeneratedAuditReport {
-    pub path: String,
-    pub hash_hex: String,
-}
-
-impl GeneratedAuditReport {
-    pub fn hash_prefix(&self) -> &str {
-        let prefix_len = self.hash_hex.len().min(12);
-        &self.hash_hex[..prefix_len]
-    }
-}
 
 pub struct AuditReportService {
     license_service: Arc<LicenseService>,

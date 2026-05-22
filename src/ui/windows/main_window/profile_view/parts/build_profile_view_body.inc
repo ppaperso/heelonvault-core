@@ -1602,12 +1602,21 @@
     });
 
     let window_for_export = window.clone();
+    // Suppress unused-variable warnings for premium-only params in community build
+    #[cfg(not(feature = "premium"))]
+    let _ = (&backup_service, &backup_app_service, &database_path);
+    #[cfg(feature = "premium")]
     let backup_app_for_export: Arc<TBackupApp> = Arc::clone(&backup_app_service);
+    #[cfg(feature = "premium")]
     let backup_for_export = Arc::clone(&backup_service);
+    #[cfg(feature = "premium")]
     let database_path_for_export = database_path.clone();
+    #[cfg(feature = "premium")]
     let actor_user_id_for_export: Uuid = user_id;
     let is_admin_for_export = is_admin;
+    #[cfg(feature = "premium")]
     let begin_critical_for_export = Rc::clone(&begin_critical_operation);
+    #[cfg(feature = "premium")]
     let end_critical_for_export = Rc::clone(&end_critical_operation);
     export_button.connect_clicked(move |_| {
         if !is_admin_for_export {
@@ -1619,6 +1628,8 @@
             return;
         }
 
+        #[cfg(feature = "premium")]
+        {
         let window_for_dialog = window_for_export.clone();
         let backup_for_dialog = Arc::clone(&backup_for_export);
         let backup_app_for_dialog = Arc::clone(&backup_app_for_export);
@@ -1657,6 +1668,7 @@
             on_end_critical: Some(end_critical_for_dialog),
             run_export,
         });
+        } // end #[cfg(feature = "premium")]
     });
 
     let window_for_import = window.clone();

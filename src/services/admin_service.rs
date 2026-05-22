@@ -1,3 +1,4 @@
+#[cfg(feature = "premium")]
 use std::sync::Arc;
 
 use secrecy::{ExposeSecret, SecretBox};
@@ -5,9 +6,13 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::errors::AppError;
-use crate::models::{AuditAction, User, UserRole};
+#[cfg(feature = "premium")]
+use crate::models::AuditAction;
+use crate::models::{User, UserRole};
 use crate::repositories::user_repository::UserRepository;
+#[cfg(feature = "premium")]
 use crate::services::access_control::{check_permission, Action, Resource};
+#[cfg(feature = "premium")]
 use crate::services::audit_log_service::AuditLogService;
 use crate::services::auth_service::AuthService;
 
@@ -66,17 +71,120 @@ pub trait LocalAdminService {
         target_user_id: Uuid,
         new_password: SecretBox<Vec<u8>>,
     ) -> Result<SecretBox<Vec<u8>>, AppError>;
-
-    /// Bootstrap the very first admin account.
-    /// Atomically checks that no users exist yet, then creates the admin.
-    /// Fails with [`AppError::Conflict`] if any user already exists.
-    async fn bootstrap_first_admin(
-        &self,
-        username: &str,
-        password: SecretBox<Vec<u8>>,
-    ) -> Result<BootstrapResult, AppError>;
 }
 
+// ── bootstrap (always compiled — runs before any admin service is wired) ────────
+
+/// Bootstrap the very first admin account.
+/// Atomically checks that no users exist yet, then creates the admin.
+/// Fails with [`AppError::Conflict`] if any user already exists.
+///
+/// This is a free function (not a trait method) so it is available in Community
+/// builds where `AdminServiceImpl` is not compiled.
+pub async fn bootstrap_first_admin(
+    user_repo: &impl UserRepository,
+    auth_service: &impl AuthService,
+    username: &str,
+    password: SecretBox<Vec<u8>>,
+) -> Result<BootstrapResult, AppError> {
+    // Atomic guard: refuse if any user already exists.
+    if !user_repo.list_all().await?.is_empty() {
+        return Err(AppError::Conflict(
+            "vault already initialized; use the login form to access your account".to_string(),
+        ));
+    }
+
+    let trimmed = username.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::Validation(
+            "username must not be empty".to_string(),
+        ));
+    }
+
+    let password_bytes = password.expose_secret().clone();
+    auth_service
+        .create_user(trimmed, SecretBox::new(Box::new(password_bytes.clone())))
+        .await?;
+
+    let master_key = auth_service
+        .derive_key_if_valid(trimmed, SecretBox::new(Box::new(password_bytes)))
+        .await?
+        .ok_or(AppError::Internal)?;
+
+    let envelope = auth_service.get_password_envelope(trimmed).await?;
+    let user_id = Uuid::new_v4();
+    user_repo
+        .create_user_db(user_id, trimmed, &UserRole::Admin)
+        .await?;
+    user_repo
+        .update_password_envelope(user_id, envelope)
+        .await?;
+
+    info!(user_id = %user_id, username = trimmed, "bootstrap: first admin account created");
+    Ok(BootstrapResult {
+        user_id,
+        username: trimmed.to_string(),
+        master_key,
+    })
+}
+
+// ── community stub ──────────────────────────────────────────────────────────
+
+/// Community build stub: all admin operations return [`AppError::FeatureNotAvailable`].
+/// Multi-user management requires the `premium` feature.
+pub struct CommunityAdminService;
+
+impl AdminService for CommunityAdminService {
+    async fn create_user(
+        &self,
+        _actor_id: Uuid,
+        _username: &str,
+        _password: SecretBox<Vec<u8>>,
+        _role: UserRole,
+    ) -> Result<CreateUserResult, AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-user-management",
+        ))
+    }
+
+    async fn delete_user(&self, _actor_id: Uuid, _target_user_id: Uuid) -> Result<(), AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-user-management",
+        ))
+    }
+
+    async fn update_user_role(
+        &self,
+        _actor_id: Uuid,
+        _target_user_id: Uuid,
+        _new_role: UserRole,
+    ) -> Result<(), AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-user-management",
+        ))
+    }
+
+    async fn list_all_users(&self, _actor_id: Uuid) -> Result<Vec<User>, AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-user-management",
+        ))
+    }
+
+    async fn reset_user_password(
+        &self,
+        _actor_id: Uuid,
+        _target_user_id: Uuid,
+        _new_password: SecretBox<Vec<u8>>,
+    ) -> Result<SecretBox<Vec<u8>>, AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-user-management",
+        ))
+    }
+}
+
+// ── premium implementation ────────────────────────────────────────────────────
+
+#[cfg(feature = "premium")]
 pub struct AdminServiceImpl<TUserRepo, TAuth, TAuditSvc>
 where
     TUserRepo: UserRepository + Send + Sync,
@@ -88,6 +196,7 @@ where
     audit_service: Arc<TAuditSvc>,
 }
 
+#[cfg(feature = "premium")]
 impl<TUserRepo, TAuth, TAuditSvc> AdminServiceImpl<TUserRepo, TAuth, TAuditSvc>
 where
     TUserRepo: UserRepository + Send + Sync,
@@ -126,6 +235,7 @@ where
     }
 }
 
+#[cfg(feature = "premium")]
 impl<TUserRepo, TAuth, TAuditSvc> AdminService for AdminServiceImpl<TUserRepo, TAuth, TAuditSvc>
 where
     TUserRepo: UserRepository + Send + Sync,
@@ -352,53 +462,6 @@ where
 
         info!(actor = %actor_id, target = %target_user_id, "admin reset user password");
         Ok(master_key)
-    }
-
-    async fn bootstrap_first_admin(
-        &self,
-        username: &str,
-        password: SecretBox<Vec<u8>>,
-    ) -> Result<BootstrapResult, AppError> {
-        // Atomic guard: refuse if any user already exists.
-        if !self.user_repo.list_all().await?.is_empty() {
-            return Err(AppError::Conflict(
-                "vault already initialized; use the login form to access your account".to_string(),
-            ));
-        }
-
-        let trimmed = username.trim();
-        if trimmed.is_empty() {
-            return Err(AppError::Validation(
-                "username must not be empty".to_string(),
-            ));
-        }
-
-        let password_bytes = password.expose_secret().clone();
-        self.auth_service
-            .create_user(trimmed, SecretBox::new(Box::new(password_bytes.clone())))
-            .await?;
-
-        let master_key = self
-            .auth_service
-            .derive_key_if_valid(trimmed, SecretBox::new(Box::new(password_bytes)))
-            .await?
-            .ok_or(AppError::Internal)?;
-
-        let envelope = self.auth_service.get_password_envelope(trimmed).await?;
-        let user_id = Uuid::new_v4();
-        self.user_repo
-            .create_user_db(user_id, trimmed, &UserRole::Admin)
-            .await?;
-        self.user_repo
-            .update_password_envelope(user_id, envelope)
-            .await?;
-
-        info!(user_id = %user_id, username = trimmed, "bootstrap: first admin account created");
-        Ok(BootstrapResult {
-            user_id,
-            username: trimmed.to_string(),
-            master_key,
-        })
     }
 }
 

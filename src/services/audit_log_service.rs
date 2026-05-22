@@ -1,8 +1,14 @@
 use uuid::Uuid;
 
-use crate::errors::{AccessDeniedReason, AppError};
-use crate::models::{AuditAction, AuditLogEntry, UserRole};
+#[cfg(feature = "premium")]
+use crate::errors::AccessDeniedReason;
+use crate::errors::AppError;
+#[cfg(feature = "premium")]
+use crate::models::UserRole;
+use crate::models::{AuditAction, AuditLogEntry};
+#[cfg(feature = "premium")]
 use crate::repositories::audit_log_repository::AuditLogRepository;
+#[cfg(feature = "premium")]
 use crate::repositories::user_repository::UserRepository;
 
 // ── trait ─────────────────────────────────────────────────────────────────────
@@ -45,8 +51,55 @@ pub trait LocalAuditLogService {
     ) -> Result<Vec<AuditLogEntry>, AppError>;
 }
 
-// ── implementation ───────────────────────────────────────────────────────────
+// ── community stub ──────────────────────────────────────────────────────────
 
+/// No-op implementation used in Community builds.
+/// All write operations succeed silently; all read operations return empty lists.
+pub struct NoOpAuditLogService;
+
+impl AuditLogService for NoOpAuditLogService {
+    async fn record_event(
+        &self,
+        _actor_user_id: Option<Uuid>,
+        _action: AuditAction,
+        _target_type: Option<&str>,
+        _target_id: Option<&str>,
+        _detail: Option<&str>,
+    ) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn list_recent(
+        &self,
+        _requester_id: Uuid,
+        _limit: u32,
+    ) -> Result<Vec<AuditLogEntry>, AppError> {
+        Ok(vec![])
+    }
+
+    async fn list_for_user(
+        &self,
+        _requester_id: Uuid,
+        _actor_id: Uuid,
+        _limit: u32,
+    ) -> Result<Vec<AuditLogEntry>, AppError> {
+        Ok(vec![])
+    }
+
+    async fn list_for_target(
+        &self,
+        _requester_id: Uuid,
+        _target_type: &str,
+        _target_id: &str,
+        _limit: u32,
+    ) -> Result<Vec<AuditLogEntry>, AppError> {
+        Ok(vec![])
+    }
+}
+
+// ── premium implementation ────────────────────────────────────────────────────
+
+#[cfg(feature = "premium")]
 pub struct AuditLogServiceImpl<TUserRepo, TAudit>
 where
     TUserRepo: UserRepository + Send + Sync,
@@ -56,6 +109,7 @@ where
     audit_repo: TAudit,
 }
 
+#[cfg(feature = "premium")]
 impl<TUserRepo, TAudit> AuditLogServiceImpl<TUserRepo, TAudit>
 where
     TUserRepo: UserRepository + Send + Sync,
@@ -81,6 +135,7 @@ where
     }
 }
 
+#[cfg(feature = "premium")]
 impl<TUserRepo, TAudit> AuditLogService for AuditLogServiceImpl<TUserRepo, TAudit>
 where
     TUserRepo: UserRepository + Send + Sync,
@@ -146,7 +201,7 @@ where
 
 // ── unit tests ────────────────────────────────────────────────────────────────
 
-#[cfg(test)]
+#[cfg(all(test, feature = "premium"))]
 mod tests {
     #![allow(clippy::disallowed_methods)]
     use std::collections::HashMap;

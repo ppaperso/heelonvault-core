@@ -24,13 +24,18 @@ use tracing::{info, warn};
 use uuid::Uuid;
 use zeroize::{Zeroize, Zeroizing};
 
+#[cfg(any(feature = "premium", feature = "licensing"))]
 use crate::models::LicenseTier;
 use crate::services::admin_service::AdminService;
-use crate::services::audit_report_service::{AuditReportService, ReportError};
+#[cfg(feature = "premium")]
+use crate::services::audit_report_provider::ReportError;
+#[cfg(feature = "premium")]
+use crate::services::audit_report_service::AuditReportService;
 use crate::services::auth_policy_service::AuthPolicyService;
 use crate::services::backup_application_service::BackupApplicationService;
 use crate::services::backup_service::BackupService;
 use crate::services::import_service::ImportService;
+#[cfg(feature = "licensing")]
 use crate::services::license_service::LicenseService;
 use crate::services::login_history_service::list_recent_logins;
 use crate::services::pin_cache_service::PinCache;
@@ -40,8 +45,11 @@ use crate::services::totp_service::TotpService;
 use crate::services::user_service::UserService;
 use crate::services::vault_service::VaultService;
 use crate::ui::dialogs::add_edit_dialog::{AddEditDialog, DialogMode};
+#[cfg(feature = "premium")]
 use crate::ui::dialogs::manage_teams_dialog::ManageTeamsDialog;
+#[cfg(feature = "premium")]
 use crate::ui::dialogs::manage_users_dialog::ManageUsersDialog;
+#[cfg(feature = "premium")]
 use crate::ui::dialogs::recovery_key_export_dialog::{
     ExportRunner, RecoveryKeyExportDialog, RecoveryKeyExportDialogDeps,
 };
@@ -51,6 +59,7 @@ use crate::ui::window_sizing;
 
 mod auto_lock;
 mod center;
+#[cfg(feature = "premium")]
 mod certification;
 mod header;
 mod impl_new;

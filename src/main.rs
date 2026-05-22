@@ -33,24 +33,38 @@ use tracing_subscriber::EnvFilter;
 use heelonvault_rust::config::constants::APP_ID;
 use heelonvault_rust::errors::AppError;
 use heelonvault_rust::models::UserRole;
+#[cfg(feature = "premium")]
 use heelonvault_rust::repositories::audit_log_repository::SqlxAuditLogRepository;
 use heelonvault_rust::repositories::secret_repository::SqlxSecretRepository;
 use heelonvault_rust::repositories::team_repository::SqlxTeamRepository;
 use heelonvault_rust::repositories::user_repository::{SqlxUserRepository, UserRepository};
 use heelonvault_rust::repositories::vault_repository::SqlxVaultRepository;
-use heelonvault_rust::services::admin_service::{AdminService, AdminServiceImpl};
+use heelonvault_rust::services::admin_service::bootstrap_first_admin;
+#[cfg(feature = "premium")]
+use heelonvault_rust::services::admin_service::AdminServiceImpl;
+#[cfg(not(feature = "premium"))]
+use heelonvault_rust::services::admin_service::CommunityAdminService;
+#[cfg(feature = "premium")]
 use heelonvault_rust::services::audit_log_service::AuditLogServiceImpl;
-use heelonvault_rust::services::audit_service::{AuditAction, AuditService};
+#[cfg(not(feature = "premium"))]
+use heelonvault_rust::services::audit_log_service::NoOpAuditLogService;
+#[cfg(feature = "premium")]
+use heelonvault_rust::services::audit_service::AuditAction;
+use heelonvault_rust::services::audit_service::AuditService;
 use heelonvault_rust::services::auth_policy_service::{AuthPolicyService, SqlxAuthPolicyService};
 use heelonvault_rust::services::auth_service::{AuthService, AuthServiceImpl};
 use heelonvault_rust::services::backup_application_service::BackupApplicationServiceImpl;
 use heelonvault_rust::services::backup_service::{BackupService, BackupServiceImpl};
 use heelonvault_rust::services::crypto_service::CryptoServiceImpl;
 use heelonvault_rust::services::import_service::ImportServiceImpl;
+#[cfg(feature = "licensing")]
 use heelonvault_rust::services::license_service::LicenseService;
 use heelonvault_rust::services::login_history_service::record_successful_login;
 use heelonvault_rust::services::password_service::PasswordServiceImpl;
 use heelonvault_rust::services::secret_service::SecretServiceImpl;
+#[cfg(not(feature = "premium"))]
+use heelonvault_rust::services::team_service::CommunityTeamService;
+#[cfg(feature = "premium")]
 use heelonvault_rust::services::team_service::TeamServiceImpl;
 use heelonvault_rust::services::totp_service::SqliteTotpService;
 use heelonvault_rust::services::user_service::{UserService, UserServiceImpl};
@@ -83,9 +97,21 @@ type UserServiceHandle = UserServiceImpl<
     CryptoServiceImpl,
 >;
 type TotpServiceHandle = SqliteTotpService<AuthServiceImpl<CryptoServiceImpl>, CryptoServiceImpl>;
+
+#[cfg(not(feature = "premium"))]
+type AuditLogServiceHandle = NoOpAuditLogService;
+#[cfg(feature = "premium")]
 type AuditLogServiceHandle = AuditLogServiceImpl<SqlxUserRepository, SqlxAuditLogRepository>;
+
+#[cfg(not(feature = "premium"))]
+type AdminServiceHandle = CommunityAdminService;
+#[cfg(feature = "premium")]
 type AdminServiceHandle =
     AdminServiceImpl<SqlxUserRepository, AuthServiceImpl<CryptoServiceImpl>, AuditLogServiceHandle>;
+
+#[cfg(not(feature = "premium"))]
+type TeamServiceHandle = CommunityTeamService;
+#[cfg(feature = "premium")]
 type TeamServiceHandle = TeamServiceImpl<
     SqlxTeamRepository,
     SqlxUserRepository,
@@ -93,6 +119,7 @@ type TeamServiceHandle = TeamServiceImpl<
     CryptoServiceImpl,
     AuditLogServiceHandle,
 >;
+
 type BackupApplicationServiceHandle =
     BackupApplicationServiceImpl<SqlxUserRepository, BackupServiceImpl>;
 
@@ -143,6 +170,7 @@ struct AppContext {
     admin_service: Arc<AdminServiceHandle>,
     team_service: Arc<TeamServiceHandle>,
     _backup_app_service: Arc<BackupApplicationServiceHandle>,
+    #[cfg(feature = "licensing")]
     _license_service: Arc<LicenseService>,
     _password_service: PasswordServiceImpl,
 }
@@ -172,6 +200,7 @@ struct SecondaryServices {
     import_service: Arc<ImportServiceImpl>,
     totp_service: Arc<TotpServiceHandle>,
     audit_service: Arc<AuditService>,
+    #[cfg(feature = "licensing")]
     license_service: Arc<LicenseService>,
 }
 
@@ -353,7 +382,8 @@ fn run_application(
             let login_parent_for_dialog = login_parent.clone();
             let bootstrap_ctx_for_dialog = if needs_bootstrap_for_dialog.get() {
                 let backup_for_bootstrap = Arc::clone(&context_for_login.backup_service);
-                let admin_for_bootstrap = Arc::clone(&context_for_login.admin_service);
+                let pool_for_bootstrap = context_for_login.pool.clone();
+                let auth_for_bootstrap = Arc::clone(&context_for_login.auth_service);
                 let runtime_for_bootstrap = runtime_for_login.clone();
                 Some(BootstrapServicesContext {
                     generate_recovery_key: Arc::new(move || {
@@ -363,18 +393,20 @@ fn run_application(
                     }),
                     do_bootstrap: Arc::new(move |username: String, password_bytes: Vec<u8>| {
                         runtime_for_bootstrap.block_on(async {
-                            admin_for_bootstrap
-                                .bootstrap_first_admin(
-                                    username.as_str(),
-                                    SecretBox::new(Box::new(password_bytes)),
-                                )
-                                .await
+                            bootstrap_first_admin(
+                                &SqlxUserRepository::new(pool_for_bootstrap.clone()),
+                                auth_for_bootstrap.as_ref(),
+                                username.as_str(),
+                                SecretBox::new(Box::new(password_bytes)),
+                            )
+                            .await
                         })
                     }),
                 })
             } else {
                 None
             };
+            #[cfg(feature = "licensing")]
             let login_license_badge_text = context_for_login
                 ._license_service
                 .get_cached()
@@ -385,6 +417,8 @@ fn run_application(
                     }
                 })
                 .unwrap_or_else(|| "Licence free".to_string());
+            #[cfg(not(feature = "licensing"))]
+            let login_license_badge_text = "Licence free".to_string();
             let login_dialog = LoginDialog::new(
                 &app_for_login,
                 &login_parent_for_dialog,
@@ -483,6 +517,7 @@ fn run_application(
                     }
 
                     let main_window_build_started = Instant::now();
+                    #[cfg(feature = "licensing")]
                     let license_badge_text = context_for_success
                         ._license_service
                         .get_cached()
@@ -495,6 +530,8 @@ fn run_application(
                             }
                         })
                         .unwrap_or_else(|| "Licence free".to_string());
+                    #[cfg(not(feature = "licensing"))]
+                    let license_badge_text = "Licence free".to_string();
                     let main_for_success = Rc::new(MainWindow::new(
                         &app_for_main_success,
                         runtime_for_success.clone(),
@@ -509,6 +546,7 @@ fn run_application(
                         Arc::clone(&context_for_success._backup_app_service),
                         Arc::clone(&context_for_success.import_service),
                         Arc::clone(&context_for_success.audit_service),
+                        #[cfg(feature = "licensing")]
                         Arc::clone(&context_for_success._license_service),
                         context_for_success.pool.clone(),
                         context_for_success.database_path.clone(),
@@ -831,6 +869,9 @@ fn init_logging() -> Result<WorkerGuard> {
 fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
     let crypto_service = CryptoServiceImpl::default();
     let auth_service = Arc::new(AuthServiceImpl::new(CryptoServiceImpl::default()));
+    #[cfg(not(feature = "premium"))]
+    let audit_log_service = Arc::new(NoOpAuditLogService);
+    #[cfg(feature = "premium")]
     let audit_log_service = Arc::new(AuditLogServiceImpl::new(
         SqlxUserRepository::new(pool.clone()),
         SqlxAuditLogRepository::new(pool.clone()),
@@ -857,11 +898,17 @@ fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
         Arc::clone(&auth_service),
         CryptoServiceImpl::default(),
     ));
+    #[cfg(not(feature = "premium"))]
+    let admin_service = Arc::new(CommunityAdminService);
+    #[cfg(feature = "premium")]
     let admin_service = Arc::new(AdminServiceImpl::new(
         SqlxUserRepository::new(pool.clone()),
         Arc::clone(&auth_service),
         Arc::clone(&audit_log_service),
     ));
+    #[cfg(not(feature = "premium"))]
+    let team_service = Arc::new(CommunityTeamService);
+    #[cfg(feature = "premium")]
     let team_service = Arc::new(TeamServiceImpl::new(
         SqlxTeamRepository::new(pool.clone()),
         SqlxUserRepository::new(pool.clone()),
@@ -901,30 +948,33 @@ async fn build_secondary_services(
         "HeelonVault",
     ));
     let audit_service = Arc::new(AuditService::new(pool.clone()));
-    let mut license_service = LicenseService::new();
-
-    match license_service.load_license().await {
-        Ok(license) => {
-            info!(customer = license.customer_name, tier = %license.tier, "license loaded successfully");
-            audit_service.log_async(
-                None,
-                AuditAction::LicenseCheckSuccess,
-                Some("license"),
-                None,
-                Some(&format!("{}({})", license.tier, license.customer_name)),
-            );
+    #[cfg(feature = "licensing")]
+    let license_service = {
+        let mut ls = LicenseService::new();
+        match ls.load_license().await {
+            Ok(license) => {
+                info!(customer = license.customer_name, tier = %license.tier, "license loaded successfully");
+                audit_service.log_async(
+                    None,
+                    AuditAction::LicenseCheckSuccess,
+                    Some("license"),
+                    None,
+                    Some(&format!("{}({})", license.tier, license.customer_name)),
+                );
+            }
+            Err(e) => {
+                warn!(error = %e, "failed to load license, defaulting to community edition");
+                audit_service.log_async(
+                    None,
+                    AuditAction::LicenseCheckFailure,
+                    Some("license"),
+                    None,
+                    Some(&format!("license verification failed: {}", e)),
+                );
+            }
         }
-        Err(e) => {
-            warn!(error = %e, "failed to load license, defaulting to community edition");
-            audit_service.log_async(
-                None,
-                AuditAction::LicenseCheckFailure,
-                Some("license"),
-                None,
-                Some(&format!("license verification failed: {}", e)),
-            );
-        }
-    }
+        Arc::new(ls)
+    };
 
     SecondaryServices {
         password_service,
@@ -933,7 +983,8 @@ async fn build_secondary_services(
         import_service,
         totp_service,
         audit_service,
-        license_service: Arc::new(license_service),
+        #[cfg(feature = "licensing")]
+        license_service,
     }
 }
 
@@ -1011,6 +1062,7 @@ async fn initialize_app_context() -> Result<AppStartMode> {
         admin_service: primary.admin_service,
         team_service: primary.team_service,
         _backup_app_service: secondary.backup_app_service,
+        #[cfg(feature = "licensing")]
         _license_service: secondary.license_service,
         _password_service: secondary.password_service,
     };

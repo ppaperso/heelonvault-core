@@ -1,4 +1,5 @@
 #![allow(clippy::disallowed_methods)]
+#![cfg(feature = "premium")]
 
 use std::sync::Arc;
 

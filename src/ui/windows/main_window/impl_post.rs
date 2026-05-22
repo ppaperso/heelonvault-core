@@ -202,6 +202,55 @@ impl MainWindow {
         dialog.present();
     }
 
+    pub fn show_upgrade_dialog(parent: &adw::ApplicationWindow, feature: &str) {
+        use gtk4::gio;
+        let title = crate::tr!("feature-not-available-title");
+        let feature_display = crate::tr!(feature);
+        let body = format!(
+            "{}\n\n{}",
+            crate::tr!("feature-not-available-body"),
+            feature_display,
+        );
+        let dialog =
+            adw::MessageDialog::new(Some(parent), Some(title.as_str()), Some(body.as_str()));
+        dialog.add_response("cancel", crate::tr!("common-cancel").as_str());
+        dialog.add_response("upgrade", crate::tr!("upgrade-to-professional").as_str());
+        dialog.set_response_appearance("upgrade", adw::ResponseAppearance::Suggested);
+        dialog.set_default_response(Some("upgrade"));
+        dialog.set_close_response("cancel");
+        let parent_for_url = parent.clone();
+        dialog.connect_response(None, move |d, response| {
+            if response == "upgrade" {
+                let _ = gio::AppInfo::launch_default_for_uri(
+                    "https://heelonys.fr/solutions/heelonvault",
+                    Some(&gtk4::prelude::RootExt::display(&parent_for_url).app_launch_context()),
+                );
+            }
+            d.close();
+        });
+        dialog.present();
+    }
+
+    pub fn handle_service_error(parent: &adw::ApplicationWindow, error: &crate::errors::AppError) {
+        use crate::errors::AppError;
+        match error {
+            AppError::FeatureNotAvailable(feature) => {
+                Self::show_upgrade_dialog(parent, feature);
+            }
+            AppError::LicenseExpired => {
+                Self::show_feedback_dialog(
+                    parent,
+                    crate::tr!("license-expired-title").as_str(),
+                    crate::tr!("license-expired-body").as_str(),
+                );
+            }
+            other => {
+                Self::show_feedback_dialog(parent, "Erreur", &other.to_string());
+            }
+        }
+    }
+
+    #[cfg(feature = "premium")]
     pub(in crate::ui::windows::main_window) fn build_certification_menu_item(
         icon_name: &str,
         label: &str,
@@ -209,6 +258,7 @@ impl MainWindow {
         certification::build_certification_menu_item(icon_name, label)
     }
 
+    #[cfg(feature = "premium")]
     pub(in crate::ui::windows::main_window) fn show_certification_diagnostics_dialog(
         parent: &adw::ApplicationWindow,
         license_service: Arc<LicenseService>,

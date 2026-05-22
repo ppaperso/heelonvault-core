@@ -2,9 +2,12 @@ pub mod add_edit_dialog;
 pub mod backup_dialog;
 pub mod import_progress_dialog;
 pub mod login_dialog;
+#[cfg(feature = "premium")]
 pub mod manage_teams_dialog;
+#[cfg(feature = "premium")]
 pub mod manage_users_dialog;
 pub mod pin_setup_dialog;
 pub mod pin_unlock_dialog;
+#[cfg(feature = "premium")]
 pub mod recovery_key_export_dialog;
 pub mod trash_dialog;

@@ -23,6 +23,7 @@ impl fmt::Display for LicenseTier {
 /// HeelonVault license metadata.
 /// Must be signed with ed25519 private key by HEELONYS.
 /// Signature prevents tampering with customer_name, slots_count, or expiration_date.
+#[cfg(feature = "licensing")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct License {
     /// Unique license identifier (UUID v4)
@@ -44,6 +45,7 @@ pub struct License {
     pub tier: LicenseTier,
 }
 
+#[cfg(feature = "licensing")]
 impl License {
     /// Check if license is still valid (not expired).
     pub fn is_valid(&self) -> bool {
@@ -60,6 +62,7 @@ impl License {
 }
 
 /// Signed license bundle: serialized license + ed25519 signature.
+#[cfg(feature = "licensing")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SignedLicense {
     /// JSON-encoded license

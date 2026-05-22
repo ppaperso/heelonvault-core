@@ -1,16 +1,28 @@
+#[cfg(feature = "premium")]
 use std::sync::Arc;
 
 use secrecy::SecretBox;
+#[cfg(feature = "premium")]
 use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::errors::AppError;
-use crate::models::{AuditAction, Team, TeamMember, TeamMemberRole, User, VaultShareRole};
+#[cfg(feature = "premium")]
+use crate::models::AuditAction;
+#[cfg(feature = "premium")]
+use crate::models::VaultShareRole;
+use crate::models::{Team, TeamMember, TeamMemberRole, User};
+#[cfg(feature = "premium")]
 use crate::repositories::team_repository::TeamRepository;
+#[cfg(feature = "premium")]
 use crate::repositories::user_repository::UserRepository;
+#[cfg(feature = "premium")]
 use crate::repositories::vault_repository::VaultRepository;
+#[cfg(feature = "premium")]
 use crate::services::access_control::{check_permission, Action, Resource};
+#[cfg(feature = "premium")]
 use crate::services::audit_log_service::AuditLogService;
+#[cfg(feature = "premium")]
 use crate::services::crypto_service::CryptoService;
 
 // ── public types ──────────────────────────────────────────────────────────────
@@ -128,8 +140,123 @@ pub trait LocalTeamService {
     ) -> Result<KeyRotationResult, AppError>;
 }
 
-// ── implementation ───────────────────────────────────────────────────────────
+// ── community stub ──────────────────────────────────────────────────────────
 
+/// Community build stub: all mutating team operations return [`AppError::FeatureNotAvailable`].
+pub struct CommunityTeamService;
+
+impl TeamService for CommunityTeamService {
+    async fn create_team(&self, _creator_id: Uuid, _name: &str) -> Result<Team, AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-team-management",
+        ))
+    }
+
+    async fn delete_team(&self, _requester_id: Uuid, _team_id: Uuid) -> Result<(), AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-team-management",
+        ))
+    }
+
+    async fn add_member(
+        &self,
+        _requester_id: Uuid,
+        _team_id: Uuid,
+        _user_id: Uuid,
+        _role: TeamMemberRole,
+    ) -> Result<(), AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-team-management",
+        ))
+    }
+
+    async fn remove_member(
+        &self,
+        _requester_id: Uuid,
+        _team_id: Uuid,
+        _user_id: Uuid,
+    ) -> Result<(), AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-team-management",
+        ))
+    }
+
+    async fn list_user_teams(&self, _user_id: Uuid) -> Result<Vec<Team>, AppError> {
+        Ok(vec![])
+    }
+
+    async fn list_visible_teams(&self, _requester_id: Uuid) -> Result<Vec<Team>, AppError> {
+        Ok(vec![])
+    }
+
+    async fn list_users_for_member_picker(
+        &self,
+        _requester_id: Uuid,
+    ) -> Result<Vec<User>, AppError> {
+        Ok(vec![])
+    }
+
+    async fn list_team_members(
+        &self,
+        _requester_id: Uuid,
+        _team_id: Uuid,
+    ) -> Result<Vec<TeamMember>, AppError> {
+        Ok(vec![])
+    }
+
+    async fn grant_vault_access(
+        &self,
+        _granter_id: Uuid,
+        _vault_id: Uuid,
+        _recipient_user_id: Uuid,
+        _vault_key: SecretBox<Vec<u8>>,
+        _recipient_master_key: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-team-management",
+        ))
+    }
+
+    async fn share_vault_with_team(
+        &self,
+        _granter_id: Uuid,
+        _vault_id: Uuid,
+        _team_id: Uuid,
+        _vault_key: SecretBox<Vec<u8>>,
+        _member_master_keys: &[(Uuid, SecretBox<Vec<u8>>)],
+    ) -> Result<(), AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-team-management",
+        ))
+    }
+
+    async fn revoke_vault_access(
+        &self,
+        _actor_id: Uuid,
+        _vault_id: Uuid,
+        _user_id: Uuid,
+    ) -> Result<(), AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-team-management",
+        ))
+    }
+
+    async fn rotate_vault_key(
+        &self,
+        _actor_id: Uuid,
+        _vault_id: Uuid,
+        _new_owner_key_envelope: SecretBox<Vec<u8>>,
+        _new_shares: Vec<KeyShare>,
+    ) -> Result<KeyRotationResult, AppError> {
+        Err(AppError::FeatureNotAvailable(
+            "feature-name-team-management",
+        ))
+    }
+}
+
+// ── premium implementation ────────────────────────────────────────────────────
+
+#[cfg(feature = "premium")]
 pub struct TeamServiceImpl<TTeamRepo, TUserRepo, TVaultRepo, TCrypto, TAuditSvc>
 where
     TTeamRepo: TeamRepository + Send + Sync,
@@ -145,6 +272,7 @@ where
     audit_service: Arc<TAuditSvc>,
 }
 
+#[cfg(feature = "premium")]
 impl<TTeamRepo, TUserRepo, TVaultRepo, TCrypto, TAuditSvc>
     TeamServiceImpl<TTeamRepo, TUserRepo, TVaultRepo, TCrypto, TAuditSvc>
 where
@@ -393,6 +521,7 @@ where
     }
 }
 
+#[cfg(feature = "premium")]
 impl<TTeamRepo, TUserRepo, TVaultRepo, TCrypto, TAuditSvc> TeamService
     for TeamServiceImpl<TTeamRepo, TUserRepo, TVaultRepo, TCrypto, TAuditSvc>
 where
@@ -722,6 +851,7 @@ where
     }
 }
 
+#[cfg(feature = "premium")]
 fn generate_vault_key() -> Result<SecretBox<Vec<u8>>, AppError> {
     const VAULT_KEY_LEN: usize = 32;
     let mut key = vec![0_u8; VAULT_KEY_LEN];
@@ -732,7 +862,7 @@ fn generate_vault_key() -> Result<SecretBox<Vec<u8>>, AppError> {
 
 // ── unit tests ────────────────────────────────────────────────────────────────
 
-#[cfg(test)]
+#[cfg(all(test, feature = "premium"))]
 mod tests {
     #![allow(clippy::disallowed_methods)]
     use std::collections::HashMap;

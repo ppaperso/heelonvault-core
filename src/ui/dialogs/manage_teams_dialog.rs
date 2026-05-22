@@ -744,6 +744,36 @@ impl ManageTeamsDialog {
 
     fn show_error(window: &gtk4::Window, err: AppError) {
         let title = match err {
+            AppError::FeatureNotAvailable(feature) => {
+                use gtk4::gio;
+                let feature_display = crate::tr!(feature);
+                let body = format!(
+                    "{}\n\n{}",
+                    crate::tr!("feature-not-available-body"),
+                    feature_display,
+                );
+                let dialog = adw::MessageDialog::new(
+                    Some(window),
+                    Some(crate::tr!("feature-not-available-title").as_str()),
+                    Some(body.as_str()),
+                );
+                dialog.add_response("cancel", crate::tr!("common-cancel").as_str());
+                dialog.add_response("upgrade", crate::tr!("upgrade-to-professional").as_str());
+                dialog.set_response_appearance("upgrade", adw::ResponseAppearance::Suggested);
+                dialog.set_default_response(Some("upgrade"));
+                dialog.set_close_response("cancel");
+                dialog.connect_response(None, move |d, response| {
+                    if response == "upgrade" {
+                        let _ = gio::AppInfo::launch_default_for_uri(
+                            "https://heelonys.fr/solutions/heelonvault",
+                            None::<&gio::AppLaunchContext>,
+                        );
+                    }
+                    d.close();
+                });
+                dialog.present();
+                return;
+            }
             AppError::Authorization(_) => {
                 crate::tr!("manage-teams-error-authorization").to_string()
             }

@@ -25,13 +25,17 @@
         let on_pin_state_cb: Rc<RefCell<Option<Rc<dyn Fn(bool)>>>> = Rc::new(RefCell::new(None));
         let pin_cache: Rc<RefCell<Option<crate::services::pin_cache_service::PinCache>>> = Rc::new(RefCell::new(None));
         let critical_ops_in_flight = Rc::new(Cell::new(0_u32));
+        #[cfg(feature = "premium")]
         let audit_report_service = Arc::new(AuditReportService::new(
             Arc::clone(&license_service),
             runtime_handle.clone(),
             database_pool.clone(),
         ));
+        #[cfg(feature = "premium")]
         let report_customer_name = Self::professional_customer_name(license_badge_text.as_str())
             .unwrap_or_else(|| "CLIENT".to_string());
+        #[cfg(not(feature = "premium"))]
+        let _report_customer_name: String = String::new();
 
         let header_bar = adw::HeaderBar::new();
         header_bar.add_css_class("main-headerbar");
@@ -354,9 +358,13 @@
         trash_button.add_css_class("main-add-button");
         trash_button.set_tooltip_text(Some(crate::tr!("main-trash-tooltip").as_str()));
 
+        #[cfg(feature = "premium")]
         let certification_popover = gtk4::Popover::new();
+        #[cfg(feature = "premium")]
         certification_popover.set_has_arrow(true);
+        #[cfg(feature = "premium")]
         certification_popover.set_autohide(true);
+        #[cfg(feature = "premium")]
         let certification_menu_box = gtk4::Box::builder()
             .orientation(gtk4::Orientation::Vertical)
             .spacing(4)
@@ -365,21 +373,31 @@
             .margin_start(8)
             .margin_end(8)
             .build();
+        #[cfg(feature = "premium")]
         certification_menu_box.add_css_class("profile-login-history-popover");
+        #[cfg(feature = "premium")]
         let report_24h_menu_button =
             Self::build_certification_menu_item("document-save-symbolic", "Rapport 24h");
+        #[cfg(feature = "premium")]
         let report_7d_menu_button =
             Self::build_certification_menu_item("document-save-symbolic", "Rapport 7 jours");
+        #[cfg(feature = "premium")]
         let report_30d_menu_button =
             Self::build_certification_menu_item("document-save-symbolic", "Rapport 30 jours");
+        #[cfg(feature = "premium")]
         let diagnostics_menu_button = Self::build_certification_menu_item(
             "emblem-system-symbolic",
             "Vérifier l'état de signature",
         );
+        #[cfg(feature = "premium")]
         certification_menu_box.append(&report_24h_menu_button);
+        #[cfg(feature = "premium")]
         certification_menu_box.append(&report_7d_menu_button);
+        #[cfg(feature = "premium")]
         certification_menu_box.append(&report_30d_menu_button);
+        #[cfg(feature = "premium")]
         certification_menu_box.append(&diagnostics_menu_button);
+        #[cfg(feature = "premium")]
         certification_popover.set_child(Some(&certification_menu_box));
 
         let app_for_trash = application.clone();
@@ -389,10 +407,15 @@
         let vault_for_trash = Arc::clone(&vault_service);
         let admin_user_for_trash = admin_user_id;
         let session_master_for_trash = Rc::clone(&session_master_key);
+        #[cfg(feature = "premium")]
         let report_service_for_click = Arc::clone(&audit_report_service);
+        #[cfg(feature = "premium")]
         let report_customer_for_click = report_customer_name.clone();
+        #[cfg(feature = "premium")]
         let window_for_report = window.clone();
+        #[cfg(feature = "premium")]
         let toast_overlay_for_report = toast_overlay.clone();
+        #[cfg(feature = "licensing")]
         let license_service_for_report = Arc::clone(&license_service);
 
         let center_panel = Self::build_center_panel();
@@ -400,13 +423,17 @@
         sidebar_panel
             .certification_menu_button
             .set_tooltip_text(Some("Certifier & Exporter"));
+        #[cfg(feature = "premium")]
         sidebar_panel
             .certification_menu_button
             .set_popover(Some(&certification_popover));
+        #[cfg(feature = "licensing")]
         let certification_enabled = license_service_for_report
             .get_cached()
             .map(|license| matches!(license.tier, LicenseTier::Professional))
             .unwrap_or(false);
+        #[cfg(not(feature = "licensing"))]
+        let certification_enabled = false;
         sidebar_panel
             .certification_menu_button
             .set_sensitive(certification_enabled);
@@ -1174,6 +1201,8 @@
         users_intro.add_css_class("dim-label");
         users_view_root.append(&users_intro);
         if is_admin {
+            #[cfg(feature = "premium")]
+            {
             let app_for_admin = application.clone();
             let window_for_admin = window.clone();
             let runtime_for_admin = runtime_handle.clone();
@@ -1209,6 +1238,7 @@
                 .connect_clicked(move |_| {
                     main_stack_for_users.set_visible_child_name("users_view");
                 });
+            } // end #[cfg(feature = "premium")]
         }
 
         let teams_view_container = gtk4::ScrolledWindow::builder()
@@ -1252,6 +1282,8 @@
         teams_intro.add_css_class("dim-label");
         teams_view_root.append(&teams_intro);
         if is_admin {
+            #[cfg(feature = "premium")]
+            {
             let app_for_teams = application.clone();
             let window_for_teams = window.clone();
             let runtime_for_teams = runtime_handle.clone();
@@ -1292,10 +1324,20 @@
             sidebar_panel.teams_button.connect_clicked(move |_| {
                 main_stack_for_teams.set_visible_child_name("teams_view");
             });
+            } // end #[cfg(feature = "premium")]
         }
 
+        #[cfg(feature = "premium")]
         sidebar_panel.administration_button.set_visible(is_admin);
+        #[cfg(feature = "premium")]
         sidebar_panel.teams_button.set_visible(is_admin);
+        #[cfg(not(feature = "premium"))]
+        sidebar_panel.administration_button.set_visible(false);
+        #[cfg(not(feature = "premium"))]
+        sidebar_panel.teams_button.set_visible(false);
+        // Suppress unused-variable warnings for premium-only params in community build
+        #[cfg(not(feature = "premium"))]
+        let _ = (&admin_service, &team_service);
 
         let secret_editor_host = gtk4::Box::builder()
             .orientation(Orientation::Vertical)
@@ -1486,6 +1528,7 @@
             dialog.present();
         });
         header_bar.pack_start(&trash_button);
+        #[cfg(feature = "premium")]
         let launch_signed_report: Rc<dyn Fn(i64)> = Rc::new({
             let report_service = Arc::clone(&report_service_for_click);
             let customer_name = report_customer_for_click.clone();
@@ -1547,6 +1590,7 @@
                 });
             }
         });
+        #[cfg(feature = "premium")]
         report_24h_menu_button.connect_clicked({
             let launch_signed_report = Rc::clone(&launch_signed_report);
             let certification_popover = certification_popover.clone();
@@ -1555,6 +1599,7 @@
                 launch_signed_report(1)
             }
         });
+        #[cfg(feature = "premium")]
         report_7d_menu_button.connect_clicked({
             let launch_signed_report = Rc::clone(&launch_signed_report);
             let certification_popover = certification_popover.clone();
@@ -1563,6 +1608,7 @@
                 launch_signed_report(7)
             }
         });
+        #[cfg(feature = "premium")]
         report_30d_menu_button.connect_clicked({
             let launch_signed_report = Rc::clone(&launch_signed_report);
             let certification_popover = certification_popover.clone();
@@ -1571,6 +1617,7 @@
                 launch_signed_report(30)
             }
         });
+        #[cfg(feature = "premium")]
         diagnostics_menu_button.connect_clicked({
             let certification_popover = certification_popover.clone();
             let report_window = window.clone();
