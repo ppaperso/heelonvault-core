@@ -2,7 +2,7 @@
 name = "heelonvault-app"
 version = "1.1.0"
 edition = "2021"
-rust-version = "1.94"
+rust-version = "1.95"
 authors = ["ppaperso <ppaperso@users.noreply.github.com>"]
 license = "Apache-2.0"
 description = "HeelonVault — Binaire GTK4/Libadwaita (assembleur Open Core)"
