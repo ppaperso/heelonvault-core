@@ -16,7 +16,7 @@ path = "src/main.rs"
 # C'est le SEUL endroit où l'édition compilée est décidée.
 [features]
 default   = []
-premium   = ["dep:heelonvault-premium", "heelonvault-core/premium"]
+premium   = ["dep:heelonvault-premium"]
 licensing = ["premium"]
 
 [dependencies]
