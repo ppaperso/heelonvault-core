@@ -3,6 +3,10 @@
         {
             "name": "HeelonVault - Projet",
             "path": "."
+        },
+        {
+            "name": "HeelonVault-Premium (privé)",
+            "path": "../heelonvault-premium"
         }
     ],
     "settings": {
