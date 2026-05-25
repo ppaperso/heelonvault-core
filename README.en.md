@@ -38,7 +38,7 @@ HeelonVault follows a security-first approach for GDPR-oriented data protection.
 
 - Distributed under the Apache 2.0 License. See [LICENSE](LICENSE) for software terms and [LEGAL.md](docs/LEGAL.md) for trademark and Authenticity Seal terms.
 - **Dependency inventory**: complete third-party component list and licenses are documented in [THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md).
-- **Signed CycloneDX SBOM**: release workflow publishes `sbom.cyclonedx.json` and `sbom.cyclonedx.json.sha256`, with GitHub Actions provenance attestation.
+- **Signed CycloneDX SBOM**: the SBOM is generated from the `heelonvault-premium` repository; `sbom.cyclonedx.json` and `sbom.cyclonedx.json.sha256` are published manually at release time.
 - **LGPL runtime linking**: GTK4/libadwaita are dynamically linked by the operating system.
 
 ### Cryptographic primitives

@@ -41,7 +41,7 @@ et la protection des données utilisateurs.
 - Distribué sous licence Apache 2.0. Voir [LICENSE](LICENSE) pour le logiciel et [LEGAL.md](docs/LEGAL.md) pour les conditions relatives à la marque et au Sceau d'Authenticité.
 - **Inventaire des dépendances** : la totalité des bibliothèques tierces (Rust + système)
   et leurs licences exactes sont documentées dans [THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md).
-- **SBOM CycloneDX signé** : la release publie `sbom.cyclonedx.json` et `sbom.cyclonedx.json.sha256`, avec attestation de provenance GitHub Actions.
+- **SBOM CycloneDX signé** : le SBOM est généré depuis le dépôt `heelonvault-premium` ; `sbom.cyclonedx.json` et `sbom.cyclonedx.json.sha256` sont publiés manuellement lors des releases.
 - **Aucune dépendance copyleft** compilée statiquement dans le binaire — les seules bibliothèques
   LGPL (GTK4, libadwaita) sont liées dynamiquement par le système d'exploitation.
 
