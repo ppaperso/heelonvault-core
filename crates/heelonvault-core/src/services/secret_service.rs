@@ -48,6 +48,10 @@ pub trait LocalSecretService {
         vault_key: SecretBox<Vec<u8>>,
     ) -> Result<DecryptedSecret, AppError>;
     /// Update secret metadata and optionally rotate encrypted payload.
+    ///
+    /// `audit_detail` is an optional JSON string that will be stored in the
+    /// audit log alongside the `secret.updated` event (e.g. title and which
+    /// fields changed).  Pass `None` when the context is unavailable.
     #[allow(clippy::too_many_arguments)]
     async fn update_secret(
         &self,
@@ -58,6 +62,22 @@ pub trait LocalSecretService {
         expires_at: Option<String>,
         plaintext_secret: Option<SecretBox<Vec<u8>>>,
         vault_key: SecretBox<Vec<u8>>,
+        audit_detail: Option<String>,
+    ) -> Result<(), AppError>;
+    /// Record a `secret.viewed` event for CNIL-compliant access logging.
+    async fn record_viewed(
+        &self,
+        secret_id: Uuid,
+        actor_id: Option<Uuid>,
+        title: Option<&str>,
+    ) -> Result<(), AppError>;
+    /// Record a `secret.password_copied` or `secret.field_copied` event.
+    async fn record_field_copy(
+        &self,
+        secret_id: Uuid,
+        actor_id: Option<Uuid>,
+        title: Option<&str>,
+        field: &str,
     ) -> Result<(), AppError>;
     /// Move one secret to another vault (with payload re-encryption).
     async fn move_secret(
@@ -250,6 +270,7 @@ where
         expires_at: Option<String>,
         plaintext_secret: Option<SecretBox<Vec<u8>>>,
         vault_key: SecretBox<Vec<u8>>,
+        audit_detail: Option<String>,
     ) -> Result<(), AppError> {
         self.secret_repo
             .update_secret_metadata(secret_id, title, metadata_json, tags, expires_at)
@@ -264,6 +285,63 @@ where
                 .await?;
         }
 
+        self.audit_service
+            .record_event(
+                None,
+                AuditAction::SecretUpdated,
+                Some("secret"),
+                Some(&secret_id.to_string()),
+                audit_detail.as_deref(),
+            )
+            .await
+            .ok();
+
+        Ok(())
+    }
+
+    async fn record_viewed(
+        &self,
+        secret_id: Uuid,
+        actor_id: Option<Uuid>,
+        title: Option<&str>,
+    ) -> Result<(), AppError> {
+        let detail = title.map(|t| format!(r#"{{"title":"{t}"}}"#));
+        self.audit_service
+            .record_event(
+                actor_id,
+                AuditAction::SecretViewed,
+                Some("secret"),
+                Some(&secret_id.to_string()),
+                detail.as_deref(),
+            )
+            .await
+            .ok();
+        Ok(())
+    }
+
+    async fn record_field_copy(
+        &self,
+        secret_id: Uuid,
+        actor_id: Option<Uuid>,
+        title: Option<&str>,
+        field: &str,
+    ) -> Result<(), AppError> {
+        let action = if field == "password" {
+            AuditAction::SecretPasswordCopied
+        } else {
+            AuditAction::SecretFieldCopied
+        };
+        let detail = title.map(|t| format!(r#"{{"title":"{t}","field":"{field}"}}"#));
+        self.audit_service
+            .record_event(
+                actor_id,
+                action,
+                Some("secret"),
+                Some(&secret_id.to_string()),
+                detail.as_deref(),
+            )
+            .await
+            .ok();
         Ok(())
     }
 
@@ -1004,6 +1082,7 @@ mod tests {
                 Some("2026-12-24T00:00:00Z".to_string()),
                 None,
                 SecretBox::new(Box::new(vault_key.expose_secret().clone())),
+                None,
             )
             .await;
         assert!(update_result.is_ok(), "update should succeed");

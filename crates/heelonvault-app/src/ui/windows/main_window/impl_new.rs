@@ -26,7 +26,7 @@ impl MainWindow {
         backup_app_service: Arc<TBackupApp>,
         import_service: Arc<TImport>,
         audit_service: Arc<heelonvault_core::services::audit_service::AuditService>,
-        #[cfg(feature = "licensing")] license_service: Arc<LicenseService>,
+        #[cfg(feature = "premium")] license_service: Arc<LicenseService>,
         database_pool: SqlitePool,
         database_path: PathBuf,
         admin_user_id: Uuid,

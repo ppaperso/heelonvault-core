@@ -146,6 +146,19 @@
             };
             let expires_for_task = expires_at.clone();
             let secret_payload = secret_text.into_bytes();
+
+            // ── CNIL: build audit detail for update_secret ──────────────
+            let audit_detail_for_task = match mode_for_save {
+                DialogMode::Edit(_) => {
+                    let escaped_title = title.replace('\\', "\\\\").replace('"', "\\\"");
+                    Some(format!(
+                        r#"{{"title":"{}","password_changed":{}}}"#,
+                        escaped_title,
+                        !secret_payload.is_empty()
+                    ))
+                }
+                _ => None,
+            };
             std::thread::spawn(move || {
                 let result = runtime_for_task.block_on(async move {
                     let target_vault_id = match mode_for_save {
@@ -237,6 +250,7 @@
                                     expires_for_task,
                                     secret_to_update,
                                     vault_key,
+                                    audit_detail_for_task,
                                 )
                                 .await
                         }

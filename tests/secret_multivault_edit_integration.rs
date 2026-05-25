@@ -283,6 +283,7 @@ async fn scenario_edit_secret_locates_non_first_vault() {
             None,
             Some(SecretBox::new(Box::new(b"new-pass".to_vec()))),
             SecretBox::new(Box::new(resolved_vault_key.expose_secret().clone())),
+            None,
         )
         .await;
     assert!(
@@ -412,6 +413,7 @@ async fn scenario_edit_secret_moves_to_target_vault_and_updates_payload() {
             None,
             Some(SecretBox::new(Box::new(b"target-pass".to_vec()))),
             SecretBox::new(Box::new(target_vault_key.expose_secret().clone())),
+            None,
         )
         .await
         .expect("update moved secret with target vault key");

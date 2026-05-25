@@ -415,8 +415,12 @@
         let window_for_report = window.clone();
         #[cfg(feature = "premium")]
         let toast_overlay_for_report = toast_overlay.clone();
-        #[cfg(feature = "licensing")]
-        let license_service_for_report = Arc::clone(&license_service);
+        #[cfg(feature = "premium")]
+        let license_service_for_certif = Arc::clone(&license_service);
+        #[cfg(feature = "premium")]
+        let license_service_for_diag = Arc::clone(&license_service);
+        #[cfg(feature = "premium")]
+        let window_for_diag = window.clone();
 
         let center_panel = Self::build_center_panel();
         let sidebar_panel = Self::build_sidebar_panel();
@@ -427,12 +431,12 @@
         sidebar_panel
             .certification_menu_button
             .set_popover(Some(&certification_popover));
-        #[cfg(feature = "licensing")]
-        let certification_enabled = license_service_for_report
+        #[cfg(feature = "premium")]
+        let certification_enabled = license_service_for_certif
             .get_cached()
             .map(|license| matches!(license.tier, LicenseTier::Professional))
             .unwrap_or(false);
-        #[cfg(not(feature = "licensing"))]
+        #[cfg(not(feature = "premium"))]
         let certification_enabled = false;
         sidebar_panel
             .certification_menu_button
@@ -1337,7 +1341,7 @@
         sidebar_panel.teams_button.set_visible(false);
         // Suppress unused-variable warnings for premium-only params in community build
         #[cfg(not(feature = "premium"))]
-        let _ = (&admin_service, &team_service);
+        let _ = (&admin_service, &team_service, &users_view_container, &teams_view_container);
 
         let secret_editor_host = gtk4::Box::builder()
             .orientation(Orientation::Vertical)
@@ -1620,8 +1624,8 @@
         #[cfg(feature = "premium")]
         diagnostics_menu_button.connect_clicked({
             let certification_popover = certification_popover.clone();
-            let report_window = window.clone();
-            let license_service = Arc::clone(&license_service_for_report);
+            let report_window = window_for_diag.clone();
+            let license_service = Arc::clone(&license_service_for_diag);
             move |_| {
                 certification_popover.popdown();
                 Self::show_certification_diagnostics_dialog(
@@ -1665,7 +1669,9 @@
             let main_stack = center_panel.main_stack.clone();
             let profile_container = profile_view.container.clone();
             let secret_editor_host = secret_editor_host.clone();
+            #[cfg(feature = "premium")]
             let users_view_container = users_view_container.clone();
+            #[cfg(feature = "premium")]
             let teams_view_container = teams_view_container.clone();
             let users_back_button = users_back_button.clone();
             let users_title = users_title.clone();
@@ -1712,6 +1718,7 @@
                 main_stack
                     .page(&profile_container)
                     .set_title(heelonvault_core::tr!("main-profile-security").as_str());
+                #[cfg(feature = "premium")]
                 if is_admin {
                     main_stack
                         .page(&users_view_container)

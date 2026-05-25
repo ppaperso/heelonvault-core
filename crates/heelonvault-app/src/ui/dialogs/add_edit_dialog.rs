@@ -351,6 +351,10 @@ impl AddEditDialog {
             heelonvault_core::errors::AppError,
         >;
 
+        // Clones kept outside the first thread for the SecretViewed audit call below.
+        let secret_for_audit = Arc::clone(&secret_service);
+        let runtime_for_audit = runtime_handle.clone();
+
         let (sender, receiver) = tokio::sync::oneshot::channel();
         std::thread::spawn(move || {
             let result: EditLoadResult = runtime_handle.block_on(async move {
@@ -520,6 +524,20 @@ impl AddEditDialog {
                     }
 
                     validity_days.set_sensitive(!validity_unlimited.is_active());
+
+                    // ── CNIL: log SecretViewed ──────────────────────────────
+                    let title_for_audit = item.title.clone();
+                    std::thread::spawn(move || {
+                        let _ = runtime_for_audit.block_on(async move {
+                            secret_for_audit
+                                .record_viewed(
+                                    secret_id,
+                                    Some(admin_user_id),
+                                    title_for_audit.as_deref(),
+                                )
+                                .await
+                        });
+                    });
                 }
                 Ok(Err(_)) | Err(_) => {
                     error_label

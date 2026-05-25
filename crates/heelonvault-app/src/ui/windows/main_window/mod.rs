@@ -36,7 +36,7 @@ use crate::ui::dialogs::recovery_key_export_dialog::{
 use crate::ui::dialogs::trash_dialog::TrashDialog;
 use crate::ui::messages;
 use crate::ui::window_sizing;
-#[cfg(any(feature = "premium", feature = "licensing"))]
+#[cfg(feature = "premium")]
 use heelonvault_core::models::LicenseTier;
 use heelonvault_core::services::admin_service::AdminService;
 #[cfg(feature = "premium")]
@@ -54,7 +54,7 @@ use heelonvault_core::services::user_service::UserService;
 use heelonvault_core::services::vault_service::VaultService;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::audit_report_service::AuditReportService;
-#[cfg(feature = "licensing")]
+#[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
 
 mod auto_lock;

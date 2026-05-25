@@ -1,12 +1,18 @@
+#[cfg(feature = "premium")]
 use std::rc::Rc;
+#[cfg(feature = "premium")]
 use std::sync::Arc;
 
+#[cfg(feature = "premium")]
 use gtk4::gio;
 use gtk4::prelude::*;
 use gtk4::{Align, Orientation};
+#[cfg(feature = "premium")]
 use libadwaita as adw;
+#[cfg(feature = "premium")]
 use sha2::{Digest, Sha256};
 
+#[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
 
 pub(super) fn build_certification_menu_item(icon_name: &str, label: &str) -> gtk4::Button {
@@ -29,6 +35,7 @@ pub(super) fn build_certification_menu_item(icon_name: &str, label: &str) -> gtk
     button
 }
 
+#[cfg(feature = "premium")]
 pub(super) fn show_certification_diagnostics_dialog(
     parent: &adw::ApplicationWindow,
     license_service: Arc<LicenseService>,
@@ -248,6 +255,7 @@ pub(super) fn show_certification_diagnostics_dialog(
     dialog.present();
 }
 
+#[cfg(feature = "premium")]
 fn build_certification_status_row(
     title: &str,
     badge_text: &str,
@@ -297,6 +305,7 @@ fn build_certification_status_row(
     row
 }
 
+#[cfg(feature = "premium")]
 fn engine_fingerprint() -> String {
     let mut hasher = Sha256::new();
     hasher.update(env!("CARGO_PKG_VERSION").as_bytes());

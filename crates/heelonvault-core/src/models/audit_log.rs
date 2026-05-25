@@ -26,6 +26,9 @@ pub enum AuditAction {
     SecretCreated,
     SecretUpdated,
     SecretDeleted,
+    SecretViewed,
+    SecretPasswordCopied,
+    SecretFieldCopied,
 }
 
 impl AuditAction {
@@ -49,6 +52,9 @@ impl AuditAction {
             AuditAction::SecretCreated => "secret.created",
             AuditAction::SecretUpdated => "secret.updated",
             AuditAction::SecretDeleted => "secret.deleted",
+            AuditAction::SecretViewed => "secret.viewed",
+            AuditAction::SecretPasswordCopied => "secret.password_copied",
+            AuditAction::SecretFieldCopied => "secret.field_copied",
         }
     }
 }

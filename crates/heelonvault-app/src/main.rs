@@ -74,7 +74,7 @@ use heelonvault_core::services::vault_service::{VaultKeyEnvelopeRepository, Vaul
 use heelonvault_premium::services::admin_service_impl::AdminServiceImpl;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::audit_log_service_impl::AuditLogServiceImpl;
-#[cfg(feature = "licensing")]
+#[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::team_service_impl::TeamServiceImpl;
@@ -172,7 +172,7 @@ struct AppContext {
     admin_service: Arc<AdminServiceHandle>,
     team_service: Arc<TeamServiceHandle>,
     _backup_app_service: Arc<BackupApplicationServiceHandle>,
-    #[cfg(feature = "licensing")]
+    #[cfg(feature = "premium")]
     _license_service: Arc<LicenseService>,
     _password_service: PasswordServiceImpl,
 }
@@ -202,7 +202,7 @@ struct SecondaryServices {
     import_service: Arc<ImportServiceImpl>,
     totp_service: Arc<TotpServiceHandle>,
     audit_service: Arc<AuditService>,
-    #[cfg(feature = "licensing")]
+    #[cfg(feature = "premium")]
     license_service: Arc<LicenseService>,
 }
 
@@ -408,7 +408,7 @@ fn run_application(
             } else {
                 None
             };
-            #[cfg(feature = "licensing")]
+            #[cfg(feature = "premium")]
             let login_license_badge_text = context_for_login
                 ._license_service
                 .get_cached()
@@ -419,7 +419,7 @@ fn run_application(
                     }
                 })
                 .unwrap_or_else(|| "Licence free".to_string());
-            #[cfg(not(feature = "licensing"))]
+            #[cfg(not(feature = "premium"))]
             let login_license_badge_text = "Licence free".to_string();
             let login_dialog = LoginDialog::new(
                 &app_for_login,
@@ -519,7 +519,7 @@ fn run_application(
                     }
 
                     let main_window_build_started = Instant::now();
-                    #[cfg(feature = "licensing")]
+                    #[cfg(feature = "premium")]
                     let license_badge_text = context_for_success
                         ._license_service
                         .get_cached()
@@ -532,7 +532,7 @@ fn run_application(
                             }
                         })
                         .unwrap_or_else(|| "Licence free".to_string());
-                    #[cfg(not(feature = "licensing"))]
+                    #[cfg(not(feature = "premium"))]
                     let license_badge_text = "Licence free".to_string();
                     let main_for_success = Rc::new(MainWindow::new(
                         &app_for_main_success,
@@ -548,7 +548,7 @@ fn run_application(
                         Arc::clone(&context_for_success._backup_app_service),
                         Arc::clone(&context_for_success.import_service),
                         Arc::clone(&context_for_success.audit_service),
-                        #[cfg(feature = "licensing")]
+                        #[cfg(feature = "premium")]
                         Arc::clone(&context_for_success._license_service),
                         context_for_success.pool.clone(),
                         context_for_success.database_path.clone(),
@@ -950,7 +950,7 @@ async fn build_secondary_services(
         "HeelonVault",
     ));
     let audit_service = Arc::new(AuditService::new(pool.clone()));
-    #[cfg(feature = "licensing")]
+    #[cfg(feature = "premium")]
     let license_service = {
         let mut ls = LicenseService::new();
         match ls.load_license().await {
@@ -985,7 +985,7 @@ async fn build_secondary_services(
         import_service,
         totp_service,
         audit_service,
-        #[cfg(feature = "licensing")]
+        #[cfg(feature = "premium")]
         license_service,
     }
 }
@@ -1064,7 +1064,7 @@ async fn initialize_app_context() -> Result<AppStartMode> {
         admin_service: primary.admin_service,
         team_service: primary.team_service,
         _backup_app_service: secondary.backup_app_service,
-        #[cfg(feature = "licensing")]
+        #[cfg(feature = "premium")]
         _license_service: secondary.license_service,
         _password_service: secondary.password_service,
     };

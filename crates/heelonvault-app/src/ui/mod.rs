@@ -1,5 +1,5 @@
 pub mod dialogs;
-#[cfg(feature = "licensing")]
+#[cfg(feature = "premium")]
 pub mod license_badge;
 pub mod messages;
 pub mod widgets;

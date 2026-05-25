@@ -503,6 +503,9 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                     } else {
                         item.login.clone()
                     };
+                    // "password" if we copied the secret_value; "login" otherwise (CNIL field label)
+                    let copy_field = if !item.secret_value.is_empty() { "password" } else { "login" };
+                    let copy_title_for_audit = item.title.clone();
 
                     if copy_value.is_empty() {
                         card.get_copy_button().set_sensitive(false);
@@ -527,6 +530,23 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                                 let _ = runtime_for_task.block_on(async move {
                                     service_for_task
                                         .increment_usage_count(secret_id_for_copy)
+                                        .await
+                                });
+                            });
+
+                            // ── CNIL: log field copy ──────────────────────
+                            let service_for_audit = Arc::clone(&service_for_copy);
+                            let runtime_for_audit = runtime_for_copy.clone();
+                            let title_for_audit = copy_title_for_audit.clone();
+                            std::thread::spawn(move || {
+                                let _ = runtime_for_audit.block_on(async move {
+                                    service_for_audit
+                                        .record_field_copy(
+                                            secret_id_for_copy,
+                                            Some(admin_user_id),
+                                            Some(title_for_audit.as_str()),
+                                            copy_field,
+                                        )
                                         .await
                                 });
                             });
