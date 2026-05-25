@@ -13,29 +13,39 @@ name: CI
 # On-demand platform builds: use "Run workflow" on GitHub and check the platform boxes.
 # Cancel-in-progress: enabled for branches (not tags) — successive main pushes cancel old runs.
 
+# ⚠️  CI TEMPORAIREMENT DÉSACTIVÉ — architecture core/premium en cours de stabilisation
+# Pour réactiver, décommenter le bloc « on: » ci-dessous et supprimer le workflow_dispatch minimal.
+#
+# on:
+#   pull_request:
+#     branches:
+#       - main
+#       - develop
+#   push:
+#     branches:
+#       - main
+#       - develop
+#     tags:
+#       - 'v*'
+#   workflow_dispatch:
+#     inputs:
+#       build_ubuntu:
+#         description: 'Build Linux/Ubuntu reference platform'
+#         type: boolean
+#         default: false
+#       build_macos:
+#         description: 'Build macOS (arm64)'
+#         type: boolean
+#         default: false
+#       build_windows:
+#         description: 'Build Windows (x86_64)'
+#         type: boolean
+#         default: false
 on:
-  pull_request:
-    branches:
-      - main
-      - develop
-  push:
-    branches:
-      - main
-      - develop
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
-      build_ubuntu:
-        description: 'Build Linux/Ubuntu reference platform'
-        type: boolean
-        default: false
-      build_macos:
-        description: 'Build macOS (arm64)'
-        type: boolean
-        default: false
-      build_windows:
-        description: 'Build Windows (x86_64)'
+      confirm:
+        description: 'CI désactivé — déclencher manuellement uniquement'
         type: boolean
         default: false
 

@@ -1,11 +1,11 @@
 {
     "folders": [
         {
-            "name": "HeelonVault - Projet",
+            "name": "heelonvault-core",
             "path": "."
         },
         {
-            "name": "HeelonVault-Premium (privé)",
+            "name": "heelonvault-premium",
             "path": "../heelonvault-premium"
         }
     ],

@@ -1,9 +1,19 @@
 name: Release
 
+# ⚠️  RELEASE TEMPORAIREMENT DÉSACTIVÉ — architecture core/premium en cours de stabilisation
+# Pour réactiver, décommenter le bloc « on: » ci-dessous et supprimer le workflow_dispatch minimal.
+#
+# on:
+#   push:
+#     tags:
+#       - "v*"
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Release désactivé — déclencher manuellement uniquement'
+        type: boolean
+        default: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"

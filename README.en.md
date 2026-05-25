@@ -61,7 +61,7 @@ See [SECURITY.md](SECURITY.md).
 ## Repository Structure
 
 ```text
-HeelonVault/
+heelonvault-core/
 ├── crates/
 │   ├── heelonvault-core/      # Public library (crates.io)
 │   ├── heelonvault-app/       # GTK4 / libadwaita binary

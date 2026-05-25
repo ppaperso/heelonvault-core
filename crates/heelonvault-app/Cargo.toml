@@ -6,7 +6,7 @@ rust-version = "1.95"
 authors = ["ppaperso <ppaperso@users.noreply.github.com>"]
 license = "Apache-2.0"
 description = "HeelonVault — Binaire GTK4/Libadwaita (assembleur Open Core)"
-repository = "https://github.com/ppaperso/HeelonVault"
+repository = "https://github.com/ppaperso/heelonvault-core"
 
 [[bin]]
 name = "heelonvault"
@@ -22,7 +22,7 @@ licensing = ["premium"]
 [dependencies]
 # Core library locale (aucun cycle possible : core ne dépend pas d'app)
 heelonvault-core    = { path = "../heelonvault-core" }
-heelonvault-premium = { git = "https://github.com/ppaperso/HeelonVault-Premium.git", branch = "main", optional = true }
+heelonvault-premium = { git = "https://github.com/ppaperso/heelonvault-premium.git", branch = "main", optional = true }
 
 # Dépendances directes de main.rs (wiring des services, assembly layer)
 # Ces crates sont aussi dans heelonvault-core mais Cargo n'exporte pas

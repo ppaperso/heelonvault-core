@@ -16,21 +16,21 @@
 │ Push tags (v*)          │   ✓    │   ✗    │   ✓    │   ✓    │ ✗  │
 │ workflow_dispatch       │   ✓    │   ✗    │   ✓    │   ✓    │ ✓  │
 └─────────────────────────────────────────────────────────────────┘
-```
-
----
 
 ## Tier 1: Code Quality & Validation (Always)
 
 **Duration**: ~2 min | **Always runs** on PR, push, tags, dispatch
 
 ### Objective
+
 Fast code quality gates before any build. Fail-fast on obvious issues.
 
 ### Jobs
+
 - `validate-source`: Rust formatting (`cargo fmt`), linting (`cargo clippy -D warnings`), desktop entry validation
 
 ### Rationale
+
 - Prevents broken builds from reaching expensive build jobs
 - Runs on all triggers (minimal resource cost)
 - **No platform-specific dependencies** (runs on lightweight ubuntu-24.04)
@@ -41,19 +41,23 @@ Fast code quality gates before any build. Fail-fast on obvious issues.
 
 **Duration**: ~4 min | **PR only** | Allégé (build validation, no smoke tests)
 
-### Objective
+### Objective-
+
 Give developers fast feedback on their target platform (Fedora).
 
-### Jobs
+### Jobs-
+
 - `build-fedora-dev`: Build release binary on Fedora container, validate desktop file
 
 ### Why only Fedora?
+
 - **Your production target** (where HeelonVault is deployed)
 - **Faster iteration**: No unnecessary macOS/Windows builds on PR
 - **Container-based**: Reproducible, isolated environment
 - **Smoke tests skipped**: Adds 2+ min per PR without additional signal during active development
 
 ### Rationale for skipping Tier 3 on PR
+
 - Cross-platform validation (macOS, Windows) is expensive (10+ min total)
 - Risk of issues is low when Tier 1 + Fedora pass
 - **Reserve expensive jobs for push/release** where CI resources are less critical
@@ -64,10 +68,12 @@ Give developers fast feedback on their target platform (Fedora).
 
 **Duration**: ~12 min (parallel) | **Push/tags only**
 
-### Objective
+### Objective--
+
 Comprehensive cross-platform validation before release/integration into main.
 
-### Jobs
+### Jobs--
+
 - `build-linux-reference`: Ubuntu 24.04 (golden standard Linux platform)
   - Compile tests (`cargo test --no-run`)
   - Full smoke tests (install/uninstall)
@@ -86,11 +92,13 @@ Comprehensive cross-platform validation before release/integration into main.
   - Binary presence check
 
 ### Why separate Linux reference + Fedora production?
+
 - **Ubuntu (reference)**: Canonical Linux distro, validates mainstream glibc/package ecosystem
 - **Fedora (production)**: Your actual deployment target, ensures real-world smoke tests pass
 - **Both are needed** to catch distro-specific build/runtime issues
 
-### Rationale
+### Rationale-
+
 - **Parallel execution** keeps wall-time manageable (~12 min)
 - **Expensive**: Worth the cost only on integration points (main/release), not every PR
 - **Confidence**: All major platforms validated before release
@@ -101,15 +109,18 @@ Comprehensive cross-platform validation before release/integration into main.
 
 **Duration**: ~3 min | **Push/tags only** | **Blocks merge to main**
 
-### Objective
+### Objective---
+
 Enforce supply-chain and dependency integrity before code integrates into main.
 
-### Jobs
+### Jobs---
+
 - `check-sbom`: Verify `sbom.cyclonedx.json` matches fresh dependency tree
   - Fails if dependencies changed but SBOM not regenerated
   - Blocks merge to prevent outdated BOM in main branch
 
-### Rationale
+### Rationale--
+
 - **Dependency governance**: Enforces explicit review of dependency changes
 - **Release readiness**: Ensures SBOM always matches binary artifacts
 - **Cost**: Cheap (no rebuild, just verification)
@@ -121,16 +132,18 @@ Enforce supply-chain and dependency integrity before code integrates into main.
 
 **Duration**: ~15 min (parallel packaging jobs) | **Tags (v*) only** | **Creates GitHub Release**
 
-### Objective
+### Objective-5
+
 Package platform-specific binary distributables and upload to GitHub Release with SBOM.
 
-### Jobs
-- `package-linux-tarball`: 
+### Jobs-5
+
+- `package-linux-tarball`:
   - Downloads Fedora production binary (production target)
   - Creates `heelonvault-linux-x86_64.tar.gz` with scripts (Ubuntu+Fedora+RHEL compatible)
   - Generates SHA256 checksum
   
-- `package-macos-dmg`: 
+- `package-macos-dmg`:
   - Downloads macOS binary
   - Runs `scripts/create-macos-bundle.sh` → `heelonvault-macos-arm64.dmg`
   - Generates SHA256
@@ -147,7 +160,8 @@ Package platform-specific binary distributables and upload to GitHub Release wit
   - Uploads to GitHub Release via `softprops/action-gh-release@v1`
   - Auto-generates release notes from commit messages
 
-### Rationale
+### Rationale-5
+
 - **Platform-specific**: Each OS gets appropriate package format
   - Linux: `tar.gz` (portable, no distro-specific format)
   - macOS: `.dmg` with app bundle (native macOS convention)
@@ -163,13 +177,16 @@ Package platform-specific binary distributables and upload to GitHub Release wit
 
 **Duration**: Varies | **Manual trigger only**
 
-### Objective
+### Objective-T5
+
 Escape hatch: Force full CI when needed (e.g., GitHub infrastructure issue, manual verification).
 
 ### What runs
+
 - All Tiers 1–5
 
-### Rationale
+### Rationale-T5
+
 - **Edge cases**: Unblock situations where automated CI is insufficient
 - **Not intended for routine use** (that's why it's Tier 5)
 
@@ -178,31 +195,38 @@ Escape hatch: Force full CI when needed (e.g., GitHub infrastructure issue, manu
 ## Execution Flow by Trigger
 
 ### Pull Request
-```
+
+```text
+
 1. Tier 1: validate-source (must pass)
    ├─ If fails → PR cannot proceed
    └─ If passes → Continue
 2. Tier 2: build-fedora-dev (must pass)
    └─ If passes → PR ready for review + merge
-```
+
+```text
 **Total time**: ~6 min
 
 ### Push main / Push develop
 ```
+
 1. Tier 1: validate-source (must pass)
 2. Tier 3: [build-linux-reference, build-fedora-production, build-macos, build-windows] (parallel, all must pass)
 3. Tier 4: check-sbom (must pass, depends on Tier 3)
-```
+
+```text
 **Total time**: ~15 min (parallel Tier 3)
 
 ### Push tags (v*) — RELEASE
 ```
+
 1. Tier 1: validate-source (must pass)
 2. Tier 3: [build-linux-reference, build-fedora-production, build-macos, build-windows] (parallel, all must pass)
 3. Tier 4: check-sbom (must pass, depends on Tier 3)
 4. Tier 5: [package-linux-tarball, package-macos-dmg, package-windows-msi] (parallel, all must pass)
 5. Release: create-github-release (uploads artifacts to Release page)
-```
+
+```text
 **Total time**: ~30 min (parallel Tier 3 + parallel Tier 5 packaging)
 **Deliverables on GitHub Release**:
 - `heelonvault-linux-x86_64.tar.gz` + `.sha256`
@@ -213,8 +237,10 @@ Escape hatch: Force full CI when needed (e.g., GitHub infrastructure issue, manu
 
 ### Manual dispatch
 ```
+
 All Tiers 1–5 run sequentially/parallel as defined. Used for manual override/verification.
-```
+
+```text
 
 ---
 

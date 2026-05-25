@@ -54,7 +54,7 @@ HeelonVault/
 ```
 
 > **Premium** : `heelonvault-premium` est maintenu dans un dépôt Git privé séparé
-> (`ppaperso/HeelonVault-Premium`). Il est référencé dans `heelonvault-app`
+> (`ppaperso/heelonvault-premium`). Il est référencé dans `heelonvault-app`
 > comme dépendance git optionnelle (`features = ["licensing"]`). Le build
 > communautaire n'y accède jamais.
 

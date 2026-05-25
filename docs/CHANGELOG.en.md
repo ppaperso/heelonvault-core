@@ -29,7 +29,6 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Stable toolchain updated to `1.95.0` (rustc 59807616e, 2026-04-14).
 - No new Clippy lints introduced by 1.95.0.
 
-
 ### PIN status badge and session countdown timer
 
 - Added a clickable **"PIN active"** badge in the title bar, kept in real-time sync with the PIN cache state.

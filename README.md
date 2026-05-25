@@ -78,7 +78,7 @@ Consulter [SECURITY.md](SECURITY.md) pour la politique de divulgation responsabl
 ## Structure du dépôt
 
 ```text
-HeelonVault/
+heelonvault-core/
 ├── crates/
 │   ├── heelonvault-core/      # Bibliothèque publique (crates.io)
 │   ├── heelonvault-app/       # Binaire GTK4 / libadwaita

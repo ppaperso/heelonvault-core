@@ -1,6 +1,6 @@
 # heelonvault-core
 
-Core open-source library for [HeelonVault](https://github.com/ppaperso/HeelonVault) — a sovereign,
+Core open-source library for [HeelonVault](https://github.com/ppaperso/heelonvault-core) — a sovereign,
 privacy-first password manager designed for healthcare environments.
 
 ## Overview
@@ -37,7 +37,7 @@ This crate follows a zero-technical-debt policy:
 - No `#[allow(...)]` lint suppressions without explicit rationale and tracking issue
 
 Vulnerabilities may be reported via the
-[security policy](https://github.com/ppaperso/HeelonVault/blob/main/SECURITY.md).
+[security policy](https://github.com/ppaperso/heelonvault-core/blob/main/SECURITY.md).
 
 ## Premium Extensions
 
@@ -47,4 +47,4 @@ library.
 
 ## License
 
-Apache-2.0 — see [LICENSE](https://github.com/ppaperso/HeelonVault/blob/main/LICENSE).
+Apache-2.0 — see [LICENSE](https://github.com/ppaperso/heelonvault-core/blob/main/LICENSE).
