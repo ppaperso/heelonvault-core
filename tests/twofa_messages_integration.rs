@@ -1,4 +1,4 @@
-use heelonvault_rust::ui::messages;
+use heelonvault_core::ui::messages;
 
 #[test]
 fn profile_empty_code_returns_expected_error_message() {

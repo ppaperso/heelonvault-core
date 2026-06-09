@@ -6,9 +6,9 @@
 mod common;
 
 use common::{StubBackupService, StubUserRepo};
-use heelonvault_rust::errors::AppError;
-use heelonvault_rust::models::UserRole;
-use heelonvault_rust::services::backup_application_service::BackupApplicationService;
+use heelonvault_core::errors::AppError;
+use heelonvault_core::models::UserRole;
+use heelonvault_core::services::backup_application_service::BackupApplicationService;
 use tempfile::TempDir;
 use uuid::Uuid;
 #[tokio::test]
@@ -20,7 +20,7 @@ async fn test_non_admin_cannot_export_backup() {
 
     let backup_service = StubBackupService;
     let app_service =
-        heelonvault_rust::services::backup_application_service::BackupApplicationServiceImpl::new(
+        heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl::new(
             user_repo,
             backup_service,
         );
@@ -54,7 +54,7 @@ async fn test_admin_can_export_backup() {
 
     let backup_service = StubBackupService;
     let app_service =
-        heelonvault_rust::services::backup_application_service::BackupApplicationServiceImpl::new(
+        heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl::new(
             user_repo,
             backup_service,
         );
@@ -90,7 +90,7 @@ async fn test_missing_user_returns_not_found() {
 
     let backup_service = StubBackupService;
     let app_service =
-        heelonvault_rust::services::backup_application_service::BackupApplicationServiceImpl::new(
+        heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl::new(
             user_repo,
             backup_service,
         );

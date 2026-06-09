@@ -3,22 +3,22 @@
 
 use std::sync::Arc;
 
-use heelonvault_rust::errors::{AccessDeniedReason, AppError};
-use heelonvault_rust::models::{SecretType, UserRole, VaultShareRole};
-use heelonvault_rust::repositories::audit_log_repository::SqlxAuditLogRepository;
-use heelonvault_rust::repositories::secret_repository::SqlxSecretRepository;
-use heelonvault_rust::repositories::team_repository::SqlxTeamRepository;
-use heelonvault_rust::repositories::user_repository::{SqlxUserRepository, UserRepository};
-use heelonvault_rust::repositories::vault_repository::{SqlxVaultRepository, VaultRepository};
-use heelonvault_rust::services::admin_service::{AdminService, AdminServiceImpl};
-use heelonvault_rust::services::audit_log_service::AuditLogServiceImpl;
-use heelonvault_rust::services::auth_service::{AuthService, AuthServiceImpl};
-use heelonvault_rust::services::crypto_service::{
+use heelonvault_core::errors::{AccessDeniedReason, AppError};
+use heelonvault_core::models::{SecretType, UserRole, VaultShareRole};
+use heelonvault_core::repositories::audit_log_repository::SqlxAuditLogRepository;
+use heelonvault_core::repositories::secret_repository::SqlxSecretRepository;
+use heelonvault_core::repositories::team_repository::SqlxTeamRepository;
+use heelonvault_core::repositories::user_repository::{SqlxUserRepository, UserRepository};
+use heelonvault_core::repositories::vault_repository::{SqlxVaultRepository, VaultRepository};
+use heelonvault_core::services::admin_service::{AdminService, AdminServiceImpl};
+use heelonvault_core::services::audit_log_service::AuditLogServiceImpl;
+use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl};
+use heelonvault_core::services::crypto_service::{
     CryptoService, CryptoServiceImpl, EncryptedPayload, NONCE_LEN,
 };
-use heelonvault_rust::services::secret_service::{SecretService, SecretServiceImpl};
-use heelonvault_rust::services::team_service::{KeyShare, TeamService, TeamServiceImpl};
-use heelonvault_rust::services::vault_service::{
+use heelonvault_core::services::secret_service::{SecretService, SecretServiceImpl};
+use heelonvault_core::services::team_service::{KeyShare, TeamService, TeamServiceImpl};
+use heelonvault_core::services::vault_service::{
     VaultKeyEnvelopeRepository, VaultService, VaultServiceImpl,
 };
 
@@ -282,7 +282,7 @@ async fn scenario_member_removal_purges_shares_and_blocks_open() {
             ctx.admin.id,
             team.id,
             member.id,
-            heelonvault_rust::models::TeamMemberRole::Member,
+            heelonvault_core::models::TeamMemberRole::Member,
         )
         .await
         .expect("add member");
@@ -411,7 +411,7 @@ async fn scenario_key_rotation_keeps_remaining_members_and_blocks_excluded() {
             ctx.admin.id,
             team.id,
             member_a.id,
-            heelonvault_rust::models::TeamMemberRole::Member,
+            heelonvault_core::models::TeamMemberRole::Member,
         )
         .await
         .expect("add a");
@@ -420,7 +420,7 @@ async fn scenario_key_rotation_keeps_remaining_members_and_blocks_excluded() {
             ctx.admin.id,
             team.id,
             member_b.id,
-            heelonvault_rust::models::TeamMemberRole::Member,
+            heelonvault_core::models::TeamMemberRole::Member,
         )
         .await
         .expect("add b");
@@ -429,7 +429,7 @@ async fn scenario_key_rotation_keeps_remaining_members_and_blocks_excluded() {
             ctx.admin.id,
             team.id,
             excluded.id,
-            heelonvault_rust::models::TeamMemberRole::Member,
+            heelonvault_core::models::TeamMemberRole::Member,
         )
         .await
         .expect("add excluded");

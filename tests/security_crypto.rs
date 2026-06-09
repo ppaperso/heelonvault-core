@@ -3,7 +3,7 @@
 //! Security test template for crypto primitives.
 //! Focused on contract-level checks for KDF and AEAD behavior.
 
-use heelonvault_rust::services::crypto_service::{
+use heelonvault_core::services::crypto_service::{
     CryptoService, CryptoServiceImpl, EncryptedPayload, NONCE_LEN,
 };
 use secrecy::{ExposeSecret, SecretBox, SecretString};

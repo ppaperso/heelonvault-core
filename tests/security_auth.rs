@@ -3,9 +3,9 @@
 //! Security test template for authentication and 2FA.
 //! Contract-level checks for auth flows using the service skeleton.
 
-use heelonvault_rust::errors::AppError;
-use heelonvault_rust::services::auth_service::{AuthService, AuthServiceImpl};
-use heelonvault_rust::services::crypto_service::CryptoServiceImpl;
+use heelonvault_core::errors::AppError;
+use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl};
+use heelonvault_core::services::crypto_service::CryptoServiceImpl;
 use secrecy::SecretBox;
 
 #[tokio::test]

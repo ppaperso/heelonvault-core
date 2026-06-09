@@ -2,15 +2,15 @@
 
 use std::sync::Arc;
 
-use heelonvault_rust::errors::AppError;
-use heelonvault_rust::models::SecretItem;
-use heelonvault_rust::repositories::secret_repository::SecretRepository;
-use heelonvault_rust::repositories::user_repository::SqlxUserRepository;
-use heelonvault_rust::repositories::vault_repository::SqlxVaultRepository;
-use heelonvault_rust::services::auth_service::AuthServiceImpl;
-use heelonvault_rust::services::crypto_service::CryptoServiceImpl;
-use heelonvault_rust::services::user_service::{UserProfileUpdate, UserService, UserServiceImpl};
-use heelonvault_rust::services::vault_service::VaultKeyEnvelopeRepository;
+use heelonvault_core::errors::AppError;
+use heelonvault_core::models::SecretItem;
+use heelonvault_core::repositories::secret_repository::SecretRepository;
+use heelonvault_core::repositories::user_repository::SqlxUserRepository;
+use heelonvault_core::repositories::vault_repository::SqlxVaultRepository;
+use heelonvault_core::services::auth_service::AuthServiceImpl;
+use heelonvault_core::services::crypto_service::CryptoServiceImpl;
+use heelonvault_core::services::user_service::{UserProfileUpdate, UserService, UserServiceImpl};
+use heelonvault_core::services::vault_service::VaultKeyEnvelopeRepository;
 use secrecy::SecretBox;
 use sqlx::sqlite::SqlitePoolOptions;
 use uuid::Uuid;

@@ -4,8 +4,8 @@
 ///
 /// Usage: add `#[path = "../common/mod.rs"] mod common;` at the top of a test file,
 /// or use `mod common;` when the test file lives adjacent to this directory.
-use heelonvault_rust::errors::AppError;
-use heelonvault_rust::models::{User, UserRole};
+use heelonvault_core::errors::AppError;
+use heelonvault_core::models::{User, UserRole};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -42,7 +42,7 @@ impl StubUserRepo {
     }
 }
 
-impl heelonvault_rust::repositories::user_repository::UserRepository for StubUserRepo {
+impl heelonvault_core::repositories::user_repository::UserRepository for StubUserRepo {
     async fn get_by_id(&self, id: Uuid) -> Result<Option<User>, AppError> {
         Ok(self.users.lock().unwrap().get(&id).cloned())
     }
@@ -134,11 +134,11 @@ impl heelonvault_rust::repositories::user_repository::UserRepository for StubUse
 #[derive(Clone)]
 pub struct StubBackupService;
 
-impl heelonvault_rust::services::backup_service::BackupService for StubBackupService {
+impl heelonvault_core::services::backup_service::BackupService for StubBackupService {
     fn generate_recovery_key(
         &self,
-    ) -> Result<heelonvault_rust::services::backup_service::RecoveryKeyBundle, AppError> {
-        Ok(heelonvault_rust::services::backup_service::RecoveryKeyBundle {
+    ) -> Result<heelonvault_core::services::backup_service::RecoveryKeyBundle, AppError> {
+        Ok(heelonvault_core::services::backup_service::RecoveryKeyBundle {
             recovery_phrase: secrecy::SecretString::new(
                 "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
                     .to_string()
@@ -152,8 +152,8 @@ impl heelonvault_rust::services::backup_service::BackupService for StubBackupSer
         _: &std::path::Path,
         _: &std::path::Path,
         _: &secrecy::SecretString,
-    ) -> Result<heelonvault_rust::services::backup_service::BackupMetadata, AppError> {
-        Ok(heelonvault_rust::services::backup_service::BackupMetadata {
+    ) -> Result<heelonvault_core::services::backup_service::BackupMetadata, AppError> {
+        Ok(heelonvault_core::services::backup_service::BackupMetadata {
             sha256_hex: "abcd1234".to_string(),
             plaintext_size: 1024,
         })
@@ -164,8 +164,8 @@ impl heelonvault_rust::services::backup_service::BackupService for StubBackupSer
         _: &std::path::Path,
         _: &secrecy::SecretString,
         _: &std::path::Path,
-    ) -> Result<heelonvault_rust::services::backup_service::BackupMetadata, AppError> {
-        Ok(heelonvault_rust::services::backup_service::BackupMetadata {
+    ) -> Result<heelonvault_core::services::backup_service::BackupMetadata, AppError> {
+        Ok(heelonvault_core::services::backup_service::BackupMetadata {
             sha256_hex: "abcd1234".to_string(),
             plaintext_size: 1024,
         })
@@ -176,8 +176,8 @@ impl heelonvault_rust::services::backup_service::BackupService for StubBackupSer
         _: &std::path::Path,
         _: &std::path::Path,
         _: secrecy::SecretBox<Vec<u8>>,
-    ) -> Result<heelonvault_rust::services::backup_service::BackupMetadata, AppError> {
-        Ok(heelonvault_rust::services::backup_service::BackupMetadata {
+    ) -> Result<heelonvault_core::services::backup_service::BackupMetadata, AppError> {
+        Ok(heelonvault_core::services::backup_service::BackupMetadata {
             sha256_hex: "abcd1234".to_string(),
             plaintext_size: 1024,
         })
@@ -188,8 +188,8 @@ impl heelonvault_rust::services::backup_service::BackupService for StubBackupSer
         _: &std::path::Path,
         _: &std::path::Path,
         _: secrecy::SecretBox<Vec<u8>>,
-    ) -> Result<heelonvault_rust::services::backup_service::BackupMetadata, AppError> {
-        Ok(heelonvault_rust::services::backup_service::BackupMetadata {
+    ) -> Result<heelonvault_core::services::backup_service::BackupMetadata, AppError> {
+        Ok(heelonvault_core::services::backup_service::BackupMetadata {
             sha256_hex: "abcd1234".to_string(),
             plaintext_size: 1024,
         })
