@@ -3,18 +3,18 @@
 
 use std::sync::Arc;
 
-use heelonvault_rust::errors::AppError;
-use heelonvault_rust::models::{SecretType, UserRole};
-use heelonvault_rust::repositories::audit_log_repository::SqlxAuditLogRepository;
-use heelonvault_rust::repositories::secret_repository::SqlxSecretRepository;
-use heelonvault_rust::repositories::team_repository::SqlxTeamRepository;
-use heelonvault_rust::repositories::user_repository::{SqlxUserRepository, UserRepository};
-use heelonvault_rust::repositories::vault_repository::SqlxVaultRepository;
-use heelonvault_rust::services::audit_log_service::AuditLogServiceImpl;
-use heelonvault_rust::services::auth_service::{AuthService, AuthServiceImpl};
-use heelonvault_rust::services::crypto_service::CryptoServiceImpl;
-use heelonvault_rust::services::secret_service::{SecretService, SecretServiceImpl};
-use heelonvault_rust::services::vault_service::{
+use heelonvault_core::errors::AppError;
+use heelonvault_core::models::{SecretType, UserRole};
+use heelonvault_core::repositories::audit_log_repository::SqlxAuditLogRepository;
+use heelonvault_core::repositories::secret_repository::SqlxSecretRepository;
+use heelonvault_core::repositories::team_repository::SqlxTeamRepository;
+use heelonvault_core::repositories::user_repository::{SqlxUserRepository, UserRepository};
+use heelonvault_core::repositories::vault_repository::SqlxVaultRepository;
+use heelonvault_core::services::audit_log_service::AuditLogServiceImpl;
+use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl};
+use heelonvault_core::services::crypto_service::CryptoServiceImpl;
+use heelonvault_core::services::secret_service::{SecretService, SecretServiceImpl};
+use heelonvault_core::services::vault_service::{
     VaultKeyEnvelopeRepository, VaultService, VaultServiceImpl,
 };
 use secrecy::{ExposeSecret, SecretBox};
