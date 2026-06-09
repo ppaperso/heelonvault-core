@@ -9,6 +9,23 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — Sprint v1.1.0
 
+### 🔒 Sprint 2: Sécurité et Dette Technique
+
+#### Protection contre le Brute-Force par IP
+- **Rate Limiting IP-based** : Nouvelle table `login_attempts_ip` pour tracer les tentatives de connexion par adresse IP, indépendamment du username.
+- **Politique configurable** : `IpRateLimitPolicy` avec `max_attempts` (20 par défaut), `lock_duration_secs` (3600s), et `window_duration_secs` (3600s).
+- **Service combiné** : `CombinedRateLimitService` intègre le rate limiting par username (existante) et par IP (nouvelle) pour bloquer les attaques systématiques.
+- **Purge automatique** : `cleanup_expired()` supprime les entrées de lock expirées.
+- **Migration** : `0016_ip_rate_limiting.sql` crée la table et l'index.
+
+#### Sécurité Supply-Chain
+- **cargo-deny** : Intégration de l'outil d'audit des dépendances pour prévenir les vulnérabilités connues et les problèmes de licences.
+- **deny.toml** : Configuration avec vérification des advisories de sécurité, ban des crates problématiques, et validation des licences.
+
+#### Qualité de Code
+- **Tests de sécurité SQL Injection** : Nouvelle batterie de tests dans `tests/security_sql_injection.rs` pour valider la résistance aux injections SQL.
+- **Correction des imports** : Remplacement de `heelonvault_rust` par `heelonvault_core` dans toute la base de tests (69 occurrences).
+
 ### Infrastructure — Polyrepo Open Core (Phase 5f)
 
 - `heelonvault-core v1.1.0` publié sur [crates.io](https://crates.io/crates/heelonvault-core) : la bibliothèque cœur est désormais un artefact public réutilisable.
