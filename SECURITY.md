@@ -111,12 +111,12 @@ Current technical rules in Rust:
 
 Current master password change rule in user flow:
 
-- minimum length check currently set to 10 before update.
+- minimum length check set to 16 before update.
 
 Security recommendation for operations:
 
 - for admin and sensitive environments, use passphrases >= 16 chars;
-- target roadmap is to align all entry points to a unified >= 16 policy.
+- all entry points now aligned to a unified >= 16 policy.
 
 ## 7. Data Protection Boundaries
 
@@ -272,7 +272,7 @@ Completed:
 
 Near-term priorities:
 
-- unify master password policy to >= 16 across all flows
+- [x] unify master password policy to >= 16 across all flows
 - document hardening profiles (standard, admin, high assurance)
 
 Reference standards:

@@ -441,9 +441,9 @@ where
             .await?
             .ok_or_else(|| AppError::NotFound("user not found".to_string()))?;
 
-        if new_password.expose_secret().len() < 10 {
+        if new_password.expose_secret().len() < 16 {
             return Err(AppError::Validation(
-                "new password must contain at least 10 characters".to_string(),
+                "new password must contain at least 16 characters".to_string(),
             ));
         }
 
