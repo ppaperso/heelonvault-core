@@ -5,3 +5,7 @@ members = [
     "crates/sqlx-shim",
 ]
 resolver = "2"
+
+[workspace.dependencies]
+# Outils de développement
+cargo-deny = "0.15"

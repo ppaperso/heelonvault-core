@@ -1,7 +1,8 @@
-[graph]
-all-features = true
+# Configuration de cargo-deny pour la sécurité de la supply-chain
+# Documentation: https://doc.rust-lang.org/cargo-deny/
+# Issue: #40 - Implémenter cargo-deny pour vérification supply-chain
 
 [advisories]
+# Bloquer les vulnérabilités de sécurité connues (CVE)
 unmaintained = "all"
 yanked = "deny"
-ignore = []
