@@ -1,6 +1,6 @@
 use crate::errors::AppError;
 use crate::models::{AccessibleVault, Vault, VaultAccessKind, VaultShareRole};
-use secrecy::ExposeSecret;
+use crate::utils::sqlx_helpers::sqlx_bind_secret;
 use secrecy::SecretBox;
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
@@ -287,7 +287,7 @@ impl VaultRepository for SqlxVaultRepository {
                  vault_key_version = vault_key_version + 1
              WHERE id = ?2 AND deleted_at IS NULL",
         )
-        .bind(encrypted_vault_key_envelope.expose_secret().as_slice())
+        .bind(sqlx_bind_secret(&encrypted_vault_key_envelope))
         .bind(vault_id.to_string())
         .execute(&self.pool)
         .await?;
@@ -376,7 +376,7 @@ impl VaultRepository for SqlxVaultRepository {
         )
         .bind(vault_id.to_string())
         .bind(user_id.to_string())
-        .bind(key_envelope.expose_secret().as_slice())
+        .bind(sqlx_bind_secret(&key_envelope))
         .bind(granted_by.map(|u| u.to_string()))
         .bind(granted_via_team.map(|u| u.to_string()))
         .bind(role.to_db_str())
@@ -419,7 +419,7 @@ impl VaultRepository for SqlxVaultRepository {
                  granted_at = CURRENT_TIMESTAMP
              WHERE vault_id = ?2 AND user_id = ?3",
         )
-        .bind(key_envelope.expose_secret().as_slice())
+        .bind(sqlx_bind_secret(&key_envelope))
         .bind(vault_id.to_string())
         .bind(user_id.to_string())
         .execute(&self.pool)
@@ -490,7 +490,7 @@ impl VaultRepository for SqlxVaultRepository {
             )
             .bind(vault_id.to_string())
             .bind(user_id.to_string())
-            .bind(key_envelope.expose_secret().as_slice())
+            .bind(#[allow(clippy::needless_borrow)] sqlx_bind_secret(&key_envelope))
             .bind(rotation_actor_id.map(|u| u.to_string()))
             .bind(granted_via_team.map(|u| u.to_string()))
             .execute(&mut *tx)
@@ -547,7 +547,7 @@ impl MasterKeyRotationRepository for SqlxVaultRepository {
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = ?2",
         )
-        .bind(password_envelope.expose_secret().as_slice())
+        .bind(sqlx_bind_secret(&password_envelope))
         .bind(user_id.to_string())
         .execute(&mut *tx)
         .await?;
@@ -565,7 +565,7 @@ impl MasterKeyRotationRepository for SqlxVaultRepository {
                      modified_at = datetime('now')
                  WHERE id = ?2",
             )
-            .bind(update.key_envelope.expose_secret().as_slice())
+            .bind(sqlx_bind_secret(&update.key_envelope))
             .bind(update.vault_id.to_string())
             .execute(&mut *tx)
             .await?;
@@ -584,7 +584,7 @@ impl MasterKeyRotationRepository for SqlxVaultRepository {
                      granted_at = datetime('now')
                  WHERE vault_id = ?2 AND user_id = ?3",
             )
-            .bind(update.key_envelope.expose_secret().as_slice())
+            .bind(sqlx_bind_secret(&update.key_envelope))
             .bind(update.vault_id.to_string())
             .bind(update.user_id.to_string())
             .execute(&mut *tx)

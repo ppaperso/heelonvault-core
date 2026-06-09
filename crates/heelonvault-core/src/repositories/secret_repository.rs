@@ -1,6 +1,6 @@
 use crate::errors::AppError;
 use crate::models::{BlobStorage, SecretItem, SecretType};
-use secrecy::ExposeSecret;
+use crate::utils::sqlx_helpers::sqlx_bind_secret;
 use secrecy::SecretBox;
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
@@ -230,17 +230,6 @@ impl SecretRepository for SqlxSecretRepository {
         item: &SecretItem,
         encrypted_secret_blob: SecretBox<Vec<u8>>,
     ) -> Result<(), AppError> {
-        let secret_blob = if matches!(item.blob_storage, BlobStorage::Inline) {
-            Some(encrypted_secret_blob.expose_secret().as_slice())
-        } else {
-            None
-        };
-        let file_blob_ref = if matches!(item.blob_storage, BlobStorage::File) {
-            Some(encrypted_secret_blob.expose_secret().as_slice())
-        } else {
-            None
-        };
-
         sqlx::query(
             "INSERT INTO secret_items (
                 id, vault_id, secret_type, title, metadata_json, tags, expires_at, blob_storage, secret_blob, file_blob_ref, deleted_at
@@ -254,8 +243,16 @@ impl SecretRepository for SqlxSecretRepository {
         .bind(item.tags.as_deref())
         .bind(item.expires_at.as_deref())
         .bind(Self::to_blob_storage_db(item.blob_storage))
-        .bind(secret_blob)
-        .bind(file_blob_ref)
+        .bind(if matches!(item.blob_storage, BlobStorage::Inline) {
+            Some(sqlx_bind_secret(&encrypted_secret_blob))
+        } else {
+            None as Option<&[u8]>
+        })
+        .bind(if matches!(item.blob_storage, BlobStorage::File) {
+            Some(sqlx_bind_secret(&encrypted_secret_blob))
+        } else {
+            None as Option<&[u8]>
+        })
         .execute(&self.pool)
         .await?;
 
@@ -321,7 +318,7 @@ impl SecretRepository for SqlxSecretRepository {
                      SET secret_blob = ?1, file_blob_ref = NULL
                      WHERE id = ?2 AND deleted_at IS NULL",
                 )
-                .bind(encrypted_secret_blob.expose_secret().as_slice())
+                .bind(sqlx_bind_secret(&encrypted_secret_blob))
                 .bind(secret_id.to_string())
                 .execute(&self.pool)
                 .await
@@ -332,7 +329,7 @@ impl SecretRepository for SqlxSecretRepository {
                      SET file_blob_ref = ?1, secret_blob = NULL
                      WHERE id = ?2 AND deleted_at IS NULL",
                 )
-                .bind(encrypted_secret_blob.expose_secret().as_slice())
+                .bind(sqlx_bind_secret(&encrypted_secret_blob))
                 .bind(secret_id.to_string())
                 .execute(&self.pool)
                 .await
@@ -378,7 +375,7 @@ impl SecretRepository for SqlxSecretRepository {
                      WHERE id = ?3 AND deleted_at IS NULL",
                 )
                 .bind(target_vault_id.to_string())
-                .bind(encrypted_secret_blob.expose_secret().as_slice())
+                .bind(sqlx_bind_secret(&encrypted_secret_blob))
                 .bind(secret_id.to_string())
                 .execute(&self.pool)
                 .await
@@ -392,7 +389,7 @@ impl SecretRepository for SqlxSecretRepository {
                      WHERE id = ?3 AND deleted_at IS NULL",
                 )
                 .bind(target_vault_id.to_string())
-                .bind(encrypted_secret_blob.expose_secret().as_slice())
+                .bind(sqlx_bind_secret(&encrypted_secret_blob))
                 .bind(secret_id.to_string())
                 .execute(&self.pool)
                 .await
