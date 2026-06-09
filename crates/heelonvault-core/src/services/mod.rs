@@ -9,6 +9,7 @@ pub mod backup_application_service;
 pub mod backup_service;
 pub mod crypto_service;
 pub mod import_service;
+pub mod ip_rate_limit_service;
 pub mod license_provider;
 pub mod login_history_service;
 pub mod password_service;

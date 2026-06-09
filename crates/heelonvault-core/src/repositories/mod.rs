@@ -1,4 +1,5 @@
 pub mod audit_log_repository;
+pub mod ip_rate_limit_repository;
 pub mod secret_repository;
 pub mod team_repository;
 pub mod user_repository;
