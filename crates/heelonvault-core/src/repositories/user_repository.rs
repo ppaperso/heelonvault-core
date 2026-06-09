@@ -1,6 +1,6 @@
 use crate::errors::AppError;
 use crate::models::{User, UserRole};
-use secrecy::ExposeSecret;
+use crate::utils::sqlx_helpers::sqlx_bind_secret;
 use secrecy::SecretBox;
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
@@ -264,7 +264,7 @@ impl UserRepository for SqlxUserRepository {
         encrypted_password_envelope: SecretBox<Vec<u8>>,
     ) -> Result<(), AppError> {
         let result = sqlx::query("UPDATE users SET password_envelope = ?1 WHERE id = ?2")
-            .bind(encrypted_password_envelope.expose_secret().as_slice())
+            .bind(sqlx_bind_secret(&encrypted_password_envelope))
             .bind(user_id.to_string())
             .execute(&self.pool)
             .await?;
@@ -284,7 +284,7 @@ impl UserRepository for SqlxUserRepository {
         encrypted_totp_secret_envelope: SecretBox<Vec<u8>>,
     ) -> Result<(), AppError> {
         let result = sqlx::query("UPDATE users SET totp_secret_envelope = ?1 WHERE id = ?2")
-            .bind(encrypted_totp_secret_envelope.expose_secret().as_slice())
+            .bind(sqlx_bind_secret(&encrypted_totp_secret_envelope))
             .bind(user_id.to_string())
             .execute(&self.pool)
             .await?;
