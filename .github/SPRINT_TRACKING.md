@@ -19,12 +19,13 @@ Ce document suit les sprints de remédiation pour corriger les vulnérabilités 
 ## 🎯 Milestones & Sprints
 
 ### ✅ **Sprint 1: Sécurité Critique (Semaine 1)** - Due: 2026-06-16
+
 - **Focus:** Correction des vulnérabilités critiques P1-P2
 - **Milestone:** #3
 - **Statut:** ✅ **TERMINÉ** (100%)
 
 | # | Issue | Titre | Priorité | Statut | PR | Commit |
-|---|-------|-------|----------|--------|----|--------|
+| --- | ------- | ------- | ---------- | -------- | ---- | -------- |
 | 35 | [SEC P1] | Correction de l'injection SQL potentielle dans les repositories | CRITIQUE | ✅ **DONE** | [#50](https://github.com/ppaperso/heelonvault-core/pull/50) | bc200a9 |
 | 37 | [SEC P1] | Réduire exposition de secrets via expose_secret() dans les bindings SQL | CRITIQUE | ✅ **DONE** | Inclus dans #50 | bc200a9 |
 | 38 | [SEC P2] | Unifier politique de mot de passe à >=16 caractères | HAUTE | ✅ **DONE** | [#51](https://github.com/ppaperso/heelonvault-core/pull/51) | 79a6680 |
@@ -35,12 +36,13 @@ Ce document suit les sprints de remédiation pour corriger les vulnérabilités 
 ---
 
 ### ✅ **Sprint 2: Dette Technique Bloquante (Semaine 2)** - Due: 2026-06-23
+
 - **Focus:** Résolution des problèmes bloquants (tests cassés, refactoring)
 - **Milestone:** #6
 - **Statut:** ✅ **TERMINÉ** (100%)
 
 | # | Issue | Titre | Priorité | Statut | PR | Commit |
-|---|-------|-------|----------|--------|----|--------|
+| --- | ------- | ------- | ---------- | -------- | ---- | -------- |
 | 39 | [DT-001] | Fixer les imports heelonvault_rust -> heelonvault_core dans les tests | CRITIQUE | ✅ **DONE** | - | 1ddf3c8 |
 | 40 | [DT-002] | Implémenter cargo-deny pour vérification supply-chain | HAUTE | ✅ **DONE** | - | 9b420f9 |
 | 41 | [DT-003] | Ajouter rate limiting IP-based pour le login | HAUTE | ✅ **DONE** | - | 5fd8930 |
@@ -51,12 +53,13 @@ Ce document suit les sprints de remédiation pour corriger les vulnérabilités 
 ---
 
 ### 🟢 **Sprint 3-4: Améliorations Moyennes (Semaines 3-4)** - Due: 2026-07-07
+
 - **Focus:** Améliorations de qualité et refactoring
 - **Milestone:** #4
 - **Statut:** 🚧 **EN COURS**
 
 | # | Issue | Titre | Priorité | Statut | Assigné | Points |
-|---|-------|-------|----------|--------|---------|--------|
+| --- | ------- | ------- | ---------- | -------- | --------- | -------- |
 | 43 | [DT-009] | Décomposer rotate_vault_key() et share_vault_with_team() | MOYENNE | ✅ DONE | - | 5 |
 | 44 | [DT-010] | Consolider les scripts d'installation (install-*.sh) | MOYENNE | ✅ DONE | - | 3 |
 | 45 | [DT-011] | Migrer vers composite actions pour CI/CD (Issues #15-17) | MOYENNE | ⏳ To Do | - | 8 |
@@ -67,12 +70,13 @@ Ce document suit les sprints de remédiation pour corriger les vulnérabilités 
 ---
 
 ### 🔵 **Backlog: Améliorations Futures** - Due: 2026-08-01
+
 - **Focus:** Tâches non critiques
 - **Milestone:** #5
 - **Statut:** ⏳ **À Démarrer**
 
 | # | Issue | Titre | Priorité | Statut | Assigné | Points |
-|---|-------|-------|----------|--------|---------|--------|
+| --- | ------- | ------- | ---------- | -------- | --------- | -------- |
 | 47 | [DT-013] | Ajouter cargo-audit à la CI pour détection de vulnérabilités | FAIBLE | ⏳ To Do | - | 2 |
 | 48 | [DT-014] | Documenter les features premium et licensing dans Cargo.toml | FAIBLE | ✅ DONE | - | 2 |
 | 49 | [DT-015] | Nettoyer la duplication de documentation (FR/EN) | FAIBLE | ⏳ To Do | - | 3 |
@@ -83,7 +87,7 @@ Ce document suit les sprints de remédiation pour corriger les vulnérabilités 
 
 ## 📈 Roadmap Visuelle
 
-```
+```text
 Semaine 1 (10-16 Juin):
 ┌─────────────────────────────────────┐
 │  Sprint 1: SECURITE CRITIQUE         │
@@ -132,7 +136,7 @@ Pour qu'une issue soit considérée comme terminée:
 ## 📊 Métriques Globales
 
 | Métrique | Valeur | Cible |
-|----------|--------|-------|
+| ---------- | -------- | ------- |
 | Issues Totales | 15 | - |
 | Issues Critiques (P1) | 2 | 0 |
 | Issues Haute Priorité (P2) | 2 | 0 |
@@ -194,10 +198,10 @@ Pour qu'une issue soit considérée comme terminée:
 
 ## 📞 Contacts
 
-- **Responsable Sécurité:** security@heelonys.fr
+- **Responsable Sécurité:** <security@heelonys.fr>
 - **Mainteneur:** ppaperso
 - **Repo:** ppaperso/heelonvault-core
 
 ---
 
-*Ce fichier est généré automatiquement. Dernière mise à jour: 2026-06-09*
+Ce fichier est généré automatiquement. Dernière mise à jour: 2026-06-09
