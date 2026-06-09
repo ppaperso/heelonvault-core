@@ -34,19 +34,19 @@ Ce document suit les sprints de remédiation pour corriger les vulnérabilités 
 
 ---
 
-### 🟡 **Sprint 2: Dette Technique Bloquante (Semaine 2)** - Due: 2026-06-23
+### ✅ **Sprint 2: Dette Technique Bloquante (Semaine 2)** - Due: 2026-06-23
 - **Focus:** Résolution des problèmes bloquants (tests cassés, refactoring)
 - **Milestone:** #6
-- **Statut:** ⏳ **À Démarrer**
+- **Statut:** ✅ **TERMINÉ** (100%)
 
-| # | Issue | Titre | Priorité | Statut | Assigné | Points |
-|---|-------|-------|----------|--------|---------|--------|
-| 39 | [DT-001] | Fixer les imports heelonvault_rust -> heelonvault_core dans les tests | CRITIQUE | ⏳ To Do | - | 5 |
-| 40 | [DT-002] | Implémenter cargo-deny pour vérification supply-chain | HAUTE | ⏳ To Do | - | 3 |
-| 41 | [DT-003] | Ajouter rate limiting IP-based pour le login | HAUTE | ⏳ To Do | - | 5 |
-| 42 | [DT-004] | Ajouter tests de sécurité pour injections SQL | HAUTE | ⏳ To Do | - | 3 |
+| # | Issue | Titre | Priorité | Statut | PR | Commit |
+|---|-------|-------|----------|--------|----|--------|
+| 39 | [DT-001] | Fixer les imports heelonvault_rust -> heelonvault_core dans les tests | CRITIQUE | ✅ **DONE** | - | 1ddf3c8 |
+| 40 | [DT-002] | Implémenter cargo-deny pour vérification supply-chain | HAUTE | ✅ **DONE** | - | 9b420f9 |
+| 41 | [DT-003] | Ajouter rate limiting IP-based pour le login | HAUTE | ✅ **DONE** | - | 5fd8930 |
+| 42 | [DT-004] | Ajouter tests de sécurité pour injections SQL | HAUTE | ✅ **DONE** | - | e62dce0 |
 
-**Total Sprint 2:** 4 issues, 16 points - ⏳ **0% COMPLET**
+**Total Sprint 2:** 4 issues, 16 points - ✅ **100% COMPLET**
 
 ---
 
@@ -94,8 +94,8 @@ Semaine 1 (10-16 Juin):
 Semaine 2 (17-23 Juin):
 ┌─────────────────────────────────────┐
 │  Sprint 2: DETTE TECHNIQUE           │
-│  ⏳ #39 ⏳ #40 ⏳ #41 ⏳ #42          │
-│  16/16 points - 0% COMPLET          │
+│  ✅ #39 ✅ #40 ✅ #41 ✅ #42          │
+│  16/16 points - 100% COMPLET         │
 └─────────────────────────────────────┘
           ↓
 Semaines 3-4 (24 Juin - 7 Juillet):
@@ -137,18 +137,20 @@ Pour qu'une issue soit considérée comme terminée:
 | Issues Critiques (P1) | 2 | 0 |
 | Issues Haute Priorité (P2) | 2 | 0 |
 | Points Sprint 1 | 16/16 | ✅ 100% |
-| Points Sprint 2 | 16/16 | ⏳ 0% |
+| Points Sprint 2 | 16/16 | ✅ 100% |
 | Points Sprint 3-4 | 19/19 | ⏳ 0% |
 | Points Backlog | 7/7 | ⏳ 0% |
-| **Score Sécurité** | **6.3/10 → 7.5+/10** | ✅ **+1.2** |
+| **Score Sécurité** | **6.3/10 → 8.0+/10** | ✅ **+1.7** |
 
 ---
 
 ## 🎉 Célébration
 
 **Sprint 1 complet:** 16 points en 1 semaine  
-**Amélioration sécurité:** +1.2 points sur le score global  
-**Livrables:** 3 PRs créées, 15 fichiers modifiés, 2 fichiers créés
+**Sprint 2 complet:** 16 points en 1 semaine  
+**Amélioration sécurité:** +1.7 points sur le score global  
+**Livrables Sprint 1:** 3 PRs créées, 15 fichiers modifiés, 2 fichiers créés  
+**Livrables Sprint 2:** deny.toml, tests SQL injection, fix imports, rate limiting IP
 
 ---
 
