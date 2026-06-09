@@ -2,7 +2,7 @@
 
 *Généré le: 2026-06-09*  
 *Source: Audit de sécurité complet + Analyse de dette technique*
-*Dernière mise à jour: 2026-06-09 (Sprint 1 clôturé - PRs mergées, issues fermées, milestone clos)*
+*Dernière mise à jour: 2026-06-09 (Sprint 3-4 démarré - recalage des issues #43, #44 et #48)*
 
 ---
 
@@ -53,16 +53,16 @@ Ce document suit les sprints de remédiation pour corriger les vulnérabilités 
 ### 🟢 **Sprint 3-4: Améliorations Moyennes (Semaines 3-4)** - Due: 2026-07-07
 - **Focus:** Améliorations de qualité et refactoring
 - **Milestone:** #4
-- **Statut:** ⏳ **À Démarrer**
+- **Statut:** 🚧 **EN COURS**
 
 | # | Issue | Titre | Priorité | Statut | Assigné | Points |
 |---|-------|-------|----------|--------|---------|--------|
-| 43 | [DT-009] | Décomposer rotate_vault_key() et share_vault_with_team() | MOYENNE | ⏳ To Do | - | 5 |
-| 44 | [DT-010] | Consolider les scripts d'installation (install-*.sh) | MOYENNE | ⏳ To Do | - | 3 |
+| 43 | [DT-009] | Décomposer rotate_vault_key() et share_vault_with_team() | MOYENNE | ✅ DONE | - | 5 |
+| 44 | [DT-010] | Consolider les scripts d'installation (install-*.sh) | MOYENNE | ✅ DONE | - | 3 |
 | 45 | [DT-011] | Migrer vers composite actions pour CI/CD (Issues #15-17) | MOYENNE | ⏳ To Do | - | 8 |
 | 46 | [DT-012] | Auditer les logs tracing pour fuites de secrets | MOYENNE | ⏳ To Do | - | 3 |
 
-**Total Sprint 3-4:** 4 issues, 19 points - ⏳ **0% COMPLET**
+**Total Sprint 3-4:** 4 issues, 8/19 points - 🚧 **42% COMPLET**
 
 ---
 
@@ -74,10 +74,10 @@ Ce document suit les sprints de remédiation pour corriger les vulnérabilités 
 | # | Issue | Titre | Priorité | Statut | Assigné | Points |
 |---|-------|-------|----------|--------|---------|--------|
 | 47 | [DT-013] | Ajouter cargo-audit à la CI pour détection de vulnérabilités | FAIBLE | ⏳ To Do | - | 2 |
-| 48 | [DT-014] | Documenter les features premium et licensing dans Cargo.toml | FAIBLE | ⏳ To Do | - | 2 |
+| 48 | [DT-014] | Documenter les features premium et licensing dans Cargo.toml | FAIBLE | ✅ DONE | - | 2 |
 | 49 | [DT-015] | Nettoyer la duplication de documentation (FR/EN) | FAIBLE | ⏳ To Do | - | 3 |
 
-**Total Backlog:** 3 issues, 7 points - ⏳ **0% COMPLET**
+**Total Backlog:** 3 issues, 2/7 points - 🚧 **29% COMPLET**
 
 ---
 
@@ -101,15 +101,15 @@ Semaine 2 (17-23 Juin):
 Semaines 3-4 (24 Juin - 7 Juillet):
 ┌─────────────────────────────────────┐
 │  Sprint 3-4: AMELIORATIONS          │
-│  ⏳ #43 ⏳ #44 ⏳ #45 ⏳ #46          │
-│  19/19 points - 0% COMPLET          │
+│  ✅ #43 ✅ #44 ⏳ #45 ⏳ #46          │
+│  8/19 points - 42% COMPLET          │
 └─────────────────────────────────────┘
           ↓
 Semaine 5+ (8 Juillet+):
 ┌─────────────────────────────────────┐
 │  Backlog: FUTUR                     │
-│  ⏳ #47 ⏳ #48 ⏳ #49                │
-│  7/7 points - 0% COMPLET            │
+│  ⏳ #47 ✅ #48 ⏳ #49                │
+│  2/7 points - 29% COMPLET           │
 └─────────────────────────────────────┘
 ```
 
@@ -138,8 +138,8 @@ Pour qu'une issue soit considérée comme terminée:
 | Issues Haute Priorité (P2) | 2 | 0 |
 | Points Sprint 1 | 16/16 | ✅ 100% |
 | Points Sprint 2 | 16/16 | ✅ 100% |
-| Points Sprint 3-4 | 19/19 | ⏳ 0% |
-| Points Backlog | 7/7 | ⏳ 0% |
+| Points Sprint 3-4 | 8/19 | 🚧 42% |
+| Points Backlog | 2/7 | 🚧 29% |
 | **Score Sécurité** | **6.3/10 → 8.0+/10** | ✅ **+1.7** |
 
 ---
@@ -151,6 +151,7 @@ Pour qu'une issue soit considérée comme terminée:
 **Amélioration sécurité:** +1.7 points sur le score global  
 **Livrables Sprint 1:** 3 PRs créées, 15 fichiers modifiés, 2 fichiers créés  
 **Livrables Sprint 2:** deny.toml, tests SQL injection, fix imports, rate limiting IP
+**Livrables Sprint 3-4 (partiel):** décomposition service team, consolidation scripts install/remove, documentation features premium/licensing
 
 ---
 
@@ -172,6 +173,11 @@ Pour qu'une issue soit considérée comme terminée:
   - ✅ Tests premium corrigés (migrations path + password length)
   - ✅ Issues #35, #36, #37, #38 fermées
   - ✅ Milestone #3 clôturé
+- **2026-06-09 18:30** - Recalage Sprint 3-4 et backlog:
+  - ✅ #43 marqué DONE (décomposition `share_vault_with_team` / `rotate_vault_key` validée côté implémentation premium)
+  - ✅ #44 marqué DONE (scripts install/remove consolidés via wrappers + scripts core partagés)
+  - ✅ #48 marqué DONE (documentation des features premium/licensing confirmée dans `crates/heelonvault-app/Cargo.toml`)
+  - 🚧 #45, #46, #47, #49 maintenus ouverts
 
 ---
 
