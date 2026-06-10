@@ -99,13 +99,36 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
+      
+      - name: Find cargo path
+        id: cargo_path
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Cherche cargo dans les chemins courants sous Windows
+          CARGO_DIR=""
+          for path in \
+            "/c/Users/runneradmin/.cargo/bin" \
+            "/c/Users/runneradmin/.rustup/toolchains/*/bin" \
+            "$HOME/.cargo/bin"; do
+            if [ -f "$path/cargo" ] || [ -f "$path/cargo.exe" ]; then
+              CARGO_DIR="$path"
+              echo "cargo_dir=$CARGO_DIR" >> $GITHUB_OUTPUT
+              echo "[DEBUG] cargo trouvé dans: $CARGO_DIR"
+              break
+            fi
+          done
+          if [ -z "$CARGO_DIR" ]; then
+            echo "[ERROR] cargo non trouvé dans les chemins courants"
+            exit 1
+          fi
 
       - name: Build heelonvault-app (locked)
-        shell: bash  # Git Bash (pas MSYS2)
+        shell: bash
         env:
           GIT_SSH_COMMAND: "ssh -i ${{ runner.temp }}/premium_key -o StrictHostKeyChecking=no"
-          PATH: "/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"  # Ajoute MSYS2 + Rust au PATH
-          PKG_CONFIG_PATH: "/c/msys64/mingw64/lib/pkgconfig"  # Chemin Unix pour pkg-config
+          PATH: "/c/msys64/mingw64/bin:${{ steps.cargo_path.outputs.cargo_dir }}:$PATH"
+          PKG_CONFIG_PATH: "/c/msys64/mingw64/lib/pkgconfig"
         run: |
           set -euo pipefail
           echo "${{ secrets.PREMIUM_SSH_KEY }}" > "${{ runner.temp }}/premium_key"
