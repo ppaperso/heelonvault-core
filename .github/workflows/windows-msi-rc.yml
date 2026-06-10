@@ -87,11 +87,11 @@ jobs:
           Write-Host "=== usr ==="
           Get-ChildItem C:\msys64\usr\bin\pkg* -ErrorAction SilentlyContinue
 
-            - name: Setup Rust toolchain
-              shell: bash
-              run: |
-                rustup target add x86_64-pc-windows-gnu
-                rustup show
+      - name: Setup Rust toolchain
+        shell: bash
+        run: |
+          rustup target add x86_64-pc-windows-gnu
+          rustup show
 
       - name: Cache Cargo registry and build
         uses: actions/cache@v5
