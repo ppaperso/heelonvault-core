@@ -89,6 +89,29 @@ jobs:
             mingw-w64-x86_64-libepoxy
             python3
 
+      - name: Inspect MSYS2 installation
+        shell: msys2 {0}
+        run: |
+          set -e
+
+          echo "=== PACMAN ==="
+          pacman -Qs pkgconf
+
+          echo ""
+          echo "=== FILES ==="
+          ls -la /mingw64/bin/pkgconf*
+          ls -la /mingw64/bin/pkg-config*
+
+      - name: Inspect Windows view
+        shell: pwsh
+        run: |
+          Write-Host "=== WINDOWS VIEW ==="
+
+          Test-Path C:\msys64\mingw64\bin\pkgconf.exe
+          Test-Path C:\msys64\mingw64\bin\pkg-config.exe
+
+          Get-ChildItem C:\msys64\mingw64\bin | Select-Object -First 20
+
       - name: Locate MSYS2
         shell: pwsh
         run: |
