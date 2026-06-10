@@ -120,29 +120,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Test SSH access to heelonvault-premium
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          SSH_OUTPUT=$(ssh -T git@github.com -o StrictHostKeyChecking=no 2>&1 || true)
-
-          echo "$SSH_OUTPUT"
-
-          if [[ "$SSH_OUTPUT" == *"successfully authenticated"* ]] || \
-            [[ "$SSH_OUTPUT" == *"You've successfully authenticated"* ]]; then
-            echo "[OK] SSH access to GitHub verified"
-          else
-            echo "[ERROR] SSH access failed"
-            exit 1
-          fi
-
-          git clone --depth 1 git@github.com:ppaperso/heelonvault-premium.git /tmp/test_premium
-
-          rm -rf /tmp/test_premium
-
-          echo "[OK] SSH access to heelonvault-premium verified"
-
       - name: Verify pkg-config before cargo
         shell: pwsh
         run: |
@@ -182,6 +159,29 @@ jobs:
           export PKG_CONFIG_LIBDIR="/c/msys64/mingw64/lib/pkgconfig:/c/msys64/mingw64/share/pkgconfig"
           export PKG_CONFIG_ALLOW_CROSS=1
 
+          echo "=== SSH AGENT ==="
+          echo "${SSH_AUTH_SOCK:-not-set}"
+          ssh-add -l || true
+
+          echo ""
+          echo "=== PREMIUM REPO ACCESS ==="
+          git ls-remote git@github.com:ppaperso/heelonvault-premium.git HEAD || true
+
+          echo ""
+          echo "=== PKG-CONFIG ==="
+          which pkg-config || true
+          pkg-config --version || true
+
+          echo ""
+          echo "=== GLIB ==="
+          pkg-config --modversion glib-2.0 || true
+
+          echo ""
+          echo "=== GTK4 ==="
+          pkg-config --modversion gtk4 || true
+
+          echo ""
+          echo "=== CARGO BUILD ==="
           cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app
 
           test -f target/x86_64-pc-windows-gnu/release/heelonvault.exe || {
