@@ -72,6 +72,14 @@ jobs:
             mingw-w64-x86_64-libepoxy
             python3
 
+      - name: Add MSYS2 mingw64 to system PATH
+        shell: pwsh
+        run: |
+          # GITHUB_PATH injecte dans le PATH Windows réel pour tous les steps suivants,
+          # y compris les processus natifs lancés par Cargo (build scripts glib-sys, etc.)
+          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Host "[OK] C:\msys64\mingw64\bin added to GITHUB_PATH"
+
       - name: Setup Rust toolchain
         shell: bash
         run: |
