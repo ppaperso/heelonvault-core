@@ -135,6 +135,33 @@ jobs:
           rm -f "$HOME/premium_key"
           echo "[OK] SSH access to heelonvault-premium verified"
 
+      - name: Debug pkg-config
+        shell: pwsh
+        run: |
+          Write-Host "=== PKG FILES ==="
+          Get-ChildItem C:\msys64\mingw64\bin\pkg* -ErrorAction Continue
+
+          Write-Host ""
+          Write-Host "=== PATH ==="
+          $env:PATH
+
+          Write-Host ""
+          Write-Host "=== WHERE ==="
+          where.exe pkg-config
+          where.exe pkgconf
+
+          Write-Host ""
+          Write-Host "=== VERSIONS ==="
+          pkgconf --version
+
+          Write-Host ""
+          Write-Host "=== GLIB ==="
+          if (Test-Path 'C:\msys64\mingw64\lib\pkgconfig\glib-2.0.pc') {
+            Write-Host "glib-2.0.pc found"
+          } else {
+            Write-Host "glib-2.0.pc NOT found"
+          }
+
       - name: Build heelonvault-app (locked)
         shell: bash
         env:
