@@ -47,6 +47,22 @@ jobs:
           Set-Content .cargo/config.toml $config
           Write-Host "[OK] .cargo/config.toml patched for CI"
 
+      - name: Debug SSH identities
+        shell: bash
+        run: |
+          set -e
+
+          echo "=== SSH_AUTH_SOCK ==="
+          echo "$SSH_AUTH_SOCK"
+
+          echo ""
+          echo "=== AGENT KEYS ==="
+          ssh-add -l
+
+          echo ""
+          echo "=== SSH DEBUG ==="
+          ssh -vT git@github.com || true
+
       - name: Validate repository root layout
         shell: bash
         run: |
