@@ -47,22 +47,6 @@ jobs:
           Set-Content .cargo/config.toml $config
           Write-Host "[OK] .cargo/config.toml patched for CI"
 
-      - name: Debug SSH identities
-        shell: bash
-        run: |
-          set -e
-
-          echo "=== SSH_AUTH_SOCK ==="
-          echo "$SSH_AUTH_SOCK"
-
-          echo ""
-          echo "=== AGENT KEYS ==="
-          ssh-add -l
-
-          echo ""
-          echo "=== SSH DEBUG ==="
-          ssh -vT git@github.com || true
-
       - name: Validate repository root layout
         shell: bash
         run: |
@@ -79,7 +63,6 @@ jobs:
           update: true
           install: >-
             mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-ntldd
             mingw-w64-x86_64-imagemagick
             mingw-w64-x86_64-glib2
@@ -89,56 +72,16 @@ jobs:
             mingw-w64-x86_64-libepoxy
             python3
 
-      - name: Inspect MSYS2 installation
+      # NOUVELLE STEP: Trouve le chemin physique de MSYS2
+      - name: Find MSYS2 Physical Path
+        id: msys2_path
         shell: msys2 {0}
         run: |
-          set -e
-
-          echo "=== PACMAN ==="
-          pacman -Qs pkgconf
-
-          echo ""
-          echo "=== FILES ==="
-          ls -la /mingw64/bin/pkgconf*
-          ls -la /mingw64/bin/pkg-config*
-
-      - name: Inspect Windows view
-        shell: pwsh
-        run: |
-          Write-Host "=== WINDOWS VIEW ==="
-
-          Test-Path C:\msys64\mingw64\bin\pkgconf.exe
-          Test-Path C:\msys64\mingw64\bin\pkg-config.exe
-
-          Get-ChildItem C:\msys64\mingw64\bin | Select-Object -First 20
-
-      - name: Locate MSYS2 installation
-        shell: pwsh
-        run: |
-          Write-Host "=== SEARCH PKGCONF ==="
-
-          Get-ChildItem -Path C:\ -Filter pkgconf.exe -Recurse -ErrorAction SilentlyContinue |
-            Select-Object FullName
-
-          Write-Host ""
-          Write-Host "=== SEARCH PKG-CONFIG ==="
-
-          Get-ChildItem -Path C:\ -Filter pkg-config.exe -Recurse -ErrorAction SilentlyContinue |
-            Select-Object FullName
-
-      - name: Add MSYS2 binaries to PATH
-        shell: pwsh
-        run: |
-          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          "C:\msys64\usr\bin"     | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-          Write-Host "[OK] PATH entries added"
-
-          Write-Host "=== mingw64 ==="
-          Get-ChildItem C:\msys64\mingw64\bin\pkg* -ErrorAction SilentlyContinue
-
-          Write-Host "=== usr ==="
-          Get-ChildItem C:\msys64\usr\bin\pkg* -ErrorAction SilentlyContinue
+          set -euo pipefail
+          MSYS2_PHYSICAL_PATH=$(cygpath -w /mingw64/bin)
+          echo "MSYS2_PHYSICAL_PATH=$MSYS2_PHYSICAL_PATH" >> $GITHUB_OUTPUT
+          echo "[DEBUG] MSYS2 physical path: $MSYS2_PHYSICAL_PATH"
+          ls -la "$MSYS2_PHYSICAL_PATH/pkg-config.exe" || echo "[WARNING] pkg-config not found at $MSYS2_PHYSICAL_PATH"
 
       - name: Setup Rust toolchain
         shell: bash
@@ -157,75 +100,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Verify pkg-config before cargo
-        shell: pwsh
-        run: |
-          Write-Host "=== WHERE ==="
-          where.exe pkg-config
-          where.exe pkgconf
-
-          Write-Host ""
-          Write-Host "=== ENV ==="
-          Write-Host "PKG_CONFIG_PATH=$env:PKG_CONFIG_PATH"
-          Write-Host "PKG_CONFIG_LIBDIR=$env:PKG_CONFIG_LIBDIR"
-
-          Write-Host ""
-          Write-Host "=== EXE EXISTS ==="
-          Test-Path "C:\msys64\mingw64\bin\pkg-config.exe"
-          Test-Path "C:\msys64\mingw64\bin\pkgconf.exe"
-
-          Write-Host ""
-          Write-Host "=== VERSION ==="
-          & "C:\msys64\mingw64\bin\pkg-config.exe" --version
-
-          Write-Host ""
-          Write-Host "=== GLIB ==="
-          & "C:\msys64\mingw64\bin\pkg-config.exe" --modversion glib-2.0
-
-          Write-Host ""
-          Write-Host "=== GTK4 ==="
-          & "C:\msys64\mingw64\bin\pkg-config.exe" --modversion gtk4
-
+      # STEP MODIFIÉE: Utilise le chemin physique de MSYS2
       - name: Build heelonvault-app (locked)
         shell: bash
+        env:
+          GIT_SSH_COMMAND: "ssh -i ${{ runner.temp }}/premium_key -o StrictHostKeyChecking=no"
+          PATH: "${{ steps.msys2_path.outputs.MSYS2_PHYSICAL_PATH }}:$PATH"
+          PKG_CONFIG_PATH: "${{ steps.msys2_path.outputs.MSYS2_PHYSICAL_PATH }}/../lib/pkgconfig"
         run: |
           set -euo pipefail
-
-          export PATH="/c/msys64/mingw64/bin:$PATH"
-          export PKG_CONFIG_PATH="/c/msys64/mingw64/lib/pkgconfig:/c/msys64/mingw64/share/pkgconfig"
-          export PKG_CONFIG_LIBDIR="/c/msys64/mingw64/lib/pkgconfig:/c/msys64/mingw64/share/pkgconfig"
-          export PKG_CONFIG_ALLOW_CROSS=1
-
-          echo "=== SSH AGENT ==="
-          echo "${SSH_AUTH_SOCK:-not-set}"
-          ssh-add -l || true
-
-          echo ""
-          echo "=== PREMIUM REPO ACCESS ==="
-          git ls-remote git@github.com:ppaperso/heelonvault-premium.git HEAD || true
-
-          echo ""
-          echo "=== PKG-CONFIG ==="
-          which pkg-config || true
-          pkg-config --version || true
-
-          echo ""
-          echo "=== GLIB ==="
-          pkg-config --modversion glib-2.0 || true
-
-          echo ""
-          echo "=== GTK4 ==="
-          pkg-config --modversion gtk4 || true
-
-          echo ""
-          echo "=== CARGO BUILD ==="
+          echo "${{ secrets.PREMIUM_SSH_KEY }}" > "${{ runner.temp }}/premium_key"
+          chmod 600 "${{ runner.temp }}/premium_key"
+          export PATH="${{ steps.msys2_path.outputs.MSYS2_PHYSICAL_PATH }}:$PATH"
           cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app
-
-          test -f target/x86_64-pc-windows-gnu/release/heelonvault.exe || {
-            echo "[ERROR] heelonvault.exe not produced"
-            exit 1
-          }
-
+          rm -f "${{ runner.temp }}/premium_key"
+          test -f target/x86_64-pc-windows-gnu/release/heelonvault.exe || { echo "[ERROR] heelonvault.exe not produced"; exit 1; }
           echo "[OK] heelonvault.exe built"
 
       - name: Collect DLLs and generate wix/dlls.wxs
@@ -241,7 +130,9 @@ jobs:
           test -f wix/dlls.wxs \
             || { echo "[ERROR] dlls.wxs not generated"; exit 1; }
           test -f wix/staging/heelonvault.ico \
-            || { echo "[ERROR] heelonvault.ico missing — check assets/icons path"; exit 1; }
+            || { echo "[ERROR] heelonvault.ico missing"; exit 1; }
+          test -s wix/staging/share/glib-2.0/schemas/gschemas.compiled \
+            || { echo "[ERROR] gschemas.compiled missing or empty"; exit 1; }
           test -s wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache \
             || { echo "[ERROR] loaders.cache missing or empty"; exit 1; }
           echo "[OK] DLLs collected, dlls.wxs generated"
@@ -338,4 +229,4 @@ jobs:
             heelonvault-windows-x86_64.msi \
             heelonvault-windows-x86_64.msi.sha256 \
             --clobber
-          echo "[OK] Artifacts uploaded to release $TAG"                    
+          echo "[OK] Artifacts uploaded to release $TAG"
