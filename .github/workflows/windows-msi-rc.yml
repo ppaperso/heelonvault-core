@@ -89,6 +89,18 @@ jobs:
             mingw-w64-x86_64-libepoxy
             python3
 
+      - name: Locate MSYS2
+        shell: pwsh
+        run: |
+          Write-Host "=== EXISTS ==="
+          Test-Path C:\msys64
+          Test-Path C:\msys64\mingw64
+          Test-Path C:\msys64\mingw64\bin
+
+          Write-Host ""
+          Write-Host "=== PKG FILES ==="
+          Get-ChildItem C:\msys64\mingw64\bin\pkg* -ErrorAction SilentlyContinue
+
       - name: Add MSYS2 binaries to PATH
         shell: pwsh
         run: |
