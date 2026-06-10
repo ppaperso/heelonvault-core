@@ -73,25 +73,6 @@ jobs:
             mingw-w64-x86_64-libepoxy
             python3
 
-      - name: Debug MSYS2 pkgconf
-        shell: msys2 {0}
-        run: |
-          echo "=== WHICH ==="
-          which pkgconf || true
-          which pkg-config || true
-
-          echo ""
-          echo "=== PACMAN ==="
-          pacman -Qs pkgconf || true
-
-          echo ""
-          echo "=== PACKAGE FILES ==="
-          pacman -Ql mingw-w64-x86_64-pkgconf || true
-
-          echo ""
-          echo "=== FIND ==="
-          find / -name "pkgconf*" 2>/dev/null | head -50
-      
       - name: Add MSYS2 binaries to PATH
         shell: pwsh
         run: |
@@ -158,15 +139,26 @@ jobs:
           where.exe pkgconf
 
           Write-Host ""
-          Write-Host "=== TEST EXECUTABLES ==="
+          Write-Host "=== ENV ==="
+          Write-Host "PKG_CONFIG_PATH=$env:PKG_CONFIG_PATH"
+          Write-Host "PKG_CONFIG_LIBDIR=$env:PKG_CONFIG_LIBDIR"
 
-          if (Test-Path "C:\msys64\mingw64\bin\pkgconf.exe") {
-            & "C:\msys64\mingw64\bin\pkgconf.exe" --version
-          }
+          Write-Host ""
+          Write-Host "=== EXE EXISTS ==="
+          Test-Path "C:\msys64\mingw64\bin\pkg-config.exe"
+          Test-Path "C:\msys64\mingw64\bin\pkgconf.exe"
 
-          if (Test-Path "C:\msys64\usr\bin\pkgconf.exe") {
-            & "C:\msys64\usr\bin\pkgconf.exe" --version
-          }
+          Write-Host ""
+          Write-Host "=== VERSION ==="
+          & "C:\msys64\mingw64\bin\pkg-config.exe" --version
+
+          Write-Host ""
+          Write-Host "=== GLIB ==="
+          & "C:\msys64\mingw64\bin\pkg-config.exe" --modversion glib-2.0
+
+          Write-Host ""
+          Write-Host "=== GTK4 ==="
+          & "C:\msys64\mingw64\bin\pkg-config.exe" --modversion gtk4
 
       - name: Build heelonvault-app (locked)
         shell: bash
