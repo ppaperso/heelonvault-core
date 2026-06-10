@@ -1615,6 +1615,7 @@ dependencies = [
 [[package]]
 name = "heelonvault-premium"
 version = "1.1.0"
+source = "git+ssh://git@github.com/ppaperso/heelonvault-premium.git?branch=main#73a19ef6341106dc7ec44c6cba9f6d0f07fa9c25"
 dependencies = [
  "base64",
  "chrono",

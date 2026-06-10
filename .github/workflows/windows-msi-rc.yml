@@ -88,11 +88,15 @@ jobs:
 
       - name: Build heelonvault-app (locked)
         shell: bash
+        env:
+          GIT_SSH_COMMAND: "ssh -i ${{ runner.temp }}/premium_key -o StrictHostKeyChecking=no"
         run: |
           set -euo pipefail
-          # Make the MSYS2/MINGW64 toolchain (gcc linker, etc.) visible to cargo
+          echo "${{ secrets.PREMIUM_SSH_KEY }}" > ${{ runner.temp }}/premium_key
+          chmod 600 ${{ runner.temp }}/premium_key
           export PATH="/c/msys64/mingw64/bin:$PATH"
           cargo build --release --locked -p heelonvault-app
+          rm -f ${{ runner.temp }}/premium_key
           test -f target/release/heelonvault.exe || { echo "[ERROR] heelonvault.exe not produced"; exit 1; }
           echo "[OK] heelonvault.exe built"
 
