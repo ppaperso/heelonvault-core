@@ -109,30 +109,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "HOME=$HOME"
-          echo "RUNNER_TEMP=$RUNNER_TEMP"
+          SSH_OUTPUT=$(ssh -T git@github.com -o StrictHostKeyChecking=no 2>&1 || true)
 
-          KEY_FILE="$RUNNER_TEMP/premium_key"
+          echo "$SSH_OUTPUT"
 
-          echo "${{ secrets.PREMIUM_SSH_KEY }}" > "$KEY_FILE"
-          chmod 600 "$KEY_FILE"
-
-          SSH_OUTPUT=$(ssh -T git@github.com -i "$KEY_FILE" -o StrictHostKeyChecking=no 2>&1 || true)
-
-          if [[ "$SSH_OUTPUT" == *"successfully authenticated"* ]]; then
+          if [[ "$SSH_OUTPUT" == *"successfully authenticated"* ]] || \
+            [[ "$SSH_OUTPUT" == *"You've successfully authenticated"* ]]; then
             echo "[OK] SSH access to GitHub verified"
           else
-            echo "[ERROR] SSH access failed: $SSH_OUTPUT"
+            echo "[ERROR] SSH access failed"
             exit 1
           fi
 
-          git clone --depth 1 git@github.com:ppaperso/heelonvault-premium.git /tmp/test_premium || {
-            echo "[ERROR] Failed to clone heelonvault-premium"
-            exit 1
-          }
+          git clone --depth 1 git@github.com:ppaperso/heelonvault-premium.git /tmp/test_premium
 
           rm -rf /tmp/test_premium
-          rm -f "$KEY_FILE"
 
           echo "[OK] SSH access to heelonvault-premium verified"
 
@@ -170,22 +161,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          KEY_FILE="$RUNNER_TEMP/premium_key"
-
-          echo "${{ secrets.PREMIUM_SSH_KEY }}" > "$KEY_FILE"
-          chmod 600 "$KEY_FILE"
-          test -f "$KEY_FILE" || { echo "[ERROR] premium_key not created"; exit 1; }
-
-          export GIT_SSH_COMMAND="ssh -i $KEY_FILE -o StrictHostKeyChecking=no"
-
           export PATH="/c/msys64/mingw64/bin:$PATH"
           export PKG_CONFIG_PATH="/c/msys64/mingw64/lib/pkgconfig:/c/msys64/mingw64/share/pkgconfig"
           export PKG_CONFIG_LIBDIR="/c/msys64/mingw64/lib/pkgconfig:/c/msys64/mingw64/share/pkgconfig"
           export PKG_CONFIG_ALLOW_CROSS=1
 
           cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app
-
-          rm -f "$KEY_FILE"
 
           test -f target/x86_64-pc-windows-gnu/release/heelonvault.exe || {
             echo "[ERROR] heelonvault.exe not produced"
