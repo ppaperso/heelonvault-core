@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
@@ -62,7 +62,7 @@ jobs:
           rustup show
 
       - name: Cache Cargo registry and build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -73,9 +73,11 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build heelonvault-app (locked)
-        shell: msys2 {0}
+        shell: bash
         run: |
           set -euo pipefail
+          # Make the MSYS2/MINGW64 toolchain (gcc linker, etc.) visible to cargo
+          export PATH="/c/msys64/mingw64/bin:$PATH"
           cargo build --release --locked -p heelonvault-app
           test -f target/release/heelonvault.exe || { echo "[ERROR] heelonvault.exe not produced"; exit 1; }
           echo "[OK] heelonvault.exe built"
@@ -130,7 +132,7 @@ jobs:
           Write-Host "[OK] SHA256: $hash"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: heelonvault-windows-msi
           if-no-files-found: error
