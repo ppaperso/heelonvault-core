@@ -34,9 +34,18 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
 
       - name: Setup SSH agent (heelonvault-premium)
-        uses: webfactory/ssh-agent@v0.9.1
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.PREMIUM_SSH_KEY }}
+
+      - name: Configure Cargo to use SSH via CLI (Windows)
+        shell: bash
+        run: |
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml <<'EOF'
+          [net]
+          git-fetch-with-cli = true
+          EOF
 
       - name: Validate repository root layout
         shell: bash
@@ -197,4 +206,4 @@ jobs:
             heelonvault-windows-x86_64.msi \
             heelonvault-windows-x86_64.msi.sha256 \
             --clobber
-          echo "[OK] Artifacts uploaded to release $TAG"
+          echo "[OK] Artifacts uploaded to release $TAG"                    
