@@ -38,14 +38,14 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.PREMIUM_SSH_KEY }}
 
-      - name: Configure Cargo to use SSH via CLI (Windows)
-        shell: bash
+      - name: Patch .cargo/config.toml for CI
+        shell: pwsh
         run: |
-          mkdir -p ~/.cargo
-          cat >> ~/.cargo/config.toml <<'EOF'
-          [net]
-          git-fetch-with-cli = true
-          EOF
+          $config = Get-Content .cargo/config.toml -Raw
+          $config = $config -replace '(?s)\[patch\."ssh://[^"]+"\][^\[]*', ''
+          $config += "`n[net]`ngit-fetch-with-cli = true`n"
+          Set-Content .cargo/config.toml $config
+          Write-Host "[OK] .cargo/config.toml patched for CI"
 
       - name: Validate repository root layout
         shell: bash

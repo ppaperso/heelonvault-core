@@ -13,6 +13,3 @@ clippy-secure = "clippy --all-targets --all-features -- -D clippy::unwrap_used -
 # sur la copie locale du workspace, pour éviter la duplication de traits.
 [patch.crates-io]
 heelonvault-core = { path = "crates/heelonvault-core" }
-
-[patch."ssh://git@github.com/ppaperso/heelonvault-premium.git"]
-heelonvault-premium = { path = "../heelonvault-premium" }
