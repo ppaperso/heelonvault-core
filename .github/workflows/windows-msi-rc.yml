@@ -86,17 +86,40 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Test SSH access to heelonvault-premium
+        shell: bash
+        env:
+          GIT_SSH_COMMAND: ssh -i "$HOME/premium_key" -o StrictHostKeyChecking=no
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.PREMIUM_SSH_KEY }}" > "$HOME/premium_key"
+          chmod 600 "$HOME/premium_key"
+          # Teste la connexion SSH
+          ssh -T git@github.com -i "$HOME/premium_key" -o StrictHostKeyChecking=no || {
+            echo "[ERROR] SSH access failed to github.com";
+            exit 1;
+          }
+          # Teste le clone du repo privé
+          git clone --depth 1 git@github.com:ppaperso/heelonvault-premium.git /tmp/test_premium || {
+            echo "[ERROR] Failed to clone heelonvault-premium";
+            exit 1;
+          }
+          rm -rf /tmp/test_premium
+          rm -f "$HOME/premium_key"
+          echo "[OK] SSH access to heelonvault-premium verified"
+
       - name: Build heelonvault-app (locked)
         shell: bash
         env:
-          GIT_SSH_COMMAND: "ssh -i ${{ runner.temp }}/premium_key -o StrictHostKeyChecking=no"
+          GIT_SSH_COMMAND: ssh -i "$HOME/premium_key" -o StrictHostKeyChecking=no
         run: |
           set -euo pipefail
-          echo "${{ secrets.PREMIUM_SSH_KEY }}" > ${{ runner.temp }}/premium_key
-          chmod 600 ${{ runner.temp }}/premium_key
+          echo "${{ secrets.PREMIUM_SSH_KEY }}" > "$HOME/premium_key"
+          chmod 600 "$HOME/premium_key"
+          test -f "$HOME/premium_key" || { echo "[ERROR] premium_key not created"; exit 1; }
           export PATH="/c/msys64/mingw64/bin:$PATH"
           cargo build --release --locked -p heelonvault-app
-          rm -f ${{ runner.temp }}/premium_key
+          rm -f "$HOME/premium_key"
           test -f target/release/heelonvault.exe || { echo "[ERROR] heelonvault.exe not produced"; exit 1; }
           echo "[OK] heelonvault.exe built"
 
