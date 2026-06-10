@@ -33,6 +33,11 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
 
+      - name: Setup SSH agent (heelonvault-premium)
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PREMIUM_SSH_KEY }}
+
       - name: Validate repository root layout
         shell: bash
         run: |

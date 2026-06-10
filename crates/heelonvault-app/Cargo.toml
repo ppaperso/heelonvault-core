@@ -22,7 +22,7 @@ licensing = ["premium"]
 [dependencies]
 # Core library locale (aucun cycle possible : core ne dépend pas d'app)
 heelonvault-core    = { path = "../heelonvault-core" }
-heelonvault-premium = { git = "https://github.com/ppaperso/heelonvault-premium.git", branch = "main", optional = true }
+heelonvault-premium = { git = "git@github.com:ppaperso/heelonvault-premium.git", branch = "main", optional = true }
 
 # Dépendances directes de main.rs (wiring des services, assembly layer)
 # Ces crates sont aussi dans heelonvault-core mais Cargo n'exporte pas
