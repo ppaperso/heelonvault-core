@@ -112,17 +112,19 @@ jobs:
 
           Get-ChildItem C:\msys64\mingw64\bin | Select-Object -First 20
 
-      - name: Locate MSYS2
+      - name: Locate MSYS2 installation
         shell: pwsh
         run: |
-          Write-Host "=== EXISTS ==="
-          Test-Path C:\msys64
-          Test-Path C:\msys64\mingw64
-          Test-Path C:\msys64\mingw64\bin
+          Write-Host "=== SEARCH PKGCONF ==="
+
+          Get-ChildItem -Path C:\ -Filter pkgconf.exe -Recurse -ErrorAction SilentlyContinue |
+            Select-Object FullName
 
           Write-Host ""
-          Write-Host "=== PKG FILES ==="
-          Get-ChildItem C:\msys64\mingw64\bin\pkg* -ErrorAction SilentlyContinue
+          Write-Host "=== SEARCH PKG-CONFIG ==="
+
+          Get-ChildItem -Path C:\ -Filter pkg-config.exe -Recurse -ErrorAction SilentlyContinue |
+            Select-Object FullName
 
       - name: Add MSYS2 binaries to PATH
         shell: pwsh
