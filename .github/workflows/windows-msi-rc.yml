@@ -102,15 +102,14 @@ jobs:
       
       - name: Find cargo path
         id: cargo_path
-        shell: bash
+        shell: msys2 {0}  # <-- MSYS2 Bash
         run: |
           set -euo pipefail
-          # Cherche cargo dans les chemins courants sous Windows
+          # Cherche cargo dans les chemins Windows (format Unix pour MSYS2)
           CARGO_DIR=""
           for path in \
             "/c/Users/runneradmin/.cargo/bin" \
-            "/c/Users/runneradmin/.rustup/toolchains/*/bin" \
-            "$HOME/.cargo/bin"; do
+            "/c/Users/runneradmin/.rustup/toolchains/*/bin"; do
             if [ -f "$path/cargo" ] || [ -f "$path/cargo.exe" ]; then
               CARGO_DIR="$path"
               echo "cargo_dir=$CARGO_DIR" >> $GITHUB_OUTPUT
@@ -119,20 +118,20 @@ jobs:
             fi
           done
           if [ -z "$CARGO_DIR" ]; then
-            echo "[ERROR] cargo non trouvé dans les chemins courants"
+            echo "[ERROR] cargo non trouvé"
             exit 1
           fi
 
       - name: Build heelonvault-app (locked)
-        shell: bash
+        shell: msys2 {0}  # <-- MSYS2 Bash
         env:
-          GIT_SSH_COMMAND: "ssh -i ${{ runner.temp }}/premium_key -o StrictHostKeyChecking=no"
-          PATH: "/c/msys64/mingw64/bin:${{ steps.cargo_path.outputs.cargo_dir }}:$PATH"
-          PKG_CONFIG_PATH: "/c/msys64/mingw64/lib/pkgconfig"
+          GIT_SSH_COMMAND: "ssh -i $HOME/premium_key -o StrictHostKeyChecking=no"
+          PATH: "/mingw64/bin:${{ steps.cargo_path.outputs.cargo_dir }}:$PATH"  # Chemin MSYS2 pour pkg-config + cargo
+          PKG_CONFIG_PATH: "/mingw64/lib/pkgconfig"  # Chemin MSYS2 pour .pc files
         run: |
           set -euo pipefail
-          echo "${{ secrets.PREMIUM_SSH_KEY }}" > "${{ runner.temp }}/premium_key"
-          chmod 600 "${{ runner.temp }}/premium_key"
+          echo "${{ secrets.PREMIUM_SSH_KEY }}" > "$HOME/premium_key"
+          chmod 600 "$HOME/premium_key"
 
           # Vérifie que cargo et pkg-config sont disponibles
           which cargo || { echo "[ERROR] cargo not found"; exit 1; }
@@ -143,7 +142,7 @@ jobs:
 
           # Vérifie l'EXE
           test -f target/x86_64-pc-windows-gnu/release/heelonvault.exe || { echo "[ERROR] heelonvault.exe not produced"; exit 1; }
-          rm -f "${{ runner.temp }}/premium_key"
+          rm -f "$HOME/premium_key"
           echo "[OK] heelonvault.exe built"
 
       - name: Collect DLLs and generate wix/dlls.wxs
