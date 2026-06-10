@@ -63,6 +63,7 @@ jobs:
           update: true
           install: >-
             mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-ntldd
             mingw-w64-x86_64-imagemagick
             mingw-w64-x86_64-glib2
@@ -75,10 +76,20 @@ jobs:
       - name: Add MSYS2 mingw64 to system PATH
         shell: pwsh
         run: |
-          # GITHUB_PATH injecte dans le PATH Windows réel pour tous les steps suivants,
-          # y compris les processus natifs lancés par Cargo (build scripts glib-sys, etc.)
+          # GITHUB_PATH injecte C:\msys64\mingw64\bin dans le PATH Windows réel
+          # pour tous les steps suivants, y compris les build scripts Cargo natifs.
           "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           Write-Host "[OK] C:\msys64\mingw64\bin added to GITHUB_PATH"
+
+          # Vérification défensive : créer un wrapper pkg-config.cmd si pkg-config.exe
+          # n'existe pas encore (pkgconf peut s'installer sans le symlink pkg-config).
+          if (-not (Test-Path 'C:\msys64\mingw64\bin\pkg-config.exe')) {
+            $wrapper = '@echo off' + "`r`n" + '"C:\msys64\mingw64\bin\pkgconf.exe" %*'
+            Set-Content -Path 'C:\msys64\mingw64\bin\pkg-config.cmd' -Value $wrapper -Encoding ASCII
+            Write-Host "[OK] pkg-config.cmd wrapper created → pkgconf.exe"
+          } else {
+            Write-Host "[OK] pkg-config.exe already present"
+          }
 
       - name: Setup Rust toolchain
         shell: bash
