@@ -1,17 +1,6 @@
 #!/usr/bin/env bash
 # scripts/collect-dlls.sh
-# ─────────────────────────────────────────────────────────────────────────────
-# Generates wix/dlls.wxs from the DLL dependency graph of heelonvault.exe.
-#
-# Usage (inside MSYS2 MINGW64 shell):
-#   bash scripts/collect-dlls.sh \
-#       --binary   target/release/heelonvault.exe \
-#       --msys2    /mingw64 \
-#       --staging  wix/staging \
-#       --out      wix/dlls.wxs
-#
-# Requires: ntldd (mingw-w64-x86_64-ntldd), ImageMagick (for .ico conversion)
-# ─────────────────────────────────────────────────────────────────────────────
+# Generates wix/dlls.wxs from the DLL dependency graph of heelonvault.exe for GTK4.
 set -euo pipefail
 
 BINARY=""
@@ -39,90 +28,81 @@ echo "[collect-dlls] Output : $OUT_WXS"
 
 # ── 1. Collect transitive DLLs via ntldd ─────────────────────────────────────
 echo "[collect-dlls] Running ntldd..."
-# ntldd -R prints full recursive dependency tree; filter lines that contain the
-# MSYS2 mingw path, strip whitespace, extract the path token.
 DLL_PATHS=$(ntldd -R "$BINARY" \
   | grep -i "mingw64" \
   | awk '{print $3}' \
   | sort -u)
+
+# Ajouter manuellement les DLLs critiques pour GTK4 (au cas où ntldd ne les détecte pas)
+GTK4_DLLS=(
+  "$MSYS2_ROOT/bin/libgtk-4-1.dll"
+  "$MSYS2_ROOT/bin/libgsk4.dll"
+  "$MSYS2_ROOT/bin/libgraphene-1.0-0.dll"
+  "$MSYS2_ROOT/bin/libepoxy-0.dll"
+)
+
+# Fusionner les listes
+DLL_PATHS=$(echo -e "$DLL_PATHS\n$(printf "%s\n" "${GTK4_DLLS[@]}")" | sort -u)
 
 DLL_COUNT=$(echo "$DLL_PATHS" | grep -c . || true)
 echo "[collect-dlls] Found $DLL_COUNT DLLs to bundle"
 
 # ── 2. Stage DLLs ────────────────────────────────────────────────────────────
 mkdir -p "$STAGING_DIR"
-DLL_STAGING="$STAGING_DIR"
+mkdir -p "$STAGING_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders"
 
 echo "$DLL_PATHS" | while IFS= read -r dll_path; do
   [[ -z "$dll_path" ]] && continue
+  [[ -f "$dll_path" ]] || { echo "[WARNING] DLL not found: $dll_path"; continue; }
   dll_name=$(basename "$dll_path")
-  cp "$dll_path" "$DLL_STAGING/$dll_name"
-  echo "  staged: $dll_name"
+  cp "$dll_path" "$STAGING_DIR/"
+  echo "[collect-dlls] Staged: $dll_name"
 done
 
-# ── 3. Stage GLib compiled schemas ───────────────────────────────────────────
+# ── 3. Copy GDK-Pixbuf loaders (si toujours utilisé) ────────────────────────
+if [[ -d "$MSYS2_ROOT/lib/gdk-pixbuf-2.0/2.10.0/loaders" ]]; then
+  cp "$MSYS2_ROOT/lib/gdk-pixbuf-2.0/2.10.0/loaders"/*.dll "$STAGING_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders/" || true
+  cp "$MSYS2_ROOT/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" "$STAGING_DIR/lib/gdk-pixbuf-2.0/2.10.0/" || true
+fi
+
+# ── 4. Copy GTK4 theme assets (optionnel) ────────────────────────────────
+mkdir -p "$STAGING_DIR/share/themes/Adwaita"
+if [[ -d "$MSYS2_ROOT/share/themes/Adwaita" ]]; then
+  cp -r "$MSYS2_ROOT/share/themes/Adwaita"/* "$STAGING_DIR/share/themes/Adwaita/" || true
+fi
+
+# ── 5. Compile GLib schemas ────────────────────────────────────────────────
 echo "[collect-dlls] Compiling GLib schemas..."
-SCHEMA_SRC_DIR="$MSYS2_ROOT/share/glib-2.0/schemas"
-SCHEMA_STAGING="$STAGING_DIR/share/glib-2.0/schemas"
-mkdir -p "$SCHEMA_STAGING"
-cp "$SCHEMA_SRC_DIR"/*.xml "$SCHEMA_STAGING/" 2>/dev/null || true
-glib-compile-schemas "$SCHEMA_STAGING"
-echo "  staged: gschemas.compiled"
+mkdir -p "$STAGING_DIR/share/glib-2.0/schemas"
+glib-compile-schemas "$MSYS2_ROOT/share/glib-2.0/schemas" \
+  --targetdir="$STAGING_DIR/share/glib-2.0/schemas"
+echo "[collect-dlls] gschemas.compiled generated"
 
-# ── 4. Stage GDK-Pixbuf loaders ──────────────────────────────────────────────
-echo "[collect-dlls] Staging GDK-Pixbuf loaders..."
-PIXBUF_STAGING="$STAGING_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders"
-mkdir -p "$PIXBUF_STAGING"
-
-# Copy loader DLLs
-PIXBUF_LIB_DIR="$MSYS2_ROOT/lib/gdk-pixbuf-2.0/2.10.0/loaders"
-if [[ -d "$PIXBUF_LIB_DIR" ]]; then
-  cp "$PIXBUF_LIB_DIR"/*.dll "$PIXBUF_STAGING/" 2>/dev/null || true
-fi
-
-# Generate loaders.cache pointing to installation path
-GDK_PIXBUF_MODULEDIR="lib\\gdk-pixbuf-2.0\\2.10.0\\loaders" \
-  gdk-pixbuf-query-loaders \
-  "$PIXBUF_STAGING"/*.dll \
-  > "$STAGING_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" 2>/dev/null || true
-echo "  staged: loaders.cache"
-
-# ── 5. Convert PNG icon to .ico ───────────────────────────────────────────────
-echo "[collect-dlls] Converting icon..."
-ICO_OUT="$STAGING_DIR/heelonvault.ico"
-# Use ImageMagick to produce a multi-resolution .ico from the 256px PNG
+# ── 6. Generate heelonvault.ico from PNG ──────────────────────────────────
 ICON_SRC="assets/icons/hicolor/256x256/apps/heelonvault.png"
-if command -v convert >/dev/null 2>&1 && [[ -f "$ICON_SRC" ]]; then
-  convert "$ICON_SRC" \
-    \( -clone 0 -resize 16x16 \) \
-    \( -clone 0 -resize 32x32 \) \
-    \( -clone 0 -resize 48x48 \) \
-    \( -clone 0 -resize 128x128 \) \
-    \( -clone 0 -resize 256x256 \) \
-    -delete 0 "$ICO_OUT"
-  echo "  staged: heelonvault.ico"
+if [[ -f "$ICON_SRC" ]]; then
+  magick "$ICON_SRC" \
+    -define icon:auto-resize=256,128,64,48,32,16 \
+    "$STAGING_DIR/heelonvault.ico"
+  echo "[collect-dlls] Icon staged: heelonvault.ico"
 else
-  echo "[WARN] ImageMagick not found or icon source missing — .ico skipped"
+  echo "[WARNING] Icon source not found: $ICON_SRC — WiX build will fail"
 fi
 
-# ── 6. Generate wix/dlls.wxs ─────────────────────────────────────────────────
-echo "[collect-dlls] Generating $OUT_WXS..."
-mkdir -p "$(dirname "$OUT_WXS")"
+# ── 7. loaders.cache fallback ─────────────────────────────────────────────
+if [[ ! -s "$STAGING_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" ]]; then
+  echo "[collect-dlls] loaders.cache absent/empty — generating via gdk-pixbuf-query-loaders"
+  gdk-pixbuf-query-loaders > "$STAGING_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" || true
+fi
 
-# WiX identifiers allow only: letters, digits, underscore, period.
-# They must start with a letter or underscore.
+# ── 8. Generate WXS file ───────────────────────────────────────────────────
 sanitize_wix_id() {
-  local raw="$1"
-  local sanitized
-  sanitized="$(echo "$raw" | sed -E 's/[^A-Za-z0-9_.]/_/g')"
-  if [[ ! "$sanitized" =~ ^[A-Za-z_] ]]; then
-    sanitized="_$sanitized"
-  fi
-  echo "$sanitized"
+  echo "$1" | tr - _ | tr '[:upper:]' '[:lower:]' | sed 's/[^a-zA-Z0-9_]//g'
 }
 
+# Header
+mkdir -p "$(dirname "$OUT_WXS")"
 cat > "$OUT_WXS" << 'WXSHEADER'
-<?xml version="1.0" encoding="UTF-8"?>
 <!--
   AUTO-GENERATED by scripts/collect-dlls.sh — DO NOT EDIT MANUALLY
   Regenerate by running the script in a MSYS2 MINGW64 shell.
@@ -132,10 +112,11 @@ cat > "$OUT_WXS" << 'WXSHEADER'
     <ComponentGroup Id="DllComponents" Directory="INSTALLFOLDER">
 WXSHEADER
 
-# Emit one Component per DLL
+# DLL Components
 INDEX=0
 echo "$DLL_PATHS" | while IFS= read -r dll_path; do
   [[ -z "$dll_path" ]] && continue
+  [[ -f "$STAGING_DIR/$(basename "$dll_path")" ]] || continue
   dll_name=$(basename "$dll_path")
   safe_name="$(sanitize_wix_id "$dll_name")"
   safe_id="Dll_${safe_name}_$INDEX"
@@ -150,7 +131,7 @@ DLLCOMP
   INDEX=$((INDEX + 1))
 done
 
-# Emit GDK-Pixbuf loader DLL components
+# GDK-Pixbuf loaders
 cat >> "$OUT_WXS" << 'PIXBUFHEADER'
     </ComponentGroup>
 
@@ -158,7 +139,7 @@ cat >> "$OUT_WXS" << 'PIXBUFHEADER'
 PIXBUFHEADER
 
 PINDEX=0
-for loader_dll in "$PIXBUF_STAGING"/*.dll; do
+for loader_dll in "$STAGING_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders"/*.dll; do
   [[ -f "$loader_dll" ]] || continue
   pname=$(basename "$loader_dll")
   safe_pname="$(sanitize_wix_id "$pname")"
@@ -174,6 +155,7 @@ PIXBUFCOMP
   PINDEX=$((PINDEX + 1))
 done
 
+# Footer
 cat >> "$OUT_WXS" << 'WXSFOOTER'
     </ComponentGroup>
   </Fragment>

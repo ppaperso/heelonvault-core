@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  HeelonVault Windows Installer (WiX v4 / wix.exe)
-  ─────────────────────────────────────────────────
+  HeelonVault Windows Installer (WiX v4 / wix.exe) - GTK4 Edition
+  ─────────────────────────────────────────────────────────────────
   Structure:
-    wix/main.wxs   – this file: static product/directory/feature declaration
-    wix/dlls.wxs   – generated at CI build-time by scripts/collect-dlls.sh
-                     contains one <Component> per DLL identified by ntldd
-
-  Build command (from repo root, inside MSYS2 MINGW64 shell):
-    wix build wix/main.wxs wix/dlls.wxs -o heelonvault-windows-x86_64.msi
+    wix/main.wxs   – Static product/directory/feature declaration
+    wix/dlls.wxs   – Generated at CI build-time by scripts/collect-dlls.sh
+                     Contains one <Component> per DLL identified by ntldd
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
@@ -33,12 +30,21 @@
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="HeelonVault">
         <!-- GLib runtime resources -->
-        <Directory Id="SCHEMAFOLDER"     Name="share">
+        <Directory Id="SCHEMAFOLDER" Name="share">
           <Directory Id="GLIBSCHEMAFOLDER" Name="glib-2.0">
-            <Directory Id="SCHEMASUBFOLDER"  Name="schemas" />
+            <Directory Id="SCHEMASUBFOLDER" Name="schemas" />
+          </Directory>
+          <!-- GTK4 Theme -->
+          <Directory Id="THEMESFOLDER" Name="themes">
+            <Directory Id="ADWAITAFOLDER" Name="Adwaita" />
+          </Directory>
+          <!-- GTK4 Icons -->
+          <Directory Id="ICONSFOLDER" Name="icons">
+            <Directory Id="ADWAITAICONSFOLDER" Name="Adwaita" />
           </Directory>
         </Directory>
-        <Directory Id="GDKPIXBUFFOLDER"  Name="lib">
+        <!-- GDK-Pixbuf (still required for GTK4 compatibility) -->
+        <Directory Id="GDKPIXBUFFOLDER" Name="lib">
           <Directory Id="GDKPIXBUF2FOLDER" Name="gdk-pixbuf-2.0">
             <Directory Id="GDKPIXBUF_LOADERS" Name="2.10.0">
               <Directory Id="GDKPIXBUF_LOADERS_DIR" Name="loaders" />
@@ -54,34 +60,39 @@
 
     <!-- ── Main executable component ────────────────────────────────── -->
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-
       <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
         <File Id="heelonvault_exe"
               Source="target\release\heelonvault.exe"
               KeyPath="yes" />
       </Component>
 
-      <!-- GLib compiled schemas (required: avoids silent crash at startup) -->
+      <!-- GLib compiled schemas (required for GTK4) -->
       <Component Id="GLibSchemas" Guid="B2C3D4E5-F6A7-8901-BCDE-F12345678901">
         <File Id="gschemas_compiled"
               Source="wix\staging\share\glib-2.0\schemas\gschemas.compiled"
               KeyPath="yes" />
       </Component>
 
-      <!-- GDK-Pixbuf loaders.cache (required: avoids silent crash at startup) -->
+      <!-- GDK-Pixbuf loaders.cache (still required for GTK4 compatibility) -->
       <Component Id="GdkPixbufLoaderCache" Guid="C3D4E5F6-A7B8-9012-CDEF-123456789012">
         <File Id="loaders_cache"
               Source="wix\staging\lib\gdk-pixbuf-2.0\2.10.0\loaders.cache"
               KeyPath="yes" />
       </Component>
+    </ComponentGroup>
 
+    <!-- ── GTK4 Theme Components ──────────────────────────────────── -->
+    <ComponentGroup Id="GTK4ThemeComponents" Directory="THEMESFOLDER">
+      <Component Id="AdwaitaTheme" Guid="E4F5A6B7-C7D8-9012-DEF0-123456789012">
+        <Files Include="wix\staging\share\themes\Adwaita\**\*" />
+      </Component>
     </ComponentGroup>
 
     <!-- ── DLL components (generated into wix/dlls.wxs by CI) ────────── -->
-    <!-- ComponentGroup Id="DllComponents" is declared in wix/dlls.wxs   -->
+    <!-- ComponentGroup Id="DllComponents" is declared in wix/dlls.wxs -->
 
-    <!-- ── GDK-Pixbuf loader DLLs (generated into wix/dlls.wxs by CI) ── -->
-    <!-- ComponentGroup Id="PixbufLoaderComponents" in wix/dlls.wxs       -->
+    <!-- ── GDK-Pixbuf loader DLLs (generated into wix/dlls.wxs by CI) ──── -->
+    <!-- ComponentGroup Id="PixbufLoaderComponents" in wix/dlls.wxs -->
 
     <!-- ── Start Menu shortcut ───────────────────────────────────────── -->
     <ComponentGroup Id="ShortcutComponents" Directory="ApplicationProgramsFolder">
@@ -110,6 +121,7 @@
       <ComponentGroupRef Id="ProductComponents" />
       <ComponentGroupRef Id="DllComponents" />
       <ComponentGroupRef Id="PixbufLoaderComponents" />
+      <ComponentGroupRef Id="GTK4ThemeComponents" /> <!-- Ajout du thème GTK4 -->
       <ComponentGroupRef Id="ShortcutComponents" />
     </Feature>
 

@@ -62,11 +62,14 @@ jobs:
           msystem: MINGW64
           update: true
           install: >-
+            mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-ntldd
             mingw-w64-x86_64-imagemagick
             mingw-w64-x86_64-glib2
             mingw-w64-x86_64-gdk-pixbuf2
-            mingw-w64-x86_64-gtk3
+            mingw-w64-x86_64-gtk4
+            mingw-w64-x86_64-graphene
+            mingw-w64-x86_64-libepoxy
             python3
 
       - name: Setup Rust toolchain
@@ -123,9 +126,11 @@ jobs:
           chmod 600 "$HOME/premium_key"
           test -f "$HOME/premium_key" || { echo "[ERROR] premium_key not created"; exit 1; }
           export PATH="/c/msys64/mingw64/bin:$PATH"
-          cargo build --release --locked -p heelonvault-app
+          export PKG_CONFIG_PATH="/c/msys64/mingw64/lib/pkgconfig:/c/msys64/mingw64/share/pkgconfig"
+          export PKG_CONFIG_LIBDIR="/c/msys64/mingw64/lib/pkgconfig:/c/msys64/mingw64/share/pkgconfig"
+          cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app
           rm -f "$HOME/premium_key"
-          test -f target/release/heelonvault.exe || { echo "[ERROR] heelonvault.exe not produced"; exit 1; }
+          test -f target/x86_64-pc-windows-gnu/release/heelonvault.exe || { echo "[ERROR] heelonvault.exe not produced"; exit 1; }
           echo "[OK] heelonvault.exe built"
 
       - name: Collect DLLs and generate wix/dlls.wxs
@@ -133,7 +138,7 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/collect-dlls.sh \
-            --binary   target/release/heelonvault.exe \
+            --binary   target/x86_64-pc-windows-gnu/release/heelonvault.exe \
             --msys2    /mingw64 \
             --staging  wix/staging \
             --out      wix/dlls.wxs
