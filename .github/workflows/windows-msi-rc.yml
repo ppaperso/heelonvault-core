@@ -100,16 +100,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      # STEP MODIFIÉE: Utilise le chemin physique de MSYS2
       - name: Build heelonvault-app (locked)
-        shell: msys2 {0}  # <-- Utilise MSYS2 Bash, pas Git Bash
+        shell: bash  # Git Bash (pas MSYS2)
         env:
-          GIT_SSH_COMMAND: "ssh -i $HOME/premium_key -o StrictHostKeyChecking=no"
-          PKG_CONFIG_PATH: "/mingw64/lib/pkgconfig"  # Chemin Unix pour MSYS2
+          GIT_SSH_COMMAND: "ssh -i ${{ runner.temp }}/premium_key -o StrictHostKeyChecking=no"
+          PATH: "/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"  # Ajoute MSYS2 + Rust au PATH
+          PKG_CONFIG_PATH: "/c/msys64/mingw64/lib/pkgconfig"  # Chemin Unix pour pkg-config
         run: |
           set -euo pipefail
-          echo "${{ secrets.PREMIUM_SSH_KEY }}" > "$HOME/premium_key"
-          chmod 600 "$HOME/premium_key"
+          echo "${{ secrets.PREMIUM_SSH_KEY }}" > "${{ runner.temp }}/premium_key"
+          chmod 600 "${{ runner.temp }}/premium_key"
 
           # Vérifie que cargo et pkg-config sont disponibles
           which cargo || { echo "[ERROR] cargo not found"; exit 1; }
@@ -118,9 +118,9 @@ jobs:
           # Build avec la target GNU
           cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app
 
-          # Vérifie l'EXE dans le bon répertoire
+          # Vérifie l'EXE
           test -f target/x86_64-pc-windows-gnu/release/heelonvault.exe || { echo "[ERROR] heelonvault.exe not produced"; exit 1; }
-          rm -f "$HOME/premium_key"
+          rm -f "${{ runner.temp }}/premium_key"
           echo "[OK] heelonvault.exe built"
 
       - name: Collect DLLs and generate wix/dlls.wxs
