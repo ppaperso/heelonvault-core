@@ -9,3 +9,6 @@ resolver = "2"
 [workspace.dependencies]
 # Outils de développement
 cargo-deny = "0.15"
+
+[patch."ssh://git@github.com/ppaperso/heelonvault-premium.git"]
+heelonvault-premium = { path = "../heelonvault-premium" }
