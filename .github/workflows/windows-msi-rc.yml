@@ -94,11 +94,16 @@ jobs:
           set -euo pipefail
           echo "${{ secrets.PREMIUM_SSH_KEY }}" > "$HOME/premium_key"
           chmod 600 "$HOME/premium_key"
-          # Teste la connexion SSH
-          ssh -T git@github.com -i "$HOME/premium_key" -o StrictHostKeyChecking=no || {
-            echo "[ERROR] SSH access failed to github.com";
-            exit 1;
-          }
+
+          # Teste la connexion SSH et vérifie la sortie
+          SSH_OUTPUT=$(ssh -T git@github.com -i "$HOME/premium_key" -o StrictHostKeyChecking=no 2>&1 || true)
+          if [[ "$SSH_OUTPUT" == *"successfully authenticated"* ]]; then
+            echo "[OK] SSH access to GitHub verified"
+          else
+            echo "[ERROR] SSH access failed: $SSH_OUTPUT"
+            exit 1
+          fi
+
           # Teste le clone du repo privé
           git clone --depth 1 git@github.com:ppaperso/heelonvault-premium.git /tmp/test_premium || {
             echo "[ERROR] Failed to clone heelonvault-premium";
