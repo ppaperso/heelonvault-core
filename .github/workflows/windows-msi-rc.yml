@@ -200,16 +200,29 @@ jobs:
           rustup target add $env:RUST_TARGET
           rustup show
 
-          $env:PATH = "C:\Program Files\Git\bin;C:\Users\runneradmin\.cargo\bin;C:\msys64\mingw64\bin;$env:PATH"
-          # pkgconf.exe is the real binary; pkg-config is a POSIX shell script that
-          # Windows cannot execute directly. Set PKG_CONFIG explicitly so the
-          # pkg-config Rust crate bypasses PATH resolution entirely.
-          $env:PKG_CONFIG = 'C:\msys64\mingw64\bin\pkgconf.exe'
-          $env:PKG_CONFIG_PATH = 'C:\msys64\mingw64\lib\pkgconfig'
-          $env:PKG_CONFIG_ALLOW_SYSTEM_CFLAGS = '1'
-          $env:PKG_CONFIG_ALLOW_SYSTEM_LIBS = '1'
-
-          cargo build --release --locked --target $env:RUST_TARGET -p $env:APP_PACKAGE
+          # Run cargo build inside MSYS2 MINGW64 where pkg-config works natively.
+          # pkgconf.exe is a native Windows PE but its DLL deps (libintl-8.dll, etc.)
+          # are loaded by the MSYS2 loader; the Rust pkg-config crate invokes it as a
+          # child process from a plain PowerShell context, which does NOT have the
+          # MSYS2 DLL loader setup → CreateProcess returns ERROR_MOD_NOT_FOUND.
+          # Running cargo inside MSYS2 bash resolves pkg-config transparently.
+          $sshKeyMsys     = (& 'C:\msys64\usr\bin\cygpath.exe' $sshKeyPath).Trim()
+          $knownHostsMsys = (& 'C:\msys64\usr\bin\cygpath.exe' $knownHostsPath).Trim()
+          $cargoHome      = (& 'C:\msys64\usr\bin\cygpath.exe' (Join-Path $env:USERPROFILE '.cargo')).Trim()
+          $rootMsys       = (& 'C:\msys64\usr\bin\cygpath.exe' $root).Trim()
+          $rustTarget     = $env:RUST_TARGET
+          $appPkg         = $env:APP_PACKAGE
+          Write-Host "[MSYS2] cargo build --target $rustTarget (pkg-config native via MINGW64)"
+          & $msysBash -lc @"
+          set -euo pipefail
+          cd '$rootMsys'
+          export PATH="${cargoHome}/bin:`$PATH"
+          export GIT_SSH_COMMAND="ssh -i '${sshKeyMsys}' -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile='${knownHostsMsys}'"
+          cargo build --release --locked --target $rustTarget -p $appPkg
+          "@
+          if ($LASTEXITCODE -ne 0) {
+            throw '[ERROR] cargo build (MSYS2) failed'
+          }
           $exePath = Join-Path $root "target/$($env:RUST_TARGET)/release/$($env:APP_EXE_NAME)"
           Assert-File $exePath 'Application executable not produced'
           Write-Host "[OK] Built executable: $exePath"
