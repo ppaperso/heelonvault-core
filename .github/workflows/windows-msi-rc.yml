@@ -43,6 +43,64 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref != '' && inputs.source_ref || github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
 
+      # ── Early SSH gate ─────────────────────────────────────────────────
+      # Must run BEFORE Rust cache and MSYS2 to fail fast (saves 5-10 min).
+      # Shell: pwsh (Windows native). No MSYS2 involved here.
+      - name: Validate SSH access (heelonvault-premium)
+        shell: pwsh
+        env:
+          PREMIUM_SSH_KEY: ${{ secrets.PREMIUM_SSH_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sshKeyPath    = Join-Path $env:RUNNER_TEMP 'premium_ssh_key'
+          $knownHostsPath = Join-Path $env:RUNNER_TEMP 'known_hosts'
+
+          if ([string]::IsNullOrWhiteSpace($env:PREMIUM_SSH_KEY)) {
+            throw '[ERROR] PREMIUM_SSH_KEY secret is empty — check repository secret settings'
+          }
+
+          # Write key as raw ASCII bytes with Unix LF only.
+          # WriteAllText / Set-Content can corrupt binary-sensitive files on Windows.
+          $keyText = $env:PREMIUM_SSH_KEY -replace "`r`n", "`n" -replace "`r", "`n"
+          if (-not $keyText.EndsWith("`n")) { $keyText += "`n" }
+          $keyBytes = [System.Text.Encoding]::ASCII.GetBytes($keyText)
+          [System.IO.File]::WriteAllBytes($sshKeyPath, $keyBytes)
+
+          # Set strict ACL via .NET (avoids icacls locale/identity quirks).
+          $acl = Get-Acl $sshKeyPath
+          $acl.SetAccessRuleProtection($true, $false)
+          $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+          $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+            $identity, 'Read', 'Allow')
+          $acl.AddAccessRule($rule)
+          Set-Acl $sshKeyPath $acl
+          Write-Host "[OK] Key written to: $sshKeyPath ($(($keyBytes.Length)) bytes, identity: $identity)"
+
+          # Populate known_hosts for github.com.
+          ssh-keyscan github.com 2>$null | Out-File -FilePath $knownHostsPath -Encoding ascii
+
+          # Quick SSH handshake (exit 1 = authenticated but no shell = success for a deploy key).
+          ssh -T git@github.com `
+            -i $sshKeyPath `
+            -o IdentitiesOnly=yes `
+            -o StrictHostKeyChecking=yes `
+            -o UserKnownHostsFile=$knownHostsPath `
+            -o BatchMode=yes 2>&1 | ForEach-Object { Write-Host "[SSH] $_" }
+          # ssh -T returns 1 on success (no PTY) and 255 on auth failure.
+          if ($LASTEXITCODE -eq 255) {
+            throw '[ERROR] SSH authentication to github.com failed — verify PREMIUM_SSH_KEY matches the deploy key on heelonvault-premium'
+          }
+          Write-Host '[OK] SSH handshake to github.com succeeded'
+
+          # Full git ls-remote to confirm repo access.
+          $env:GIT_SSH_COMMAND = "ssh -i `"$sshKeyPath`" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=`"$knownHostsPath`""
+          git ls-remote ssh://git@github.com/ppaperso/heelonvault-premium.git HEAD
+          if ($LASTEXITCODE -ne 0) {
+            throw '[ERROR] git ls-remote failed — deploy key may lack read access to heelonvault-premium'
+          }
+          Write-Host '[OK] SSH access to heelonvault-premium confirmed'
+
+      # ── Rust cache (after SSH gate, before long MSYS2 install) ────────────
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -77,18 +135,16 @@ jobs:
           INPUT_SOURCE_REF: ${{ inputs.source_ref }}
           INPUT_RC_TAG: ${{ inputs.rc_tag }}
           INPUT_PUBLISH_RELEASE: ${{ inputs.publish_release }}
-          PREMIUM_SSH_KEY: ${{ secrets.PREMIUM_SSH_KEY }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $root = (Get-Location).Path
+          $root           = (Get-Location).Path
           $cargoConfigPath = Join-Path $root '.cargo/config.toml'
           $coreLocalesPath = Join-Path $root 'crates/heelonvault-core/locales'
           $rootLocalesPath = Join-Path $root 'locales'
-          $msysBash = 'C:\msys64\usr\bin\bash.exe'
-          $sshKeyPath = Join-Path $env:RUNNER_TEMP 'premium_ssh_key'
+          $msysBash        = 'C:\msys64\usr\bin\bash.exe'
+          # Key paths set by the early "Validate SSH access" step.
+          $sshKeyPath     = Join-Path $env:RUNNER_TEMP 'premium_ssh_key'
           $knownHostsPath = Join-Path $env:RUNNER_TEMP 'known_hosts'
-          $sshTestOut = Join-Path $env:RUNNER_TEMP 'ssh_test_stdout.log'
-          $sshTestErr = Join-Path $env:RUNNER_TEMP 'ssh_test_stderr.log'
 
           function Assert-File([string] $path, [string] $message) {
             if (-not (Test-Path $path -PathType Leaf)) {
@@ -110,44 +166,10 @@ jobs:
             }
           }
 
-          if ([string]::IsNullOrWhiteSpace($env:PREMIUM_SSH_KEY)) {
-            throw '[ERROR] PREMIUM_SSH_KEY secret is empty or unavailable for this run'
-          }
-
-          # Write the key as UTF-8 and normalize CRLF to avoid OpenSSH parse issues.
-          $normalizedKey = $env:PREMIUM_SSH_KEY -replace "`r", ''
-          [System.IO.File]::WriteAllText($sshKeyPath, $normalizedKey, [System.Text.UTF8Encoding]::new($false))
-
-          # Keep ACL handling robust: some runners expose empty USERNAME in non-interactive shells.
-          $runnerIdentity = (whoami)
-          if ([string]::IsNullOrWhiteSpace($runnerIdentity)) {
-            throw '[ERROR] Unable to resolve runner identity for SSH key ACL handling'
-          }
-          icacls $sshKeyPath /inheritance:r | Out-Null
-          icacls $sshKeyPath /grant:r "${runnerIdentity}:R" | Out-Null
-
-          ssh-keyscan github.com 2>$null | Out-File -FilePath $knownHostsPath -Encoding ascii
+          # SSH key written by "Validate SSH access" step into RUNNER_TEMP.
+          # Reuse same path here to configure GIT_SSH_COMMAND for cargo build.
           $env:GIT_SSH_COMMAND = "ssh -i `"$sshKeyPath`" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=`"$knownHostsPath`""
-
-          Write-Host "[DEBUG] runner identity: $runnerIdentity"
-          Write-Host "[DEBUG] ssh version:"
-          ssh -V
-          Write-Host '[DEBUG] testing SSH handshake to github.com (auth result expected in stderr)'
-          ssh -T git@github.com -o BatchMode=yes -o IdentitiesOnly=yes -i "$sshKeyPath" -o UserKnownHostsFile="$knownHostsPath" -o StrictHostKeyChecking=yes 1>$sshTestOut 2>$sshTestErr
-          if (Test-Path $sshTestOut) {
-            Write-Host '[DEBUG] ssh stdout:'
-            Get-Content $sshTestOut -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "[DEBUG] $_" }
-          }
-          if (Test-Path $sshTestErr) {
-            Write-Host '[DEBUG] ssh stderr:'
-            Get-Content $sshTestErr -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "[DEBUG] $_" }
-          }
-
-          git ls-remote ssh://git@github.com/ppaperso/heelonvault-premium.git HEAD *> $null
-          if ($LASTEXITCODE -ne 0) {
-            throw '[ERROR] SSH access test to heelonvault-premium failed; verify deploy key permissions and secret format'
-          }
-          Write-Host '[OK] SSH access to heelonvault-premium validated'
+          Write-Host '[OK] GIT_SSH_COMMAND set for cargo build'
 
           Assert-File (Join-Path $root 'Cargo.toml') 'Cargo.toml not found'
           Assert-File (Join-Path $root 'wix/main.wxs') 'wix/main.wxs not found'
