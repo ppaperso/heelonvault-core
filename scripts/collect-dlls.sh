@@ -30,13 +30,12 @@ echo "[collect-dlls] Output : $OUT_WXS"
 echo "[collect-dlls] Running ntldd..."
 DLL_PATHS=$(ntldd -R "$BINARY" \
   | grep -i "mingw64" \
-  | awk '{print $3}' \
-  | sort -u)
+  | awk -F'=>' '{print $2}' | awk '{print $1}' \
+  | sort -u | while IFS= read -r p; do cygpath -u "$p" 2>/dev/null || echo "$p"; done)
 
 # Ajouter manuellement les DLLs critiques pour GTK4 (au cas où ntldd ne les détecte pas)
 GTK4_DLLS=(
   "$MSYS2_ROOT/bin/libgtk-4-1.dll"
-  "$MSYS2_ROOT/bin/libgsk4.dll"
   "$MSYS2_ROOT/bin/libgraphene-1.0-0.dll"
   "$MSYS2_ROOT/bin/libepoxy-0.dll"
 )

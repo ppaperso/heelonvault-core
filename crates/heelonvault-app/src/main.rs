@@ -1013,7 +1013,12 @@ async fn initialize_app_context() -> Result<AppStartMode> {
             )
         })?;
 
-    sqlx::migrate::Migrator::new(Path::new("./migrations"))
+    let migrations_path = std::env::current_exe()
+        .expect("failed to get exe path")
+        .parent()
+        .expect("failed to get exe dir")
+        .join("migrations");
+    sqlx::migrate::Migrator::new(migrations_path.as_path())
         .await
         .context("failed to load sqlx migrations")?
         .run(&pool)

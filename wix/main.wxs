@@ -11,7 +11,7 @@
 
   <Package
     Name="HeelonVault"
-    Version="!(bind.FileVersion.heelonvault_exe)"
+    Version="$(var.ProductVersion)"
     Manufacturer="Heelonys"
     UpgradeCode="4F2D8A1C-3B7E-4F9A-8C5D-2E6F1A0B3C4D"
     Language="1033"
@@ -51,6 +51,28 @@
             </Directory>
           </Directory>
         </Directory>
+        <!-- répertoire et composants migrations -->
+        <!-- Dans l'arbre de répertoires, après GDKPIXBUFFOLDER : -->
+        <Directory Id="MIGRATIONSFOLDER" Name="migrations" />
+        <!-- Nouveau ComponentGroup avant </Package> : -->
+        <ComponentGroup Id="MigrationsComponents" Directory="MIGRATIONSFOLDER">
+          <Component Id="Mig_0001" Guid="*"><File Source="wix\staging\migrations\0001_init_schema.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0002" Guid="*"><File Source="wix\staging\migrations\0002_db_metadata_schema_version.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0003" Guid="*"><File Source="wix\staging\migrations\0003_secret_item_extensions.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0004" Guid="*"><File Source="wix\staging\migrations\0004_user_profile_fields.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0005" Guid="*"><File Source="wix\staging\migrations\0005_auth_policy.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0006" Guid="*"><File Source="wix\staging\migrations\0006_auth_policy_auto_lock_delay.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0007" Guid="*"><File Source="wix\staging\migrations\0007_login_history.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0008" Guid="*"><File Source="wix\staging\migrations\0008_user_show_passwords_in_edit.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0009" Guid="*"><File Source="wix\staging\migrations\0009_user_totp_secret.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0010" Guid="*"><File Source="wix\staging\migrations\0010_user_preferred_language.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0011" Guid="*"><File Source="wix\staging\migrations\0011_teams.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0012" Guid="*"><File Source="wix\staging\migrations\0012_vault_key_shares.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0013" Guid="*"><File Source="wix\staging\migrations\0013_audit_log.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0014" Guid="*"><File Source="wix\staging\migrations\0014_vault_security_rbac.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0015" Guid="*"><File Source="wix\staging\migrations\0015_vault_sort_order.sql" KeyPath="yes" /></Component>
+          <Component Id="Mig_0016" Guid="*"><File Source="wix\staging\migrations\0016_ip_rate_limiting.sql" KeyPath="yes" /></Component>
+        </ComponentGroup>
       </Directory>
     </StandardDirectory>
 
@@ -62,7 +84,7 @@
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
         <File Id="heelonvault_exe"
-              Source="target\release\heelonvault.exe"
+              Source="target\x86_64-pc-windows-gnu\release\heelonvault.exe"
               KeyPath="yes" />
       </Component>
 
@@ -83,9 +105,6 @@
 
     <!-- ── GTK4 Theme Components ──────────────────────────────────── -->
     <ComponentGroup Id="GTK4ThemeComponents" Directory="THEMESFOLDER">
-      <Component Id="AdwaitaTheme" Guid="E4F5A6B7-C7D8-9012-DEF0-123456789012">
-        <Files Include="wix\staging\share\themes\Adwaita\**\*" />
-      </Component>
     </ComponentGroup>
 
     <!-- ── DLL components (generated into wix/dlls.wxs by CI) ────────── -->
@@ -123,6 +142,7 @@
       <ComponentGroupRef Id="PixbufLoaderComponents" />
       <ComponentGroupRef Id="GTK4ThemeComponents" /> <!-- Ajout du thème GTK4 -->
       <ComponentGroupRef Id="ShortcutComponents" />
+      <ComponentGroupRef Id="MigrationsComponents" />
     </Feature>
 
   </Package>

@@ -6,6 +6,10 @@ on:
       - "v*.*.*-rc.*"
   workflow_dispatch:
     inputs:
+      source_ref:
+        description: "Git ref to build (branch, tag, or SHA). Empty = current default ref"
+        required: false
+        type: string
       rc_tag:
         description: "RC tag to build/release (ex: v1.1.1-rc.1). Empty = current ref checkout"
         required: false
@@ -18,7 +22,13 @@ on:
 
 concurrency:
   group: windows-msi-rc-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
+
+env:
+  RUST_TARGET: x86_64-pc-windows-gnu
+  APP_PACKAGE: heelonvault-app
+  APP_EXE_NAME: heelonvault.exe
+  ARTIFACT_PREFIX: heelonvault-windows-x86_64
 
 jobs:
   package-windows-msi:
@@ -31,37 +41,28 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref != '' && inputs.source_ref || github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
 
       - name: Setup SSH agent (heelonvault-premium)
         uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.PREMIUM_SSH_KEY }}
 
-      - name: Patch .cargo/config.toml for CI
-        shell: pwsh
-        run: |
-          $config = Get-Content .cargo/config.toml -Raw
-          $config = $config -replace '(?s)\[patch\."ssh://[^"]+"\][^\[]*', ''
-          $config += "`n[net]`ngit-fetch-with-cli = true`n"
-          Set-Content .cargo/config.toml $config
-          Write-Host "[OK] .cargo/config.toml patched for CI"
-
-      - name: Validate repository root layout
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f Cargo.toml                                          || { echo "[ERROR] Cargo.toml not found"; exit 1; }
-          test -f wix/main.wxs                                        || { echo "[ERROR] wix/main.wxs not found"; exit 1; }
-          test -f scripts/collect-dlls.sh                             || { echo "[ERROR] collect-dlls.sh not found"; exit 1; }
-          echo "[OK] Repository layout validated"
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: windows-msi-rc-${{ env.RUST_TARGET }}
+          save-if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
 
       - name: Setup MSYS2 (MINGW64)
         uses: msys2/setup-msys2@v2
         with:
+          location: C:\msys64
           msystem: MINGW64
           update: true
           install: >-
+            git
+            mingw-w64-x86_64-gcc
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-ntldd
             mingw-w64-x86_64-imagemagick
@@ -70,131 +71,203 @@ jobs:
             mingw-w64-x86_64-gtk4
             mingw-w64-x86_64-graphene
             mingw-w64-x86_64-libepoxy
+            mingw-w64-x86_64-libadwaita
             python3
 
-      # NOUVELLE STEP: Trouve le chemin physique de MSYS2
-      - name: Find MSYS2 Physical Path
-        id: msys2_path
-        shell: msys2 {0}
+      - name: Build package, MSI and SHA256
+        id: build
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_SOURCE_REF: ${{ inputs.source_ref }}
+          INPUT_RC_TAG: ${{ inputs.rc_tag }}
+          INPUT_PUBLISH_RELEASE: ${{ inputs.publish_release }}
         run: |
-          set -euo pipefail
-          MSYS2_PHYSICAL_PATH=$(cygpath -w /mingw64/bin)
-          echo "MSYS2_PHYSICAL_PATH=$MSYS2_PHYSICAL_PATH" >> $GITHUB_OUTPUT
-          echo "[DEBUG] MSYS2 physical path: $MSYS2_PHYSICAL_PATH"
-          ls -la "$MSYS2_PHYSICAL_PATH/pkg-config.exe" || echo "[WARNING] pkg-config not found at $MSYS2_PHYSICAL_PATH"
+          $ErrorActionPreference = 'Stop'
+          $root = (Get-Location).Path
+          $cargoConfigPath = Join-Path $root '.cargo/config.toml'
+          $coreLocalesPath = Join-Path $root 'crates/heelonvault-core/locales'
+          $rootLocalesPath = Join-Path $root 'locales'
+          $msysBash = 'C:\msys64\usr\bin\bash.exe'
 
-      - name: Setup Rust toolchain
-        shell: bash
-        run: |
-          rustup target add x86_64-pc-windows-gnu
+          function Assert-File([string] $path, [string] $message) {
+            if (-not (Test-Path $path -PathType Leaf)) {
+              throw "[ERROR] $message ($path)"
+            }
+          }
+
+          function Assert-Directory([string] $path, [string] $message) {
+            if (-not (Test-Path $path -PathType Container)) {
+              throw "[ERROR] $message ($path)"
+            }
+          }
+
+          function Invoke-Msys([string] $script, [string] $label) {
+            Write-Host "[MSYS2] $label"
+            & $msysBash -lc "set -euo pipefail; cd '$(($root -replace '\\','/'))'; $script"
+            if ($LASTEXITCODE -ne 0) {
+              throw "[ERROR] MSYS2 step failed: $label"
+            }
+          }
+
+          Assert-File (Join-Path $root 'Cargo.toml') 'Cargo.toml not found'
+          Assert-File (Join-Path $root 'wix/main.wxs') 'wix/main.wxs not found'
+          Assert-File (Join-Path $root 'scripts/collect-dlls.sh') 'scripts/collect-dlls.sh not found'
+          Assert-Directory (Join-Path $root 'migrations') 'migrations directory not found'
+          Assert-Directory $rootLocalesPath 'locales directory not found at repository root'
+
+          if (-not (Test-Path $cargoConfigPath -PathType Leaf)) {
+            throw '[ERROR] .cargo/config.toml not found'
+          }
+
+          $cargoConfig = Get-Content $cargoConfigPath -Raw
+          $cargoConfig = [regex]::Replace($cargoConfig, '(?ms)^\[net\]\s*git-fetch-with-cli\s*=\s*true\s*$', '')
+          $cargoConfig = $cargoConfig.TrimEnd()
+          $cargoConfig = "$cargoConfig`n`n[net]`ngit-fetch-with-cli = true`n"
+          Set-Content -Path $cargoConfigPath -Value $cargoConfig -NoNewline
+          Write-Host '[OK] .cargo/config.toml patched with net.git-fetch-with-cli = true'
+
+          if (Test-Path $coreLocalesPath) {
+            Remove-Item -Path $coreLocalesPath -Force -Recurse
+          }
+          New-Item -ItemType Junction -Path $coreLocalesPath -Target $rootLocalesPath | Out-Null
+          Assert-Directory $coreLocalesPath 'Failed to create locales junction'
+          Write-Host '[OK] locales junction ready for Windows build context'
+
+          rustup toolchain install stable-x86_64-pc-windows-gnu --profile minimal
+          rustup default stable-x86_64-pc-windows-gnu
+          rustup target add $env:RUST_TARGET
           rustup show
 
-      - name: Cache Cargo registry and build
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Find cargo path
-        id: cargo_path
-        shell: msys2 {0}  # <-- MSYS2 Bash
-        run: |
-          set -euo pipefail
-          # Cherche cargo dans les chemins Windows (format Unix pour MSYS2)
-          CARGO_DIR=""
-          for path in \
-            "/c/Users/runneradmin/.cargo/bin" \
-            "/c/Users/runneradmin/.rustup/toolchains/*/bin"; do
-            if [ -f "$path/cargo" ] || [ -f "$path/cargo.exe" ]; then
-              CARGO_DIR="$path"
-              echo "cargo_dir=$CARGO_DIR" >> $GITHUB_OUTPUT
-              echo "[DEBUG] cargo trouvé dans: $CARGO_DIR"
-              break
-            fi
-          done
-          if [ -z "$CARGO_DIR" ]; then
-            echo "[ERROR] cargo non trouvé"
-            exit 1
-          fi
+          $env:PATH = "C:\Users\runneradmin\.cargo\bin;C:\msys64\mingw64\bin;$env:PATH"
+          $env:PKG_CONFIG_PATH = 'C:\msys64\mingw64\lib\pkgconfig'
 
-      - name: Build heelonvault-app (locked)
-        shell: msys2 {0}  # <-- MSYS2 Bash
-        env:
-          GIT_SSH_COMMAND: "ssh -i $HOME/premium_key -o StrictHostKeyChecking=no"
-          PATH: "/mingw64/bin:${{ steps.cargo_path.outputs.cargo_dir }}:$PATH"  # Chemin MSYS2 pour pkg-config + cargo
-          PKG_CONFIG_PATH: "/mingw64/lib/pkgconfig"  # Chemin MSYS2 pour .pc files
-        run: |
-          set -euo pipefail
-          echo "${{ secrets.PREMIUM_SSH_KEY }}" > "$HOME/premium_key"
-          chmod 600 "$HOME/premium_key"
+          cargo build --release --locked --target $env:RUST_TARGET -p $env:APP_PACKAGE
+          $exePath = Join-Path $root "target/$($env:RUST_TARGET)/release/$($env:APP_EXE_NAME)"
+          Assert-File $exePath 'Application executable not produced'
+          Write-Host "[OK] Built executable: $exePath"
 
-          # Vérifie que cargo et pkg-config sont disponibles
-          which cargo || { echo "[ERROR] cargo not found"; exit 1; }
-          which pkg-config || { echo "[ERROR] pkg-config not found"; exit 1; }
-
-          # Build avec la target GNU
-          cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app
-
-          # Vérifie l'EXE
-          test -f target/x86_64-pc-windows-gnu/release/heelonvault.exe || { echo "[ERROR] heelonvault.exe not produced"; exit 1; }
-          rm -f "$HOME/premium_key"
-          echo "[OK] heelonvault.exe built"
-
-      - name: Collect DLLs and generate wix/dlls.wxs
-        shell: msys2 {0}
-        run: |
-          set -euo pipefail
-          bash scripts/collect-dlls.sh \
-            --binary   target/x86_64-pc-windows-gnu/release/heelonvault.exe \
-            --msys2    /mingw64 \
-            --staging  wix/staging \
-            --out      wix/dlls.wxs
-
-          test -f wix/dlls.wxs \
-            || { echo "[ERROR] dlls.wxs not generated"; exit 1; }
-          test -f wix/staging/heelonvault.ico \
-            || { echo "[ERROR] heelonvault.ico missing"; exit 1; }
-          test -s wix/staging/share/glib-2.0/schemas/gschemas.compiled \
-            || { echo "[ERROR] gschemas.compiled missing or empty"; exit 1; }
-          test -s wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache \
-            || { echo "[ERROR] loaders.cache missing or empty"; exit 1; }
-          echo "[OK] DLLs collected, dlls.wxs generated"
-
-      - name: Install WiX v4
-        shell: pwsh
-        run: |
-          $installed = dotnet tool list --global | Select-String "wix"
-          if (-not $installed) {
-            dotnet tool install --global wix
-          } else {
-            Write-Host "[OK] WiX already installed: $installed"
+          $stagingMigrationsDir = Join-Path $root 'wix/staging/migrations'
+          New-Item -ItemType Directory -Force -Path $stagingMigrationsDir | Out-Null
+          Copy-Item -Path (Join-Path $root 'migrations/*.sql') -Destination $stagingMigrationsDir -Force
+          $migrationCount = (Get-ChildItem -Path $stagingMigrationsDir -Filter '*.sql' -File | Measure-Object).Count
+          if ($migrationCount -lt 1) {
+            throw '[ERROR] No migrations staged for MSI packaging'
           }
-          echo "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Host "[OK] Staged $migrationCount migration files"
 
-      - name: Build MSI with WiX
-        shell: pwsh
-        run: |
+          Invoke-Msys "bash scripts/collect-dlls.sh --binary target/$env:RUST_TARGET/release/$env:APP_EXE_NAME --msys2 /mingw64 --staging wix/staging --out wix/dlls.wxs" 'Collect DLLs and generate wix/dlls.wxs'
+
+          Assert-File (Join-Path $root 'wix/dlls.wxs') 'wix/dlls.wxs not generated'
+          Assert-File (Join-Path $root 'wix/staging/heelonvault.ico') 'wix/staging/heelonvault.ico missing'
+          Assert-File (Join-Path $root 'wix/staging/share/glib-2.0/schemas/gschemas.compiled') 'gschemas.compiled missing'
+          Assert-File (Join-Path $root 'wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache') 'loaders.cache missing'
+
+          dotnet tool update --global wix
+          if ($LASTEXITCODE -ne 0) {
+            dotnet tool install --global wix
+          }
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
           wix --version
+          wix eula accept wix7
+
+          $cargoToml = Get-Content (Join-Path $root 'crates/heelonvault-app/Cargo.toml') -Raw
+          $versionMatch = [regex]::Match($cargoToml, '(?m)^\s*version\s*=\s*"([^"]+)"\s*$')
+          if (-not $versionMatch.Success) {
+            throw '[ERROR] Failed to read version from crates/heelonvault-app/Cargo.toml'
+          }
+          $appVersionRaw = $versionMatch.Groups[1].Value
+          $appVersionMsi = $appVersionRaw -replace '-.*$', ''
+          if ($appVersionMsi -notmatch '^\d+\.\d+\.\d+$') {
+            throw "[ERROR] Invalid MSI version derived from Cargo.toml: $appVersionMsi"
+          }
+
+          $shouldPublish = if ($env:EVENT_NAME -eq 'push') {
+            'true'
+          } elseif ($env:INPUT_PUBLISH_RELEASE -eq 'true') {
+            'true'
+          } else {
+            'false'
+          }
+
+          $releaseTag = if ($env:EVENT_NAME -eq 'push') {
+            $env:GITHUB_REF_NAME
+          } elseif (-not [string]::IsNullOrWhiteSpace($env:INPUT_RC_TAG)) {
+            $env:INPUT_RC_TAG
+          } else {
+            ''
+          }
+
+          if ($shouldPublish -eq 'true' -and $releaseTag -notmatch '^v\d+\.\d+\.\d+-rc\.\d+$') {
+            throw "[ERROR] Invalid RC tag format for publish mode: $releaseTag"
+          }
+
+          $artifactLabel = if (-not [string]::IsNullOrWhiteSpace($releaseTag)) {
+            $releaseTag
+          } else {
+            "test-$($env:GITHUB_SHA.Substring(0,8))"
+          }
+
+          $msiName = "$($env:ARTIFACT_PREFIX)-$artifactLabel.msi"
+          $shaName = "$msiName.sha256"
+
           wix build `
             wix/main.wxs `
             wix/dlls.wxs `
-            -o heelonvault-windows-x86_64.msi
-          if (-not (Test-Path heelonvault-windows-x86_64.msi)) {
-            throw "[ERROR] MSI not produced"
-          }
-          Write-Host "[OK] MSI built: $((Get-Item heelonvault-windows-x86_64.msi).Length) bytes"
+            -d ProductVersion=$appVersionMsi `
+            -o $msiName
 
-      - name: Generate SHA256
-        shell: pwsh
-        run: |
-          $hash = (Get-FileHash heelonvault-windows-x86_64.msi -Algorithm SHA256).Hash
-          "$hash heelonvault-windows-x86_64.msi" | Out-File -FilePath heelonvault-windows-x86_64.msi.sha256 -Encoding ASCII -NoNewline
-          Write-Host "[OK] SHA256: $hash"
+          Assert-File (Join-Path $root $msiName) 'MSI not produced'
+
+          $hash = (Get-FileHash $msiName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash $msiName" | Out-File -FilePath $shaName -Encoding ASCII -NoNewline
+          Assert-File (Join-Path $root $shaName) 'SHA256 file not produced'
+
+          # Smoke test: silent install + presence checks + binary version
+          $installLog = Join-Path $root 'msi-install.log'
+          $installPath64 = 'C:\Program Files\HeelonVault'
+          $installPath32 = 'C:\Program Files (x86)\HeelonVault'
+          $msiFullPath = Join-Path $root $msiName
+
+          $installProc = Start-Process msiexec.exe -ArgumentList '/i', $msiFullPath, '/qn', '/norestart', '/l*v', $installLog -Wait -NoNewWindow -PassThru
+          if ($installProc.ExitCode -ne 0) {
+            throw "[ERROR] MSI install failed with exit code $($installProc.ExitCode)"
+          }
+
+          $installPath = if (Test-Path $installPath64 -PathType Container) {
+            $installPath64
+          } elseif (Test-Path $installPath32 -PathType Container) {
+            $installPath32
+          } else {
+            throw '[ERROR] Installation folder not found in Program Files or Program Files (x86)'
+          }
+
+          Assert-File (Join-Path $installPath $env:APP_EXE_NAME) 'Installed executable missing after MSI install'
+          Assert-Directory (Join-Path $installPath 'migrations') 'Installed migrations directory missing'
+          Assert-File (Join-Path $installPath 'migrations/0001_init_schema.sql') 'First migration missing in installation'
+          Assert-File (Join-Path $installPath 'share/glib-2.0/schemas/gschemas.compiled') 'Installed gschemas.compiled missing'
+          Assert-File (Join-Path $installPath 'lib/gdk-pixbuf-2.0/2.10.0/loaders.cache') 'Installed loaders.cache missing'
+
+          & (Join-Path $installPath $env:APP_EXE_NAME) --version
+          if ($LASTEXITCODE -ne 0) {
+            throw "[ERROR] Installed executable --version failed with exit code $LASTEXITCODE"
+          }
+
+          $uninstallProc = Start-Process msiexec.exe -ArgumentList '/x', $msiFullPath, '/qn', '/norestart' -Wait -NoNewWindow -PassThru
+          if ($uninstallProc.ExitCode -ne 0) {
+            throw "[ERROR] MSI uninstall failed with exit code $($uninstallProc.ExitCode)"
+          }
+
+          "msi_name=$msiName" >> $env:GITHUB_OUTPUT
+          "sha_name=$shaName" >> $env:GITHUB_OUTPUT
+          "tag_name=$releaseTag" >> $env:GITHUB_OUTPUT
+          "should_publish=$shouldPublish" >> $env:GITHUB_OUTPUT
+          "app_version_raw=$appVersionRaw" >> $env:GITHUB_OUTPUT
+          "app_version_msi=$appVersionMsi" >> $env:GITHUB_OUTPUT
+
+          Write-Host "[OK] Build complete: $msiName"
+          Write-Host "[OK] SHA256 generated: $shaName"
+          Write-Host "[OK] Version raw=$appVersionRaw, MSI=$appVersionMsi"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v5
@@ -202,59 +275,40 @@ jobs:
           name: heelonvault-windows-msi
           if-no-files-found: error
           path: |
-            heelonvault-windows-x86_64.msi
-            heelonvault-windows-x86_64.msi.sha256
-
-      - name: Resolve release tag and mode
-        id: release_meta
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            TAG_NAME="${GITHUB_REF_NAME}"
-            SHOULD_PUBLISH="true"
-          else
-            TAG_NAME="${{ inputs.rc_tag }}"
-            SHOULD_PUBLISH="${{ inputs.publish_release }}"
-          fi
-          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
-          echo "should_publish=${SHOULD_PUBLISH}" >> "$GITHUB_OUTPUT"
-
-      - name: Validate RC tag format before publish
-        if: steps.release_meta.outputs.should_publish == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.release_meta.outputs.tag_name }}"
-          [[ -n "$TAG" ]] || { echo "[ERROR] publish_release=true requires a tag"; exit 1; }
-          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]] || {
-            echo "[ERROR] Invalid RC tag format: $TAG"
-            echo "Expected: vX.Y.Z-rc.N"
-            exit 1
-          }
-          echo "[OK] Tag format valid: $TAG"
+            ${{ steps.build.outputs.msi_name }}
+            ${{ steps.build.outputs.sha_name }}
 
       - name: Publish/Update GitHub Release (RC)
-        if: steps.release_meta.outputs.should_publish == 'true'
+        if: steps.build.outputs.should_publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
+        shell: pwsh
         run: |
-          set -euo pipefail
-          TAG="${{ steps.release_meta.outputs.tag_name }}"
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ steps.build.outputs.tag_name }}'
+          $msi = '${{ steps.build.outputs.msi_name }}'
+          $sha = '${{ steps.build.outputs.sha_name }}'
 
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" \
-              --title "$TAG" \
-              --prerelease \
+          if (-not ($tag -match '^v\d+\.\d+\.\d+-rc\.\d+$')) {
+            throw "[ERROR] Invalid RC tag format: $tag"
+          }
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag `
+              --title $tag `
+              --prerelease `
               --notes "Automated Windows RC packaging artifact."
-            echo "[OK] Release created: $TAG"
-          else
-            echo "[OK] Release already exists: $TAG — uploading artifacts"
-          fi
+            if ($LASTEXITCODE -ne 0) {
+              throw "[ERROR] Failed to create release $tag"
+            }
+            Write-Host "[OK] Release created: $tag"
+          } else {
+            Write-Host "[OK] Release already exists: $tag"
+          }
 
-          gh release upload "$TAG" \
-            heelonvault-windows-x86_64.msi \
-            heelonvault-windows-x86_64.msi.sha256 \
-            --clobber
-          echo "[OK] Artifacts uploaded to release $TAG"
+          gh release upload $tag $msi $sha --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "[ERROR] Failed to upload release artifacts for $tag"
+          }
+          Write-Host "[OK] Artifacts uploaded to release: $tag"
