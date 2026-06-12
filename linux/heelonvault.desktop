@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=HeelonVault
+Comment=Gestionnaire de mots de passe sécurisé
+Exec=heelonvault
+Icon=heelonvault
+Terminal=false
+Categories=System;Security;
+Keywords=security;secret;encryption;vault;password;
+StartupNotify=true
+StartupWMClass=com.heelonys.heelonvault

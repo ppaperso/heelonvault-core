@@ -1,0 +1,347 @@
+name: linux-appimage-rc
+
+on:
+  push:
+    tags:
+      - "v*.*.*-rc.*"
+  workflow_dispatch:
+    inputs:
+      rc_tag:
+        description: "RC tag to build/release (ex: v1.1.1-rc.1). Empty = current ref checkout"
+        required: false
+        type: string
+      publish_release:
+        description: "Publish/Update GitHub Release with AppImage + SHA256"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: linux-appimage-rc-${{ github.ref }}
+  cancel-in-progress: false
+
+# linuxdeploy and appimagetool run without FUSE in CI via APPIMAGE_EXTRACT_AND_RUN
+env:
+  APPIMAGE_EXTRACT_AND_RUN: "1"
+
+jobs:
+  package-linux-appimage:
+    # ubuntu-22.04 = glibc 2.35 — AppImages built here run on Ubuntu 22+,
+    # Fedora 36+, Debian 12+ and any distro with glibc ≥ 2.35.
+    # Do NOT upgrade to ubuntu-latest — newer glibc breaks backward compatibility.
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
+
+      # ── 2. SSH agent pour le repo premium privé ────────────────────────────
+      - name: Setup SSH agent (heelonvault-premium)
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.PREMIUM_SSH_KEY }}
+
+      # ── 3. Validation du layout du repo ────────────────────────────────────
+      - name: Validate repository layout
+        run: |
+          set -euo pipefail
+          test -f Cargo.toml                  || { echo "[ERROR] Cargo.toml not found";              exit 1; }
+          test -f Cargo.lock                  || { echo "[ERROR] Cargo.lock not found";               exit 1; }
+          test -f assets/gresources.xml       || { echo "[ERROR] assets/gresources.xml not found";   exit 1; }
+          test -d locales                     || { echo "[ERROR] locales/ not found";                 exit 1; }
+          test -d migrations                  || { echo "[ERROR] migrations/ not found";              exit 1; }
+          test -d crates/heelonvault-core/locales \
+                                              || { echo "[ERROR] crates/heelonvault-core/locales not found"; exit 1; }
+          test -f linux/apprun.sh             || { echo "[ERROR] linux/apprun.sh not found";          exit 1; }
+          test -f linux/heelonvault.desktop   || { echo "[ERROR] linux/heelonvault.desktop not found"; exit 1; }
+          echo "[OK] Repository layout validated"
+
+      # ── 4. Patch .cargo/config.toml pour le CI ─────────────────────────────
+      - name: Patch .cargo/config.toml for CI
+        run: |
+          set -euo pipefail
+          perl -i -0pe 's/\[patch\."ssh:\/\/[^"]+"\][^\[]*//g' .cargo/config.toml
+          grep -q "git-fetch-with-cli" .cargo/config.toml \
+            || printf '\n[net]\ngit-fetch-with-cli = true\n' >> .cargo/config.toml
+          echo "[OK] .cargo/config.toml patched"
+
+      # ── 5. Installation des dépendances système ────────────────────────────
+      - name: Install system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            libglib2.0-dev \
+            libgdk-pixbuf-2.0-dev \
+            libpango1.0-dev \
+            libcairo2-dev \
+            libgraphene-1.0-dev \
+            libharfbuzz-dev \
+            pkg-config \
+            glib-compile-schemas \
+            libsqlite3-dev \
+            file \
+            patchelf \
+            fuse \
+            zsync
+          echo "[OK] System dependencies installed"
+
+      # ── 6. Toolchain Rust ──────────────────────────────────────────────────
+      - name: Setup Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable
+          rustup default stable
+          rustup show
+          cargo --version
+
+      # ── 7. Cache Cargo ──────────────────────────────────────────────────────
+      - name: Cache Cargo registry and build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-
+
+      # ── 8. Build Rust ───────────────────────────────────────────────────────
+      - name: Build heelonvault-app
+        run: |
+          set -euo pipefail
+
+          which cargo       || { echo "[ERROR] cargo not found";      exit 1; }
+          which pkg-config  || { echo "[ERROR] pkg-config not found"; exit 1; }
+          pkg-config --modversion gtk4         || { echo "[ERROR] gtk4-dev not found";       exit 1; }
+          pkg-config --modversion libadwaita-1 || { echo "[ERROR] libadwaita-1-dev not found"; exit 1; }
+
+          cargo build --release --locked -p heelonvault-app
+
+          test -f target/release/heelonvault \
+            || { echo "[ERROR] heelonvault binary not produced"; exit 1; }
+          file target/release/heelonvault
+          echo "[OK] heelonvault built"
+
+      # ── 9. Résolution du tag et de la version ──────────────────────────────
+      - name: Resolve release tag and version
+        id: release_meta
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+            SHOULD_PUBLISH="true"
+          else
+            TAG_NAME="${{ inputs.rc_tag }}"
+            SHOULD_PUBLISH="${{ inputs.publish_release }}"
+          fi
+          VERSION=$(echo "$TAG_NAME" | sed 's/^v//; s/-rc\.[0-9]*//')
+          echo "tag_name=${TAG_NAME}"               >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}"                 >> "$GITHUB_OUTPUT"
+          echo "should_publish=${SHOULD_PUBLISH}"   >> "$GITHUB_OUTPUT"
+          echo "[OK] Tag: $TAG_NAME — Version: $VERSION — Publish: $SHOULD_PUBLISH"
+
+      # ── 10. Construction de l'AppDir ────────────────────────────────────────
+      - name: Build AppDir
+        env:
+          APP_VERSION: ${{ steps.release_meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          APPDIR="HeelonVault.AppDir"
+          USR="$APPDIR/usr"
+
+          mkdir -p "$USR/bin"
+          mkdir -p "$USR/share/heelonvault/migrations"
+          mkdir -p "$USR/share/glib-2.0/schemas"
+          mkdir -p "$USR/share/applications"
+          mkdir -p "$USR/share/icons/hicolor/256x256/apps"
+          mkdir -p "$USR/lib"
+
+          # ── Binaire Rust
+          cp target/release/heelonvault "$USR/bin/heelonvault"
+          chmod +x "$USR/bin/heelonvault"
+
+          # ── AppRun — launcher versionné dans linux/
+          cp linux/apprun.sh "$APPDIR/AppRun"
+          chmod +x "$APPDIR/AppRun"
+
+          # ── Desktop file adapté AppImage (Exec=heelonvault, pas de chemin absolu)
+          cp linux/heelonvault.desktop "$APPDIR/heelonvault.desktop"
+          cp linux/heelonvault.desktop "$USR/share/applications/heelonvault.desktop"
+
+          # ── Icône PNG (AppImage utilise directement le PNG)
+          cp assets/icons/hicolor/256x256/apps/heelonvault.png "$APPDIR/heelonvault.png"
+          cp assets/icons/hicolor/256x256/apps/heelonvault.png \
+            "$USR/share/icons/hicolor/256x256/apps/heelonvault.png"
+
+          # ── Migrations SQL
+          cp -r migrations/. "$USR/share/heelonvault/migrations/"
+
+          # ── Schemas GLib compilés
+          glib-compile-schemas /usr/share/glib-2.0/schemas \
+            --targetdir="$USR/share/glib-2.0/schemas"
+
+          echo "[OK] AppDir structure created"
+          find "$APPDIR" -maxdepth 3 -type f | sort
+
+      # ── 11. Download linuxdeploy ─────────────────────────────────────────────
+      - name: Download linuxdeploy and GTK plugin
+        run: |
+          set -euo pipefail
+          wget -q -O linuxdeploy.AppImage \
+            "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+          wget -q -O linuxdeploy-plugin-gtk.sh \
+            "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
+          chmod +x linuxdeploy.AppImage linuxdeploy-plugin-gtk.sh
+          echo "[OK] linuxdeploy downloaded"
+
+      # ── 12. Bundle des libs système avec linuxdeploy ────────────────────────
+      # linuxdeploy copies all shared libraries (.so) needed by the binary into
+      # AppDir/usr/lib/ and patches RPATH. The GTK plugin additionally copies
+      # GTK4/libadwaita/gdk-pixbuf related files and loaders.
+      # We provide a custom AppRun (linux/apprun.sh) placed at AppDir/AppRun,
+      # so we do NOT pass --output appimage here — linuxdeploy bundles only.
+      - name: Bundle shared libraries with linuxdeploy
+        env:
+          DEPLOY_GTK_VERSION: 4
+        run: |
+          set -euo pipefail
+          ./linuxdeploy.AppImage \
+            --appdir HeelonVault.AppDir \
+            --executable HeelonVault.AppDir/usr/bin/heelonvault \
+            --desktop-file HeelonVault.AppDir/heelonvault.desktop \
+            --icon-file HeelonVault.AppDir/heelonvault.png \
+            --plugin gtk
+          echo "[OK] Libraries bundled — $(ls HeelonVault.AppDir/usr/lib/ | wc -l) files in usr/lib/"
+
+      # ── 13. Restauration de notre AppRun (linuxdeploy peut l'écraser) ───────
+      # linuxdeploy-plugin-gtk may overwrite AppRun — restore ours.
+      - name: Restore custom AppRun
+        run: |
+          set -euo pipefail
+          cp linux/apprun.sh HeelonVault.AppDir/AppRun
+          chmod +x HeelonVault.AppDir/AppRun
+          echo "[OK] Custom AppRun restored"
+          head -5 HeelonVault.AppDir/AppRun
+
+      # ── 14. Download appimagetool et création de l'AppImage ─────────────────
+      - name: Download appimagetool and create AppImage
+        env:
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          wget -q -O appimagetool.AppImage \
+            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool.AppImage
+
+          APPIMAGE_NAME="heelonvault-linux-x86_64-${TAG_NAME}.AppImage"
+
+          ./appimagetool.AppImage HeelonVault.AppDir "$APPIMAGE_NAME"
+
+          test -f "$APPIMAGE_NAME" || { echo "[ERROR] AppImage not produced"; exit 1; }
+          chmod +x "$APPIMAGE_NAME"
+          echo "[OK] AppImage created: $(du -sh "$APPIMAGE_NAME" | cut -f1)"
+
+      # ── 15. Validation de l'AppImage ────────────────────────────────────────
+      - name: Validate AppImage structure
+        env:
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          APPIMAGE_NAME="heelonvault-linux-x86_64-${TAG_NAME}.AppImage"
+
+          # Extract AppImage for inspection (no FUSE required)
+          ./appimagetool.AppImage --appimage-extract-and-run HeelonVault.AppDir /tmp/appimage-validate.AppImage 2>/dev/null || true
+          "$APPIMAGE_NAME" --appimage-extract
+
+          APP="squashfs-root"
+          test -f "$APP/AppRun"                                         || { echo "[ERROR] AppRun missing";           exit 1; }
+          test -f "$APP/usr/bin/heelonvault"                            || { echo "[ERROR] binary missing";           exit 1; }
+          test -f "$APP/heelonvault.desktop"                            || { echo "[ERROR] desktop file missing";     exit 1; }
+          test -f "$APP/heelonvault.png"                                || { echo "[ERROR] icon missing";             exit 1; }
+          test -s "$APP/usr/share/glib-2.0/schemas/gschemas.compiled"  || { echo "[ERROR] gschemas.compiled missing"; exit 1; }
+          test -d "$APP/usr/share/heelonvault/migrations"               || { echo "[ERROR] migrations dir missing";   exit 1; }
+
+          MIGRATION_COUNT=$(find "$APP/usr/share/heelonvault/migrations/" -name "*.sql" | wc -l | tr -d ' ')
+          [[ "$MIGRATION_COUNT" -ge 16 ]] \
+            || { echo "[ERROR] migrations incomplete: $MIGRATION_COUNT files (expected ≥ 16)"; exit 1; }
+
+          # Verify binary is ELF x86_64
+          file "$APP/usr/bin/heelonvault" | grep -q "ELF 64-bit" \
+            || { echo "[ERROR] binary is not ELF 64-bit"; exit 1; }
+
+          # Verify AppRun contains HEELONVAULT_MIGRATIONS_DIR
+          grep -q "HEELONVAULT_MIGRATIONS_DIR" "$APP/AppRun" \
+            || { echo "[ERROR] AppRun does not export HEELONVAULT_MIGRATIONS_DIR"; exit 1; }
+
+          LIBS_COUNT=$(ls "$APP/usr/lib/" 2>/dev/null | wc -l | tr -d ' ')
+          echo "[OK] AppImage validated — migrations: $MIGRATION_COUNT, libs: $LIBS_COUNT"
+          rm -rf squashfs-root
+
+      # ── 16. SHA256 ──────────────────────────────────────────────────────────
+      - name: Generate SHA256
+        env:
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          APPIMAGE_NAME="heelonvault-linux-x86_64-${TAG_NAME}.AppImage"
+          sha256sum "$APPIMAGE_NAME" > "${APPIMAGE_NAME}.sha256"
+          echo "[OK] SHA256: $(cat "${APPIMAGE_NAME}.sha256")"
+
+      # ── 17. Upload des artefacts CI ─────────────────────────────────────────
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: heelonvault-linux-appimage
+          if-no-files-found: error
+          path: |
+            heelonvault-linux-x86_64-${{ steps.release_meta.outputs.tag_name }}.AppImage
+            heelonvault-linux-x86_64-${{ steps.release_meta.outputs.tag_name }}.AppImage.sha256
+
+      # ── 18. Validation du format du tag RC ─────────────────────────────────
+      - name: Validate RC tag format before publish
+        if: steps.release_meta.outputs.should_publish == 'true'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.release_meta.outputs.tag_name }}"
+          [[ -n "$TAG" ]] || { echo "[ERROR] publish_release=true requires a tag"; exit 1; }
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]] || {
+            echo "[ERROR] Invalid RC tag format: $TAG — Expected: vX.Y.Z-rc.N"
+            exit 1
+          }
+          echo "[OK] Tag format valid: $TAG"
+
+      # ── 19. Publication de la release GitHub ───────────────────────────────
+      - name: Publish/Update GitHub Release (RC)
+        if: steps.release_meta.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          APPIMAGE_NAME="heelonvault-linux-x86_64-${TAG_NAME}.AppImage"
+
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" \
+              --title "$TAG_NAME" \
+              --prerelease \
+              --notes "Automated Linux RC packaging artifact."
+            echo "[OK] Release created: $TAG_NAME"
+          else
+            echo "[OK] Release already exists: $TAG_NAME — uploading artifacts"
+          fi
+
+          gh release upload "$TAG_NAME" \
+            "$APPIMAGE_NAME" \
+            "${APPIMAGE_NAME}.sha256" \
+            --clobber
+          echo "[OK] Artifacts uploaded to release $TAG_NAME"
