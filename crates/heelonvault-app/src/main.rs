@@ -1013,11 +1013,20 @@ async fn initialize_app_context() -> Result<AppStartMode> {
             )
         })?;
 
-    let migrations_path = std::env::current_exe()
-        .expect("failed to get exe path")
-        .parent()
-        .expect("failed to get exe dir")
-        .join("migrations");
+    // On macOS app bundles, current_exe() resolves to Contents/MacOS/heelonvault-bin
+    // while migrations live in Contents/Resources/migrations/ — the launcher exports
+    // HEELONVAULT_MIGRATIONS_DIR to bridge this gap. On Linux/Windows the variable
+    // is absent and the fallback (exe sibling) matches the installed layout.
+    let migrations_path = if let Ok(dir) = env::var("HEELONVAULT_MIGRATIONS_DIR") {
+        PathBuf::from(dir)
+    } else {
+        std::env::current_exe()
+            .context("failed to get exe path")?
+            .parent()
+            .context("failed to get exe dir")?
+            .join("migrations")
+    };
+    info!(path = %migrations_path.display(), "migrations path resolved");
     sqlx::migrate::Migrator::new(migrations_path.as_path())
         .await
         .context("failed to load sqlx migrations")?
