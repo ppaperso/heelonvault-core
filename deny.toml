@@ -6,6 +6,11 @@
 # Bloc toutes les vulnérabilités connues (CVE) — zéro tolérance
 version = 2
 yanked = "deny"
+# Only error on unmaintained advisories for direct workspace deps.
+# Using "all" would also flag unmaintained transitive deps of third-party
+# crates (heelonvault-premium included) and cause false positives on RUSTSEC
+# entries we cannot control. Re-evaluate if a direct dep becomes unmaintained.
+unmaintained = "workspace"
 
 [licenses]
 # Politique de licences : autoriser uniquement les licences permissives approuvées
