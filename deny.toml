@@ -34,7 +34,9 @@ allow = [
 multiple-versions = "warn"
 
 [sources]
-# Autoriser uniquement crates.io et git (pas de sources inconnues)
+# Autoriser uniquement crates.io et le repo premium privé (pas de sources inconnues)
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# heelonvault-premium : dépendance privée SSH, seul repo git autorisé
+allow-git = ["ssh://git@github.com/ppaperso/heelonvault-premium.git"]
