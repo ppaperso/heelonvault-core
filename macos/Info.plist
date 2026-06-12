@@ -4,7 +4,7 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleIdentifier</key>
-  <string>com.heelonvault.rust</string>
+  <string>com.heelonys.heelonvault</string>
 
   <key>CFBundleName</key>
   <string>HeelonVault</string>
