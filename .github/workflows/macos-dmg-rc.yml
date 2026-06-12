@@ -1,0 +1,397 @@
+name: macos-dmg-rc
+
+on:
+  push:
+    tags:
+      - "v*.*.*-rc.*"
+  workflow_dispatch:
+    inputs:
+      rc_tag:
+        description: "RC tag to build/release (ex: v1.1.1-rc.1). Empty = current ref checkout"
+        required: false
+        type: string
+      publish_release:
+        description: "Publish/Update GitHub Release with DMG + SHA256"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: macos-dmg-rc-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+  HOMEBREW_NO_ANALYTICS: "1"
+
+jobs:
+  package-macos-dmg:
+    runs-on: macos-14  # Apple Silicon M1 — macOS 14 Sonoma
+    permissions:
+      contents: write
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
+
+      # ── 2. SSH agent pour le repo premium privé ────────────────────────────
+      - name: Setup SSH agent (heelonvault-premium)
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PREMIUM_SSH_KEY }}
+
+      # ── 3. Validation du layout du repo ────────────────────────────────────
+      - name: Validate repository layout
+        run: |
+          set -euo pipefail
+          test -f Cargo.toml                  || { echo "[ERROR] Cargo.toml not found";              exit 1; }
+          test -f Cargo.lock                  || { echo "[ERROR] Cargo.lock not found";               exit 1; }
+          test -f assets/gresources.xml       || { echo "[ERROR] assets/gresources.xml not found";   exit 1; }
+          test -d locales                     || { echo "[ERROR] locales/ not found";                 exit 1; }
+          test -d migrations                  || { echo "[ERROR] migrations/ not found";              exit 1; }
+          test -d crates/heelonvault-core/locales \
+                                              || { echo "[ERROR] crates/heelonvault-core/locales not found"; exit 1; }
+          test -f macos/Info.plist            || { echo "[ERROR] macos/Info.plist not found";         exit 1; }
+          test -f macos/launcher.sh           || { echo "[ERROR] macos/launcher.sh not found";        exit 1; }
+          echo "[OK] Repository layout validated"
+
+      # ── 4. Patch .cargo/config.toml pour le CI ─────────────────────────────
+      # Force git CLI pour SSH (libgit2 ignore ssh-agent en CI)
+      - name: Patch .cargo/config.toml for CI
+        run: |
+          set -euo pipefail
+          # Supprime les éventuels patches SSH workspace (non nécessaires en CI)
+          perl -i -0pe 's/\[patch\."ssh:\/\/[^"]+"\][^\[]*//g' .cargo/config.toml
+          # Ajoute git-fetch-with-cli si absent
+          grep -q "git-fetch-with-cli" .cargo/config.toml \
+            || printf '\n[net]\ngit-fetch-with-cli = true\n' >> .cargo/config.toml
+          echo "[OK] .cargo/config.toml patched"
+          cat .cargo/config.toml
+
+      # ── 5. Installation des dépendances Homebrew ───────────────────────────
+      - name: Install Homebrew dependencies
+        run: |
+          set -euo pipefail
+          brew install \
+            gtk4 \
+            libadwaita \
+            glib \
+            gdk-pixbuf \
+            pango \
+            cairo \
+            graphene \
+            harfbuzz \
+            pkg-config \
+            imagemagick \
+            dylibbundler \
+            create-dmg
+          echo "[OK] Homebrew dependencies installed"
+
+      # ── 6. Toolchain Rust Apple Silicon ────────────────────────────────────
+      - name: Setup Rust toolchain (aarch64-apple-darwin)
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable
+          rustup target add aarch64-apple-darwin
+          rustup show
+          cargo --version
+
+      # ── 7. Cache Cargo ──────────────────────────────────────────────────────
+      - name: Cache Cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-
+
+      # ── 8. Build Rust ───────────────────────────────────────────────────────
+      - name: Build heelonvault-app
+        env:
+          PKG_CONFIG_PATH: "/opt/homebrew/lib/pkgconfig"
+          LIBRARY_PATH: "/opt/homebrew/lib"
+        run: |
+          set -euo pipefail
+
+          which cargo       || { echo "[ERROR] cargo not found";      exit 1; }
+          which pkg-config  || { echo "[ERROR] pkg-config not found"; exit 1; }
+          pkg-config --modversion gtk4         || { echo "[ERROR] gtk4 not found";       exit 1; }
+          pkg-config --modversion libadwaita-1 || { echo "[ERROR] libadwaita not found"; exit 1; }
+
+          cargo build --release --locked --target aarch64-apple-darwin -p heelonvault-app
+
+          test -f target/aarch64-apple-darwin/release/heelonvault \
+            || { echo "[ERROR] heelonvault binary not produced"; exit 1; }
+          file target/aarch64-apple-darwin/release/heelonvault
+          echo "[OK] heelonvault built"
+
+      # ── 9. Résolution du tag et de la version ──────────────────────────────
+      - name: Resolve release tag and version
+        id: release_meta
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+            SHOULD_PUBLISH="true"
+          else
+            TAG_NAME="${{ inputs.rc_tag }}"
+            SHOULD_PUBLISH="${{ inputs.publish_release }}"
+          fi
+          # Extrait X.Y.Z depuis vX.Y.Z-rc.N
+          VERSION=$(echo "$TAG_NAME" | sed 's/^v//; s/-rc\.[0-9]*//')
+          echo "tag_name=${TAG_NAME}"               >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}"                 >> "$GITHUB_OUTPUT"
+          echo "should_publish=${SHOULD_PUBLISH}"   >> "$GITHUB_OUTPUT"
+          echo "[OK] Tag: $TAG_NAME — Version: $VERSION — Publish: $SHOULD_PUBLISH"
+
+      # ── 10. Construction du .app bundle ────────────────────────────────────
+      - name: Build .app bundle
+        env:
+          APP_VERSION: ${{ steps.release_meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          APP="HeelonVault.app"
+          MACOS_DIR="$APP/Contents/MacOS"
+          RES_DIR="$APP/Contents/Resources"
+          FWK_DIR="$APP/Contents/Frameworks"
+
+          mkdir -p "$MACOS_DIR" "$RES_DIR" "$FWK_DIR"
+          mkdir -p "$RES_DIR/migrations"
+          mkdir -p "$RES_DIR/share/glib-2.0/schemas"
+
+          # ── Binaire Rust (nommé heelonvault-bin — dylibbundler le patche)
+          cp target/aarch64-apple-darwin/release/heelonvault "$MACOS_DIR/heelonvault-bin"
+          chmod +x "$MACOS_DIR/heelonvault-bin"
+
+          # ── Launcher bash (CFBundleExecutable = heelonvault)
+          # Copié depuis le repo versionné — évite tout problème d'indentation heredoc YAML.
+          cp macos/launcher.sh "$MACOS_DIR/heelonvault"
+          chmod +x "$MACOS_DIR/heelonvault"
+
+          # ── Migrations SQL embarquées dans Resources/
+          cp -r migrations/. "$RES_DIR/migrations/"
+
+          # ── Schemas GLib compilés
+          glib-compile-schemas /opt/homebrew/share/glib-2.0/schemas \
+            --targetdir="$RES_DIR/share/glib-2.0/schemas"
+
+          # ── Icône .icns — générée dans un tmpdir isolé hors bundle
+          ICONSET_TMP="$(mktemp -d)"
+          ICONSET="$ICONSET_TMP/heelonvault.iconset"
+          mkdir "$ICONSET"
+          ICON_SRC="assets/icons/hicolor/256x256/apps/heelonvault.png"
+          for SIZE in 16 32 64 128 256; do
+            magick "$ICON_SRC" -resize "${SIZE}x${SIZE}"       "$ICONSET/icon_${SIZE}x${SIZE}.png"
+            magick "$ICON_SRC" -resize "$((SIZE*2))x$((SIZE*2))" "$ICONSET/icon_${SIZE}x${SIZE}@2x.png"
+          done
+          iconutil -c icns "$ICONSET" -o "$ICONSET_TMP/heelonvault.icns"
+          cp "$ICONSET_TMP/heelonvault.icns" "$RES_DIR/heelonvault.icns"
+          # Copie séparée pour --volicon de create-dmg (évite les surprises de version)
+          cp "$ICONSET_TMP/heelonvault.icns" /tmp/heelonvault-dmg.icns
+          rm -rf "$ICONSET_TMP"
+
+          # ── gdk-pixbuf loaders (best-effort)
+          PIXBUF_LOADERS_DIR="$(pkg-config --variable=gdk_pixbuf_moduledir gdk-pixbuf-2.0 2>/dev/null || true)"
+          PIXBUF_CACHE="$(pkg-config --variable=gdk_pixbuf_cache_file gdk-pixbuf-2.0 2>/dev/null || true)"
+          if [[ -n "$PIXBUF_LOADERS_DIR" && -d "$PIXBUF_LOADERS_DIR" ]]; then
+            DEST_LOADERS="$RES_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders"
+            mkdir -p "$DEST_LOADERS"
+            cp "$PIXBUF_LOADERS_DIR"/*.so "$DEST_LOADERS/" 2>/dev/null || true
+            if [[ -n "$PIXBUF_CACHE" && -f "$PIXBUF_CACHE" ]]; then
+              cp "$PIXBUF_CACHE" "$RES_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+              # Rewrite absolute paths in cache to be bundle-relative
+              sed -i '' "s|${PIXBUF_LOADERS_DIR}|@executable_path/../Resources/lib/gdk-pixbuf-2.0/2.10.0/loaders|g" \
+                "$RES_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+              echo "[OK] gdk-pixbuf loaders bundled"
+            fi
+          fi
+          # Warn explicitly if loaders are absent so CI logs are actionable
+          if ! ls "$RES_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders/"*.so 2>/dev/null | grep -q .; then
+            echo "[WARNING] gdk-pixbuf loaders absent — PNG/SVG images may not render in UI"
+            echo "[WARNING] Install with: brew install gdk-pixbuf"
+          fi
+
+          # ── Info.plist — source de vérité dans macos/Info.plist
+          # sed substitue @@VERSION@@, PlistBuddy écrit les clés de version proprement.
+          sed 's/@@VERSION@@/'"${APP_VERSION}"'/g' macos/Info.plist > "$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${APP_VERSION}"            "$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${APP_VERSION}" "$APP/Contents/Info.plist"
+
+          echo "[OK] .app bundle created"
+          ls -la "$APP/Contents/MacOS/"
+          ls -la "$APP/Contents/Resources/"
+
+      # ── 11. Bundling des dylibs Homebrew ───────────────────────────────────
+      # dylibbundler cible heelonvault-bin (binaire Mach-O), pas le launcher bash
+      - name: Bundle dylibs into .app
+        run: |
+          set -euo pipefail
+          APP="HeelonVault.app"
+
+          dylibbundler \
+            --bundle-deps \
+            --fix-file "$APP/Contents/MacOS/heelonvault-bin" \
+            --dest-dir "$APP/Contents/Frameworks/" \
+            --install-path "@executable_path/../Frameworks/" \
+            --search-path /opt/homebrew/lib \
+            --overwrite-dir
+
+          echo "[OK] dylibs bundled — $(ls "$APP/Contents/Frameworks/" | wc -l | tr -d ' ') libraries"
+
+      # ── 12. Vérifications post-bundle ──────────────────────────────────────
+      - name: Validate .app bundle
+        run: |
+          set -euo pipefail
+          APP="HeelonVault.app"
+          test -f "$APP/Contents/MacOS/heelonvault-bin"                          || { echo "[ERROR] Rust binary missing";         exit 1; }
+          test -f "$APP/Contents/MacOS/heelonvault"                              || { echo "[ERROR] launcher script missing";      exit 1; }
+          test -f "$APP/Contents/Info.plist"                                     || { echo "[ERROR] Info.plist missing";           exit 1; }
+          test -f "$APP/Contents/Resources/heelonvault.icns"                     || { echo "[ERROR] icon missing";                 exit 1; }
+          test -s "$APP/Contents/Resources/share/glib-2.0/schemas/gschemas.compiled" \
+                                                                                 || { echo "[ERROR] gschemas.compiled missing";    exit 1; }
+          test -d "$APP/Contents/Resources/migrations"                           || { echo "[ERROR] migrations dir missing";       exit 1; }
+          MIGRATION_COUNT=$(find "$APP/Contents/Resources/migrations/" -name "*.sql" | wc -l | tr -d ' ')
+          [[ "$MIGRATION_COUNT" -ge 16 ]] \
+            || { echo "[ERROR] migrations incomplete: $MIGRATION_COUNT files (expected ≥ 16)"; exit 1; }
+          # Verify launcher is a shell script and binary is Mach-O
+          head -1 "$APP/Contents/MacOS/heelonvault" | grep -q '^#!' \
+            || { echo "[ERROR] heelonvault is not a script (missing shebang)"; exit 1; }
+          file "$APP/Contents/MacOS/heelonvault-bin" | grep -q "Mach-O" \
+            || { echo "[ERROR] heelonvault-bin is not a Mach-O binary"; exit 1; }
+          echo "[OK] Bundle validated — migrations: $MIGRATION_COUNT, frameworks: $(ls "$APP/Contents/Frameworks/" | wc -l | tr -d ' ')"
+
+      # ── 13. Création du DMG ─────────────────────────────────────────────────
+      - name: Create DMG
+        env:
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          DMG_NAME="heelonvault-macos-aarch64-${TAG_NAME}.dmg"
+
+          create-dmg \
+            --volname "HeelonVault ${TAG_NAME}" \
+            --volicon /tmp/heelonvault-dmg.icns \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 128 \
+            --icon "HeelonVault.app" 150 185 \
+            --hide-extension "HeelonVault.app" \
+            --app-drop-link 450 185 \
+            --no-internet-enable \
+            "$DMG_NAME" \
+            "HeelonVault.app"
+
+          test -f "$DMG_NAME" || { echo "[ERROR] DMG not produced"; exit 1; }
+          echo "[OK] DMG created: $(du -sh "$DMG_NAME" | cut -f1)"
+
+      # ── 14. README Gatekeeper embarqué ─────────────────────────────────────
+      - name: Generate Gatekeeper README
+        env:
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          cat > "README-macos-installation.md" << 'EOF'
+          # HeelonVault — Installation macOS
+
+          ## Installation
+
+          1. Ouvrir le fichier `.dmg`
+          2. Faire glisser **HeelonVault** vers le dossier **Applications**
+          3. Fermer le DMG
+
+          ## Premier lancement — Gatekeeper
+
+          Apple bloque les applications non signées par un compte développeur Apple.
+          Pour lancer HeelonVault, deux méthodes :
+
+          **Méthode 1 — Sans terminal (recommandée)**
+          - Clic droit sur HeelonVault.app dans /Applications
+          - Choisir **"Ouvrir"**
+          - Cliquer **"Ouvrir quand même"** dans la boîte de dialogue
+          - Cette opération n'est nécessaire qu'une seule fois
+
+          **Méthode 2 — Terminal**
+          ```bash
+          xattr -cr /Applications/HeelonVault.app
+          ```
+
+          ## Configuration requise
+
+          - macOS 13 Ventura ou supérieur
+          - Apple Silicon (M1 / M2 / M3)
+          EOF
+          # Inject the tag name into the README title
+          sed -i '' "s/HeelonVault — Installation macOS/HeelonVault ${TAG_NAME} — Installation macOS/" \
+            README-macos-installation.md
+          echo "[OK] Gatekeeper README generated"
+
+      # ── 15. SHA256 ──────────────────────────────────────────────────────────
+      - name: Generate SHA256
+        env:
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          DMG_NAME="heelonvault-macos-aarch64-${TAG_NAME}.dmg"
+          shasum -a 256 "$DMG_NAME" > "${DMG_NAME}.sha256"
+          echo "[OK] SHA256: $(cat "${DMG_NAME}.sha256")"
+
+      # ── 16. Upload des artefacts CI ─────────────────────────────────────────
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: heelonvault-macos-dmg
+          if-no-files-found: error
+          path: |
+            heelonvault-macos-aarch64-${{ steps.release_meta.outputs.tag_name }}.dmg
+            heelonvault-macos-aarch64-${{ steps.release_meta.outputs.tag_name }}.dmg.sha256
+            README-macos-installation.md
+
+      # ── 17. Validation du format du tag RC ─────────────────────────────────
+      - name: Validate RC tag format before publish
+        if: steps.release_meta.outputs.should_publish == 'true'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.release_meta.outputs.tag_name }}"
+          [[ -n "$TAG" ]] || { echo "[ERROR] publish_release=true requires a tag"; exit 1; }
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]] || {
+            echo "[ERROR] Invalid RC tag format: $TAG — Expected: vX.Y.Z-rc.N"
+            exit 1
+          }
+          echo "[OK] Tag format valid: $TAG"
+
+      # ── 18. Publication de la release GitHub ───────────────────────────────
+      - name: Publish/Update GitHub Release (RC)
+        if: steps.release_meta.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          DMG_NAME="heelonvault-macos-aarch64-${TAG_NAME}.dmg"
+
+          # Crée la release si elle n'existe pas encore
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" \
+              --title "$TAG_NAME" \
+              --prerelease \
+              --notes "Automated macOS RC packaging artifact."
+            echo "[OK] Release created: $TAG_NAME"
+          else
+            echo "[OK] Release already exists: $TAG_NAME — uploading artifacts"
+          fi
+
+          # Upload DMG + SHA256 + README
+          gh release upload "$TAG_NAME" \
+            "$DMG_NAME" \
+            "${DMG_NAME}.sha256" \
+            "README-macos-installation.md" \
+            --clobber
+          echo "[OK] Artifacts uploaded to release $TAG_NAME"
