@@ -293,7 +293,32 @@ jobs:
           test -f "$DMG_NAME" || { echo "[ERROR] DMG not produced"; exit 1; }
           echo "[OK] DMG created: $(du -sh "$DMG_NAME" | cut -f1)"
 
-      # ── 14. README Gatekeeper embarqué ─────────────────────────────────────
+      # ── 14. Debug — inspect DMG contents [TEMPORARY] ───────────────────────
+      - name: Debug — inspect DMG contents
+        env:
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          DMG_NAME="heelonvault-macos-aarch64-${TAG_NAME}.dmg"
+          hdiutil attach "$DMG_NAME" -mountpoint /tmp/dmg_check -readonly
+          find /tmp/dmg_check -type f | head -40
+          echo "--- launcher type ---"
+          file /tmp/dmg_check/HeelonVault.app/Contents/MacOS/heelonvault
+          echo "--- binary type ---"
+          file /tmp/dmg_check/HeelonVault.app/Contents/MacOS/heelonvault-bin
+          echo "--- migrations count ---"
+          find /tmp/dmg_check/HeelonVault.app/Contents/Resources/migrations -name "*.sql" | wc -l
+          echo "--- frameworks count ---"
+          ls /tmp/dmg_check/HeelonVault.app/Contents/Frameworks/ | wc -l
+          echo "--- Info.plist CFBundleVersion ---"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" \
+            /tmp/dmg_check/HeelonVault.app/Contents/Info.plist
+          echo "--- Info.plist CFBundleIdentifier ---"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" \
+            /tmp/dmg_check/HeelonVault.app/Contents/Info.plist
+          hdiutil detach /tmp/dmg_check
+
+      # ── 15. README Gatekeeper embarqué ─────────────────────────────────────
       - name: Generate Gatekeeper README
         env:
           TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
