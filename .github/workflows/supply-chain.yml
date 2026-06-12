@@ -1,0 +1,45 @@
+name: supply-chain
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "**/Cargo.toml"
+      - "deny.toml"
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "**/Cargo.toml"
+      - "deny.toml"
+  schedule:
+    # Daily at 07:00 UTC — catches new advisories published overnight
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: supply-chain-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-deny:
+    name: cargo-deny supply-chain gate
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # ── 2. cargo-deny check ────────────────────────────────────────────────
+      # Checks: advisories (CVE/yanked), licenses, bans, sources
+      # Closes: #28, #40
+      - name: Run cargo deny check
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+          arguments: --all-features
+          log-level: warn
+          manifest-path: Cargo.toml
