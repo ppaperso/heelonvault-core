@@ -34,31 +34,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      # ── 2. SSH agent pour le repo premium privé ────────────────────────────
-      # cargo-deny-action calls `cargo metadata` internally to build the
-      # dependency graph. Without SSH credentials, it fails to resolve
-      # heelonvault-premium (referenced via SSH in the workspace).
-      - name: Setup SSH agent (heelonvault-premium)
-        uses: webfactory/ssh-agent@v0.10.0
-        with:
-          ssh-private-key: ${{ secrets.PREMIUM_SSH_KEY }}
-
-      # ── 3. Patch .cargo/config.toml pour le CI ─────────────────────────────
-      # cargo metadata requires git-fetch-with-cli=true so it uses the
-      # ssh-agent rather than libgit2 (which ignores the agent in CI).
-      # Minimal patch only — no need to remove [patch.ssh://] sections here
-      # since cargo-deny does not compile.
-      - name: Patch .cargo/config.toml for CI
-        run: |
-          set -euo pipefail
-          grep -q "git-fetch-with-cli" .cargo/config.toml \
-            || printf '\n[net]\ngit-fetch-with-cli = true\n' >> .cargo/config.toml
-          echo "[OK] .cargo/config.toml patched"
-
-      # ── 4. cargo-deny check ────────────────────────────────────────────────
+      # ── 2. cargo-deny check ────────────────────────────────────────────────
       # Checks: advisories (CVE/yanked), licenses, bans, sources
       # Pinned to exact version — a floating @v2 tag on a security gate
       # would be ironic. Update intentionally when new versions are available.
+      #
+      # SSH note: cargo-deny-action runs inside a Docker container. The host
+      # ssh-agent socket (SSH_AUTH_SOCK) is passed as an env var but the socket
+      # file is NOT volume-mounted → git inside the container cannot reach it.
+      # Use the action's native ssh-key + use-git-cli inputs instead: the
+      # action writes the key inside the container and sets git-fetch-with-cli,
+      # which is the only reliable path for private SSH git dependencies.
+      #
       # Closes: #28, #40
       - name: Run cargo deny check
         uses: EmbarkStudios/cargo-deny-action@v2.0.20
@@ -67,3 +54,5 @@ jobs:
           arguments: --all-features
           log-level: warn
           manifest-path: Cargo.toml
+          ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
+          use-git-cli: "true"
