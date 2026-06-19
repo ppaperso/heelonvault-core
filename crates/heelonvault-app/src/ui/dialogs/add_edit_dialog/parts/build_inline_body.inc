@@ -1,5 +1,6 @@
 {
         let on_saved: Rc<dyn Fn(String)> = Rc::new(on_saved);
+    let on_deleted: Rc<dyn Fn(String)> = Rc::new(on_deleted);
         let on_cancel: Rc<dyn Fn()> = Rc::new(on_cancel);
 
         let container = gtk4::ScrolledWindow::builder()
@@ -271,6 +272,10 @@
         notes_text.add_css_class("dialog-notes-text");
         notes_scrolled.set_child(Some(&notes_text));
 
+        let health_access_check = gtk4::CheckButton::with_label("Acces donnees de sante");
+        health_access_check.add_css_class("dialog-health-access-check");
+        health_access_check.set_halign(Align::Start);
+
         let validity_label =
             gtk4::Label::new(Some(heelonvault_core::tr!("add-edit-field-validity-label").as_str()));
         validity_label.add_css_class("login-field-label");
@@ -361,6 +366,23 @@
         save_button_content.append(&save_label);
         save_button.set_child(Some(&save_button_content));
 
+        let delete_button = gtk4::Button::new();
+        delete_button.add_css_class("flat");
+        delete_button.add_css_class("destructive-action");
+        delete_button.add_css_class("add-edit-delete-btn");
+        delete_button.set_tooltip_text(Some("Supprimer ce secret"));
+        let delete_content = gtk4::Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(6)
+            .build();
+        let delete_icon = gtk4::Image::from_icon_name("user-trash-symbolic");
+        delete_icon.set_pixel_size(16);
+        let delete_label = gtk4::Label::new(Some("Supprimer"));
+        delete_content.append(&delete_icon);
+        delete_content.append(&delete_label);
+        delete_button.set_child(Some(&delete_content));
+        delete_button.set_visible(matches!(mode, DialogMode::Edit(_)));
+
         {
             let strength = password_strength_bar.clone();
             let dropdown = type_dropdown.clone();
@@ -417,6 +439,7 @@
         let username_for_save = username_entry.clone();
         let url_for_save = url_entry.clone();
         let notes_for_save = notes_text.buffer();
+        let health_access_for_save = health_access_check.clone();
         let validity_unlimited_for_save = validity_unlimited.clone();
         let validity_days_for_save = validity_days.clone();
         let password_for_save = password_entry.clone();
@@ -430,6 +453,7 @@
         let error_for_save = error_label.clone();
         let spinner_for_save = save_spinner.clone();
         let save_btn_for_save = save_button.clone();
+        let delete_btn_for_save_path = delete_button.clone();
         let secret_for_save = Arc::clone(&secret_service);
         let vault_for_save = Arc::clone(&vault_service);
         let runtime_for_save = runtime_handle.clone();
@@ -488,6 +512,10 @@
                 metadata.insert("notes".to_string(), Value::String(notes));
                 metadata.insert("login".to_string(), Value::String(username));
                 metadata.insert("url".to_string(), Value::String(url));
+                metadata.insert(
+                    "health_access".to_string(),
+                    Value::Bool(health_access_for_save.is_active()),
+                );
                 metadata.insert(
                     "validity_unlimited".to_string(),
                     Value::Bool(validity_unlimited_for_save.is_active()),
@@ -560,6 +588,7 @@
             }
 
             save_btn_for_save.set_sensitive(false);
+            delete_btn_for_save_path.set_sensitive(false);
             save_spinner.set_visible(true);
             save_spinner.set_spinning(true);
 
@@ -730,11 +759,13 @@
 
             let error_for_result = error_for_save.clone();
             let save_btn_for_result = save_btn_for_save.clone();
+            let delete_btn_for_result = delete_btn_for_save_path.clone();
             let spinner_for_result = spinner_for_save.clone();
             let on_saved_for_result = Rc::clone(&on_saved_for_save);
             let on_cancel_for_result = Rc::clone(&on_cancel_for_save);
             glib::MainContext::default().spawn_local(async move {
                 save_btn_for_result.set_sensitive(true);
+                delete_btn_for_result.set_sensitive(true);
                 spinner_for_result.set_visible(false);
                 spinner_for_result.set_spinning(false);
 
@@ -752,6 +783,58 @@
             });
         });
 
+        if let DialogMode::Edit(secret_id_for_delete) = mode {
+            let delete_btn_for_delete = delete_button.clone();
+            let save_btn_for_delete = save_button.clone();
+            let error_for_delete = error_label.clone();
+            let secret_for_delete = Arc::clone(&secret_service);
+            let runtime_for_delete = runtime_handle.clone();
+            let title_for_delete = title_entry.clone();
+            let on_deleted_for_delete = Rc::clone(&on_deleted);
+            let on_cancel_for_delete = Rc::clone(&on_cancel);
+
+            delete_button.connect_clicked(move |_| {
+                error_for_delete.set_visible(false);
+                error_for_delete.set_text("");
+                delete_btn_for_delete.set_sensitive(false);
+                save_btn_for_delete.set_sensitive(false);
+
+                let secret_service_for_task = Arc::clone(&secret_for_delete);
+                let runtime_for_task = runtime_for_delete.clone();
+                let (sender, receiver) = tokio::sync::oneshot::channel();
+                std::thread::spawn(move || {
+                    let result = runtime_for_task.block_on(async move {
+                        secret_service_for_task.soft_delete(secret_id_for_delete).await
+                    });
+                    let _ = sender.send(result);
+                });
+
+                let delete_btn_for_result = delete_btn_for_delete.clone();
+                let save_btn_for_result = save_btn_for_delete.clone();
+                let error_for_result = error_for_delete.clone();
+                let on_deleted_for_result = Rc::clone(&on_deleted_for_delete);
+                let on_cancel_for_result = Rc::clone(&on_cancel_for_delete);
+                let title_for_result = title_for_delete.text().trim().to_string();
+                glib::MainContext::default().spawn_local(async move {
+                    match receiver.await {
+                        Ok(Ok(())) => {
+                            on_deleted_for_result(title_for_result);
+                            on_cancel_for_result();
+                        }
+                        Ok(Err(_)) | Err(_) => {
+                            delete_btn_for_result.set_sensitive(true);
+                            save_btn_for_result.set_sensitive(true);
+                            error_for_result.set_text(
+                                heelonvault_core::tr!("add-edit-error-save-failed").as_str(),
+                            );
+                            error_for_result.set_visible(true);
+                        }
+                    }
+                });
+            });
+        }
+
+        button_row.append(&delete_button);
         button_row.append(&cancel_button);
         button_row.append(&save_button);
 
@@ -783,6 +866,7 @@
         info_box.append(&url_row);
         info_box.append(&notes_label);
         info_box.append(&notes_scrolled);
+        info_box.append(&health_access_check);
         info_box.append(&validity_label);
         info_box.append(&validity_box);
         info_block.set_child(Some(&info_box));
@@ -914,6 +998,7 @@
                 ssh_public_entry.clone(),
                 ssh_passphrase_entry.clone(),
                 secure_doc_mime_entry.clone(),
+                health_access_check.clone(),
                 error_label.clone(),
                             Rc::clone(&source_vault_id_state),
                             Rc::clone(&target_vault_id_state),

@@ -183,6 +183,17 @@ pub(super) fn parse_search_terms(query: &str) -> Vec<(Option<String>, String)> {
     tokens
         .into_iter()
         .filter_map(|term| {
+            if let Some(raw_health) = term.strip_prefix('#') {
+                let token = normalize_search_text(raw_health);
+                if token.is_empty() {
+                    return None;
+                }
+                if matches!(token.as_str(), "sante" | "health") {
+                    return Some((Some("health".to_string()), token));
+                }
+                return Some((None, token));
+            }
+
             let Some((raw_key, raw_value)) = term.split_once(':') else {
                 let token = normalize_search_text(&term);
                 if token.is_empty() {
@@ -243,8 +254,122 @@ pub(super) fn matches_search_term(
         Some("tags") => token_matches_haystack(value, meta.tags_text.as_str()),
         Some("type") => token_matches_haystack(value, meta.type_text.as_str()),
         Some("vault") => token_matches_haystack(value, meta.vault_name_text.as_str()),
+        Some("health") => meta.is_health,
         _ => token_matches_haystack(value, meta.searchable_text.as_str()),
     }
+}
+
+fn url_host_from_raw(url: &str) -> String {
+    let trimmed = url.trim();
+    let without_scheme = trimmed
+        .strip_prefix("https://")
+        .or_else(|| trimmed.strip_prefix("http://"))
+        .unwrap_or(trimmed);
+    without_scheme
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or("")
+        .trim_start_matches("www.")
+        .to_ascii_lowercase()
+}
+
+fn contains_any_phrase(haystack: &str, phrases: &[&str]) -> bool {
+    phrases.iter().any(|phrase| haystack.contains(phrase))
+}
+
+pub(super) fn classify_health_access(
+    title: &str,
+    login: &str,
+    url: &str,
+    notes: &str,
+    category: &str,
+    tags: &str,
+    type_label: &str,
+) -> bool {
+    let normalized_text = normalize_search_text(
+        [title, login, url, notes, category, tags, type_label]
+            .join(" ")
+            .as_str(),
+    );
+
+    if contains_any_phrase(
+        normalized_text.as_str(),
+        &[
+            "assurance auto",
+            "assurance habitation",
+            "assurance voyage",
+            "animal",
+            "animaux",
+            "beaute",
+            "cosmetique",
+            "fitness",
+            "sport",
+            "voyage",
+            "veterinaire",
+        ],
+    ) {
+        return false;
+    }
+
+    let host = url_host_from_raw(url);
+    if contains_any_phrase(
+        host.as_str(),
+        &[
+            "ameli.fr",
+            "doctolib.fr",
+            "monespacesante.fr",
+            "esante.gouv.fr",
+            "mssante.fr",
+            "qare.fr",
+            "maiia.com",
+            "medadom.com",
+        ],
+    ) {
+        return true;
+    }
+
+    let mut score = 0;
+    if contains_any_phrase(
+        normalized_text.as_str(),
+        &[
+            "ameli",
+            "carte vitale",
+            "cpam",
+            "doctolib",
+            "dossier medical",
+            "medecin traitant",
+            "mon espace sante",
+            "mutuelle sante",
+            "ordonnance",
+            "patient portal",
+            "rpps",
+            "teleconsultation",
+            "telemedecine",
+        ],
+    ) {
+        score += 4;
+    }
+
+    if contains_any_phrase(
+        normalized_text.as_str(),
+        &[
+            "analyses",
+            "clinique",
+            "hopital",
+            "laboratoire",
+            "medical",
+            "medecin",
+            "pharmacie",
+            "patient",
+            "radiologie",
+            "resultats",
+            "soins",
+        ],
+    ) {
+        score += 2;
+    }
+
+    score >= 4
 }
 
 #[cfg(test)]
@@ -268,6 +393,7 @@ mod tests {
             original_rank: 0,
             is_weak: false,
             is_duplicate: false,
+            is_health: false,
         }
     }
 
@@ -300,5 +426,49 @@ mod tests {
         // Plain unqualified term should match via searchable_text (which includes vault name)
         let terms = parse_search_terms("banque");
         assert!(matches_search_term(&meta, &terms[0]));
+    }
+
+    #[test]
+    fn health_shortcut_matches_marked_items() {
+        let mut meta = make_meta("Perso");
+        meta.is_health = true;
+
+        let terms = parse_search_terms("#sante");
+        assert_eq!(terms.len(), 1);
+        assert!(matches_search_term(&meta, &terms[0]));
+    }
+
+    #[test]
+    fn health_shortcut_does_not_match_unmarked_items() {
+        let meta = make_meta("Perso");
+        let terms = parse_search_terms("#sante");
+        assert_eq!(terms.len(), 1);
+        assert!(!matches_search_term(&meta, &terms[0]));
+    }
+
+    #[test]
+    fn classifier_accepts_high_confidence_health_domain() {
+        assert!(classify_health_access(
+            "Mon compte",
+            "",
+            "https://www.doctolib.fr",
+            "",
+            "",
+            "",
+            "password",
+        ));
+    }
+
+    #[test]
+    fn classifier_rejects_false_friendly_terms() {
+        assert!(!classify_health_access(
+            "Assurance auto",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "password",
+        ));
     }
 }

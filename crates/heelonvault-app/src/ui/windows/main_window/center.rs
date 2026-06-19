@@ -31,10 +31,11 @@ pub(super) fn build_center_panel() -> CenterPanelWidgets {
         .margin_bottom(12)
         .margin_start(12)
         .margin_end(12)
-        .selection_mode(gtk4::SelectionMode::None)
+        .selection_mode(gtk4::SelectionMode::Single)
         .halign(gtk4::Align::Start)
         .valign(gtk4::Align::Start)
         .build();
+    secret_flow.set_focusable(true);
     secret_flow.add_css_class("main-secret-grid");
     list_scroll.set_child(Some(&secret_flow));
 

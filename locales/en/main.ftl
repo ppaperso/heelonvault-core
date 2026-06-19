@@ -89,6 +89,10 @@ login-totp-code-invalid-error = Invalid TOTP code. Check your authenticator app.
 
 toast-secret-saved = Secret "{ $name }" saved successfully.
 toast-secret-deleted = "{ $name }" was moved to trash.
+toast-password-copied = Password copied.
+toast-login-copied = Login copied.
+toast-url-opened = Opening browser...
+toast-url-opened-login-copied = Browser opened, login copied.
 
 add-edit-window-title-create = New secret
 add-edit-window-title-edit = Edit secret

@@ -35,7 +35,10 @@ cargo test --workspace --test login_history_integration
 1. Ouvrir `Profil & Securite` depuis la barre laterale.
 2. Fermer la fenetre principale avec la croix : l'ecran de login doit reapparaitre.
 3. Se reconnecter immediatement : les cartes de secrets doivent etre visibles.
-4. Activer l'affichage du mot de passe en edition, puis modifier un secret de type mot de passe.
+4. Cliquer une fois sur une carte : elle doit devenir active sans ouvrir l'edition.
+5. Double-cliquer la meme carte : le formulaire d'edition doit s'ouvrir.
+6. Sur la carte active, tester les raccourcis : `Ctrl+C`, `Ctrl+L`, `Ctrl+U`.
+7. En creation/edition, cocher « Acces donnees de sante », enregistrer, puis verifier la recherche `#sante`.
 
 ## 4. Build de production
 

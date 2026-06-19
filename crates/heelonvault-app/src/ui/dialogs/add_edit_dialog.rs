@@ -57,6 +57,7 @@ impl AddEditDialog {
         mode: DialogMode,
         on_cancel: impl Fn() + 'static,
         on_saved: impl Fn(String) + 'static,
+        on_deleted: impl Fn(String) + 'static,
     ) -> AddEditInlineView
     where
         TSecret: SecretService + Send + Sync + 'static,
@@ -331,6 +332,7 @@ impl AddEditDialog {
         ssh_public_entry: gtk4::Entry,
         ssh_passphrase_entry: gtk4::Entry,
         secure_doc_mime_entry: gtk4::Entry,
+        health_access_check: gtk4::CheckButton,
         error_label: gtk4::Label,
         source_vault_id_state: Rc<std::cell::RefCell<Option<Uuid>>>,
         target_vault_id_state: Rc<std::cell::RefCell<Option<Uuid>>>,
@@ -507,6 +509,12 @@ impl AddEditDialog {
                                 .and_then(Value::as_bool)
                                 .unwrap_or(item.expires_at.is_none());
                             validity_unlimited.set_active(unlimited);
+                            health_access_check.set_active(
+                                value
+                                    .get("health_access")
+                                    .and_then(Value::as_bool)
+                                    .unwrap_or(false),
+                            );
 
                             if let Some(days) = value.get("validity_days").and_then(Value::as_i64) {
                                 if days > 0 {

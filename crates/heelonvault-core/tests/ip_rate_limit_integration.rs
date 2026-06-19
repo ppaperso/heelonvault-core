@@ -39,7 +39,7 @@ async fn test_ip_rate_limit_record_attempts() {
     let repo = SqlxIpRateLimitRepository::with_policy(
         pool,
         IpRateLimitPolicy {
-            max_attempts: 5,           // 5 tentatives max pour le test
+            max_attempts: 5,          // 5 tentatives max pour le test
             lock_duration_secs: 60,   // 1 minute de lock
             window_duration_secs: 60, // fenêtre de 1 minute
         },
@@ -48,24 +48,36 @@ async fn test_ip_rate_limit_record_attempts() {
     let ip = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1));
 
     // 1ère tentative - doit réussir
-    let status = repo.record_attempt(ip).await.expect("Failed to record attempt");
+    let status = repo
+        .record_attempt(ip)
+        .await
+        .expect("Failed to record attempt");
     assert_eq!(status.attempts, 1);
     assert!(!status.is_locked());
 
     // 2ème tentative - doit réussir
-    let status = repo.record_attempt(ip).await.expect("Failed to record attempt");
+    let status = repo
+        .record_attempt(ip)
+        .await
+        .expect("Failed to record attempt");
     assert_eq!(status.attempts, 2);
     assert!(!status.is_locked());
 
     // Continuer jusqu'à 4
     for i in 3..=4 {
-        let status = repo.record_attempt(ip).await.expect("Failed to record attempt");
+        let status = repo
+            .record_attempt(ip)
+            .await
+            .expect("Failed to record attempt");
         assert_eq!(status.attempts, i);
         assert!(!status.is_locked());
     }
 
     // 5ème tentative - doit bloquer (5 >= 5)
-    let status = repo.record_attempt(ip).await.expect("Failed to record attempt");
+    let status = repo
+        .record_attempt(ip)
+        .await
+        .expect("Failed to record attempt");
     assert_eq!(status.attempts, 5);
     assert!(status.is_locked());
     assert!(status.lock_remaining_seconds() > 0);
@@ -79,7 +91,10 @@ async fn test_ip_rate_limit_check_status() {
     let ip = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 2));
 
     // Nouvelle IP - doit avoir 0 tentative
-    let status = repo.check_rate_limit(ip).await.expect("Failed to check rate limit");
+    let status = repo
+        .check_rate_limit(ip)
+        .await
+        .expect("Failed to check rate limit");
     assert_eq!(status.attempts, 0);
     assert!(!status.is_locked());
 }
@@ -100,18 +115,26 @@ async fn test_ip_rate_limit_reset() {
 
     // Enregistrer des tentatives
     for _ in 0..3 {
-        repo.record_attempt(ip).await.expect("Failed to record attempt");
+        repo.record_attempt(ip)
+            .await
+            .expect("Failed to record attempt");
     }
 
     // Vérifier qu'il y a des tentatives enregistrées
-    let status = repo.check_rate_limit(ip).await.expect("Failed to check rate limit");
+    let status = repo
+        .check_rate_limit(ip)
+        .await
+        .expect("Failed to check rate limit");
     assert_eq!(status.attempts, 3); // 3 appels = 3 tentatives
 
     // Réinitialiser
     repo.reset_attempts(ip).await.expect("Failed to reset");
 
     // Vérifier que c'est réinitialisé
-    let status = repo.check_rate_limit(ip).await.expect("Failed to check rate limit");
+    let status = repo
+        .check_rate_limit(ip)
+        .await
+        .expect("Failed to check rate limit");
     assert_eq!(status.attempts, 0);
 }
 

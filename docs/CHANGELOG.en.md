@@ -29,6 +29,23 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Stable toolchain updated to `1.95.0` (rustc 59807616e, 2026-04-14).
 - No new Clippy lints introduced by 1.95.0.
 
+### Dashboard UX — cards and keyboard productivity
+
+- Secret cards now follow a clearer mouse/keyboard flow:
+  - single click = select,
+  - double click = open editor.
+- Removed edit/delete controls from cards to reduce visual noise; maintenance actions now go through dedicated screens.
+- Card ordering is now usage-driven (`usage_count` descending) to prioritize frequently used secrets.
+- Added/refined card badges: strength, incomplete, duplicate, usage.
+- Global shortcuts on the active card: `Ctrl+C` (copy secret), `Ctrl+L` (copy login), `Ctrl+U` (open URL).
+
+### Health-related secrets — manual marker and local detection
+
+- Added persistent "Health data access" marker in the create/edit form.
+- Added high-confidence local auto-detection to classify relevant health secrets without user configuration.
+- Added quick search shortcut `#sante` to target marked/detected health secrets.
+- Added a "Sante" badge on matching cards for faster visual identification.
+
 ### PIN status badge and session countdown timer
 
 - Added a clickable **"PIN active"** badge in the title bar, kept in real-time sync with the PIN cache state.

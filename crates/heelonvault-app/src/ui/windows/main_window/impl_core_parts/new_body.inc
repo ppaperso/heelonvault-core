@@ -549,6 +549,7 @@
 
         let filter_runtime = FilterRuntime {
             meta_by_widget: Rc::new(RefCell::new(HashMap::new())),
+            actions_by_widget: Rc::new(RefCell::new(HashMap::new())),
             search_text: Rc::new(RefCell::new(String::new())),
             selected_category: Rc::new(Cell::new(SecretCategoryFilter::All)),
             selected_audit: Rc::new(Cell::new(AuditFilter::All)),
@@ -1397,6 +1398,17 @@
                                 .add_toast(adw::Toast::new(toast_message.as_str()));
                         }
                     },
+                    {
+                        let refresh_after_delete = Rc::clone(&refresh_after_save);
+                        let toast_overlay_for_delete = toast_overlay_for_editor.clone();
+                        move |deleted_title: String| {
+                            refresh_after_delete();
+                            let toast_message =
+                                messages::toast_secret_deleted(deleted_title.as_str());
+                            toast_overlay_for_delete
+                                .add_toast(adw::Toast::new(toast_message.as_str()));
+                        }
+                    },
                 );
 
                 host_for_editor.append(&inline_view.container);
@@ -1867,6 +1879,23 @@
             Self::apply_filters(&flow_for_search, &filter_for_search);
         });
 
+        // Power-user: after typing a query, Enter jumps to the first visible card.
+        let flow_for_search_activate = center_panel.secret_flow.clone();
+        search_entry.connect_activate(move |_| {
+            let mut cursor = flow_for_search_activate.first_child();
+            while let Some(widget) = cursor {
+                let next = widget.next_sibling();
+                if let Ok(flow_child) = widget.downcast::<gtk4::FlowBoxChild>() {
+                    if flow_child.is_visible() {
+                        flow_for_search_activate.select_child(&flow_child);
+                        flow_child.grab_focus();
+                        break;
+                    }
+                }
+                cursor = next;
+            }
+        });
+
         let active_vault_for_my_list = Rc::clone(&active_vault_id);
         let other_shared_list = sidebar_panel.shared_vaults_list.clone();
         let refresh_for_my_list = {
@@ -2070,13 +2099,17 @@
             });
 
         let key_controller = gtk4::EventControllerKey::new();
+        key_controller.set_propagation_phase(gtk4::PropagationPhase::Capture);
         let window_for_key = window.clone();
+        let search_entry_for_key = search_entry.clone();
+        let flow_for_key = center_panel.secret_flow.clone();
+        let actions_for_key = filter_runtime.actions_by_widget.clone();
         let source_for_key = Rc::clone(&auto_lock_source);
         let armed_for_key = Rc::clone(&auto_lock_armed);
         let timeout_for_key = Rc::clone(&auto_lock_timeout_secs);
         let callback_for_key = Rc::clone(&on_auto_lock);
         let session_for_key = Rc::clone(&session_master_key);
-        key_controller.connect_key_pressed(move |_controller, _key, _keycode, _state| {
+        key_controller.connect_key_pressed(move |_controller, key, _keycode, state| {
             auto_lock::reset_auto_lock_timer(
                 &window_for_key,
                 &source_for_key,
@@ -2085,6 +2118,127 @@
                 &callback_for_key,
                 &session_for_key,
             );
+
+            let ctrl_or_meta = state.contains(gtk4::gdk::ModifierType::CONTROL_MASK)
+                || state.contains(gtk4::gdk::ModifierType::META_MASK);
+
+            if ctrl_or_meta {
+                if matches!(key, gtk4::gdk::Key::f | gtk4::gdk::Key::F) {
+                    search_entry_for_key.grab_focus();
+                    return glib::Propagation::Stop;
+                }
+
+                if matches!(
+                    key,
+                    gtk4::gdk::Key::c
+                        | gtk4::gdk::Key::C
+                        | gtk4::gdk::Key::l
+                        | gtk4::gdk::Key::L
+                        | gtk4::gdk::Key::u
+                        | gtk4::gdk::Key::U
+                ) {
+                    if let Some(selected_child) = flow_for_key.selected_children().first().cloned() {
+                        if let Some(card_widget) = selected_child.child() {
+                            let widget_key = card_widget.widget_name().to_string();
+                            if let Some(actions) = actions_for_key.borrow().get(&widget_key) {
+                                match key {
+                                    gtk4::gdk::Key::c | gtk4::gdk::Key::C => {
+                                        actions.copy_password.emit_clicked();
+                                        return glib::Propagation::Stop;
+                                    }
+                                    gtk4::gdk::Key::l | gtk4::gdk::Key::L => {
+                                        if let Some(button) = &actions.copy_login {
+                                            button.emit_clicked();
+                                            return glib::Propagation::Stop;
+                                        }
+                                    }
+                                    gtk4::gdk::Key::u | gtk4::gdk::Key::U => {
+                                        if let Some(button) = &actions.open_url {
+                                            button.emit_clicked();
+                                            return glib::Propagation::Stop;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if matches!(
+                key,
+                gtk4::gdk::Key::Left
+                    | gtk4::gdk::Key::Right
+                    | gtk4::gdk::Key::Up
+                    | gtk4::gdk::Key::Down
+            ) {
+                // Keep arrows available for the grid while preserving text-entry behavior.
+                if search_entry_for_key.has_focus() {
+                    return glib::Propagation::Proceed;
+                }
+
+                let focus_is_in_grid = gtk4::prelude::GtkWindowExt::focus(&window_for_key)
+                    .is_some_and(|focus| {
+                    let mut current = Some(focus);
+                    while let Some(widget) = current {
+                        if widget == flow_for_key.clone().upcast::<gtk4::Widget>() {
+                            return true;
+                        }
+                        current = widget.parent();
+                    }
+                    false
+                });
+
+                let has_selected_child = !flow_for_key.selected_children().is_empty();
+                if focus_is_in_grid || has_selected_child {
+                    let mut visible_children: Vec<gtk4::FlowBoxChild> = Vec::new();
+                    let mut cursor = flow_for_key.first_child();
+                    while let Some(widget) = cursor {
+                        let next = widget.next_sibling();
+                        if let Ok(flow_child) = widget.downcast::<gtk4::FlowBoxChild>() {
+                            if flow_child.is_visible() {
+                                visible_children.push(flow_child);
+                            }
+                        }
+                        cursor = next;
+                    }
+
+                    if visible_children.is_empty() {
+                        return glib::Propagation::Proceed;
+                    }
+
+                    let selected_idx = flow_for_key
+                        .selected_children()
+                        .first()
+                        .and_then(|selected| {
+                            visible_children
+                                .iter()
+                                .position(|child| child == selected)
+                        })
+                        .unwrap_or(0);
+
+                    let per_line = usize::try_from(flow_for_key.max_children_per_line())
+                        .unwrap_or(1)
+                        .max(1);
+                    let target_idx = match key {
+                        gtk4::gdk::Key::Left => selected_idx.saturating_sub(1),
+                        gtk4::gdk::Key::Right => {
+                            (selected_idx.saturating_add(1)).min(visible_children.len() - 1)
+                        }
+                        gtk4::gdk::Key::Up => selected_idx.saturating_sub(per_line),
+                        gtk4::gdk::Key::Down => {
+                            (selected_idx.saturating_add(per_line)).min(visible_children.len() - 1)
+                        }
+                        _ => selected_idx,
+                    };
+
+                    flow_for_key.select_child(&visible_children[target_idx]);
+                    visible_children[target_idx].grab_focus();
+                    return glib::Propagation::Stop;
+                }
+            }
+
             glib::Propagation::Proceed
         });
         window.add_controller(key_controller);

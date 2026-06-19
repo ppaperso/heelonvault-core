@@ -23,11 +23,20 @@ avec GTK4 / libadwaita et SQLite.
 | **Journal d'audit** | Traçabilité des actions sensibles (création/modification/suppression de secrets, partages) |
 | **Corbeille** | Suppression logique avec restauration et purge définitive |
 | **Auto-verrouillage** | Politique configurable : 1 / 5 / 15 / 30 minutes ou jamais |
-| **Tableau de bord** | Fenêtre de sécurité dédiée avec score global du coffre |
+| **Tableau de bord** | Cartes orientées productivité : tri par usage, sélection active claire, badges contextuels (force, incomplet, doublon, usage, santé) |
 | **Indicateur de force** | Évaluation `zxcvbn` en temps réel sur chaque mot de passe |
-| **Recherche avancée** | Multi-champs (titre, login, email, URL, notes, catégorie, tags, type) avec normalisation Unicode |
+| **Recherche avancée** | Multi-champs (titre, login, email, URL, notes, catégorie, tags, type, coffre) avec normalisation Unicode, mode MultiCoffre et raccourci `#sante` |
+| **Workflow d'édition** | Clic simple = sélection de carte, double-clic = ouverture de l'éditeur ; actions rapides clavier sur la carte active (`Ctrl+C`, `Ctrl+L`, `Ctrl+U`) |
+| **Marqueur santé** | Champ persistant « Accès données de santé » dans le formulaire create/edit + détection locale haute confiance |
 | **Licence** | Vérification Ed25519 de la licence signée ; badge visible avant et après login ; fallback Community automatique |
 | **Logs structurés** | Tracing JSON rotatif dans `~/.local/state/heelonvault/logs` |
+
+### Points UX récents
+
+- Navigation carte simplifiée : sélection au clic simple, édition au double-clic.
+- Productivité clavier renforcée sur la carte active avec `Ctrl+C`, `Ctrl+L`, `Ctrl+U`.
+- Repérage visuel accéléré via badges cartes (dont badge santé) et tri par fréquence d'usage.
+- Recherche enrichie avec mode MultiCoffre et filtre thématique `#sante`.
 
 ---
 

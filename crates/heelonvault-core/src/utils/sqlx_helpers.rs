@@ -64,7 +64,7 @@ mod tests {
     fn test_sqlx_bind_secret_returns_slice() {
         let data = vec![1u8, 2u8, 3u8, 4u8];
         let secret = SecretBox::new(Box::new(data.clone()));
-        
+
         let slice = sqlx_bind_secret(&secret);
         assert_eq!(slice, data.as_slice());
     }
@@ -74,10 +74,14 @@ mod tests {
         let data = vec![1u8, 2u8, 3u8];
         let secret = SecretBox::new(Box::new(data.clone()));
         let secret_opt = Some(secret);
-        
+
         let result = sqlx_bind_secret_opt(&secret_opt);
         assert!(result.is_some());
-        assert_eq!(result.unwrap(), data.as_slice());
+        if let Some(val) = result {
+            assert_eq!(val, data.as_slice());
+        } else {
+            panic!("expected Some but got None");
+        }
     }
 
     #[test]

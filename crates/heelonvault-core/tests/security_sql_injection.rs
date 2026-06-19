@@ -69,11 +69,14 @@ async fn test_sql_injection_user_repository() {
 
     // Tester que les payloads malveillants ne causent pas d'injection
     for payload in MALICIOUS_PAYLOADS {
-        let result = UserRepository::get_by_username(&repo, payload)
-            .await;
-        
+        let result = UserRepository::get_by_username(&repo, payload).await;
+
         assert!(result.is_ok(), "Query failed for payload: {}", payload);
-        assert!(result.unwrap().is_none(), "Injection successful for: {}", payload);
+        assert!(
+            result.unwrap().is_none(),
+            "Injection successful for: {}",
+            payload
+        );
     }
 
     // Vérifier que l'utilisateur valide existe toujours
@@ -90,7 +93,7 @@ async fn test_sql_injection_special_chars() {
 
     let user_id = Uuid::new_v4();
     let special_name = "user'with\"quotes";
-    
+
     sqlx::query("INSERT INTO users (id, username, role) VALUES (?1, ?2, ?3)")
         .bind(user_id.to_string())
         .bind(special_name)
@@ -102,7 +105,7 @@ async fn test_sql_injection_special_chars() {
     let result = UserRepository::get_by_username(&repo, special_name)
         .await
         .expect("Failed to get user");
-    
+
     assert!(result.is_some());
     assert_eq!(result.unwrap().username, special_name);
 }

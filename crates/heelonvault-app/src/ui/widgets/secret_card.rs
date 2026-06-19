@@ -3,6 +3,34 @@ use gtk4::prelude::*;
 use gtk4::{Align, Button, Label, Orientation, Separator};
 use uuid::Uuid;
 
+fn build_action_button(icon_candidates: &[&str], fallback_glyph: &str, tooltip: &str) -> Button {
+    let button = Button::new();
+    button.add_css_class("flat");
+    button.add_css_class("secret-card-action-btn");
+    button.set_tooltip_text(Some(tooltip));
+    button.set_hexpand(true);
+
+    let resolved_icon = gtk4::gdk::Display::default().and_then(|display| {
+        let theme = gtk4::IconTheme::for_display(&display);
+        icon_candidates
+            .iter()
+            .find(|name| theme.has_icon(name))
+            .map(|name| (*name).to_string())
+    });
+
+    if let Some(icon_name) = resolved_icon {
+        let image = gtk4::Image::from_icon_name(&icon_name);
+        image.add_css_class("secret-card-action-icon");
+        button.set_child(Some(&image));
+    } else {
+        let glyph = Label::new(Some(fallback_glyph));
+        glyph.add_css_class("secret-card-action-glyph");
+        button.set_child(Some(&glyph));
+    }
+
+    button
+}
+
 /// Represents a secret for display purposes
 // Phase 5a migration: several fields are written but not yet read (UI wiring incomplete).
 // Owner: ppaadmin | Due: Phase 5b | Tracked: Open Core Phase 5b milestone
@@ -19,9 +47,11 @@ pub struct SecretRowData {
     pub secret_value: String,
     pub color_class: String,
     // Mock fields for badges (will be linked to DB later)
-    pub health: String,     // "Robuste" or "Faible"
+    pub health: String, // "Robuste" or "Faible"
+    pub is_health_access: bool,
     pub usage_count: u32,   // Number of times copied
     pub is_duplicate: bool, // Whether password is reused
+    pub is_incomplete: bool,
     pub is_shared_vault: bool,
     pub can_edit: bool,
     pub can_delete: bool,
@@ -29,14 +59,21 @@ pub struct SecretRowData {
     pub vault_name: String,
 }
 
-/// A modern card widget for displaying a secret item
+/// A modern card widget for displaying a secret item.
+///
+/// Layout (top → bottom):
+///   header_row : [title]
+///   info_strip : "login · domain"  (hidden when both are empty)
+///   badges_box : health · usage · duplicate? · shared? · vault?
+///   separator
+///   actions_box: [🔑 copy_password] [👤 copy_login?] [🌐 open_url?]
 #[allow(dead_code)]
 pub struct SecretCard {
     card_box: gtk4::Box,
     secret_id: Uuid,
-    edit_button: Button,
     copy_button: Button,
-    trash_button: Button,
+    copy_login_button: Option<Button>,
+    open_url_button: Option<Button>,
     usage_badge: Label,
 }
 
@@ -58,14 +95,51 @@ impl SecretCard {
         card_box.add_css_class("card");
         card_box.add_css_class(data.color_class.as_str());
 
-        // --- TITLE (Top) ---
+        // --- HEADER ROW : title ---
+        let header_row = gtk4::Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(4)
+            .build();
+        header_row.add_css_class("secret-card-header");
+
         let title_label = Label::new(Some(&data.title));
         title_label.set_halign(Align::Start);
+        title_label.set_hexpand(true);
         title_label.set_wrap(false);
         title_label.set_ellipsize(EllipsizeMode::End);
         title_label.set_single_line_mode(true);
         title_label.add_css_class("secret-card-title");
         title_label.add_css_class("heading");
+
+        header_row.append(&title_label);
+
+        // --- INFO STRIP : "login · domain" ---
+        // Extract domain from URL without an external crate: strip scheme, take up to first '/'.
+        let domain: String = if data.url.is_empty() {
+            String::new()
+        } else {
+            let stripped = data
+                .url
+                .trim_start_matches("https://")
+                .trim_start_matches("http://");
+            stripped.split('/').next().unwrap_or("").to_string()
+        };
+        let strip_text = match (data.login.is_empty(), domain.is_empty()) {
+            (false, false) => format!("{} · {}", data.login, domain),
+            (false, true) => data.login.clone(),
+            (true, false) => domain.clone(),
+            (true, true) => String::new(),
+        };
+        let info_strip = Label::new(Some(&strip_text));
+        info_strip.set_halign(Align::Start);
+        info_strip.set_hexpand(true);
+        info_strip.set_wrap(false);
+        info_strip.set_ellipsize(EllipsizeMode::End);
+        info_strip.set_single_line_mode(true);
+        // Reserve height even when hidden so layout stays stable across card sizes.
+        info_strip.set_size_request(-1, 20);
+        info_strip.set_visible(!strip_text.is_empty());
+        info_strip.add_css_class("secret-card-info-strip");
 
         // --- BADGES ROW ---
         let badges_box = gtk4::Box::builder()
@@ -85,6 +159,14 @@ impl SecretCard {
         }
         badges_box.append(&health_badge);
 
+        if data.is_health_access {
+            let access_badge = Label::new(Some("Sante"));
+            access_badge.set_single_line_mode(true);
+            access_badge.add_css_class("secret-badge");
+            access_badge.add_css_class("badge-health");
+            badges_box.append(&access_badge);
+        }
+
         // Usage badge
         let usage_badge = Label::new(Some(&format!("↗ {}", data.usage_count)));
         usage_badge.set_single_line_mode(true);
@@ -101,6 +183,15 @@ impl SecretCard {
             dup_badge.add_css_class("secret-badge");
             dup_badge.add_css_class("badge-duplicate");
             badges_box.append(&dup_badge);
+        }
+
+        // Incomplete badge: guide users to fill both login and URL metadata.
+        if data.is_incomplete {
+            let incomplete_badge = Label::new(Some("Incomplet"));
+            incomplete_badge.set_single_line_mode(true);
+            incomplete_badge.add_css_class("secret-badge");
+            incomplete_badge.add_css_class("badge-incomplete");
+            badges_box.append(&incomplete_badge);
         }
 
         if data.is_shared_vault {
@@ -125,42 +216,58 @@ impl SecretCard {
         let separator = Separator::new(gtk4::Orientation::Horizontal);
         separator.add_css_class("secret-card-separator");
 
-        // --- ACTIONS BOX (Footer) ---
+        // --- ACTIONS BOX (Quick-actions — daily use) ---
+        // Layout: [🔑 copy_password] [👤 copy_login?] [🌐 open_url?]
+        // copy_login and open_url are conditionally visible based on data.
         let actions_box = gtk4::Box::builder()
             .orientation(Orientation::Horizontal)
             .spacing(4)
-            .homogeneous(true)
+            .homogeneous(false)
             .build();
         actions_box.add_css_class("secret-card-actions");
 
-        let copy_button = Button::builder().icon_name("edit-copy-symbolic").build();
-        copy_button.add_css_class("flat");
-        copy_button.add_css_class("secret-card-action-btn");
-        copy_button.set_tooltip_text(Some("Copier"));
-        copy_button.set_hexpand(true);
-
-        let edit_button = Button::builder()
-            .icon_name("document-edit-symbolic")
-            .build();
-        edit_button.add_css_class("flat");
-        edit_button.add_css_class("secret-card-action-btn");
-        edit_button.set_tooltip_text(Some("Modifier"));
-        edit_button.set_hexpand(true);
-        edit_button.set_sensitive(data.can_edit);
-
-        let trash_button = Button::builder().icon_name("user-trash-symbolic").build();
-        trash_button.add_css_class("flat");
-        trash_button.add_css_class("secret-card-action-btn");
-        trash_button.set_tooltip_text(Some("Corbeille"));
-        trash_button.set_hexpand(true);
-        trash_button.set_sensitive(data.can_delete);
-
+        // 🔑 Copy password — always present; disabled only if secret_value is empty.
+        let copy_button = build_action_button(
+            &["edit-copy-symbolic", "document-duplicate-symbolic"],
+            "⧉",
+            "Copier le mot de passe",
+        );
+        copy_button.set_sensitive(!data.secret_value.is_empty());
         actions_box.append(&copy_button);
-        actions_box.append(&edit_button);
-        actions_box.append(&trash_button);
+
+        // 👤 Copy login — visible only when a login is stored.
+        let copy_login_button: Option<Button> = if !data.login.is_empty() {
+            let btn = build_action_button(
+                &["avatar-default-symbolic", "system-users-symbolic"],
+                "@",
+                "Copier le login",
+            );
+            actions_box.append(&btn);
+            Some(btn)
+        } else {
+            None
+        };
+
+        // 🌐 Open URL — visible only when a URL is stored.
+        let open_url_button: Option<Button> = if !data.url.is_empty() {
+            let btn = build_action_button(
+                &[
+                    "help-browser-symbolic",
+                    "web-browser-symbolic",
+                    "edit-find-symbolic",
+                ],
+                "↗",
+                "Ouvrir dans le navigateur",
+            );
+            actions_box.append(&btn);
+            Some(btn)
+        } else {
+            None
+        };
 
         // --- ASSEMBLE CARD ---
-        card_box.append(&title_label);
+        card_box.append(&header_row);
+        card_box.append(&info_strip);
         card_box.append(&badges_box);
         card_box.append(&separator);
         card_box.append(&actions_box);
@@ -168,9 +275,9 @@ impl SecretCard {
         Self {
             card_box,
             secret_id: data.secret_id,
-            edit_button,
             copy_button,
-            trash_button,
+            copy_login_button,
+            open_url_button,
             usage_badge,
         }
     }
@@ -188,15 +295,15 @@ impl SecretCard {
         self.usage_badge.set_label(&format!("↗ {}", new_count));
     }
 
-    pub fn get_edit_button(&self) -> Button {
-        self.edit_button.clone()
-    }
-
     pub fn get_copy_button(&self) -> Button {
         self.copy_button.clone()
     }
 
-    pub fn get_trash_button(&self) -> Button {
-        self.trash_button.clone()
+    pub fn get_copy_login_button(&self) -> Option<Button> {
+        self.copy_login_button.clone()
+    }
+
+    pub fn get_open_url_button(&self) -> Option<Button> {
+        self.open_url_button.clone()
     }
 }

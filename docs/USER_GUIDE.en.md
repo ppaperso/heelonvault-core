@@ -139,13 +139,15 @@ To add a new secret:
 1. Open the create action.
 2. Select the appropriate type or category.
 3. Fill in relevant fields: title, login, password, URL, notes, tags.
-4. Review the strength indicator.
-5. Save.
+4. Enable "Health data access" when the secret is related to medical data.
+5. Review the strength indicator.
+6. Save.
 
 Recommendations:
 
 - use explicit titles;
 - add tags to improve searchability;
+- use the "Health data access" marker only for genuinely health-related secrets;
 - avoid unnecessary sensitive notes.
 
 From a product perspective, this is one of the key screens because it balances fast data entry with data quality and security requirements.
@@ -180,6 +182,11 @@ Capture 04f - Secure document secret form.
 
 Each secret can be edited from the integrated editor. Deletion goes through the trash to reduce the risk of immediate data loss.
 
+In the main dashboard:
+
+- a single click selects a card without opening edit mode;
+- a double click opens the editor for the selected secret.
+
 Screen role:
 
 - maintain existing vault content;
@@ -212,6 +219,10 @@ HeelonVault supports real-time multi-field search across all secret data.
 
 A term typed on its own is matched against all fields: title, type, login, email, URL, notes, category, tags, and vault name. Fuzzy matching tolerates one typo.
 
+### Thematic shortcut `#sante`
+
+The `#sante` shortcut filters secrets marked with "Health data access" and secrets automatically detected with high confidence.
+
 ### `field:value` syntax
 
 To target a specific field, use `field:value` syntax (with or without a space after the colon):
@@ -231,6 +242,14 @@ To target a specific field, use `field:value` syntax (with or without a space af
 Examples: `login:alice` · `vault:perso` · `title:gmail` · `url:google`
 
 The `?` button to the right of the search bar shows this reference directly in the app.
+
+### Keyboard shortcuts on the active card
+
+When a card is selected, the following quick actions are available:
+
+- `Ctrl+C`: copy password;
+- `Ctrl+L`: copy login (when present);
+- `Ctrl+U`: open URL (when present).
 
 ### Best practices
 
@@ -349,6 +368,12 @@ Capture 08 - Data management area (.hvb export and CSV import) from Profile & Se
 ## 10. Screen 9 - Dashboard and audit
 
 The security dashboard provides a summary of vault health. Audit logs trace sensitive actions.
+
+The dashboard now emphasizes day-to-day power usage:
+
+- cards are primarily sorted by usage frequency;
+- visual badges on cards (strength, incomplete, duplicate, usage, health);
+- clearer active-card selection for faster keyboard-driven actions.
 
 Screen role:
 

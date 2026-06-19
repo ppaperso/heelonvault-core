@@ -22,11 +22,20 @@ HeelonVault is a local-first desktop secrets manager built in Rust with GTK4/lib
 | **Audit Log** | Traceability for sensitive actions (secret create/update/delete, vault sharing) |
 | **Trash** | Soft-delete with restore and permanent purge |
 | **Auto-lock** | Configurable policy: 1 / 5 / 15 / 30 minutes or never |
-| **Dashboard** | Dedicated security dashboard with global vault score |
+| **Dashboard** | Productivity-first cards: usage-based ordering, clear active selection, and contextual badges (strength, incomplete, duplicate, usage, health) |
 | **Strength Meter** | Real-time `zxcvbn` evaluation for each password |
-| **Advanced Search** | Multi-field search with Unicode normalization |
+| **Advanced Search** | Multi-field search (title, login, email, URL, notes, category, tags, type, vault) with Unicode normalization, MultiVault mode, and `#sante` shortcut |
+| **Editing Workflow** | Single click selects a card, double click opens the editor; keyboard quick actions on active card (`Ctrl+C`, `Ctrl+L`, `Ctrl+U`) |
+| **Health Marker** | Persistent "Health data access" field in create/edit form plus high-confidence local auto-detection |
 | **License** | Ed25519 signature verification for signed licenses; badge visible before and after login; automatic Community fallback |
 | **Structured Logs** | Rotating JSON logs in `~/.local/state/heelonvault/logs` |
+
+### Recent UX Highlights
+
+- Simplified card navigation: single-click to select, double-click to edit.
+- Stronger keyboard productivity on active card with `Ctrl+C`, `Ctrl+L`, and `Ctrl+U`.
+- Faster visual triage through card badges (including health) and usage-driven ordering.
+- Richer search with MultiVault mode and thematic `#sante` filtering.
 
 ---
 

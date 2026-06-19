@@ -39,3 +39,19 @@ pub fn toast_secret_saved(name: &str) -> String {
 pub fn toast_secret_deleted(name: &str) -> String {
     tr_args("toast-secret-deleted", &[("name", I18nArg::Str(name))])
 }
+
+pub fn toast_password_copied() -> String {
+    tr("toast-password-copied")
+}
+
+pub fn toast_login_copied() -> String {
+    tr("toast-login-copied")
+}
+
+pub fn toast_url_opened() -> String {
+    tr("toast-url-opened")
+}
+
+pub fn toast_url_opened_login_copied() -> String {
+    tr("toast-url-opened-login-copied")
+}

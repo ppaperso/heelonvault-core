@@ -1013,19 +1013,8 @@ async fn initialize_app_context() -> Result<AppStartMode> {
             )
         })?;
 
-    // On macOS app bundles, current_exe() resolves to Contents/MacOS/heelonvault-bin
-    // while migrations live in Contents/Resources/migrations/ — the launcher exports
-    // HEELONVAULT_MIGRATIONS_DIR to bridge this gap. On Linux/Windows the variable
-    // is absent and the fallback (exe sibling) matches the installed layout.
-    let migrations_path = if let Ok(dir) = env::var("HEELONVAULT_MIGRATIONS_DIR") {
-        PathBuf::from(dir)
-    } else {
-        std::env::current_exe()
-            .context("failed to get exe path")?
-            .parent()
-            .context("failed to get exe dir")?
-            .join("migrations")
-    };
+    // Resolve migrations path robustly across dev, bundle and installed layouts.
+    let migrations_path = resolve_migrations_path()?;
     info!(path = %migrations_path.display(), "migrations path resolved");
     sqlx::migrate::Migrator::new(migrations_path.as_path())
         .await
@@ -1427,6 +1416,55 @@ fn resolve_default_database_path_for(
 
 fn resolve_default_log_dir(current_dir: &Path) -> PathBuf {
     resolve_default_log_dir_for(current_dir, resolve_platform_runtime_root())
+}
+
+fn resolve_migrations_path() -> Result<PathBuf> {
+    // 1) Explicit override (launcher, packaging scripts)
+    if let Ok(path_raw) = env::var("HEELONVAULT_MIGRATIONS_DIR") {
+        let trimmed = path_raw.trim();
+        if !trimmed.is_empty() {
+            let candidate = PathBuf::from(trimmed);
+            if candidate.is_dir() {
+                return Ok(candidate);
+            }
+        }
+    }
+
+    let exe_dir = env::current_exe()
+        .context("failed to get exe path")?
+        .parent()
+        .context("failed to get exe dir")?
+        .to_path_buf();
+
+    let cwd = env::current_dir().context("failed to resolve current directory")?;
+    let workspace_candidate = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("migrations");
+
+    // 2) Installed layout: sibling of executable
+    // 3) Dev layout: cwd/migrations (e.g. workspace root)
+    // 4) Compile-time workspace fallback for local runs from subdirs
+    let candidates = [
+        exe_dir.join("migrations"),
+        cwd.join("migrations"),
+        workspace_candidate,
+    ];
+
+    for candidate in &candidates {
+        if candidate.is_dir() {
+            return Ok(candidate.to_path_buf());
+        }
+    }
+
+    let checked = candidates
+        .iter()
+        .map(|p| p.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    Err(anyhow!(
+        "no migrations directory found; checked: {checked}. You can override with HEELONVAULT_MIGRATIONS_DIR"
+    ))
 }
 
 fn resolve_default_log_dir_for(

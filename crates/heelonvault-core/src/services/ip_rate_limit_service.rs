@@ -64,7 +64,11 @@ pub trait LocalCombinedRateLimitService {
     ) -> impl std::future::Future<Output = Result<CombinedRateLimitPolicy, AppError>> + Send;
 
     /// Réinitialiser les compteurs après un login réussi
-    fn reset_on_success(&self, username: &str, ip: IpAddr) -> impl std::future::Future<Output = Result<(), AppError>> + Send;
+    fn reset_on_success(
+        &self,
+        username: &str,
+        ip: IpAddr,
+    ) -> impl std::future::Future<Output = Result<(), AppError>> + Send;
 }
 
 /// Implémentation du service combiné
@@ -146,7 +150,11 @@ where
         }
     }
 
-    fn reset_on_success(&self, username: &str, ip: IpAddr) -> impl std::future::Future<Output = Result<(), AppError>> + Send {
+    fn reset_on_success(
+        &self,
+        username: &str,
+        ip: IpAddr,
+    ) -> impl std::future::Future<Output = Result<(), AppError>> + Send {
         let user_service = &self.user_service;
         let ip_service = &self.ip_service;
         async move {

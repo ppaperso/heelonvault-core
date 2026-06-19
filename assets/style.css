@@ -1533,7 +1533,7 @@
 
     .secret-card {
         min-width: 240px;
-        min-height: 156px;
+        min-height: 176px;
         padding: 12px;
         border-radius: 18px;
         border: 1px solid rgba(164, 223, 207, 0.65);
@@ -1546,6 +1546,28 @@
         transform: translateY(-6px);
         border-color: #13A1A1;
         box-shadow: 0 16px 32px rgba(7, 57, 58, 0.16);
+    }
+
+    /* Persist a clear active target for keyboard shortcuts (Ctrl+C/L/U). */
+    flowboxchild:selected .secret-card {
+        transform: none;
+        border-color: #2F6FDE;
+        border-left-width: 8px;
+        border-left-color: #2F6FDE;
+        background: linear-gradient(135deg, #FFFFFF 0%, #F3F6F3 100%);
+        box-shadow: inset 0 0 0 1px rgba(47, 111, 222, 0.14);
+    }
+
+    flowboxchild:selected .secret-card .secret-card-title {
+        color: #1F4FA8;
+    }
+
+    /* Keep pointer feedback expressive while preserving selected state intensity. */
+    flowboxchild:selected .secret-card:hover {
+        transform: none;
+        border-color: #295FC0;
+        border-left-color: #295FC0;
+        box-shadow: inset 0 0 0 1px rgba(41, 95, 192, 0.18);
     }
 
     .secret-card:active {
@@ -1599,6 +1621,69 @@
         font-size: 1.10rem;
     }
 
+    .secret-card-menu-btn {
+        min-width: 30px;
+        min-height: 30px;
+        border-radius: 10px;
+        color: #5A8A8E;
+        background: transparent;
+        border: 1px solid transparent;
+        box-shadow: none;
+    }
+
+    .secret-card-menu-btn:hover {
+        color: #0D8F8A;
+        background: rgba(19, 161, 161, 0.10);
+        border-color: rgba(19, 161, 161, 0.20);
+    }
+
+    .secret-card-menu-btn:active {
+        color: #0D8F8A;
+        background: rgba(19, 161, 161, 0.16);
+    }
+
+    .secret-card-manage-popover box {
+        min-width: 148px;
+        border-radius: 12px;
+        background: #FFFFFF;
+        border: 1px solid rgba(164, 223, 207, 0.70);
+        box-shadow: 0 10px 24px rgba(7, 57, 58, 0.14);
+        padding: 4px;
+    }
+
+    .secret-card-manage-btn {
+        min-height: 30px;
+        border-radius: 8px;
+        color: #2C3E50;
+        background: transparent;
+        border: 1px solid transparent;
+    }
+
+    .secret-card-manage-btn:hover {
+        background: #EAF3F1;
+        color: #07393A;
+    }
+
+    .secret-card-manage-btn-destructive,
+    .secret-card-manage-btn-destructive label,
+    .secret-card-manage-btn-destructive image {
+        color: #C01C28;
+    }
+
+    .secret-card-manage-btn-destructive:hover {
+        background: rgba(192, 28, 40, 0.10);
+        color: #A4131E;
+    }
+
+    /* Info strip: muted login · domain shown below the title */
+    .secret-card-info-strip {
+        color: #5A8A8E;
+        font-size: 0.82rem;
+        opacity: 0.85;
+        padding-bottom: 2px;
+        margin-top: -4px;
+    }
+
     /* Card badges row */
     .secret-card-badges {
         padding-top: 4px;
@@ -1638,6 +1723,18 @@
         border: 1px solid rgba(255, 193, 7, 0.25);
     }
 
+    .badge-incomplete {
+        background: rgba(224, 92, 0, 0.12);
+        color: #A94400;
+        border: 1px solid rgba(224, 92, 0, 0.26);
+    }
+
+    .badge-health {
+        background: rgba(47, 111, 222, 0.12);
+        color: #1F4FA8;
+        border: 1px solid rgba(47, 111, 222, 0.24);
+    }
+
     .badge-vault {
         background: rgba(100, 80, 180, 0.10);
         color: #5B3E9E;
@@ -1661,15 +1758,26 @@
     }
 
     .secret-card-action-btn {
-        min-height: 32px;
-        padding: 4px 8px;
+        min-height: 34px;
+        padding: 4px 10px;
         border-radius: 6px;
         color: #8CACB0;
         background: transparent;
         border: none;
         box-shadow: none;
         transition: color 0.2s ease;
-        -gtk-icon-size: 16px;
+        -gtk-icon-size: 18px;
+    }
+
+    .secret-card-action-icon {
+        -gtk-icon-size: 18px;
+    }
+
+    .secret-card-action-glyph {
+        font-size: 1.00rem;
+        font-weight: 760;
+        line-height: 1;
+        color: inherit;
     }
 
     .secret-card-action-btn:hover {
@@ -2486,6 +2594,19 @@ preferencesgroup {
 .add-edit-dialog textview.dialog-ssh-private-key-text {
     font-family: monospace;
     font-size: 0.92rem;
+}
+
+.add-edit-dialog button.add-edit-delete-btn {
+    color: #C01C28;
+}
+
+.add-edit-dialog button.add-edit-delete-btn image,
+.add-edit-dialog button.add-edit-delete-btn label {
+    color: #C01C28;
+}
+
+.add-edit-dialog button.add-edit-delete-btn:hover {
+    background: rgba(192, 28, 40, 0.10);
 }
 
 frame.add-edit-footer-card {
