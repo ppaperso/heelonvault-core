@@ -612,8 +612,8 @@ mod tests {
     use crate::errors::AppError;
     use crate::models::Vault;
     use secrecy::SecretBox;
-    use sqlx::sqlite::SqlitePoolOptions;
     use sqlx::Row;
+    use sqlx::sqlite::SqlitePoolOptions;
     use uuid::Uuid;
 
     async fn setup_repo() -> Result<SqlxVaultRepository, String> {

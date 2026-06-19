@@ -15,7 +15,7 @@ use heelonvault_core::services::auth_service::AuthService;
 use heelonvault_core::services::totp_service::TotpService;
 use heelonvault_core::services::user_service::UserService;
 
-use super::{feedback, lock_state, AuthenticatedSession, LoginAttemptOutcome};
+use super::{AuthenticatedSession, LoginAttemptOutcome, feedback, lock_state};
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_totp_submit<TAuth, TPolicy, TUser, TTotp>(

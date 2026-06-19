@@ -643,10 +643,10 @@ impl MainWindow {
         let mut child_opt = list.first_child();
         while let Some(child) = child_opt {
             let next = child.next_sibling();
-            if let Ok(row) = child.clone().downcast::<gtk4::ListBoxRow>() {
-                if Self::vault_id_from_row(&row) == Some(vault_id) {
-                    return Some(row);
-                }
+            if let Ok(row) = child.clone().downcast::<gtk4::ListBoxRow>()
+                && Self::vault_id_from_row(&row) == Some(vault_id)
+            {
+                return Some(row);
             }
             child_opt = next;
         }

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use gtk4::prelude::*;
 use gtk4::Orientation;
+use gtk4::prelude::*;
 
 /// Widgets and i18n refresh for the main content shell (search bar + paned view).
 pub(super) struct ContentShell {

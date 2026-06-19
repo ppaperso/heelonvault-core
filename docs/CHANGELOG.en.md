@@ -9,6 +9,20 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — v1.1.0 sprint
 
+### Infrastructure — Edition 2024 and Rust 1.96
+
+- Migrated workspace crates to `edition = "2024"`.
+- Aligned `rust-version` to `1.96` for `heelonvault-core`, `heelonvault-app`, and `sqlx-shim`.
+- Added `rust-toolchain.toml` (`1.96.0`) to keep local and CI build/lint environments consistent.
+- Applied Rust 2024 compatibility hardening: replaced premium test-time `std::env::*_var` mutation patterns with explicit configuration wiring (no global environment mutation).
+- Reached zero clippy warnings with 1.96 under `-D warnings` across core/premium scope.
+
+### Dependencies
+
+- Updated `Cargo.lock` dependencies to latest Rust 1.96-compatible versions.
+- Updated the git reference of `heelonvault-premium` consumed by the core app.
+- Supply-chain validation preserved: `cargo audit` (exit 0) and `cargo deny check advisories` (ok).
+
 ### Infrastructure — Open Core polyrepo split (Phase 5f)
 
 - `heelonvault-core v1.1.0` published to [crates.io](https://crates.io/crates/heelonvault-core): the core library is now a public, reusable artifact.

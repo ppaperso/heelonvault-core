@@ -5,8 +5,8 @@ use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 
 use crate::errors::AppError;
-use aes_gcm::aead::consts::U12;
 use aes_gcm::aead::Aead;
+use aes_gcm::aead::consts::U12;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::Engine;
@@ -541,7 +541,7 @@ mod tests {
 
     use crate::errors::AppError;
 
-    use super::{BackupService, BackupServiceImpl, BACKUP_MAGIC};
+    use super::{BACKUP_MAGIC, BackupService, BackupServiceImpl};
 
     struct TestTempDir {
         path: PathBuf,

@@ -569,12 +569,10 @@
 
             if matches!(mode_for_save, DialogMode::Edit(_))
                 && matches!(selected_type, SecretType::Password)
+                && let Some(initial_value) = initial_password_snapshot_for_save.borrow().as_ref()
+                && secret_text.trim() == initial_value.trim()
             {
-                if let Some(initial_value) = initial_password_snapshot_for_save.borrow().as_ref() {
-                    if secret_text.trim() == initial_value.trim() {
-                        secret_text.clear();
-                    }
-                }
+                secret_text.clear();
             }
 
             if matches!(
@@ -663,31 +661,31 @@
                         target_vault_id
                     };
 
-                    if let DialogMode::Edit(secret_id) = mode_for_save {
-                        if effective_target_vault_id != target_vault_id {
-                            let source_vault_key = vault_service_for_task
-                                .open_vault_for_user(
-                                    admin_user_id,
-                                    target_vault_id,
-                                    SecretBox::new(Box::new(admin_master_for_task.clone())),
-                                )
-                                .await?;
-                            let destination_vault_key = vault_service_for_task
-                                .open_vault_for_user(
-                                    admin_user_id,
-                                    effective_target_vault_id,
-                                    SecretBox::new(Box::new(admin_master_for_task.clone())),
-                                )
-                                .await?;
-                            secret_service_for_task
-                                .move_secret(
-                                    secret_id,
-                                    effective_target_vault_id,
-                                    SecretBox::new(Box::new(source_vault_key.expose_secret().clone())),
-                                    SecretBox::new(Box::new(destination_vault_key.expose_secret().clone())),
-                                )
-                                .await?;
-                        }
+                    if let DialogMode::Edit(secret_id) = mode_for_save
+                        && effective_target_vault_id != target_vault_id
+                    {
+                        let source_vault_key = vault_service_for_task
+                            .open_vault_for_user(
+                                admin_user_id,
+                                target_vault_id,
+                                SecretBox::new(Box::new(admin_master_for_task.clone())),
+                            )
+                            .await?;
+                        let destination_vault_key = vault_service_for_task
+                            .open_vault_for_user(
+                                admin_user_id,
+                                effective_target_vault_id,
+                                SecretBox::new(Box::new(admin_master_for_task.clone())),
+                            )
+                            .await?;
+                        secret_service_for_task
+                            .move_secret(
+                                secret_id,
+                                effective_target_vault_id,
+                                SecretBox::new(Box::new(source_vault_key.expose_secret().clone())),
+                                SecretBox::new(Box::new(destination_vault_key.expose_secret().clone())),
+                            )
+                            .await?;
                     }
 
                     let access = vault_service_for_task

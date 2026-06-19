@@ -15,8 +15,8 @@ use tracing::info;
 use tracing::warn;
 
 use super::{
-    bootstrap_flow, feedback, lock_state, login_flow, restore_flow, window_state,
     AuthenticatedSession, BootstrapServicesContext, LoginAttemptOutcome, LoginDialog,
+    bootstrap_flow, feedback, lock_state, login_flow, restore_flow, window_state,
 };
 use crate::ui::widgets::password_strength_bar::PasswordStrengthBar;
 use heelonvault_core::errors::{AccessDeniedReason, AppError};
@@ -55,9 +55,9 @@ impl LoginDialog {
         bootstrap_ctx: Option<BootstrapServicesContext>,
         license_badge_text: String,
         on_restore_requested: impl Fn(PathBuf, String, String) -> Result<(), AppError>
-            + Send
-            + Sync
-            + 'static,
+        + Send
+        + Sync
+        + 'static,
         on_restore_completed: impl Fn() + 'static,
         on_authenticated: impl Fn(AuthenticatedSession) + 'static,
         on_cancelled: impl Fn() + 'static,

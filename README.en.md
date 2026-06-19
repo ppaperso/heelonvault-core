@@ -109,6 +109,8 @@ Dev database: `data/heelonvault-rust-dev.db`
 
 ### Build and lint
 
+Expected toolchain: `rust-toolchain.toml` pinned to Rust `1.96.0`.
+
 ```bash
 cargo check --workspace
 cargo clippy --workspace -- -D warnings

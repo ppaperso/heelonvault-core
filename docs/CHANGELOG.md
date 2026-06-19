@@ -9,9 +9,24 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased] — Sprint v1.1.0
 
+### Infrastructure — Edition 2024 et Rust 1.96
+
+- Migration des crates du workspace vers `edition = "2024"`.
+- `rust-version` aligné à `1.96` sur `heelonvault-core`, `heelonvault-app` et `sqlx-shim`.
+- Ajout de `rust-toolchain.toml` (`1.96.0`) pour un environnement de build/lint homogène local + CI.
+- Durcissement de compatibilité Rust 2024: corrections des usages `std::env::*_var` dans les zones de test premium via configuration explicite (sans mutation globale d'environnement).
+- Passage clippy 1.96 à zéro warning (`-D warnings`) sur le périmètre core/premium.
+
+### Dépendances
+
+- Mise à jour des dépendances `Cargo.lock` vers les versions compatibles Rust 1.96 les plus récentes.
+- Mise à jour de la référence git `heelonvault-premium` consommée par l'app core.
+- Validation supply-chain conservée: `cargo audit` (exit 0) et `cargo deny check advisories` (ok).
+
 ### 🔒 Sprint 2: Sécurité et Dette Technique
 
 #### Protection contre le Brute-Force par IP
+
 - **Rate Limiting IP-based** : Nouvelle table `login_attempts_ip` pour tracer les tentatives de connexion par adresse IP, indépendamment du username.
 - **Politique configurable** : `IpRateLimitPolicy` avec `max_attempts` (20 par défaut), `lock_duration_secs` (3600s), et `window_duration_secs` (3600s).
 - **Service combiné** : `CombinedRateLimitService` intègre le rate limiting par username (existante) et par IP (nouvelle) pour bloquer les attaques systématiques.
@@ -19,10 +34,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 - **Migration** : `0016_ip_rate_limiting.sql` crée la table et l'index.
 
 #### Sécurité Supply-Chain
+
 - **cargo-deny** : Intégration de l'outil d'audit des dépendances pour prévenir les vulnérabilités connues et les problèmes de licences.
 - **deny.toml** : Configuration avec vérification des advisories de sécurité, ban des crates problématiques, et validation des licences.
 
 #### Qualité de Code
+
 - **Tests de sécurité SQL Injection** : Nouvelle batterie de tests dans `tests/security_sql_injection.rs` pour valider la résistance aux injections SQL.
 - **Correction des imports** : Remplacement de `heelonvault_rust` par `heelonvault_core` dans toute la base de tests (69 occurrences).
 
@@ -62,7 +79,6 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 - Détection locale automatique à haute confiance pour qualifier certains secrets santé sans configuration utilisateur.
 - Nouveau filtre rapide `#sante` dans la recherche pour cibler les secrets marqués/détectés santé.
 - Badge « Sante » ajouté sur les cartes concernées pour un repérage immédiat.
-
 
 ### Badge d'état PIN et minuteur de session
 

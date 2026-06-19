@@ -1,7 +1,7 @@
 use secrecy::{ExposeSecret, SecretBox};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{info, warn};
 use uuid::Uuid;

@@ -49,7 +49,7 @@ pub trait LocalTeamService {
     async fn list_visible_teams(&self, requester_id: Uuid) -> Result<Vec<Team>, AppError>;
 
     async fn list_users_for_member_picker(&self, requester_id: Uuid)
-        -> Result<Vec<User>, AppError>;
+    -> Result<Vec<User>, AppError>;
 
     async fn list_team_members(
         &self,

@@ -63,11 +63,11 @@ fn save_ui_window_size(key: WindowStateKey, width: i32, height: i32) {
     }
 
     let path = ui_window_state_path();
-    if let Some(parent) = path.parent() {
-        if let Err(error) = fs::create_dir_all(parent) {
-            warn!(path = %parent.display(), %error, "failed to create UI state directory");
-            return;
-        }
+    if let Some(parent) = path.parent()
+        && let Err(error) = fs::create_dir_all(parent)
+    {
+        warn!(path = %parent.display(), %error, "failed to create UI state directory");
+        return;
     }
 
     let payload = match serde_json::to_string_pretty(&state) {

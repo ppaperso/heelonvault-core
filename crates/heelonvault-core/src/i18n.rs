@@ -6,8 +6,8 @@ use std::str::FromStr;
 use std::sync::{OnceLock, RwLock};
 
 use fluent_templates::fluent_bundle::FluentValue;
-use fluent_templates::{static_loader, Loader};
-use unic_langid::{langid, LanguageIdentifier};
+use fluent_templates::{Loader, static_loader};
+use unic_langid::{LanguageIdentifier, langid};
 
 static_loader! {
     static LOCALES = {
@@ -143,7 +143,5 @@ pub fn login_totp_error_message(code: &str) -> String {
 
 #[macro_export]
 macro_rules! tr {
-    ($key:expr) => {{
-        $crate::i18n::tr($key)
-    }};
+    ($key:expr) => {{ $crate::i18n::tr($key) }};
 }

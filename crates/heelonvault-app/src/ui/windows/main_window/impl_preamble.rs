@@ -31,8 +31,8 @@ impl MainWindow {
         header::build_header_license_badge(license_badge_text)
     }
 
-    pub(in crate::ui::windows::main_window) fn initial_window_launch(
-    ) -> window_sizing::MainWindowLaunch {
+    pub(in crate::ui::windows::main_window) fn initial_window_launch()
+    -> window_sizing::MainWindowLaunch {
         window_sizing::resolve_main_window_launch(
             Self::DEFAULT_WINDOW_WIDTH,
             Self::DEFAULT_WINDOW_HEIGHT,

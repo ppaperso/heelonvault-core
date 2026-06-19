@@ -1,4 +1,4 @@
-use heelonvault_core::i18n::{tr, tr_args, I18nArg};
+use heelonvault_core::i18n::{I18nArg, tr, tr_args};
 
 pub fn twofa_badge_disabled() -> String {
     tr("twofa-badge-disabled")

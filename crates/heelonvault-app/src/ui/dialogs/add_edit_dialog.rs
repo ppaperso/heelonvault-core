@@ -10,9 +10,9 @@ use serde_json::{Map, Value};
 // OffsetDateTime::now_utc() n'appelle pas localtime_r et est safe en multi-thread.
 // Ne pas migrer vers chrono::Utc sans verifier que Duration::days est disponible
 // avec la meme semantique.
-use time::format_description::well_known::Rfc3339;
 use time::Duration;
 use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
 use tokio::runtime::Handle;
 use tracing::warn;
 use uuid::Uuid;
@@ -137,10 +137,10 @@ impl AddEditDialog {
 
             let entry_for_result = generated_password_entry.clone();
             glib::MainContext::default().spawn_local(async move {
-                if let Ok(Ok(value)) = receiver.await {
-                    if let Ok(text) = String::from_utf8(value.expose_secret().clone()) {
-                        entry_for_result.set_text(&text);
-                    }
+                if let Ok(Ok(value)) = receiver.await
+                    && let Ok(text) = String::from_utf8(value.expose_secret().clone())
+                {
+                    entry_for_result.set_text(&text);
                 }
             });
         });
@@ -516,10 +516,10 @@ impl AddEditDialog {
                                     .unwrap_or(false),
                             );
 
-                            if let Some(days) = value.get("validity_days").and_then(Value::as_i64) {
-                                if days > 0 {
-                                    validity_days.set_value(days as f64);
-                                }
+                            if let Some(days) = value.get("validity_days").and_then(Value::as_i64)
+                                && days > 0
+                            {
+                                validity_days.set_value(days as f64);
                             }
                         }
                     } else {
