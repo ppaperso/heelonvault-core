@@ -7,7 +7,9 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [Unreleased] — v1.1.0 sprint
+## [Unreleased] — Target v1.2.0
+
+> Release note: `v1.1.0` (and `v1.1.0-rc.1`) is frozen. Changes below are scoped for `v1.2.0`.
 
 ### Infrastructure — Edition 2024 and Rust 1.96
 

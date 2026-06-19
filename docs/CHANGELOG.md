@@ -7,7 +7,9 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [Unreleased] — Sprint v1.1.0
+## [Unreleased] — Cible v1.2.0
+
+> Note release: `v1.1.0` (et `v1.1.0-rc.1`) est figée. Les changements ci-dessous appartiennent au périmètre de `v1.2.0`.
 
 ### Infrastructure — Edition 2024 et Rust 1.96
 
