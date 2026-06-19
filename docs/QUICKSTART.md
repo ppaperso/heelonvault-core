@@ -35,7 +35,10 @@ cargo test --workspace --test login_history_integration
 1. Open `Profile & Security` from the sidebar.
 2. Close the main window from the title bar close button: the login screen should reappear.
 3. Re-login immediately: secret cards should be visible.
-4. Enable password visibility in edit mode, then edit a password-type secret.
+4. Single-click a secret card: it should become active without opening edit mode.
+5. Double-click the same card: the edit form should open.
+6. On the active card, test quick shortcuts: `Ctrl+C`, `Ctrl+L`, and `Ctrl+U`.
+7. In create/edit, toggle "Health data access", save, then verify search with `#sante`.
 
 ## 4. Production Build
 

@@ -46,6 +46,23 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 - Toolchain stable mise à jour à `1.95.0` (rustc 59807616e, 2026-04-14).
 - Aucun nouveau lint Clippy à corriger avec 1.95.0.
 
+### UX tableau de bord — cartes et productivité clavier
+
+- Les cartes secrets utilisent un flux souris/clavier plus prévisible :
+  - clic simple = sélection,
+  - double-clic = ouverture de l'éditeur.
+- Suppression des actions d'édition/suppression directement sur la carte pour réduire le bruit visuel ; les actions de maintenance passent par les écrans dédiés.
+- Tri des cartes orienté usage (`usage_count` décroissant) pour prioriser les secrets les plus consultés.
+- Ajout/clarification des badges cartes : robustesse, incomplet, doublon, usage.
+- Raccourcis globaux sur la carte active : `Ctrl+C` (copie secret), `Ctrl+L` (copie login), `Ctrl+U` (ouverture URL).
+
+### Secrets de santé — marquage manuel et détection locale
+
+- Nouveau marqueur persistant « Accès données de santé » dans le formulaire de création/édition.
+- Détection locale automatique à haute confiance pour qualifier certains secrets santé sans configuration utilisateur.
+- Nouveau filtre rapide `#sante` dans la recherche pour cibler les secrets marqués/détectés santé.
+- Badge « Sante » ajouté sur les cartes concernées pour un repérage immédiat.
+
 
 ### Badge d'état PIN et minuteur de session
 

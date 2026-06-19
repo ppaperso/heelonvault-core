@@ -14,6 +14,7 @@ use uuid::Uuid;
 use crate::ui::dialogs::add_edit_dialog::DialogMode;
 use crate::ui::messages;
 use crate::ui::widgets::secret_card::{SecretCard, SecretRowData};
+use crate::ui::windows::main_window::types::SecretQuickActions;
 use heelonvault_core::models::SecretItem;
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
@@ -62,52 +63,59 @@ where
         Err(_) => String::new(),
     };
 
-    let (login, email, url, notes, category) = match item.metadata_json.as_deref() {
-        Some(raw) => match serde_json::from_str::<Value>(raw) {
-            Ok(value) => {
-                let login = value
-                    .get("login")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_string();
-                let email = value
-                    .get("email")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_string();
-                let url = value
-                    .get("url")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_string();
-                let notes = value
-                    .get("notes")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_string();
-                let category = value
-                    .get("category")
-                    .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .to_string();
-                (login, email, url, notes, category)
-            }
-            Err(_) => (
+    let (login, email, url, notes, category, has_health_access_marker) =
+        match item.metadata_json.as_deref() {
+            Some(raw) => match serde_json::from_str::<Value>(raw) {
+                Ok(value) => {
+                    let login = value
+                        .get("login")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string();
+                    let email = value
+                        .get("email")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string();
+                    let url = value
+                        .get("url")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string();
+                    let notes = value
+                        .get("notes")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string();
+                    let category = value
+                        .get("category")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string();
+                    let has_health_access_marker = value
+                        .get("health_access")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false);
+                    (login, email, url, notes, category, has_health_access_marker)
+                }
+                Err(_) => (
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    false,
+                ),
+            },
+            None => (
                 String::new(),
                 String::new(),
                 String::new(),
                 String::new(),
                 String::new(),
+                false,
             ),
-        },
-        None => (
-            String::new(),
-            String::new(),
-            String::new(),
-            String::new(),
-            String::new(),
-        ),
-    };
+        };
 
     let (icon_name, type_label_text) = match item.secret_type {
         heelonvault_core::models::SecretType::Password => (
@@ -146,6 +154,16 @@ where
         .unwrap_or_else(|| heelonvault_core::tr!("login-history-unavailable"));
     let health = evaluate_password_strength_label(secret_value.as_str());
     let tags = item.tags.clone().unwrap_or_default();
+    let is_health_access = has_health_access_marker
+        || search_filter::classify_health_access(
+            title.as_str(),
+            login.as_str(),
+            url.as_str(),
+            notes.as_str(),
+            category.as_str(),
+            tags.as_str(),
+            type_label_text.as_str(),
+        );
 
     Some(SecretRowView {
         secret_id: item.id,
@@ -163,6 +181,7 @@ where
         kind,
         color_class: color_class.to_string(),
         health,
+        is_health_access,
         usage_count: item.usage_count,
         vault_name,
         vault_access,
@@ -171,7 +190,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn refresh_secret_flow<TSecret, TVault>(
-    application: adw::Application,
+    _application: adw::Application,
     parent_window: adw::ApplicationWindow,
     runtime_handle: Handle,
     secret_service: Arc<TSecret>,
@@ -343,6 +362,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                 }
 
                 filter_runtime.meta_by_widget.borrow_mut().clear();
+                filter_runtime.actions_by_widget.borrow_mut().clear();
                 filter_runtime.audit_all_count_label.set_text("0");
                 filter_runtime.audit_weak_count_label.set_text("0");
                 filter_runtime.audit_duplicate_count_label.set_text("0");
@@ -360,6 +380,16 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                     stack.set_visible_child_name("empty");
                     return;
                 }
+
+                // Phase 3: sort in data-preparation stage (not during widget rendering)
+                // so frequent secrets remain first even for large lists.
+                let mut items = items;
+                items.sort_by(|left, right| {
+                    right
+                        .usage_count
+                        .cmp(&left.usage_count)
+                        .then_with(|| left.title.cmp(&right.title))
+                });
 
                 let mut duplicate_counts: HashMap<String, usize> = HashMap::new();
                 for item in &items {
@@ -405,8 +435,10 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         secret_value: item.secret_value.clone(),
                         color_class: item.color_class.clone(),
                         health: item.health.clone(),
+                        is_health_access: item.is_health_access,
                         usage_count: item.usage_count,
                         is_duplicate,
+                        is_incomplete: item.login.trim().is_empty() || item.url.trim().is_empty(),
                         is_shared_vault: item_shared,
                         can_edit: !item_shared || item_can_write,
                         can_delete: !item_shared || item_can_admin,
@@ -414,111 +446,31 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                     };
 
                     let card = Rc::new(SecretCard::new(card_data));
+                    let copy_button = card.get_copy_button();
+                    let copy_login_button = card.get_copy_login_button();
+                    let open_url_button = card.get_open_url_button();
                     let usage_count = Rc::new(Cell::new(item.usage_count));
                     let kind = item.kind;
 
-                    let editor_launcher_for_edit = editor_launcher.clone();
-                    let secret_id_for_edit = item.secret_id;
-                    card.get_edit_button().connect_clicked(move |_| {
-                        if let Some(open_editor) = editor_launcher_for_edit.borrow().as_ref() {
-                            open_editor(DialogMode::Edit(secret_id_for_edit));
-                        }
-                    });
-
-                    let app_for_delete = application.clone();
-                    let parent_for_delete = parent_window.clone();
-                    let runtime_for_delete = runtime_handle.clone();
-                    let secret_for_delete = Arc::clone(&secret_service);
-                    let vault_for_delete = Arc::clone(&vault_service);
-                    let flow_for_delete = secret_flow.clone();
-                    let stack_for_delete = stack.clone();
-                    let empty_title_for_delete = empty_title.clone();
-                    let empty_copy_for_delete = empty_copy.clone();
-                    let master_for_delete = admin_master_key.clone();
-                    let filter_for_delete = filter_runtime.clone();
-                    let editor_launcher_for_delete = editor_launcher.clone();
-                    let active_vault_for_delete = active_vault_id.clone();
-                    let secret_id_for_delete = item.secret_id;
-                    let secret_title_for_delete = item.title.clone();
-                    let toast_overlay_for_delete = toast_overlay.clone();
-                    card.get_trash_button().connect_clicked(move |_| {
-                        let (sender, receiver) = tokio::sync::oneshot::channel();
-                        let secret_service_for_task = Arc::clone(&secret_for_delete);
-                        let runtime_for_task = runtime_for_delete.clone();
-                        std::thread::spawn(move || {
-                            let result = runtime_for_task.block_on(async move {
-                                secret_service_for_task
-                                    .soft_delete(secret_id_for_delete)
-                                    .await
-                            });
-                            let _ = sender.send(result);
-                        });
-
-                        let app_for_refresh = app_for_delete.clone();
-                        let parent_for_refresh = parent_for_delete.clone();
-                        let runtime_for_refresh = runtime_for_delete.clone();
-                        let secret_for_refresh = Arc::clone(&secret_for_delete);
-                        let vault_for_refresh = Arc::clone(&vault_for_delete);
-                        let flow_for_refresh = flow_for_delete.clone();
-                        let stack_for_refresh = stack_for_delete.clone();
-                        let empty_title_refresh = empty_title_for_delete.clone();
-                        let empty_copy_refresh = empty_copy_for_delete.clone();
-                        let master_for_refresh = master_for_delete.clone();
-                        let filter_for_refresh = filter_for_delete.clone();
-                        let editor_launcher_for_refresh = editor_launcher_for_delete.clone();
-                        let secret_title_for_refresh = secret_title_for_delete.clone();
-                        let toast_overlay_for_refresh = toast_overlay_for_delete.clone();
-                        let active_vault_for_refresh = active_vault_for_delete.clone();
-                        glib::MainContext::default().spawn_local(async move {
-                            if matches!(receiver.await, Ok(Ok(()))) {
-                                let toast_message = messages::toast_secret_deleted(
-                                    secret_title_for_refresh.as_str(),
-                                );
-                                toast_overlay_for_refresh
-                                    .add_toast(adw::Toast::new(toast_message.as_str()));
-                                refresh_secret_flow(
-                                    app_for_refresh.clone(),
-                                    parent_for_refresh.clone(),
-                                    runtime_for_refresh.clone(),
-                                    Arc::clone(&secret_for_refresh),
-                                    Arc::clone(&vault_for_refresh),
-                                    admin_user_id,
-                                    master_for_refresh.clone(),
-                                    flow_for_refresh.clone(),
-                                    stack_for_refresh.clone(),
-                                    empty_title_refresh.clone(),
-                                    empty_copy_refresh.clone(),
-                                    active_vault_for_refresh.clone(),
-                                    toast_overlay_for_refresh.clone(),
-                                    filter_for_refresh.clone(),
-                                    editor_launcher_for_refresh.clone(),
-                                    false,
-                                );
-                            }
-                        });
-                    });
-
-                    let copy_value = if !item.secret_value.is_empty() {
-                        item.secret_value.clone()
-                    } else {
-                        item.login.clone()
-                    };
-                    // "password" if we copied the secret_value; "login" otherwise (CNIL field label)
-                    let copy_field = if !item.secret_value.is_empty() { "password" } else { "login" };
-                    let copy_title_for_audit = item.title.clone();
-
-                    if copy_value.is_empty() {
-                        card.get_copy_button().set_sensitive(false);
-                    } else {
+                    // ── Copy password (🔑) ─────────────────────────────────────────────────────
+                    // copy_button is already desensitised in SecretCard::new when secret_value is
+                    // empty; we only wire the handler when there is a value to copy.
+                    if !item.secret_value.is_empty() {
+                        let copy_value = item.secret_value.clone();
+                        let copy_title_for_audit = item.title.clone();
                         let card_for_copy = Rc::clone(&card);
                         let service_for_copy = Arc::clone(&secret_service);
                         let runtime_for_copy = runtime_handle.clone();
                         let usage_for_copy = Rc::clone(&usage_count);
                         let secret_id_for_copy = item.secret_id;
-                        card.get_copy_button().connect_clicked(move |_| {
+                        let toast_overlay_for_copy = toast_overlay.clone();
+                        copy_button.connect_clicked(move |_| {
                             if let Some(display) = gtk4::gdk::Display::default() {
                                 display.clipboard().set_text(&copy_value);
                             }
+                            toast_overlay_for_copy.add_toast(adw::Toast::new(
+                                messages::toast_password_copied().as_str(),
+                            ));
 
                             let new_value = usage_for_copy.get().saturating_add(1);
                             usage_for_copy.set(new_value);
@@ -545,7 +497,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                                             secret_id_for_copy,
                                             Some(admin_user_id),
                                             Some(title_for_audit.as_str()),
-                                            copy_field,
+                                            "password",
                                         )
                                         .await
                                 });
@@ -553,9 +505,210 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         });
                     }
 
+                    // ── Copy login (👤) ────────────────────────────────────────────────────────
+                    // Button is only present when login is non-empty (see SecretCard::new).
+                    if let Some(copy_login_btn) = copy_login_button.clone() {
+                        let login_value = item.login.clone();
+                        let login_title_for_audit = item.title.clone();
+                        let card_for_login = Rc::clone(&card);
+                        let service_for_login = Arc::clone(&secret_service);
+                        let runtime_for_login = runtime_handle.clone();
+                        let usage_for_login = Rc::clone(&usage_count);
+                        let secret_id_for_login = item.secret_id;
+                        let toast_overlay_for_login = toast_overlay.clone();
+                        copy_login_btn.connect_clicked(move |_| {
+                            if let Some(display) = gtk4::gdk::Display::default() {
+                                display.clipboard().set_text(&login_value);
+                            }
+                            toast_overlay_for_login.add_toast(adw::Toast::new(
+                                messages::toast_login_copied().as_str(),
+                            ));
+
+                            let new_value = usage_for_login.get().saturating_add(1);
+                            usage_for_login.set(new_value);
+                            card_for_login.update_usage_count(new_value);
+
+                            let service_for_task = Arc::clone(&service_for_login);
+                            let runtime_for_task = runtime_for_login.clone();
+                            std::thread::spawn(move || {
+                                let _ = runtime_for_task.block_on(async move {
+                                    service_for_task
+                                        .increment_usage_count(secret_id_for_login)
+                                        .await
+                                });
+                            });
+
+                            // CNIL: log login copy.
+                            let service_for_audit = Arc::clone(&service_for_login);
+                            let runtime_for_audit = runtime_for_login.clone();
+                            let title_for_audit = login_title_for_audit.clone();
+                            std::thread::spawn(move || {
+                                let _ = runtime_for_audit.block_on(async move {
+                                    service_for_audit
+                                        .record_field_copy(
+                                            secret_id_for_login,
+                                            Some(admin_user_id),
+                                            Some(title_for_audit.as_str()),
+                                            "login",
+                                        )
+                                        .await
+                                });
+                            });
+                        });
+                    }
+
+                    // ── Open URL (🌐) ──────────────────────────────────────────────────────────
+                    // Button is only present when url is non-empty (see SecretCard::new).
+                    if let Some(open_url_btn) = open_url_button.clone() {
+                        let url_value = item.url.clone();
+                        let login_value_for_url = item.login.clone();
+                        let url_title_for_audit = item.title.clone();
+                        let card_for_url = Rc::clone(&card);
+                        let service_for_url = Arc::clone(&secret_service);
+                        let runtime_for_url = runtime_handle.clone();
+                        let usage_for_url = Rc::clone(&usage_count);
+                        let secret_id_for_url = item.secret_id;
+                        let toast_overlay_for_url = toast_overlay.clone();
+                        let parent_window_for_url = parent_window.clone();
+                        open_url_btn.connect_clicked(move |_| {
+                            let copied_login = if !login_value_for_url.trim().is_empty() {
+                                if let Some(display) = gtk4::gdk::Display::default() {
+                                    display.clipboard().set_text(&login_value_for_url);
+                                    true
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            };
+
+                            gtk4::show_uri(
+                                Some(&parent_window_for_url),
+                                &url_value,
+                                gtk4::gdk::CURRENT_TIME,
+                            );
+                            let toast_message = if copied_login {
+                                messages::toast_url_opened_login_copied()
+                            } else {
+                                messages::toast_url_opened()
+                            };
+                            toast_overlay_for_url
+                                .add_toast(adw::Toast::new(toast_message.as_str()));
+
+                            let new_value = usage_for_url.get().saturating_add(1);
+                            usage_for_url.set(new_value);
+                            card_for_url.update_usage_count(new_value);
+
+                            let service_for_task = Arc::clone(&service_for_url);
+                            let runtime_for_task = runtime_for_url.clone();
+                            std::thread::spawn(move || {
+                                let _ = runtime_for_task.block_on(async move {
+                                    service_for_task
+                                        .increment_usage_count(secret_id_for_url)
+                                        .await
+                                });
+                            });
+
+                            // CNIL: log URL open.
+                            let service_for_audit = Arc::clone(&service_for_url);
+                            let runtime_for_audit = runtime_for_url.clone();
+                            let title_for_audit = url_title_for_audit.clone();
+                            std::thread::spawn(move || {
+                                runtime_for_audit.block_on(async move {
+                                    let _ = service_for_audit
+                                        .record_field_copy(
+                                            secret_id_for_url,
+                                            Some(admin_user_id),
+                                            Some(title_for_audit.as_str()),
+                                            "url_open",
+                                        )
+                                        .await;
+
+                                    if copied_login {
+                                        let _ = service_for_audit
+                                            .record_field_copy(
+                                                secret_id_for_url,
+                                                Some(admin_user_id),
+                                                Some(title_for_audit.as_str()),
+                                                "login",
+                                            )
+                                            .await;
+                                    }
+                                });
+                            });
+                        });
+                    }
+
                     let card_widget = card.get_widget();
+                    let card_widget_for_hover = card_widget.clone().upcast::<gtk4::Widget>();
+                    let flow_for_hover = secret_flow.clone();
+                    let hover_controller = gtk4::EventControllerMotion::new();
+                    hover_controller.connect_enter(move |_controller, _x, _y| {
+                        if let Some(parent) = card_widget_for_hover.parent() {
+                            if let Ok(flow_child) = parent.downcast::<gtk4::FlowBoxChild>() {
+                                flow_for_hover.select_child(&flow_child);
+                                flow_child.grab_focus();
+                            }
+                        }
+                    });
+                    card_widget.add_controller(hover_controller);
+
+                    // Keep keyboard shortcuts aligned with the last card targeted by mouse.
+                    let card_widget_for_select = card_widget.clone().upcast::<gtk4::Widget>();
+                    let flow_for_select = secret_flow.clone();
+                    let select_click = gtk4::GestureClick::new();
+                    select_click.set_button(0);
+                    select_click.connect_pressed(move |_, _, _, _| {
+                        if let Some(parent) = card_widget_for_select.parent() {
+                            if let Ok(flow_child) = parent.downcast::<gtk4::FlowBoxChild>() {
+                                flow_for_select.select_child(&flow_child);
+                                flow_child.grab_focus();
+                            }
+                        }
+                    });
+                    card_widget.add_controller(select_click);
+
+                    // Open editor when clicking the card (outside quick-action buttons).
+                    if !item_shared || item_can_write {
+                        let editor_launcher_for_card = editor_launcher.clone();
+                        let secret_id_for_card = item.secret_id;
+                        let card_widget_for_pick = card_widget.clone().upcast::<gtk4::Widget>();
+                        let card_click = gtk4::GestureClick::new();
+                        card_click.set_button(0);
+                        card_click.connect_released(move |_, n_press, x, y| {
+                            if n_press < 2 {
+                                return;
+                            }
+
+                            if let Some(picked) =
+                                card_widget_for_pick.pick(x, y, gtk4::PickFlags::DEFAULT)
+                            {
+                                let mut current = Some(picked);
+                                while let Some(widget) = current {
+                                    if widget.has_css_class("secret-card-action-btn") {
+                                        return;
+                                    }
+                                    current = widget.parent();
+                                }
+                            }
+
+                            if let Some(open_editor) = editor_launcher_for_card.borrow().as_ref() {
+                                open_editor(DialogMode::Edit(secret_id_for_card));
+                            }
+                        });
+                        card_widget.add_controller(card_click);
+                    }
+
                     let widget_key = format!("secret-card-{}", item.secret_id);
                     card_widget.set_widget_name(&widget_key);
+                    filter_runtime.actions_by_widget.borrow_mut().insert(
+                        widget_key.clone(),
+                        SecretQuickActions {
+                            copy_password: copy_button.clone(),
+                            copy_login: copy_login_button.clone(),
+                            open_url: open_url_button.clone(),
+                        },
+                    );
                     filter_runtime.meta_by_widget.borrow_mut().insert(
                         widget_key,
                         SecretFilterMeta {
@@ -609,6 +762,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                             original_rank,
                             is_weak: item.health == heelonvault_core::tr!("main-strength-weak"),
                             is_duplicate,
+                            is_health: item.is_health_access,
                         },
                     );
                     secret_flow.insert(&card_widget, -1);

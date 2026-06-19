@@ -139,13 +139,15 @@ Pour ajouter un secret :
 1. Ouvrir l'action de création.
 2. Choisir le type ou la catégorie adaptée.
 3. Renseigner les champs utiles : titre, login, mot de passe, URL, notes, tags.
-4. Vérifier l'indicateur de robustesse.
-5. Enregistrer.
+4. Cocher « Accès données de santé » si le secret est lié à des données médicales.
+5. Vérifier l'indicateur de robustesse.
+6. Enregistrer.
 
 Recommandations :
 
 - utiliser des titres explicites ;
 - renseigner les tags pour faciliter la recherche ;
+- utiliser le marqueur « Accès données de santé » uniquement pour les secrets réellement sensibles au sens santé ;
 - éviter les notes contenant des informations non nécessaires.
 
 Dans une logique produit, cet écran est central : il doit permettre une saisie rapide sans compromettre la qualité ni la sécurité des données enregistrées.
@@ -180,6 +182,11 @@ Capture 04f - Création d'un secret de type document sécurisé.
 
 Chaque secret peut être modifié depuis l'éditeur intégré. La suppression passe par la corbeille afin d'éviter une perte immédiate.
 
+Dans le tableau principal :
+
+- un clic simple sur une carte la sélectionne sans ouvrir l'éditeur ;
+- un double-clic ouvre la modification du secret sélectionné.
+
 Rôle de l'écran :
 
 - permettre la maintenance du contenu du coffre ;
@@ -212,6 +219,10 @@ HeelonVault prend en charge une recherche multi-champs en temps réel sur l'ense
 
 Un terme tapé seul est recherché dans tous les champs : titre, type, login, email, URL, notes, catégorie, tags et nom du coffre. La correspondance floue tolère une faute de frappe.
 
+### Raccourci thématique `#sante`
+
+Le raccourci `#sante` affiche les secrets marqués « Accès données de santé » et ceux détectés automatiquement avec une confiance élevée.
+
 ### Syntaxe `champ:valeur`
 
 Pour cibler un champ précis, utilisez la syntaxe `champ:valeur` (avec ou sans espace après le deux-points) :
@@ -231,6 +242,14 @@ Pour cibler un champ précis, utilisez la syntaxe `champ:valeur` (avec ou sans e
 Exemples : `login:alice` · `coffre:perso` · `titre:gmail` · `url:google`
 
 Le bouton `?` à droite de la barre affiche ce récapitulatif directement dans l'application.
+
+### Raccourcis clavier sur la carte active
+
+Quand une carte est sélectionnée, les actions rapides suivantes sont disponibles :
+
+- `Ctrl+C` : copier le mot de passe ;
+- `Ctrl+L` : copier le login (si présent) ;
+- `Ctrl+U` : ouvrir l'URL (si présente).
 
 ### Bonnes pratiques
 
@@ -349,6 +368,12 @@ Capture 08 - Zone Gestion des données (export .hvb et import CSV) accessible da
 ## 10. Écran 9 - Tableau de bord et audit
 
 Le tableau de bord de sécurité donne une vue synthétique de l'état du coffre. Les journaux d'audit permettent de tracer les actions sensibles.
+
+Le tableau de bord met en avant la productivité quotidienne :
+
+- tri prioritaire des cartes par fréquence d'usage ;
+- badges visuels sur les cartes (robustesse, incomplet, doublon, usage, santé) ;
+- sélection claire de la carte active pour enchaîner rapidement les actions clavier.
 
 Rôle de l'écran :
 

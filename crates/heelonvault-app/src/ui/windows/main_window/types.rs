@@ -8,6 +8,13 @@ use uuid::Uuid;
 use super::{AuditFilter, SecretCategoryFilter, SecretKind, SecretSortMode};
 
 #[derive(Clone)]
+pub(super) struct SecretQuickActions {
+    pub(super) copy_password: gtk4::Button,
+    pub(super) copy_login: Option<gtk4::Button>,
+    pub(super) open_url: Option<gtk4::Button>,
+}
+
+#[derive(Clone)]
 pub(super) struct SecretFilterMeta {
     pub(super) searchable_text: String,
     pub(super) title_text: String,
@@ -23,11 +30,13 @@ pub(super) struct SecretFilterMeta {
     pub(super) original_rank: usize,
     pub(super) is_weak: bool,
     pub(super) is_duplicate: bool,
+    pub(super) is_health: bool,
 }
 
 #[derive(Clone)]
 pub(super) struct FilterRuntime {
     pub(super) meta_by_widget: Rc<RefCell<HashMap<String, SecretFilterMeta>>>,
+    pub(super) actions_by_widget: Rc<RefCell<HashMap<String, SecretQuickActions>>>,
     pub(super) search_text: Rc<RefCell<String>>,
     pub(super) selected_category: Rc<Cell<SecretCategoryFilter>>,
     pub(super) selected_audit: Rc<Cell<AuditFilter>>,
@@ -56,6 +65,7 @@ pub(super) struct SecretRowView {
     pub(super) kind: SecretKind,
     pub(super) color_class: String,
     pub(super) health: String,
+    pub(super) is_health_access: bool,
     pub(super) usage_count: u32,
     pub(super) vault_name: String,
     /// (is_shared, can_write, can_admin) — used to set button sensitivity

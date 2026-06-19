@@ -490,7 +490,10 @@ impl VaultRepository for SqlxVaultRepository {
             )
             .bind(vault_id.to_string())
             .bind(user_id.to_string())
-            .bind(#[allow(clippy::needless_borrow)] sqlx_bind_secret(&key_envelope))
+            .bind(
+                #[allow(clippy::needless_borrow)]
+                sqlx_bind_secret(&key_envelope),
+            )
             .bind(rotation_actor_id.map(|u| u.to_string()))
             .bind(granted_via_team.map(|u| u.to_string()))
             .execute(&mut *tx)

@@ -27,7 +27,7 @@ impl Default for IpRateLimitPolicy {
     fn default() -> Self {
         Self {
             max_attempts: 20,           // 20 tentatives max
-            lock_duration_secs: 3600, // 1 heure de lock
+            lock_duration_secs: 3600,   // 1 heure de lock
             window_duration_secs: 3600, // fenêtre de 1 heure
         }
     }
@@ -82,13 +82,22 @@ impl IpRateLimitStatus {
 #[trait_variant::make(LocalIpRateLimitRepository: Send)]
 pub trait IpRateLimitRepository {
     /// Enregistrer une tentative de connexion pour une IP
-    fn record_attempt(&self, ip: IpAddr) -> impl std::future::Future<Output = Result<IpRateLimitStatus, AppError>> + Send;
+    fn record_attempt(
+        &self,
+        ip: IpAddr,
+    ) -> impl std::future::Future<Output = Result<IpRateLimitStatus, AppError>> + Send;
 
     /// Vérifier le statut du rate limiting pour une IP
-    fn check_rate_limit(&self, ip: IpAddr) -> impl std::future::Future<Output = Result<IpRateLimitStatus, AppError>> + Send;
+    fn check_rate_limit(
+        &self,
+        ip: IpAddr,
+    ) -> impl std::future::Future<Output = Result<IpRateLimitStatus, AppError>> + Send;
 
     /// Réinitialiser les tentatives pour une IP (après succès de login)
-    fn reset_attempts(&self, ip: IpAddr) -> impl std::future::Future<Output = Result<(), AppError>> + Send;
+    fn reset_attempts(
+        &self,
+        ip: IpAddr,
+    ) -> impl std::future::Future<Output = Result<(), AppError>> + Send;
 
     /// Nettoyer les entrées expirées (à appeler périodiquement)
     fn cleanup_expired(&self) -> impl std::future::Future<Output = Result<u64, AppError>> + Send;
@@ -114,7 +123,10 @@ impl SqlxIpRateLimitRepository {
 }
 
 impl IpRateLimitRepository for SqlxIpRateLimitRepository {
-    fn record_attempt(&self, ip: IpAddr) -> impl std::future::Future<Output = Result<IpRateLimitStatus, AppError>> + Send {
+    fn record_attempt(
+        &self,
+        ip: IpAddr,
+    ) -> impl std::future::Future<Output = Result<IpRateLimitStatus, AppError>> + Send {
         let pool = &self.pool;
         let policy = self.policy.clone();
         async move {
@@ -135,13 +147,17 @@ impl IpRateLimitRepository for SqlxIpRateLimitRepository {
                     let attempts: i32 = row.try_get("attempts")?;
                     let first_attempt_str: String = row.try_get("first_attempt_at")?;
                     let first_attempt_at = DateTime::parse_from_rfc3339(&first_attempt_str)
-                        .map_err(|e| AppError::Storage(format!("invalid first_attempt_at format: {}", e)))?
+                        .map_err(|e| {
+                            AppError::Storage(format!("invalid first_attempt_at format: {}", e))
+                        })?
                         .with_timezone(&Utc);
                     let locked_until_opt: Option<String> = row.try_get("locked_until")?;
                     let _existing_locked_until = locked_until_opt
                         .map(|s| {
                             DateTime::parse_from_rfc3339(&s)
-                                .map_err(|e| AppError::Storage(format!("invalid locked_until format: {}", e)))
+                                .map_err(|e| {
+                                    AppError::Storage(format!("invalid locked_until format: {}", e))
+                                })
                                 .map(|dt| dt.with_timezone(&Utc))
                         })
                         .transpose()?;
@@ -205,7 +221,10 @@ impl IpRateLimitRepository for SqlxIpRateLimitRepository {
         }
     }
 
-    fn check_rate_limit(&self, ip: IpAddr) -> impl std::future::Future<Output = Result<IpRateLimitStatus, AppError>> + Send {
+    fn check_rate_limit(
+        &self,
+        ip: IpAddr,
+    ) -> impl std::future::Future<Output = Result<IpRateLimitStatus, AppError>> + Send {
         let pool = &self.pool;
         async move {
             let ip_str = ip.to_string();
@@ -224,7 +243,9 @@ impl IpRateLimitRepository for SqlxIpRateLimitRepository {
                     let locked_until = locked_until_opt
                         .map(|s| {
                             DateTime::parse_from_rfc3339(&s)
-                                .map_err(|e| AppError::Storage(format!("invalid locked_until format: {}", e)))
+                                .map_err(|e| {
+                                    AppError::Storage(format!("invalid locked_until format: {}", e))
+                                })
                                 .map(|dt| dt.with_timezone(&Utc))
                         })
                         .transpose()?;
@@ -244,7 +265,10 @@ impl IpRateLimitRepository for SqlxIpRateLimitRepository {
         }
     }
 
-    fn reset_attempts(&self, ip: IpAddr) -> impl std::future::Future<Output = Result<(), AppError>> + Send {
+    fn reset_attempts(
+        &self,
+        ip: IpAddr,
+    ) -> impl std::future::Future<Output = Result<(), AppError>> + Send {
         let pool = &self.pool;
         async move {
             let ip_str = ip.to_string();
