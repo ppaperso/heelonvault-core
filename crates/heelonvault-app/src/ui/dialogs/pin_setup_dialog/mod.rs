@@ -7,7 +7,7 @@ use secrecy::SecretBox;
 use uuid::Uuid;
 
 use heelonvault_core::services::pin_cache_service::{
-    validate_pin, PinCache, PIN_MAX_LEN, PIN_MIN_LEN,
+    PIN_MAX_LEN, PIN_MIN_LEN, PinCache, validate_pin,
 };
 
 /// Dialog for setting or disabling the quick-unlock PIN.

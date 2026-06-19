@@ -8,7 +8,7 @@ use crate::models::{AccessibleVault, AuditAction, Vault};
 use crate::repositories::team_repository::TeamRepository;
 use crate::repositories::user_repository::UserRepository;
 use crate::repositories::vault_repository::VaultRepository;
-use crate::services::access_control::{check_permission, Action, Resource};
+use crate::services::access_control::{Action, Resource, check_permission};
 use crate::services::audit_log_service::AuditLogService;
 use crate::services::crypto_service::{CryptoService, EncryptedPayload, NONCE_LEN};
 
@@ -500,7 +500,7 @@ mod tests {
     use crate::services::audit_log_service::AuditLogService;
     use crate::services::crypto_service::{CryptoService, EncryptedPayload, NONCE_LEN};
 
-    use super::{VaultKeyEnvelopeRepository, VaultService, VaultServiceImpl, VAULT_KEY_LEN};
+    use super::{VAULT_KEY_LEN, VaultKeyEnvelopeRepository, VaultService, VaultServiceImpl};
 
     type VaultEnvelopeMap = HashMap<Uuid, SecretBox<Vec<u8>>>;
 

@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use std::sync::{mpsc::Sender as ProgressSender, Arc};
+use std::sync::{Arc, mpsc::Sender as ProgressSender};
 
 use chrono::Local;
 use secrecy::{ExposeSecret, SecretBox};

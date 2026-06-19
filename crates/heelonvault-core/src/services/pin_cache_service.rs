@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
-use aes_gcm::aead::consts::U12;
 use aes_gcm::aead::Aead;
+use aes_gcm::aead::consts::U12;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use secrecy::{ExposeSecret, SecretBox};

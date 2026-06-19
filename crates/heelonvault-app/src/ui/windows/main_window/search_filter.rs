@@ -34,10 +34,10 @@ pub(super) fn apply_filters(secret_flow: &gtk4::FlowBox, filter_runtime: &Filter
     let mut visible_count = 0;
     let mut cursor = secret_flow.first_child();
     while let Some(child) = cursor {
-        if let Some(flow_child) = child.downcast_ref::<gtk4::FlowBoxChild>() {
-            if flow_child.is_child_visible() {
-                visible_count += 1;
-            }
+        if let Some(flow_child) = child.downcast_ref::<gtk4::FlowBoxChild>()
+            && flow_child.is_child_visible()
+        {
+            visible_count += 1;
         }
         cursor = child.next_sibling();
     }

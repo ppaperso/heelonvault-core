@@ -9,7 +9,7 @@ use heelonvault_core::errors::AppError;
 use heelonvault_core::i18n::I18nArg;
 use heelonvault_core::services::admin_service::BootstrapResult;
 
-use super::{feedback, AuthenticatedSession};
+use super::{AuthenticatedSession, feedback};
 
 type BootstrapCallback =
     Arc<dyn Fn(String, Vec<u8>) -> Result<BootstrapResult, AppError> + Send + Sync>;

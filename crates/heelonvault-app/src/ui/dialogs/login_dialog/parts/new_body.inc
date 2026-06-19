@@ -1090,19 +1090,18 @@
                 let lock_timer_for_result = Rc::clone(&lock_timer_for_username_change);
                 let username_entry_for_result = username_for_lock_probe.clone();
                 glib::MainContext::default().spawn_local(async move {
-                    if let Ok((checked_username, Ok(Some(state)))) = receiver.await {
-                        if username_entry_for_result.text().trim() == checked_username
-                            && state.is_locked()
-                        {
-                            Self::start_lock_countdown(
-                                &button_for_result,
-                                &spinner_for_result,
-                                &error_for_result,
-                                state.remaining_lock_secs,
-                                lock_active_for_result,
-                                lock_timer_for_result,
-                            );
-                        }
+                    if let Ok((checked_username, Ok(Some(state)))) = receiver.await
+                        && username_entry_for_result.text().trim() == checked_username
+                        && state.is_locked()
+                    {
+                        Self::start_lock_countdown(
+                            &button_for_result,
+                            &spinner_for_result,
+                            &error_for_result,
+                            state.remaining_lock_secs,
+                            lock_active_for_result,
+                            lock_timer_for_result,
+                        );
                     }
                 });
             }

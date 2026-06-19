@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::errors::AppError;
 use crate::repositories::user_repository::UserRepository;
-use crate::services::access_control::{check_permission, Action, Resource};
+use crate::services::access_control::{Action, Resource, check_permission};
 use crate::services::backup_service::{BackupMetadata, BackupService};
 
 #[derive(Debug, Clone)]

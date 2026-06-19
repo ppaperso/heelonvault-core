@@ -80,11 +80,7 @@ fn anssi_cap(len: usize, categories: usize) -> i32 {
         return if categories >= 3 { 3 } else { 2 };
     }
     // len >= 15
-    if categories >= 3 {
-        4
-    } else {
-        2
-    }
+    if categories >= 3 { 4 } else { 2 }
 }
 
 /// Human-readable label for the ANSSI policy score.

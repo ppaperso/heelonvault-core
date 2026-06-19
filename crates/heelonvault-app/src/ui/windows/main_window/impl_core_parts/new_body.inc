@@ -828,19 +828,19 @@
                         let mut owned_vaults = vault_service_for_task
                             .list_owned_vaults(admin_user_id)
                             .await?;
-                        if owned_vaults.is_empty() {
-                            if let Some(master_key) = master_for_default_create {
-                                let _ = vault_service_for_task
-                                    .create_vault(
-                                        admin_user_id,
-                                        "perso",
-                                        SecretBox::new(Box::new(master_key)),
-                                    )
-                                    .await;
-                                owned_vaults = vault_service_for_task
-                                    .list_owned_vaults(admin_user_id)
-                                    .await?;
-                            }
+                        if owned_vaults.is_empty()
+                            && let Some(master_key) = master_for_default_create
+                        {
+                            let _ = vault_service_for_task
+                                .create_vault(
+                                    admin_user_id,
+                                    "perso",
+                                    SecretBox::new(Box::new(master_key)),
+                                )
+                                .await;
+                            owned_vaults = vault_service_for_task
+                                .list_owned_vaults(admin_user_id)
+                                .await?;
                         }
                         let mut owned_with_counts: Vec<(heelonvault_core::models::Vault, usize, bool)> =
                             Vec::with_capacity(owned_vaults.len());
@@ -1885,12 +1885,12 @@
             let mut cursor = flow_for_search_activate.first_child();
             while let Some(widget) = cursor {
                 let next = widget.next_sibling();
-                if let Ok(flow_child) = widget.downcast::<gtk4::FlowBoxChild>() {
-                    if flow_child.is_visible() {
-                        flow_for_search_activate.select_child(&flow_child);
-                        flow_child.grab_focus();
-                        break;
-                    }
+                if let Ok(flow_child) = widget.downcast::<gtk4::FlowBoxChild>()
+                    && flow_child.is_visible()
+                {
+                    flow_for_search_activate.select_child(&flow_child);
+                    flow_child.grab_focus();
+                    break;
                 }
                 cursor = next;
             }
@@ -1954,15 +1954,15 @@
                 if sync_for_my_list.get() {
                     return;
                 }
-                if let Some(row) = row_opt {
-                    if let Some(vault_id) = Self::vault_id_from_row(row) {
-                        sync_for_my_list.set(true);
-                        other_shared_list.unselect_all();
-                        sync_for_my_list.set(false);
-                        *active_vault_for_my_list.borrow_mut() = Some(vault_id);
-                        main_stack_for_my_list.set_visible_child_name("entries_view");
-                        refresh_for_my_list_handler();
-                    }
+                if let Some(row) = row_opt
+                    && let Some(vault_id) = Self::vault_id_from_row(row)
+                {
+                    sync_for_my_list.set(true);
+                    other_shared_list.unselect_all();
+                    sync_for_my_list.set(false);
+                    *active_vault_for_my_list.borrow_mut() = Some(vault_id);
+                    main_stack_for_my_list.set_visible_child_name("entries_view");
+                    refresh_for_my_list_handler();
                 }
             });
 
@@ -1988,10 +1988,10 @@
                 let mut vault_ids: Vec<uuid::Uuid> = Vec::new();
                 let mut cursor = my_vaults_list_for_drop.first_child();
                 while let Some(child) = cursor {
-                    if let Some(row) = child.downcast_ref::<gtk4::ListBoxRow>() {
-                        if let Some(id) = Self::vault_id_from_row(row) {
-                            vault_ids.push(id);
-                        }
+                    if let Some(row) = child.downcast_ref::<gtk4::ListBoxRow>()
+                        && let Some(id) = Self::vault_id_from_row(row)
+                    {
+                        vault_ids.push(id);
                     }
                     cursor = child.next_sibling();
                 }
@@ -2048,15 +2048,15 @@
                 if sync_for_shared_list.get() {
                     return;
                 }
-                if let Some(row) = row_opt {
-                    if let Some(vault_id) = Self::vault_id_from_row(row) {
-                        sync_for_shared_list.set(true);
-                        my_list_for_shared.unselect_all();
-                        sync_for_shared_list.set(false);
-                        *active_vault_for_shared_list.borrow_mut() = Some(vault_id);
-                        main_stack_for_shared_list.set_visible_child_name("entries_view");
-                        refresh_for_shared_list_handler();
-                    }
+                if let Some(row) = row_opt
+                    && let Some(vault_id) = Self::vault_id_from_row(row)
+                {
+                    sync_for_shared_list.set(true);
+                    my_list_for_shared.unselect_all();
+                    sync_for_shared_list.set(false);
+                    *active_vault_for_shared_list.borrow_mut() = Some(vault_id);
+                    main_stack_for_shared_list.set_visible_child_name("entries_view");
+                    refresh_for_shared_list_handler();
                 }
             });
 
@@ -2136,31 +2136,30 @@
                         | gtk4::gdk::Key::L
                         | gtk4::gdk::Key::u
                         | gtk4::gdk::Key::U
-                ) {
-                    if let Some(selected_child) = flow_for_key.selected_children().first().cloned() {
-                        if let Some(card_widget) = selected_child.child() {
-                            let widget_key = card_widget.widget_name().to_string();
-                            if let Some(actions) = actions_for_key.borrow().get(&widget_key) {
-                                match key {
-                                    gtk4::gdk::Key::c | gtk4::gdk::Key::C => {
-                                        actions.copy_password.emit_clicked();
-                                        return glib::Propagation::Stop;
-                                    }
-                                    gtk4::gdk::Key::l | gtk4::gdk::Key::L => {
-                                        if let Some(button) = &actions.copy_login {
-                                            button.emit_clicked();
-                                            return glib::Propagation::Stop;
-                                        }
-                                    }
-                                    gtk4::gdk::Key::u | gtk4::gdk::Key::U => {
-                                        if let Some(button) = &actions.open_url {
-                                            button.emit_clicked();
-                                            return glib::Propagation::Stop;
-                                        }
-                                    }
-                                    _ => {}
+                )
+                    && let Some(selected_child) = flow_for_key.selected_children().first().cloned()
+                    && let Some(card_widget) = selected_child.child()
+                {
+                    let widget_key = card_widget.widget_name().to_string();
+                    if let Some(actions) = actions_for_key.borrow().get(&widget_key) {
+                        match key {
+                            gtk4::gdk::Key::c | gtk4::gdk::Key::C => {
+                                actions.copy_password.emit_clicked();
+                                return glib::Propagation::Stop;
+                            }
+                            gtk4::gdk::Key::l | gtk4::gdk::Key::L => {
+                                if let Some(button) = &actions.copy_login {
+                                    button.emit_clicked();
+                                    return glib::Propagation::Stop;
                                 }
                             }
+                            gtk4::gdk::Key::u | gtk4::gdk::Key::U => {
+                                if let Some(button) = &actions.open_url {
+                                    button.emit_clicked();
+                                    return glib::Propagation::Stop;
+                                }
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -2196,10 +2195,10 @@
                     let mut cursor = flow_for_key.first_child();
                     while let Some(widget) = cursor {
                         let next = widget.next_sibling();
-                        if let Ok(flow_child) = widget.downcast::<gtk4::FlowBoxChild>() {
-                            if flow_child.is_visible() {
-                                visible_children.push(flow_child);
-                            }
+                        if let Ok(flow_child) = widget.downcast::<gtk4::FlowBoxChild>()
+                            && flow_child.is_visible()
+                        {
+                            visible_children.push(flow_child);
                         }
                         cursor = next;
                     }

@@ -227,13 +227,12 @@ pub(super) fn present_restore_dialog(
         let file_entry_for_response = file_entry_for_chooser.clone();
         let update_action_for_response = Rc::clone(&update_action_for_chooser);
         chooser.connect_response(move |dialog, response| {
-            if response == gtk4::ResponseType::Accept {
-                if let Some(file) = dialog.file() {
-                    if let Some(path) = file.path() {
-                        file_entry_for_response.set_text(&path.display().to_string());
-                        update_action_for_response();
-                    }
-                }
+            if response == gtk4::ResponseType::Accept
+                && let Some(file) = dialog.file()
+                && let Some(path) = file.path()
+            {
+                file_entry_for_response.set_text(&path.display().to_string());
+                update_action_for_response();
             }
             dialog.destroy();
         });

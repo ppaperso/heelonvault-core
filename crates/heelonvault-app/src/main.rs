@@ -13,7 +13,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chrono::Local;
 use gtk4::gdk;
 use gtk4::gio;
@@ -28,15 +28,15 @@ use tracing::debug;
 use tracing::info;
 use tracing::warn;
 use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::time::FormatTime;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::EnvFilter;
 
 use crate::ui::dialogs::login_dialog::{
     AuthenticatedSession, BootstrapServicesContext, LoginDialog,
 };
 use crate::ui::dialogs::pin_unlock_dialog::{
-    PinUnlockDialog, PIN_HARD_TIMEOUT as DIALOG_PIN_HARD_TIMEOUT,
+    PIN_HARD_TIMEOUT as DIALOG_PIN_HARD_TIMEOUT, PinUnlockDialog,
 };
 use crate::ui::windows::main_window::MainWindow;
 use heelonvault_core::config::constants::APP_ID;
@@ -48,9 +48,9 @@ use heelonvault_core::repositories::secret_repository::SqlxSecretRepository;
 use heelonvault_core::repositories::team_repository::SqlxTeamRepository;
 use heelonvault_core::repositories::user_repository::{SqlxUserRepository, UserRepository};
 use heelonvault_core::repositories::vault_repository::SqlxVaultRepository;
-use heelonvault_core::services::admin_service::bootstrap_first_admin;
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::admin_service::CommunityAdminService;
+use heelonvault_core::services::admin_service::bootstrap_first_admin;
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::audit_log_service::NoOpAuditLogService;
 #[cfg(feature = "premium")]
@@ -278,9 +278,8 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // Set renderer before any multi-threaded runtime starts.
-    // OpenGL avoids verbose Vulkan swapchain warnings on some systems.
-    env::set_var("GSK_RENDERER", "gl");
+    // Renderer preference should be set by the launcher environment (AppImage,
+    // package scripts, or user shell) to keep this binary free of unsafe env mutation.
 
     let _logging_guard = init_logging()?;
     register_resources()?;
@@ -992,12 +991,11 @@ async fn build_secondary_services(
 
 async fn initialize_app_context() -> Result<AppStartMode> {
     let database_path = resolve_database_path()?;
-    if let Some(parent) = database_path.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent).with_context(|| {
-                format!("failed to create database directory {}", parent.display())
-            })?;
-        }
+    if let Some(parent) = database_path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create database directory {}", parent.display()))?;
     }
 
     let connect_options = SqliteConnectOptions::new()
@@ -1185,12 +1183,11 @@ fn cleanup_restore_staging_path(staging_path: &Path) -> Result<()> {
 }
 
 fn promote_staged_restore(staging_path: &Path, database_path: &Path) -> Result<()> {
-    if let Some(parent) = database_path.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent).with_context(|| {
-                format!("failed to create database directory {}", parent.display())
-            })?;
-        }
+    if let Some(parent) = database_path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create database directory {}", parent.display()))?;
     }
 
     let old_database_path = database_path.with_extension("old");
@@ -1405,10 +1402,10 @@ fn resolve_default_database_path_for(
     }
 
     let db_name = "heelonvault-rust-dev.db";
-    if current_dir.file_name().is_some_and(|name| name == "rust") {
-        if let Some(project_root) = current_dir.parent() {
-            return project_root.join("data").join(db_name);
-        }
+    if current_dir.file_name().is_some_and(|name| name == "rust")
+        && let Some(project_root) = current_dir.parent()
+    {
+        return project_root.join("data").join(db_name);
     }
 
     current_dir.join("data").join(db_name)

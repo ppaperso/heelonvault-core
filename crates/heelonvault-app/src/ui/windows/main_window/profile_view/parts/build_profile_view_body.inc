@@ -1361,11 +1361,12 @@
             Ok(payload) => {
                 *pending_secret_for_activate.borrow_mut() = Some(payload.base32_secret.clone());
                 let loader = gtk4::gdk_pixbuf::PixbufLoader::new();
-                if loader.write(&payload.qr_png).is_ok() && loader.close().is_ok() {
-                    if let Some(pixbuf) = loader.pixbuf() {
-                        let texture = gtk4::gdk::Texture::for_pixbuf(&pixbuf);
-                        twofa_qr_for_activate.set_paintable(Some(&texture));
-                    }
+                if loader.write(&payload.qr_png).is_ok()
+                    && loader.close().is_ok()
+                    && let Some(pixbuf) = loader.pixbuf()
+                {
+                    let texture = gtk4::gdk::Texture::for_pixbuf(&pixbuf);
+                    twofa_qr_for_activate.set_paintable(Some(&texture));
                 }
                 twofa_secret_for_activate.set_text(payload.base32_secret.as_str());
                 twofa_code_for_activate.set_text("");

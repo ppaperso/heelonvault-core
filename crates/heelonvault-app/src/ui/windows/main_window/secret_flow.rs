@@ -19,7 +19,7 @@ use heelonvault_core::models::SecretItem;
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
 
-use super::{search_filter, FilterRuntime, SecretFilterMeta, SecretKind, SecretRowView};
+use super::{FilterRuntime, SecretFilterMeta, SecretKind, SecretRowView, search_filter};
 
 pub(super) fn evaluate_password_strength_label(secret_value: &str) -> String {
     if secret_value.len() >= 12 {
@@ -644,11 +644,11 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                     let flow_for_hover = secret_flow.clone();
                     let hover_controller = gtk4::EventControllerMotion::new();
                     hover_controller.connect_enter(move |_controller, _x, _y| {
-                        if let Some(parent) = card_widget_for_hover.parent() {
-                            if let Ok(flow_child) = parent.downcast::<gtk4::FlowBoxChild>() {
-                                flow_for_hover.select_child(&flow_child);
-                                flow_child.grab_focus();
-                            }
+                        if let Some(parent) = card_widget_for_hover.parent()
+                            && let Ok(flow_child) = parent.downcast::<gtk4::FlowBoxChild>()
+                        {
+                            flow_for_hover.select_child(&flow_child);
+                            flow_child.grab_focus();
                         }
                     });
                     card_widget.add_controller(hover_controller);
@@ -659,11 +659,11 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                     let select_click = gtk4::GestureClick::new();
                     select_click.set_button(0);
                     select_click.connect_pressed(move |_, _, _, _| {
-                        if let Some(parent) = card_widget_for_select.parent() {
-                            if let Ok(flow_child) = parent.downcast::<gtk4::FlowBoxChild>() {
-                                flow_for_select.select_child(&flow_child);
-                                flow_child.grab_focus();
-                            }
+                        if let Some(parent) = card_widget_for_select.parent()
+                            && let Ok(flow_child) = parent.downcast::<gtk4::FlowBoxChild>()
+                        {
+                            flow_for_select.select_child(&flow_child);
+                            flow_child.grab_focus();
                         }
                     });
                     card_widget.add_controller(select_click);

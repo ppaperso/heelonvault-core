@@ -163,14 +163,14 @@ impl IpRateLimitRepository for SqlxIpRateLimitRepository {
                         .transpose()?;
 
                     // Si déjà bloqué, retourner l'état actuel
-                    if let Some(locked_until) = _existing_locked_until {
-                        if locked_until > now {
-                            return Ok(IpRateLimitStatus {
-                                ip,
-                                attempts,
-                                locked_until: Some(locked_until),
-                            });
-                        }
+                    if let Some(locked_until) = _existing_locked_until
+                        && locked_until > now
+                    {
+                        return Ok(IpRateLimitStatus {
+                            ip,
+                            attempts,
+                            locked_until: Some(locked_until),
+                        });
                     }
 
                     // Réinitialiser si la fenêtre a expiré
