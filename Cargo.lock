@@ -858,7 +858,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1527,7 +1527,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "heelonvault-app"
-version = "1.1.0"
+version = "1.2.0-rc.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1535,7 +1535,7 @@ dependencies = [
  "gio",
  "glib-build-tools",
  "gtk4",
- "heelonvault-core",
+ "heelonvault-core 1.2.0-rc.1",
  "heelonvault-premium",
  "hex",
  "libadwaita",
@@ -1557,6 +1557,43 @@ dependencies = [
 [[package]]
 name = "heelonvault-core"
 version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efd9787706b1a67f6b1fb51519981360afe0a22819f4ea0543cc260d0e26868d"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "base64",
+ "bip39",
+ "chrono",
+ "csv",
+ "dirs",
+ "encoding_rs",
+ "fluent-templates",
+ "getrandom 0.3.4",
+ "hex",
+ "image",
+ "qrcode",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror 2.0.18",
+ "time",
+ "tokio",
+ "totp-rs",
+ "tracing",
+ "trait-variant",
+ "unic-langid",
+ "url",
+ "uuid",
+ "zeroize",
+ "zxcvbn",
+]
+
+[[package]]
+name = "heelonvault-core"
+version = "1.2.0-rc.1"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -1604,7 +1641,7 @@ dependencies = [
  "dirs",
  "ed25519-dalek",
  "getrandom 0.3.4",
- "heelonvault-core",
+ "heelonvault-core 1.1.0",
  "hex",
  "secrecy",
  "serde",
@@ -1882,7 +1919,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2072,7 +2109,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2588,7 +2625,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3149,7 +3186,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3748,7 +3785,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
