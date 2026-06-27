@@ -25,12 +25,18 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Updated the git reference of `heelonvault-premium` consumed by the core app.
 - Supply-chain validation preserved: `cargo audit` (exit 0) and `cargo deny check advisories` (ok).
 
+### Linux installation — migration hardening
+
+- `scripts/install-core.sh` now validates the copied migrations payload in `/opt/heelonvault/migrations`: `.sql` filename parity plus file-by-file content parity.
+- Generated `run.sh` now exports `HEELONVAULT_MIGRATIONS_DIR=/opt/heelonvault/migrations` to enforce a stable production migration path.
+- Installation now fails fast if the migrations directory is missing or empty.
+
 ### Infrastructure — Open Core polyrepo split (Phase 5f)
 
 - `heelonvault-core v1.1.0` published to [crates.io](https://crates.io/crates/heelonvault-core): the core library is now a public, reusable artifact.
 - `heelonvault-premium` extracted into a separate private repository (`ppaperso/HeelonVault-Premium`): premium code is no longer exposed in the public repository.
 - `heelonvault-app` references premium as an optional git dependency; the community build (`cargo check --workspace`) never fetches the private repo.
-- `.cargo/config.toml`: local patches configured for joint development (no network required locally).
+- `Cargo.toml` (workspace root): local patches configured for joint development (no network required locally).
 - VSCode workspace updated to multi-root mode (HeelonVault + HeelonVault-Premium).
 
 ### Infrastructure — SQLx 0.8 → 0.9 upgrade and RSA elimination (Phase 5e)

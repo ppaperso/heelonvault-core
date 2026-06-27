@@ -25,6 +25,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 - Mise à jour de la référence git `heelonvault-premium` consommée par l'app core.
 - Validation supply-chain conservée: `cargo audit` (exit 0) et `cargo deny check advisories` (ok).
 
+### Installation Linux — durcissement migrations
+
+- `scripts/install-core.sh` valide désormais le payload migrations après copie (`/opt/heelonvault/migrations`) : parité des noms `.sql` et du contenu fichier par fichier.
+- Le `run.sh` généré exporte explicitement `HEELONVAULT_MIGRATIONS_DIR=/opt/heelonvault/migrations` pour forcer un chemin stable en production.
+- L'installation échoue en mode bloquant si le dossier migrations est absent ou vide.
+
 ### 🔒 Sprint 2: Sécurité et Dette Technique
 
 #### Protection contre le Brute-Force par IP
@@ -50,7 +56,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 - `heelonvault-core v1.1.0` publié sur [crates.io](https://crates.io/crates/heelonvault-core) : la bibliothèque cœur est désormais un artefact public réutilisable.
 - `heelonvault-premium` extrait dans un dépôt privé séparé (`ppaperso/HeelonVault-Premium`) : le code premium n'est plus exposé dans le dépôt public.
 - `heelonvault-app` référence le premium via dépendance git optionnelle ; le build communautaire (`cargo check --workspace`) ne télécharge jamais le dépôt privé.
-- `.cargo/config.toml` : patches locaux configurés pour le développement conjoint (pas de réseau requis en local).
+- `Cargo.toml` (workspace root) : patches locaux configurés pour le développement conjoint (pas de réseau requis en local).
 - VSCode workspace mis à jour en mode multi-root (HeelonVault + HeelonVault-Premium).
 
 ### Infrastructure — Mise à jour SQLx 0.8 → 0.9 et élimination RSA (Phase 5e)

@@ -39,7 +39,7 @@ HeelonVault/
 ├── tests/                         # Tests d'intégration
 ├── docs/                          # Documentation technique
 ├── Cargo.toml                     # Workspace root (resolver = "2")
-├── .cargo/config.toml             # Flags de compilation + patches locaux
+├── .cargo/config.toml             # Flags de compilation
 ├── scripts/run.sh                 # Launcher production
 ├── scripts/run-dev.sh             # Launcher développement
 ├── scripts/install.sh             # Installation unifiée (détection OS)
@@ -67,6 +67,9 @@ HeelonVault/
 5. Construction des repositories/services.
 6. Initialisation UI, authentification, puis fenêtre principale.
 7. Chargement des secrets et activation de la politique de session.
+
+En installation Linux packagée, `run.sh` exporte explicitement `HEELONVAULT_MIGRATIONS_DIR=/opt/heelonvault/migrations`.
+Le flux d'installation valide la copie des migrations (noms + contenu) et échoue si le dossier est absent/invalide.
 
 ## Vue UI principale
 
@@ -158,7 +161,7 @@ Depuis la racine du dépôt :
 cargo check --workspace
 cargo test --workspace
 
-# Build premium (nécessite l'accès au dépôt privé ou le patch local)
+# Build premium (nécessite l'accès au dépôt privé ou le patch local déclaré dans Cargo.toml)
 cargo check -p heelonvault-app --features licensing
 ```
 

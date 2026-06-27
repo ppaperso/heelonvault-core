@@ -6,6 +6,21 @@ members = [
 ]
 resolver = "2"
 
+[patch.crates-io]
+# Force heelonvault-core (référencé depuis premium via crates.io) à pointer
+# sur la copie locale du workspace, pour éviter la duplication de traits.
+heelonvault-core = { path = "crates/heelonvault-core" }
+
+[patch."ssh://git@github.com/ppaperso/heelonvault-premium.git"]
+# En développement multi-root, utiliser le dépôt local premium plutôt que le
+# checkout git distant pour garder core/premium alignés sur la même version.
+heelonvault-premium = { path = "../heelonvault-premium" }
+
+[patch."git+ssh://git@github.com/ppaperso/heelonvault-premium.git?branch=main"]
+# Cargo résout la dépendance git premium avec cette source canonique dans
+# Cargo.lock ; la surcouche locale doit donc couvrir ce cas explicite.
+heelonvault-premium = { path = "../heelonvault-premium" }
+
 [workspace.dependencies]
 # Outils de développement
 cargo-deny = "0.15"

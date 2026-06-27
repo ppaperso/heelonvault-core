@@ -383,6 +383,44 @@ hv_deploy_files() {
   fi
 }
 
+hv_validate_migrations_payload() {
+  local src_dir="$HV_MIGRATIONS_SOURCE"
+  local dst_dir="$HV_INSTALL_DIR/migrations"
+  local src_list
+  local dst_list
+  local sql_file
+
+  if [[ ! -d "$dst_dir" ]]; then
+    echo "[ERROR] Dossier migrations manquant après déploiement : $dst_dir"
+    exit 1
+  fi
+
+  src_list="$(find "$src_dir" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | LC_ALL=C sort)"
+  dst_list="$(find "$dst_dir" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | LC_ALL=C sort)"
+
+  if [[ -z "$src_list" ]]; then
+    echo "[ERROR] Aucun fichier migration .sql dans la source : $src_dir"
+    exit 1
+  fi
+
+  if [[ "$src_list" != "$dst_list" ]]; then
+    echo "[ERROR] Liste des migrations copiées incohérente entre source et destination"
+    echo "[ERROR] Source      : $src_dir"
+    echo "[ERROR] Destination : $dst_dir"
+    exit 1
+  fi
+
+  while IFS= read -r sql_file; do
+    [[ -n "$sql_file" ]] || continue
+    if ! cmp -s "$src_dir/$sql_file" "$dst_dir/$sql_file"; then
+      echo "[ERROR] Migration copiée avec un contenu différent : $sql_file"
+      exit 1
+    fi
+  done <<< "$src_list"
+
+  echo "[INFO] Migrations validées : source et destination sont identiques"
+}
+
 hv_generate_run_script() {
   if [[ "$HV_DEPLOY_MODE" == "enterprise" ]]; then
 cat > "$HV_INSTALL_DIR/run.sh" <<EOF
@@ -399,6 +437,11 @@ mkdir -p "$HV_ENTERPRISE_DATA_DIR" "$HV_ENTERPRISE_LOG_DIR"
 cd /opt/heelonvault
 export HEELONVAULT_DB_PATH="\$DB_PATH"
 export HEELONVAULT_LOG_DIR="\$LOG_DIR"
+export HEELONVAULT_MIGRATIONS_DIR="/opt/heelonvault/migrations"
+if [[ ! -d "\$HEELONVAULT_MIGRATIONS_DIR" ]]; then
+  echo "[ERROR] Dossier migrations introuvable: \$HEELONVAULT_MIGRATIONS_DIR" >&2
+  exit 1
+fi
 exec /opt/heelonvault/heelonvault "\$@"
 EOF
   else
@@ -425,6 +468,11 @@ fi
 cd /opt/heelonvault
 export HEELONVAULT_DB_PATH="$DB_PATH"
 export HEELONVAULT_LOG_DIR="$LOG_DIR"
+export HEELONVAULT_MIGRATIONS_DIR="/opt/heelonvault/migrations"
+if [[ ! -d "$HEELONVAULT_MIGRATIONS_DIR" ]]; then
+  echo "[ERROR] Dossier migrations introuvable: $HEELONVAULT_MIGRATIONS_DIR" >&2
+  exit 1
+fi
 exec /opt/heelonvault/heelonvault "$@"
 EOF
   fi
@@ -542,6 +590,16 @@ hv_validate_artifacts() {
     echo "[ERROR] Lanceur desktop legacy non installe: $HV_LEGACY_DESKTOP_PATH"
     exit 1
   fi
+
+  if [[ ! -d "$HV_INSTALL_DIR/migrations" ]]; then
+    echo "[ERROR] Dossier migrations non installe: $HV_INSTALL_DIR/migrations"
+    exit 1
+  fi
+
+  if ! find "$HV_INSTALL_DIR/migrations" -maxdepth 1 -type f -name '*.sql' | grep -q .; then
+    echo "[ERROR] Aucun fichier migration .sql trouvé dans: $HV_INSTALL_DIR/migrations"
+    exit 1
+  fi
 }
 
 hv_print_summary() {
@@ -619,6 +677,7 @@ hv_run_common_install_flow() {
   hv_manage_backups
   hv_cleanup_install_dir
   hv_deploy_files
+  hv_validate_migrations_payload
   hv_generate_run_script
   hv_install_icons
   hv_apply_permissions

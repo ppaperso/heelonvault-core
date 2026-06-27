@@ -39,7 +39,7 @@ HeelonVault/
 ├── tests/                         # Integration tests
 ├── docs/                          # Technical documentation
 ├── Cargo.toml                     # Workspace root (resolver = "2")
-├── .cargo/config.toml             # Compiler flags + local patches
+├── .cargo/config.toml             # Compiler flags
 ├── scripts/run.sh                 # Production launcher
 ├── scripts/run-dev.sh             # Development launcher
 ├── scripts/install.sh             # Unified installer (OS detection)
@@ -67,6 +67,9 @@ HeelonVault/
 5. Build repositories and services.
 6. Initialize UI and authentication.
 7. Load secrets and session policy.
+
+In packaged Linux installs, generated `run.sh` explicitly exports `HEELONVAULT_MIGRATIONS_DIR=/opt/heelonvault/migrations`.
+The installer validates copied migrations (filename parity + file content parity) and fails fast if the directory is missing or invalid.
 
 ## Main UI View
 
@@ -140,7 +143,7 @@ HEELONVAULT_LOG_LEVEL=warn ./scripts/run.sh
 cargo check --workspace
 cargo test --workspace
 
-# Premium build (requires access to the private repo, or local patch)
+# Premium build (requires access to the private repo, or the local patch declared in Cargo.toml)
 cargo check -p heelonvault-app --features licensing
 ```
 
