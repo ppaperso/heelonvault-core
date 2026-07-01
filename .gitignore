@@ -72,3 +72,6 @@ browser_integration/.webext-credentials
 # Artefacts Rust générés à la racine (cargo test --no-run, rustc direct)
 librust_out.rlib
 crates/*/sbom.cyclonedx.json
+
+# Local AI assistant artifacts
+.aider*
