@@ -53,7 +53,8 @@ impl LoginDialog {
         auth_policy_service: Arc<TPolicy>,
         user_service: Arc<TUser>,
         totp_service: Arc<TTotp>,
-        _federated_auth_service: Arc<TFederated>,
+        federated_auth_service: Arc<TFederated>,
+        startup_psc_artifact: Option<String>,
         bootstrap_ctx: Option<BootstrapServicesContext>,
         license_badge_text: String,
         on_restore_requested: impl Fn(PathBuf, String, String) -> Result<(), AppError>
@@ -71,6 +72,8 @@ impl LoginDialog {
         TTotp: TotpService + Send + Sync + 'static,
         TFederated: FederatedAuthService + Send + Sync + 'static,
     {
+        #[cfg(not(feature = "premium"))]
+        let _ = (&federated_auth_service, &startup_psc_artifact);
         include!("parts/new_body.inc")
     }
 

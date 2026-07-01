@@ -12,10 +12,113 @@ use crate::ui::messages;
 use heelonvault_core::errors::AppError;
 use heelonvault_core::services::auth_policy_service::AuthPolicyService;
 use heelonvault_core::services::auth_service::AuthService;
+#[cfg(feature = "premium")]
+use heelonvault_core::services::federated_auth_service::FederatedAuthService;
 use heelonvault_core::services::totp_service::TotpService;
 use heelonvault_core::services::user_service::UserService;
 
 use super::{AuthenticatedSession, LoginAttemptOutcome, feedback, lock_state};
+
+#[cfg(feature = "premium")]
+pub(super) fn handle_psc_start<TFederated>(
+    runtime: Handle,
+    federated_auth_service: Arc<TFederated>,
+    error_label: &gtk4::Label,
+) where
+    TFederated: FederatedAuthService + Send + Sync + 'static,
+{
+    let error_for_result = error_label.clone();
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+
+    std::thread::spawn(move || {
+        let result = runtime.block_on(async { federated_auth_service.start_login().await });
+        let _ = sender.send(result);
+    });
+
+    glib::MainContext::default().spawn_local(async move {
+        match receiver.await {
+            Ok(Ok(start)) => {
+                if let Err(error) = webbrowser::open(start.authorization_url.as_str()) {
+                    feedback::show_feedback(
+                        &error_for_result,
+                        format!("Impossible d'ouvrir le navigateur PSC: {error}").as_str(),
+                    );
+                } else {
+                    feedback::show_feedback(
+                        &error_for_result,
+                        "Connexion PSC ouverte dans le navigateur. Revenez avec l'artefact de callback.",
+                    );
+                }
+            }
+            Ok(Err(error)) => {
+                feedback::show_feedback(
+                    &error_for_result,
+                    format!("Initialisation PSC impossible: {error}").as_str(),
+                );
+            }
+            Err(_) => {
+                feedback::show_feedback(
+                    &error_for_result,
+                    "Initialisation PSC interrompue.",
+                );
+            }
+        }
+    });
+}
+
+#[cfg(feature = "premium")]
+pub(super) fn handle_psc_artifact_completion<TFederated>(
+    runtime: Handle,
+    federated_auth_service: Arc<TFederated>,
+    artifact: String,
+    error_label: &gtk4::Label,
+    username_entry: &gtk4::Entry,
+) where
+    TFederated: FederatedAuthService + Send + Sync + 'static,
+{
+    if artifact.trim().is_empty() {
+        feedback::show_feedback(error_label, "Artefact PSC requis.");
+        return;
+    }
+
+    let error_for_result = error_label.clone();
+    let username_for_result = username_entry.clone();
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+
+    std::thread::spawn(move || {
+        let result = runtime
+            .block_on(async { federated_auth_service.complete_login(artifact.trim()).await });
+        let _ = sender.send(result);
+    });
+
+    glib::MainContext::default().spawn_local(async move {
+        match receiver.await {
+            Ok(Ok(session)) => {
+                if let Some(preferred_username) = session.profile.preferred_username {
+                    username_for_result.set_text(preferred_username.as_str());
+                } else {
+                    username_for_result.set_text(session.subject.as_str());
+                }
+                feedback::show_feedback(
+                    &error_for_result,
+                    "Authentification PSC validee. La liaison de compte local est en cours d'implementation (M3).",
+                );
+            }
+            Ok(Err(error)) => {
+                feedback::show_feedback(
+                    &error_for_result,
+                    format!("Validation artefact PSC echouee: {error}").as_str(),
+                );
+            }
+            Err(_) => {
+                feedback::show_feedback(
+                    &error_for_result,
+                    "Validation artefact PSC interrompue.",
+                );
+            }
+        }
+    });
+}
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_totp_submit<TAuth, TPolicy, TUser, TTotp>(

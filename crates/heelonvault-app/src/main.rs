@@ -319,12 +319,18 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    run_application(runtime, app_context, start_needs_bootstrap)
+    run_application(
+        runtime,
+        app_context,
+        start_needs_bootstrap,
+        startup_flags.psc_callback_artifact,
+    )
 }
 
 struct StartupFlags {
     show_version: bool,
     startup_check_only: bool,
+    psc_callback_artifact: Option<String>,
 }
 
 impl StartupFlags {
@@ -332,14 +338,38 @@ impl StartupFlags {
         Self {
             show_version: args.iter().any(|arg| arg == "--version"),
             startup_check_only: args.iter().any(|arg| arg == "--startup-check"),
+            psc_callback_artifact: find_psc_artifact(args),
         }
     }
+}
+
+fn find_psc_artifact(args: &[String]) -> Option<String> {
+    for arg in args {
+        if let Some(value) = arg.strip_prefix("--psc-artifact=")
+            && !value.trim().is_empty()
+        {
+            return Some(value.trim().to_string());
+        }
+
+        if let Some(query) = arg.strip_prefix("heelonvault://auth/callback?") {
+            for pair in query.split('&') {
+                if let Some(value) = pair.strip_prefix("artifact=")
+                    && !value.trim().is_empty()
+                {
+                    return Some(value.trim().to_string());
+                }
+            }
+        }
+    }
+
+    None
 }
 
 fn run_application(
     runtime: Arc<tokio::runtime::Runtime>,
     app_context: Arc<AppContext>,
     start_needs_bootstrap: bool,
+    startup_psc_artifact: Option<String>,
 ) -> Result<()> {
     let application = adw::Application::builder()
         .application_id(APP_ID)
@@ -356,6 +386,7 @@ fn run_application(
     let runtime_for_shutdown = Arc::clone(&runtime);
     let app_context_for_shutdown = Arc::clone(&app_context);
     let needs_bootstrap_for_activate = Rc::new(Cell::new(start_needs_bootstrap));
+    let startup_psc_artifact_for_activate = startup_psc_artifact.clone();
     application.connect_activate(move |app| {
         let context = Arc::clone(&app_context_for_activate);
         let runtime_for_restore = Arc::clone(&runtime_for_activate);
@@ -377,6 +408,7 @@ fn run_application(
         let active_main_for_login = Rc::clone(&active_main_window);
         let present_holder_for_login = Rc::clone(&present_login_holder);
         let needs_bootstrap_for_login = Rc::clone(&needs_bootstrap_flag);
+        let startup_psc_artifact_for_login = startup_psc_artifact_for_activate.clone();
         let present_login: Rc<dyn Fn()> = Rc::new(move || {
             if let Some(main) = active_main_for_login.borrow().as_ref() {
                 main.deactivate_auto_lock();
@@ -394,6 +426,7 @@ fn run_application(
             let needs_bootstrap_for_dialog = Rc::clone(&needs_bootstrap_for_login);
             let app_for_main_success = app_for_login.clone();
             let login_parent_for_dialog = login_parent.clone();
+            let startup_psc_artifact_for_dialog = startup_psc_artifact_for_login.clone();
             let bootstrap_ctx_for_dialog = if needs_bootstrap_for_dialog.get() {
                 let backup_for_bootstrap = Arc::clone(&context_for_login.backup_service);
                 let pool_for_bootstrap = context_for_login.pool.clone();
@@ -442,6 +475,7 @@ fn run_application(
                 Arc::clone(&context_for_login.user_service),
                 Arc::clone(&context_for_login.totp_service),
                 Arc::clone(&context_for_login.federated_auth_service),
+                startup_psc_artifact_for_dialog,
                 bootstrap_ctx_for_dialog,
                 login_license_badge_text,
                 move |backup_file_path, recovery_phrase, new_password| {
