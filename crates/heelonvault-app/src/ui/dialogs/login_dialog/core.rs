@@ -22,6 +22,7 @@ use crate::ui::widgets::password_strength_bar::PasswordStrengthBar;
 use heelonvault_core::errors::{AccessDeniedReason, AppError};
 use heelonvault_core::services::auth_policy_service::AuthPolicyService;
 use heelonvault_core::services::auth_service::AuthService;
+use heelonvault_core::services::federated_auth_service::FederatedAuthService;
 use heelonvault_core::services::totp_service::TotpService;
 use heelonvault_core::services::user_service::UserService;
 
@@ -44,7 +45,7 @@ impl LoginDialog {
         None
     }
 
-    pub fn new<TAuth, TPolicy, TUser, TTotp>(
+    pub fn new<TAuth, TPolicy, TUser, TTotp, TFederated>(
         application: &adw::Application,
         parent: &adw::ApplicationWindow,
         runtime_handle: Handle,
@@ -52,6 +53,7 @@ impl LoginDialog {
         auth_policy_service: Arc<TPolicy>,
         user_service: Arc<TUser>,
         totp_service: Arc<TTotp>,
+        _federated_auth_service: Arc<TFederated>,
         bootstrap_ctx: Option<BootstrapServicesContext>,
         license_badge_text: String,
         on_restore_requested: impl Fn(PathBuf, String, String) -> Result<(), AppError>
@@ -67,6 +69,7 @@ impl LoginDialog {
         TPolicy: AuthPolicyService + Send + Sync + 'static,
         TUser: UserService + Send + Sync + 'static,
         TTotp: TotpService + Send + Sync + 'static,
+        TFederated: FederatedAuthService + Send + Sync + 'static,
     {
         include!("parts/new_body.inc")
     }
