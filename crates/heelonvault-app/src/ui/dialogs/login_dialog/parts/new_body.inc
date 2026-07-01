@@ -284,6 +284,26 @@
         restore_button.add_css_class("flat");
         restore_button.set_halign(Align::End);
 
+        #[cfg(feature = "premium")]
+        let psc_start_button = gtk4::Button::with_label("Se connecter avec Pro Sante Connect");
+        #[cfg(feature = "premium")]
+        psc_start_button.add_css_class("suggested-action");
+        #[cfg(feature = "premium")]
+        psc_start_button.set_halign(Align::Fill);
+
+        #[cfg(feature = "premium")]
+        let psc_artifact_entry = gtk4::Entry::builder()
+            .placeholder_text("Artefact callback PSC")
+            .hexpand(true)
+            .build();
+        #[cfg(feature = "premium")]
+        psc_artifact_entry.add_css_class("login-entry");
+
+        #[cfg(feature = "premium")]
+        let psc_complete_button = gtk4::Button::with_label("Valider artefact PSC");
+        #[cfg(feature = "premium")]
+        psc_complete_button.add_css_class("secondary-pill");
+
         // STEP 1: Credentials form (always visible initially)
         let credentials_box = gtk4::Box::builder()
             .orientation(Orientation::Vertical)
@@ -304,6 +324,12 @@
         credentials_step_box.append(&cps_frame);
         #[cfg(not(feature = "premium"))]
         cps_frame.set_visible(false);
+        #[cfg(feature = "premium")]
+        credentials_step_box.append(&psc_start_button);
+        #[cfg(feature = "premium")]
+        credentials_step_box.append(&psc_artifact_entry);
+        #[cfg(feature = "premium")]
+        credentials_step_box.append(&psc_complete_button);
         credentials_step_box.append(&credentials_box);
         credentials_step_box.append(&restore_button);
 
@@ -743,6 +769,39 @@
                 Rc::clone(&restore_complete_handler),
             );
         });
+
+        #[cfg(feature = "premium")]
+        {
+            let runtime_for_psc_start = runtime_handle.clone();
+            let federated_for_psc_start = Arc::clone(&federated_auth_service);
+            let error_for_psc_start = error_label.clone();
+            psc_start_button.connect_clicked(move |_| {
+                login_flow::handle_psc_start(
+                    runtime_for_psc_start.clone(),
+                    Arc::clone(&federated_for_psc_start),
+                    &error_for_psc_start,
+                );
+            });
+
+            if let Some(artifact) = startup_psc_artifact.as_ref() {
+                psc_artifact_entry.set_text(artifact.as_str());
+            }
+
+            let runtime_for_psc_complete = runtime_handle.clone();
+            let federated_for_psc_complete = Arc::clone(&federated_auth_service);
+            let error_for_psc_complete = error_label.clone();
+            let username_for_psc_complete = username_entry.clone();
+            let psc_artifact_entry_for_click = psc_artifact_entry.clone();
+            psc_complete_button.connect_clicked(move |_| {
+                login_flow::handle_psc_artifact_completion(
+                    runtime_for_psc_complete.clone(),
+                    Arc::clone(&federated_for_psc_complete),
+                    psc_artifact_entry_for_click.text().to_string(),
+                    &error_for_psc_complete,
+                    &username_for_psc_complete,
+                );
+            });
+        }
 
         let button_for_username = login_button.clone();
         username_entry.connect_activate(move |_| {
