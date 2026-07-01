@@ -61,6 +61,8 @@ use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl};
 use heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl;
 use heelonvault_core::services::backup_service::{BackupService, BackupServiceImpl};
 use heelonvault_core::services::crypto_service::CryptoServiceImpl;
+#[cfg(not(feature = "premium"))]
+use heelonvault_core::services::federated_auth_service::CommunityFederatedAuthService;
 use heelonvault_core::services::import_service::ImportServiceImpl;
 use heelonvault_core::services::login_history_service::record_successful_login;
 use heelonvault_core::services::password_service::PasswordServiceImpl;
@@ -76,6 +78,10 @@ use heelonvault_premium::services::admin_service_impl::AdminServiceImpl;
 use heelonvault_premium::services::audit_log_service_impl::AuditLogServiceImpl;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
+#[cfg(feature = "premium")]
+use heelonvault_premium::services::psc_auth_service_impl::PscAuthServiceImpl;
+#[cfg(feature = "premium")]
+use heelonvault_premium::services::psc_config::PscConfig;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::team_service_impl::TeamServiceImpl;
 use uuid::Uuid;
@@ -125,6 +131,11 @@ type TeamServiceHandle = TeamServiceImpl<
 type BackupApplicationServiceHandle =
     BackupApplicationServiceImpl<SqlxUserRepository, BackupServiceImpl>;
 
+#[cfg(not(feature = "premium"))]
+type FederatedAuthServiceHandle = CommunityFederatedAuthService;
+#[cfg(feature = "premium")]
+type FederatedAuthServiceHandle = PscAuthServiceImpl;
+
 struct SqlxVaultEnvelopeRepository {
     pool: SqlitePool,
 }
@@ -167,6 +178,7 @@ struct AppContext {
     import_service: Arc<ImportServiceImpl>,
     user_service: Arc<UserServiceHandle>,
     totp_service: Arc<TotpServiceHandle>,
+    federated_auth_service: Arc<FederatedAuthServiceHandle>,
     _audit_log_service: Arc<AuditLogServiceHandle>,
     audit_service: Arc<AuditService>,
     admin_service: Arc<AdminServiceHandle>,
@@ -191,6 +203,7 @@ struct PrimaryServices {
     vault_service: Arc<VaultServiceHandle>,
     secret_service: Arc<SecretServiceHandle>,
     user_service: Arc<UserServiceHandle>,
+    federated_auth_service: Arc<FederatedAuthServiceHandle>,
     admin_service: Arc<AdminServiceHandle>,
     team_service: Arc<TeamServiceHandle>,
 }
@@ -428,6 +441,7 @@ fn run_application(
                 Arc::clone(&context_for_login.auth_policy_service),
                 Arc::clone(&context_for_login.user_service),
                 Arc::clone(&context_for_login.totp_service),
+                Arc::clone(&context_for_login.federated_auth_service),
                 bootstrap_ctx_for_dialog,
                 login_license_badge_text,
                 move |backup_file_path, recovery_phrase, new_password| {
@@ -900,6 +914,29 @@ fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
         CryptoServiceImpl::default(),
     ));
     #[cfg(not(feature = "premium"))]
+    let federated_auth_service = Arc::new(CommunityFederatedAuthService);
+    #[cfg(feature = "premium")]
+    let federated_auth_service = Arc::new(
+        PscConfig::from_env()
+            .map(PscAuthServiceImpl::with_config)
+            .unwrap_or_else(|error| {
+                warn!(
+                    error = %error,
+                    "PSC configuration not available; using non-operational premium placeholder"
+                );
+                PscAuthServiceImpl::with_config(PscConfig {
+                    client_id: "psc-missing-client-id".to_string(),
+                    client_secret: "psc-missing-client-secret".to_string(),
+                    authorization_url: "https://auth.bas.psc.esante.gouv.fr/disabled".to_string(),
+                    token_url: "https://auth.bas.psc.esante.gouv.fr/disabled".to_string(),
+                    userinfo_url: "https://auth.bas.psc.esante.gouv.fr/disabled".to_string(),
+                    callback_exchange_url: "https://sandbox.heelonys.fr/oidc/artefact".to_string(),
+                    redirect_uri: "https://sandbox.heelonys.fr/oidc/callback/default".to_string(),
+                    scope: "openid profile rpps".to_string(),
+                })
+            }),
+    );
+    #[cfg(not(feature = "premium"))]
     let admin_service = Arc::new(CommunityAdminService);
     #[cfg(feature = "premium")]
     let admin_service = Arc::new(AdminServiceImpl::new(
@@ -926,6 +963,7 @@ fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
         vault_service,
         secret_service,
         user_service,
+        federated_auth_service,
         admin_service,
         team_service,
     }
@@ -1060,6 +1098,7 @@ async fn initialize_app_context() -> Result<AppStartMode> {
         import_service: secondary.import_service,
         user_service: primary.user_service,
         totp_service: secondary.totp_service,
+        federated_auth_service: primary.federated_auth_service,
         _audit_log_service: primary.audit_log_service,
         audit_service: secondary.audit_service,
         admin_service: primary.admin_service,

@@ -8,6 +8,7 @@ pub mod auth_service;
 pub mod backup_application_service;
 pub mod backup_service;
 pub mod crypto_service;
+pub mod federated_auth_service;
 pub mod import_service;
 pub mod ip_rate_limit_service;
 pub mod license_provider;

@@ -300,7 +300,10 @@
             .orientation(Orientation::Vertical)
             .spacing(14)
             .build();
+        #[cfg(feature = "premium")]
         credentials_step_box.append(&cps_frame);
+        #[cfg(not(feature = "premium"))]
+        cps_frame.set_visible(false);
         credentials_step_box.append(&credentials_box);
         credentials_step_box.append(&restore_button);
 
