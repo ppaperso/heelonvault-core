@@ -131,7 +131,7 @@ Base de données dev : `data/heelonvault-rust-dev.db`
 
 ### Vérification build et lint
 
-Toolchain attendue: `rust-toolchain.toml` épinglé sur Rust `1.96.0`.
+Toolchain attendue: `rust-toolchain.toml` épinglé sur Rust `1.98.0`.
 
 ```bash
 cargo check --workspace

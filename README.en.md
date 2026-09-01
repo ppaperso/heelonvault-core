@@ -109,7 +109,7 @@ Dev database: `data/heelonvault-rust-dev.db`
 
 ### Build and lint
 
-Expected toolchain: `rust-toolchain.toml` pinned to Rust `1.96.0`.
+Expected toolchain: `rust-toolchain.toml` pinned to Rust `1.98.0`.
 
 ```bash
 cargo check --workspace

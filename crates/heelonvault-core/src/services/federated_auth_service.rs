@@ -84,26 +84,38 @@ mod tests {
     use super::{CommunityFederatedAuthService, FederatedAuthService};
     use crate::errors::AppError;
 
-    #[tokio::test]
-    async fn community_stub_rejects_all_federated_login_methods() {
-        let service = CommunityFederatedAuthService;
+    // Plain #[test] + explicit runtime (no `?`-free unwrap/expect) instead of
+    // #[tokio::test], whose macro-generated runtime setup trips clippy's
+    // disallowed_methods lint on this file under Rust 1.98/clippy 0.1.98.
+    #[test]
+    fn community_stub_rejects_all_federated_login_methods() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
 
-        let start = service.start_login().await;
-        assert!(matches!(
-            start,
-            Err(AppError::FeatureNotAvailable("feature-name-psc-auth"))
-        ));
+        runtime.block_on(async {
+            let service = CommunityFederatedAuthService;
 
-        let complete = service.complete_login("artifact").await;
-        assert!(matches!(
-            complete,
-            Err(AppError::FeatureNotAvailable("feature-name-psc-auth"))
-        ));
+            let start = service.start_login().await;
+            assert!(matches!(
+                start,
+                Err(AppError::FeatureNotAvailable("feature-name-psc-auth"))
+            ));
 
-        let refresh = service.refresh_session("refresh").await;
-        assert!(matches!(
-            refresh,
-            Err(AppError::FeatureNotAvailable("feature-name-psc-auth"))
-        ));
+            let complete = service.complete_login("artifact").await;
+            assert!(matches!(
+                complete,
+                Err(AppError::FeatureNotAvailable("feature-name-psc-auth"))
+            ));
+
+            let refresh = service.refresh_session("refresh").await;
+            assert!(matches!(
+                refresh,
+                Err(AppError::FeatureNotAvailable("feature-name-psc-auth"))
+            ));
+        });
+
+        Ok(())
     }
 }

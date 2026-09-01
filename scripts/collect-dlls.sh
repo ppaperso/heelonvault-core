@@ -64,10 +64,29 @@ if [[ -d "$MSYS2_ROOT/lib/gdk-pixbuf-2.0/2.10.0/loaders" ]]; then
   cp "$MSYS2_ROOT/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" "$STAGING_DIR/lib/gdk-pixbuf-2.0/2.10.0/" || true
 fi
 
-# ── 4. Copy GTK4 theme assets (optionnel) ────────────────────────────────
+# ── 4. Copy GTK4 theme assets ────────────────────────────────────────────
 mkdir -p "$STAGING_DIR/share/themes/Adwaita"
 if [[ -d "$MSYS2_ROOT/share/themes/Adwaita" ]]; then
   cp -r "$MSYS2_ROOT/share/themes/Adwaita"/* "$STAGING_DIR/share/themes/Adwaita/" || true
+else
+  echo "[WARNING] Theme source not found: $MSYS2_ROOT/share/themes/Adwaita — GTK4 theme will be missing"
+fi
+
+# ── 4bis. Copy Adwaita icon theme (required by libadwaita for symbolic icons) ──
+mkdir -p "$STAGING_DIR/share/icons/Adwaita"
+if [[ -d "$MSYS2_ROOT/share/icons/Adwaita" ]]; then
+  cp -r "$MSYS2_ROOT/share/icons/Adwaita"/* "$STAGING_DIR/share/icons/Adwaita/" || true
+else
+  echo "[WARNING] Icon theme source not found: $MSYS2_ROOT/share/icons/Adwaita — app icons may be blank"
+fi
+
+# ── 4ter. Copy SQL migrations (single source of truth: repo migrations/) ──
+mkdir -p "$STAGING_DIR/migrations"
+if [[ -d "migrations" ]]; then
+  cp migrations/*.sql "$STAGING_DIR/migrations/" 2>/dev/null || true
+  echo "[collect-dlls] Staged $(find "$STAGING_DIR/migrations" -maxdepth 1 -name '*.sql' | wc -l) migration file(s)"
+else
+  echo "[WARNING] migrations/ not found — run this script from the repo root"
 fi
 
 # ── 5. Compile GLib schemas ────────────────────────────────────────────────
@@ -153,6 +172,85 @@ for loader_dll in "$STAGING_DIR/lib/gdk-pixbuf-2.0/2.10.0/loaders"/*.dll; do
 PIXBUFCOMP
   PINDEX=$((PINDEX + 1))
 done
+
+# GTK4 theme (Adwaita) — one Component per staged file, nested dirs via Subdirectory
+cat >> "$OUT_WXS" << 'THEMEHEADER'
+    </ComponentGroup>
+
+    <ComponentGroup Id="GTK4ThemeComponents" Directory="ADWAITAFOLDER">
+THEMEHEADER
+
+TINDEX=0
+THEME_ROOT="$STAGING_DIR/share/themes/Adwaita"
+if [[ -d "$THEME_ROOT" ]]; then
+  while IFS= read -r -d '' theme_file; do
+    rel_path="${theme_file#"$THEME_ROOT/"}"
+    rel_dir="$(dirname "$rel_path")"
+    safe_id="Theme_$TINDEX"
+    guid=$(python3 -c "import uuid; print(str(uuid.uuid5(uuid.NAMESPACE_DNS, 'theme_${rel_path}')).upper())" 2>/dev/null || uuidgen | tr '[:lower:]' '[:upper:]')
+    win_source="wix\\staging\\share\\themes\\Adwaita\\${rel_path//\//\\}"
+    if [[ "$rel_dir" == "." ]]; then
+      printf '      <Component Id="%s" Guid="%s">\n        <File Id="file_%s" Source="%s" KeyPath="yes" />\n      </Component>\n' \
+        "$safe_id" "$guid" "$safe_id" "$win_source" >> "$OUT_WXS"
+    else
+      printf '      <Component Id="%s" Guid="%s" Subdirectory="%s">\n        <File Id="file_%s" Source="%s" KeyPath="yes" />\n      </Component>\n' \
+        "$safe_id" "$guid" "${rel_dir//\//\\}" "$safe_id" "$win_source" >> "$OUT_WXS"
+    fi
+    TINDEX=$((TINDEX + 1))
+  done < <(find "$THEME_ROOT" -type f -print0 | sort -z)
+fi
+echo "[collect-dlls] Staged $TINDEX GTK4 theme file(s)"
+
+# Adwaita icon theme — same pattern, deep nesting (sizes/categories)
+cat >> "$OUT_WXS" << 'ICONHEADER'
+    </ComponentGroup>
+
+    <ComponentGroup Id="IconComponents" Directory="ADWAITAICONSFOLDER">
+ICONHEADER
+
+IINDEX=0
+ICON_ROOT="$STAGING_DIR/share/icons/Adwaita"
+if [[ -d "$ICON_ROOT" ]]; then
+  while IFS= read -r -d '' icon_file; do
+    rel_path="${icon_file#"$ICON_ROOT/"}"
+    rel_dir="$(dirname "$rel_path")"
+    safe_id="Icon_$IINDEX"
+    guid=$(python3 -c "import uuid; print(str(uuid.uuid5(uuid.NAMESPACE_DNS, 'icon_${rel_path}')).upper())" 2>/dev/null || uuidgen | tr '[:lower:]' '[:upper:]')
+    win_source="wix\\staging\\share\\icons\\Adwaita\\${rel_path//\//\\}"
+    if [[ "$rel_dir" == "." ]]; then
+      printf '      <Component Id="%s" Guid="%s">\n        <File Id="file_%s" Source="%s" KeyPath="yes" />\n      </Component>\n' \
+        "$safe_id" "$guid" "$safe_id" "$win_source" >> "$OUT_WXS"
+    else
+      printf '      <Component Id="%s" Guid="%s" Subdirectory="%s">\n        <File Id="file_%s" Source="%s" KeyPath="yes" />\n      </Component>\n' \
+        "$safe_id" "$guid" "${rel_dir//\//\\}" "$safe_id" "$win_source" >> "$OUT_WXS"
+    fi
+    IINDEX=$((IINDEX + 1))
+  done < <(find "$ICON_ROOT" -type f -print0 | sort -z)
+fi
+echo "[collect-dlls] Staged $IINDEX Adwaita icon file(s)"
+
+# SQL migrations — generated from staged migrations/ (no manual list to maintain)
+cat >> "$OUT_WXS" << 'MIGHEADER'
+    </ComponentGroup>
+
+    <ComponentGroup Id="MigrationsComponents" Directory="MIGRATIONSFOLDER">
+MIGHEADER
+
+MINDEX=0
+if [[ -d "$STAGING_DIR/migrations" ]]; then
+  while IFS= read -r -d '' mig_file; do
+    fname=$(basename "$mig_file")
+    safe_id="Mig_$MINDEX"
+    guid=$(python3 -c "import uuid; print(str(uuid.uuid5(uuid.NAMESPACE_DNS, 'migration_${fname}')).upper())" 2>/dev/null || uuidgen | tr '[:lower:]' '[:upper:]')
+    printf '      <Component Id="%s" Guid="%s">\n        <File Id="file_%s" Source="wix\\staging\\migrations\\%s" KeyPath="yes" />\n      </Component>\n' \
+      "$safe_id" "$guid" "$safe_id" "$fname" >> "$OUT_WXS"
+    MINDEX=$((MINDEX + 1))
+  done < <(find "$STAGING_DIR/migrations" -maxdepth 1 -type f -name '*.sql' -print0 | sort -z)
+fi
+if [[ "$MINDEX" -eq 0 ]]; then
+  echo "[WARNING] No .sql migration staged — MSI will ship without migrations"
+fi
+echo "[collect-dlls] Staged $MINDEX migration component(s)"
 
 # Footer
 cat >> "$OUT_WXS" << 'WXSFOOTER'

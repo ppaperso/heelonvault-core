@@ -7,9 +7,23 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [Unreleased] — Cible v1.2.0
+## [1.2.0-rc.1] — 2026-09-01
 
 > Note release: `v1.1.0` (et `v1.1.0-rc.1`) est figée. Les changements ci-dessous appartiennent au périmètre de `v1.2.0`.
+
+### Infrastructure — MSRV Rust 1.96 → 1.98
+
+- `rust-version` aligné à `1.98` sur les 4 membres du workspace (`heelonvault-core`, `heelonvault-app`, `sqlx-shim`, `heelonvault-premium`).
+- `rust-toolchain.toml` (core et premium) confirmé sur `1.98.0`.
+- Documentation (README FR/EN, runbook packaging Windows) synchronisée sur Rust 1.98.
+
+### Dépendances — durcissement supply-chain
+
+- `crossbeam-epoch` 0.9.18 → 0.9.20 : corrige RUSTSEC-2026-0204 (déréférencement de pointeur invalide dans `fmt::Pointer`).
+- `webbrowser` 1.2.1 → 1.2.4 : corrige RUSTSEC-2026-0257 (injection d'argument navigateur sur Unix, chemin `BROWSER`) — pertinent pour le lancement navigateur du flux PSC.
+- `event-listener` 5.4.1 → 5.4.2 : corrige RUSTSEC-2026-0221 (fuite de tag `!Send` via `StackSlot`).
+- `chacha20` 0.10.0 → 0.10.2 et `spin` 0.9.8 → 0.9.9 : versions yanked remplacées.
+- `cargo audit` : 0 vulnérabilité, 0 warning (précédemment 2 vulnérabilités + 3 warnings allowed). `cargo deny check advisories` : ok.
 
 ### Infrastructure — Edition 2024 et Rust 1.96
 
