@@ -36,6 +36,30 @@ winget install --id Microsoft.DotNet.SDK.7 -e --source winget
 > **⚠️ ERREUR COURANTE** : Si vous obtenez `git: The term 'git' is not recognized...`, c'est que Git n'est pas encore installé.
 > **Solution** : Installez Git **avant** de tenter de cloner le dépôt (voir ci-dessus).
 
+### 0.0.5 Installation de MSYS2 MINGW64
+
+> **À installer après les outils de base** (toujours dans PowerShell ou CMD) :
+
+```powershell
+# Installer MSYS2 avec le package MINGW64
+winget install --id MSYS2.MSYS2 -e --source winget
+# Alternative : télécharger depuis https://www.msys2.org/
+```
+
+> **Lancement de MSYS2 MINGW64** :
+> - Via le menu Démarrer : `MSYS2 MinGW 64-bit` (rechercher "MinGW" ou "MSYS2")
+> - Ou depuis l'explorateur : `C:\msys64\mingw64.exe`
+> - **Ne pas utiliser** `msys2.exe` ou `bash.exe` — il faut spécifiquement **`mingw64.exe`**
+
+> **Première mise à jour MSYS2** (obligatoire après installation) :
+> ```bash
+> # Dans la fenêtre MSYS2 MINGW64 qui s'ouvre :
+pacman -Syu
+# Si pacman demande de fermer la fenêtre, relancer MSYS2 MINGW64 et exécuter à nouveau :
+pacman -Syu
+# Attendre la fin complète avant de continuer
+```
+
 ### 0.1 Récupération du code source
 
 > **Deuxième étape** — cloner le dépôt **après avoir installé Git** :
@@ -62,7 +86,7 @@ cd heelonvault-core
 
 ### 0.2 Rust toolchain (target Windows natif)
 
-> **Se positionner dans le repo depuis MSYS2** — MSYS2 a son propre `$HOME` et ses propres chemins (`/c/...`), distincts de la session PowerShell utilisée en 0.1. Ouvrir MSYS2 MINGW64 et naviguer explicitement vers le dossier cloné :
+> **Se positionner dans le repo depuis MSYS2** — MSYS2 (installé en 0.0.5) a son propre `$HOME` et ses propres chemins (`/c/...`), distincts de PowerShell. Ouvrir **MSYS2 MINGW64** (via menu Démarrer ou `C:\msys64\mingw64.exe`) et naviguer explicitement vers le dossier cloné :
 > ```bash
 > cd /c/dev/heelonvault-core   # adapter si un autre dossier a été choisi en 0.1
 > pwd && test -f Cargo.toml && test -f rust-toolchain.toml
@@ -86,6 +110,8 @@ rustup show   # vérifier que x86_64-pc-windows-gnu est actif
 > ```
 
 ### 0.3 Paquets MSYS2 MINGW64
+
+> **À exécuter dans MSYS2 MINGW64** (installé en 0.0.5, lancé via menu Démarrer ou `C:\msys64\mingw64.exe`) :
 
 ```bash
 pacman -S --needed \
