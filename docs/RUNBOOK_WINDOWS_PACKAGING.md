@@ -60,6 +60,27 @@ pacman -Syu
 # Attendre la fin complète avant de continuer
 ```
 
+> **⚠️ Compatibilité Rustup entre PowerShell et MSYS2** :
+> Rustup installé via `winget` dans PowerShell **n'est pas disponible** dans MSYS2 (environnements PATH séparés).
+> **Deux options** :
+> 
+> **Option 1 — Recommandée** : Installer rustup **directement dans MSYS2** :
+> ```bash
+> # Dans MSYS2 MINGW64, après la mise à jour pacman :
+> curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+> # Suivre les instructions, choisir "Proceed with installation (default)"
+> source ~/.cargo/env
+> ```
+> 
+> **Option 2** : Ajouter le PATH Windows à MSYS2 (si vous préférez utiliser rustup installé via winget) :
+> ```bash
+> # Dans MSYS2 MINGW64, ajouter les chemins Windows :
+> export PATH="$PATH:$(echo $USERPROFILE | sed 's|\\|/|g')/.cargo/bin"
+> export PATH="$PATH:$(echo $USERPROFILE | sed 's|\\|/|g')/.rustup/toolchains/stable-x86_64-pc-windows-gnu/bin"
+> # Vérifier :
+> rustup --version
+> ```
+
 ### 0.1 Récupération du code source
 
 > **Deuxième étape** — cloner le dépôt **après avoir installé Git** :
