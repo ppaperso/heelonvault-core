@@ -21,16 +21,16 @@ winget install --id Git.Git -e --source winget
 winget install --id Rustlang.Rustup -e --source winget
 # Alternative : https://win.rustup.rs/
 
-# 3. .NET SDK 7+ — requis pour WiX v7 (dotnet tool)
-winget install --id Microsoft.DotNet.SDK.7 -e --source winget
-# Alternative : https://dotnet.microsoft.com/download/dotnet/7.0
+# 3. .NET SDK 8+ — requis pour WiX v7 (dotnet tool)
+winget install --id Microsoft.DotNet.SDK.8 -e --source winget
+# Alternative : https://dotnet.microsoft.com/download/dotnet/8.0
 ```
 
 > **Vérifications post-installation** :
 > ```powershell
 > git --version
 > rustup --version
-> dotnet --version    # Doit afficher 7.x.x ou plus
+> dotnet --version    # Doit afficher 8.x.x ou plus
 > ```
 
 > **⚠️ ERREUR COURANTE** : Si vous obtenez `git: The term 'git' is not recognized...`, c'est que Git n'est pas encore installé.
@@ -160,7 +160,7 @@ pacman -S --needed \
 ### 0.4 WiX v7
 
 ```powershell
-# Hors MSYS2, dans PowerShell (nécessite .NET SDK installé en 0.0)
+# Hors MSYS2, dans PowerShell (nécessite .NET SDK 8+ installé en 0.0)
 dotnet tool install --global wix
 wix eula accept wix7   # obligatoire (OSMF EULA v1.1) sinon le build échoue
 wix --version          # doit afficher 7.x.x
@@ -181,7 +181,7 @@ wix --version          # doit afficher 7.x.x
 ```powershell
 echo "=== Git ==="; git --version
 echo "=== Rustup ==="; rustup --version
-echo "=== dotnet ==="; dotnet --version
+echo "=== dotnet ==="; dotnet --version    # Doit afficher 8.x.x ou plus
 echo "=== WiX ==="; wix --version
 echo "=== WiX path ==="; where wix
 ```
@@ -527,7 +527,7 @@ Une fois ce runbook validé localement, voici les deltas à anticiper pour le wo
 
 **Shell** : le runner `windows-latest` a Git Bash disponible. Appeler le script via `shell: bash` dans le step. MSYS2 complet nécessite l'action `msys2/setup-msys2@v2`.
 
-**PATH de wix** : après `dotnet tool install --global wix`, ajouter `$env:USERPROFILE\.dotnet\tools` au PATH du runner.
+**PATH de wix** : après `dotnet tool install --global wix`, ajouter `$env:USERPROFILE\.dotnet\tools` au PATH du runner. **Requiert .NET SDK 8+** (WiX v7 n'est pas compatible avec .NET 7).
 
 **Chemin relatif de l'icône** : dans le runner, `GITHUB_WORKSPACE` est la racine du repo — s'assurer que le working directory du step est la racine, pas un sous-dossier.
 
