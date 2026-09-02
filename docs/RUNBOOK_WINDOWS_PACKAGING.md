@@ -8,9 +8,37 @@
 
 ## 0. Pré-requis — Stack à installer
 
-### 0.0 Récupération du code source
+### 0.0 Outils de base Windows
 
-> **Première étape obligatoire** — cloner le dépôt avant toute installation :
+> **À installer EN PREMIER** (dans PowerShell ou CMD, **avant toute autre étape**) :
+
+```powershell
+# 1. Git — OBLIGATOIRE pour cloner le dépôt et les dépendances
+winget install --id Git.Git -e --source winget
+# Alternative : télécharger depuis https://git-scm.com/download/win
+
+# 2. Rustup — gestionnaire de toolchains Rust
+winget install --id Rustlang.Rustup -e --source winget
+# Alternative : https://win.rustup.rs/
+
+# 3. .NET SDK 7+ — requis pour WiX v7 (dotnet tool)
+winget install --id Microsoft.DotNet.SDK.7 -e --source winget
+# Alternative : https://dotnet.microsoft.com/download/dotnet/7.0
+```
+
+> **Vérifications post-installation** :
+> ```powershell
+> git --version
+> rustup --version
+> dotnet --version    # Doit afficher 7.x.x ou plus
+> ```
+
+> **⚠️ ERREUR COURANTE** : Si vous obtenez `git: The term 'git' is not recognized...`, c'est que Git n'est pas encore installé.
+> **Solution** : Installez Git **avant** de tenter de cloner le dépôt (voir ci-dessus).
+
+### 0.1 Récupération du code source
+
+> **Deuxième étape** — cloner le dépôt **après avoir installé Git** :
 
 ```powershell
 # Dans PowerShell ou CMD, choisir un dossier de travail (ex: C:\dev)
@@ -32,36 +60,11 @@ cd heelonvault-core
 
 > **Note** : Toutes les commandes de ce runbook doivent être lancées depuis ce répertoire (`heelonvault-core/`).
 
-### 0.0.1 Outils de base Windows
+### 0.2 Rust toolchain (target Windows natif)
 
-> **À installer AVANT MSYS2** (dans PowerShell ou CMD) :
-
-```powershell
-# 1. Git — nécessaire pour lire rust-toolchain.toml et cloner les dépendances
-winget install --id Git.Git -e --source winget
-# Alternative : télécharger depuis https://git-scm.com/download/win
-
-# 2. Rustup — gestionnaire de toolchains Rust
-winget install --id Rustlang.Rustup -e --source winget
-# Alternative : https://win.rustup.rs/
-
-# 3. .NET SDK 7+ — requis pour WiX v7 (dotnet tool)
-winget install --id Microsoft.DotNet.SDK.7 -e --source winget
-# Alternative : https://dotnet.microsoft.com/download/dotnet/7.0
-```
-
-> **Vérifications post-installation** :
-> ```powershell
-> git --version
-> rustup --version
-> dotnet --version    # Doit afficher 7.x.x ou plus
-> ```
-
-### 0.1 Rust toolchain (target Windows natif)
-
-> **Se positionner dans le repo depuis MSYS2** — MSYS2 a son propre `$HOME` et ses propres chemins (`/c/...`), distincts de la session PowerShell utilisée en 0.0. Ouvrir MSYS2 MINGW64 et naviguer explicitement vers le dossier cloné :
+> **Se positionner dans le repo depuis MSYS2** — MSYS2 a son propre `$HOME` et ses propres chemins (`/c/...`), distincts de la session PowerShell utilisée en 0.1. Ouvrir MSYS2 MINGW64 et naviguer explicitement vers le dossier cloné :
 > ```bash
-> cd /c/dev/heelonvault-core   # adapter si un autre dossier a été choisi en 0.0
+> cd /c/dev/heelonvault-core   # adapter si un autre dossier a été choisi en 0.1
 > pwd && test -f Cargo.toml && test -f rust-toolchain.toml
 > # Attendu : aucune sortie d'erreur
 > ```
@@ -82,7 +85,7 @@ rustup show   # vérifier que x86_64-pc-windows-gnu est actif
 > rustup default 1.98.0-x86_64-pc-windows-gnu
 > ```
 
-### 0.2 Paquets MSYS2 MINGW64
+### 0.3 Paquets MSYS2 MINGW64
 
 ```bash
 pacman -S --needed \
@@ -101,10 +104,10 @@ pacman -S --needed \
 
 > GTK4 + `libadwaita` (pas GTK3) — l'app utilise libadwaita, qui requiert aussi le thème d'icônes Adwaita (collecté automatiquement par `collect-dlls.sh`, section 2).
 
-### 0.3 WiX v7
+### 0.4 WiX v7
 
 ```powershell
-# Hors MSYS2, dans PowerShell (nécessite .NET SDK installé en 0.0.1)
+# Hors MSYS2, dans PowerShell (nécessite .NET SDK installé en 0.0)
 dotnet tool install --global wix
 wix eula accept wix7   # obligatoire (OSMF EULA v1.1) sinon le build échoue
 wix --version          # doit afficher 7.x.x
@@ -117,7 +120,7 @@ wix --version          # doit afficher 7.x.x
 >
 > `wix.exe` doit être dans le PATH Windows. Si l'organisation dépasse 10 000 $/an de revenus sur des projets utilisant WiX, un sponsoring OSMF est requis (voir `https://docs.firegiant.com/wix/osmf/`).
 
-### 0.4 Vérification de la stack complète
+### 0.5 Vérification de la stack complète
 
 > **À exécuter dans 2 terminaux distincts** :
 
@@ -141,7 +144,7 @@ echo "=== python3 ===" && python3 --version
 echo "=== wix ===" && wix --version 2>&1 | head -1
 ```
 
-**Résultats attendus** : Chaque commande retourne une version **sans erreur**. Si une commande échoue, revenir à la section correspondante (0.0.1, 0.1, 0.2, ou 0.3).
+**Résultats attendus** : Chaque commande retourne une version **sans erreur**. Si une commande échoue, revenir à la section correspondante (0.0, 0.2, 0.3, ou 0.4).
 
 ---
 
