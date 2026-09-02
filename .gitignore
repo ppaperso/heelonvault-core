@@ -10,6 +10,8 @@
 *.db
 *.sqlite
 *.sqlite3
+*.db.old
+*.old
 
 # Fichiers de données sensibles (SENSITIVE)
 *.bin
