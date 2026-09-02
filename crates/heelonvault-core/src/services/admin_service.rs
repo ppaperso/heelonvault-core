@@ -1,4 +1,4 @@
-use secrecy::{ExposeSecret, SecretBox};
+use secrecy::{ExposeSecret, SecretBox, SecretString};
 use tracing::info;
 use uuid::Uuid;
 
@@ -6,6 +6,7 @@ use crate::errors::AppError;
 use crate::models::{User, UserRole};
 use crate::repositories::user_repository::UserRepository;
 use crate::services::auth_service::AuthService;
+use crate::services::crypto_service::CryptoService;
 
 /// Result of a successful user creation, exposing the derived master key so
 /// the caller can immediately create the user's personal vault.
@@ -22,6 +23,7 @@ pub struct BootstrapResult {
     pub user_id: Uuid,
     pub username: String,
     pub master_key: SecretBox<Vec<u8>>,
+    pub recovery_phrase: SecretString,
 }
 
 #[trait_variant::make(AdminService: Send)]
@@ -66,17 +68,23 @@ pub trait LocalAdminService {
 
 // ── bootstrap (always compiled — runs before any admin service is wired) ────────
 
-/// Bootstrap the very first admin account.
-/// Atomically checks that no users exist yet, then creates the admin.
-/// Fails with [`AppError::Conflict`] if any user already exists.
+/// Bootstrap the very first admin account with the recovery phrase that was already
+/// generated and shown to the user. The caller must pass the exact phrase the user
+/// wrote down — never a freshly generated one, or backups become unrecoverable.
+///
+/// Atomically checks that no users exist yet. Fails with [`AppError::Conflict`] if any
+/// user already exists.
 ///
 /// This is a free function (not a trait method) so it is available in Community
 /// builds where `AdminServiceImpl` is not compiled.
-pub async fn bootstrap_first_admin(
+pub async fn bootstrap_first_admin_with_recovery(
     user_repo: &impl UserRepository,
     auth_service: &impl AuthService,
+    backup_service: &impl crate::services::backup_service::BackupService,
+    crypto_service: &impl CryptoService,
     username: &str,
     password: SecretBox<Vec<u8>>,
+    recovery_phrase: SecretString,
 ) -> Result<BootstrapResult, AppError> {
     // Atomic guard: refuse if any user already exists.
     if !user_repo.list_all().await?.is_empty() {
@@ -111,11 +119,34 @@ pub async fn bootstrap_first_admin(
         .update_password_envelope(user_id, envelope)
         .await?;
 
-    info!(user_id = %user_id, username = trimmed, "bootstrap: first admin account created");
+    // Encrypt and store the recovery phrase
+    let master_key_bytes = master_key.expose_secret().clone();
+    let encrypted_recovery = crypto_service
+        .encrypt(
+            &secrecy::SecretBox::new(Box::new(
+                recovery_phrase.expose_secret().as_bytes().to_vec(),
+            )),
+            &secrecy::SecretBox::new(Box::new(master_key_bytes)),
+        )
+        .await?;
+
+    user_repo
+        .set_recovery_phrase_envelope(
+            user_id,
+            crate::services::crypto_service::encode_envelope(&encrypted_recovery),
+        )
+        .await?;
+
+    // Verifier used to gate exports; the phrase must be re-typed by the user.
+    let verifier = backup_service.build_recovery_verifier(&recovery_phrase)?;
+    user_repo.set_recovery_verifier(user_id, verifier).await?;
+
+    info!(user_id = %user_id, username = trimmed, "bootstrap: first admin account created with recovery phrase");
     Ok(BootstrapResult {
         user_id,
         username: trimmed.to_string(),
         master_key,
+        recovery_phrase,
     })
 }
 

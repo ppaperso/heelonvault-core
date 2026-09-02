@@ -21,7 +21,7 @@ use gtk4::gio;
 use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita as adw;
-use secrecy::{ExposeSecret, SecretBox};
+use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Row, SqlitePool};
 use tokio::runtime::Builder;
@@ -51,17 +51,17 @@ use heelonvault_core::repositories::user_repository::{SqlxUserRepository, UserRe
 use heelonvault_core::repositories::vault_repository::SqlxVaultRepository;
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::admin_service::CommunityAdminService;
-use heelonvault_core::services::admin_service::bootstrap_first_admin;
+use heelonvault_core::services::admin_service::bootstrap_first_admin_with_recovery;
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::audit_log_service::NoOpAuditLogService;
 #[cfg(feature = "premium")]
 use heelonvault_core::services::audit_service::AuditAction;
 use heelonvault_core::services::audit_service::AuditService;
 use heelonvault_core::services::auth_policy_service::{AuthPolicyService, SqlxAuthPolicyService};
-use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl};
+use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl, UserCredentialRecord};
 use heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl;
 use heelonvault_core::services::backup_service::{BackupService, BackupServiceImpl};
-use heelonvault_core::services::crypto_service::CryptoServiceImpl;
+use heelonvault_core::services::crypto_service::{CryptoService, CryptoServiceImpl};
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::federated_auth_service::CommunityFederatedAuthService;
 use heelonvault_core::services::import_service::ImportServiceImpl;
@@ -170,7 +170,7 @@ impl VaultKeyEnvelopeRepository for SqlxVaultEnvelopeRepository {
 struct AppContext {
     database_path: PathBuf,
     pool: SqlitePool,
-    _crypto_service: CryptoServiceImpl,
+    crypto_service: CryptoServiceImpl,
     auth_service: Arc<AuthServiceImpl<CryptoServiceImpl>>,
     auth_policy_service: Arc<SqlxAuthPolicyService>,
     vault_service: Arc<VaultServiceHandle>,
@@ -312,10 +312,7 @@ fn main() -> Result<()> {
     };
 
     if startup_flags.startup_check_only {
-        info!(
-            needs_bootstrap = start_needs_bootstrap,
-            "startup-check: ok"
-        );
+        info!(needs_bootstrap = start_needs_bootstrap, "startup-check: ok");
         return Ok(());
     }
 
@@ -428,23 +425,56 @@ fn run_application(
             let login_parent_for_dialog = login_parent.clone();
             let startup_psc_artifact_for_dialog = startup_psc_artifact_for_login.clone();
             let bootstrap_ctx_for_dialog = if needs_bootstrap_for_dialog.get() {
-                let backup_for_bootstrap = Arc::clone(&context_for_login.backup_service);
-                let pool_for_bootstrap = context_for_login.pool.clone();
-                let auth_for_bootstrap = Arc::clone(&context_for_login.auth_service);
+                let context_for_bootstrap = Arc::clone(&context_for_login);
+                let backup_for_bootstrap = Arc::clone(&context_for_bootstrap.backup_service);
+                let pool_for_bootstrap = context_for_bootstrap.pool.clone();
+                let auth_for_bootstrap = Arc::clone(&context_for_bootstrap.auth_service);
                 let runtime_for_bootstrap = runtime_for_login.clone();
+
+                let context_for_bootstrap_fn = Arc::clone(&context_for_bootstrap);
+                let backup_for_bootstrap_fn = Arc::clone(&backup_for_bootstrap);
+                let pool_for_bootstrap_fn = pool_for_bootstrap.clone();
+                let auth_for_bootstrap_fn = Arc::clone(&auth_for_bootstrap);
+                let runtime_for_bootstrap_fn = runtime_for_bootstrap.clone();
+
+                // Single source of truth: the phrase displayed at the identity step is the
+                // one persisted at the oath step. Never generate a second one.
+                let recovery_phrase_state: Arc<std::sync::RwLock<Option<SecretString>>> =
+                    Arc::new(std::sync::RwLock::new(None));
+                let recovery_state_for_gen = Arc::clone(&recovery_phrase_state);
+                let recovery_state_for_bootstrap = recovery_phrase_state;
+
                 Some(BootstrapServicesContext {
                     generate_recovery_key: Arc::new(move || {
-                        backup_for_bootstrap
-                            .generate_recovery_key()
-                            .map(|bundle| bundle.recovery_phrase.expose_secret().to_string())
+                        let backup_service = Arc::clone(&backup_for_bootstrap);
+                        let bundle = backup_service.generate_recovery_key()?;
+                        let phrase = bundle.recovery_phrase.expose_secret().to_string();
+                        let mut slot = recovery_state_for_gen
+                            .write()
+                            .map_err(|_| heelonvault_core::errors::AppError::Internal)?;
+                        *slot = Some(bundle.recovery_phrase);
+                        Ok(phrase)
                     }),
                     do_bootstrap: Arc::new(move |username: String, password_bytes: Vec<u8>| {
-                        runtime_for_bootstrap.block_on(async {
-                            bootstrap_first_admin(
-                                &SqlxUserRepository::new(pool_for_bootstrap.clone()),
-                                auth_for_bootstrap.as_ref(),
+                        let recovery_phrase = recovery_state_for_bootstrap
+                            .write()
+                            .map_err(|_| heelonvault_core::errors::AppError::Internal)?
+                            .take()
+                            .ok_or_else(|| {
+                                heelonvault_core::errors::AppError::Validation(
+                                    "recovery phrase missing from bootstrap state".to_string(),
+                                )
+                            })?;
+
+                        runtime_for_bootstrap_fn.block_on(async {
+                            bootstrap_first_admin_with_recovery(
+                                &SqlxUserRepository::new(pool_for_bootstrap_fn.clone()),
+                                auth_for_bootstrap_fn.as_ref(),
+                                backup_for_bootstrap_fn.as_ref(),
+                                &context_for_bootstrap_fn.crypto_service,
                                 username.as_str(),
                                 SecretBox::new(Box::new(password_bytes)),
+                                recovery_phrase,
                             )
                             .await
                         })
@@ -913,7 +943,10 @@ fn init_logging() -> Result<WorkerGuard> {
     // Critical now that Windows console is hidden by GUI subsystem
     std::panic::set_hook(Box::new(|info| {
         let location = info.location().map(|l| l.to_string()).unwrap_or_default();
-        let message = info.payload().downcast_ref::<&str>().map(|s| s.to_string())
+        let message = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
             .or_else(|| info.payload().downcast_ref::<String>().cloned())
             .unwrap_or_else(|| "unknown panic".into());
         tracing::error!(%location, %message, "application panicked");
@@ -1019,6 +1052,7 @@ async fn build_secondary_services(
     let backup_app_service = Arc::new(BackupApplicationServiceImpl::new(
         SqlxUserRepository::new(pool.clone()),
         BackupServiceImpl::new(),
+        pool.clone(),
     ));
     let import_service = Arc::new(ImportServiceImpl::new());
     let totp_service = Arc::new(SqliteTotpService::new(
@@ -1130,7 +1164,7 @@ async fn initialize_app_context() -> Result<AppStartMode> {
     let ctx = AppContext {
         database_path,
         pool,
-        _crypto_service: primary.crypto_service,
+        crypto_service: primary.crypto_service,
         auth_service: primary.auth_service,
         auth_policy_service: primary.auth_policy_service,
         vault_service: primary.vault_service,
@@ -1346,27 +1380,151 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
         .try_get("username")
         .context("failed to read restored username")?;
 
-    let auth_service = AuthServiceImpl::new(CryptoServiceImpl::default());
-    auth_service
-        .create_user(
-            username.as_str(),
-            SecretBox::new(Box::new(new_password.as_bytes().to_vec())),
-        )
+    // 1. Lire l'envelope de mot de passe EXISTANT
+    let existing_envelope_row = sqlx::query("SELECT password_envelope FROM users WHERE username = ?1")
+        .bind(username.as_str())
+        .fetch_optional(&pool)
         .await
-        .map_err(|error| anyhow!("failed to stage restored password envelope: {error}"))?;
+        .context("failed to read existing password envelope")?
+        .ok_or_else(|| anyhow!("user {} has no password envelope", username))?;
 
-    let password_envelope = auth_service
-        .get_password_envelope(username.as_str())
+    let existing_envelope_bytes: Vec<u8> = existing_envelope_row
+        .try_get("password_envelope")
+        .context("failed to extract password envelope bytes")?;
+
+    // 2. Décoder l'envelope pour obtenir salt et ancienne master_key
+    let existing_envelope = SecretBox::new(Box::new(existing_envelope_bytes));
+    let existing_record = heelonvault_core::services::auth_service::AuthServiceImpl::<CryptoServiceImpl>::decode_password_envelope(&existing_envelope)
+        .map_err(|e| anyhow!("failed to decode existing password envelope: {}", e))?;
+
+    let existing_salt = existing_record.password_salt;
+    let old_master_key = existing_record.password_hash; // C'est l'ancienne master_key
+
+    // 3. Dériver la NOUVELLE master_key avec le NOUVEAU mot de passe + salt EXISTANT
+    let crypto_service = CryptoServiceImpl::with_defaults();
+    let new_password_secret = SecretString::new(new_password.to_string().into_boxed_str());
+    let new_master_key = crypto_service
+        .derive_key(&new_password_secret, &existing_salt)
         .await
-        .map_err(|error| anyhow!("failed to export restored password envelope: {error}"))?;
+        .context("failed to derive new master key")?;
+    
+    // Cloner la new_master_key pour pouvoir l'utiliser plus tard
+    let new_master_key_for_vaults = SecretBox::new(Box::new(new_master_key.expose_secret().clone()));
 
+    // 4. Créer un nouvel envelope de mot de passe
+    let new_record = UserCredentialRecord {
+        password_salt: SecretBox::new(Box::new(existing_salt.expose_secret().clone())),
+        password_hash: new_master_key,
+    };
+    let new_envelope = heelonvault_core::services::auth_service::AuthServiceImpl::<CryptoServiceImpl>::encode_password_envelope(&new_record);
+
+    // 5. METTRE A JOUR L'ENVELOPE DE MOT DE PASSE D'ABORD
+    // (sinon on ne pourra plus se connecter si le rechiffrement échoue)
     sqlx::query("UPDATE users SET password_envelope = ?1 WHERE username = ?2")
-        .bind(password_envelope.expose_secret().as_slice())
+        .bind(new_envelope.expose_secret().as_slice())
         .bind(username.as_str())
         .execute(&pool)
         .await
-        .context("failed to persist restored password envelope")?;
+        .context("failed to persist new password envelope")?;
 
+    // 6. RECHIFFRER TOUS LES VAULT KEY ENVELOPES
+    // Lire tous les vaults de l'utilisateur
+    let accessible_vaults = sqlx::query(
+        "SELECT id, owner_user_id FROM vaults WHERE owner_user_id = (SELECT id FROM users WHERE username = ?1)",
+    )
+    .bind(username.as_str())
+    .fetch_all(&pool)
+    .await
+    .context("failed to query user vaults")?;
+
+    for vault_row in accessible_vaults {
+        let vault_id: Uuid = vault_row.try_get("id")
+            .context("failed to read vault id")?;
+        let _owner_user_id: Uuid = vault_row.try_get("owner_user_id")
+            .context("failed to read owner_user_id")?;
+
+        // Lire l'envelope de vault_key existant
+        let vault_envelope_row = sqlx::query("SELECT vault_key_envelope FROM vaults WHERE id = ?1")
+            .bind(vault_id)
+            .fetch_optional(&pool)
+            .await
+            .context("failed to read vault key envelope")?
+            .ok_or_else(|| anyhow!("vault {} has no key envelope", vault_id))?;
+
+        let vault_envelope_bytes: Vec<u8> = vault_envelope_row
+            .try_get("vault_key_envelope")
+            .context("failed to extract vault key envelope bytes")?;
+        let vault_envelope = SecretBox::new(Box::new(vault_envelope_bytes));
+
+        // Désérialiser et déchiffrer avec l'ancienne master_key
+        let payload = heelonvault_core::services::vault_service::deserialize_vault_key_envelope(&vault_envelope)
+            .context("failed to deserialize vault key envelope")?;
+        let vault_key = crypto_service
+            .decrypt(&payload, &old_master_key)
+            .await
+            .context("failed to decrypt vault key with old master key")?;
+
+        // Rechiffrer avec la nouvelle master_key
+        let rewrapped_payload = crypto_service
+            .encrypt(&vault_key, &new_master_key_for_vaults)
+            .await
+            .context("failed to re-encrypt vault key with new master key")?;
+        let rewrapped_envelope = heelonvault_core::services::vault_service::serialize_vault_key_envelope(&rewrapped_payload);
+
+        // Mettre à jour l'envelope du vault
+        sqlx::query("UPDATE vaults SET vault_key_envelope = ?1 WHERE id = ?2")
+            .bind(rewrapped_envelope.expose_secret().as_slice())
+            .bind(vault_id)
+            .execute(&pool)
+            .await
+            .context("failed to update vault key envelope")?;
+    }
+
+    // 7. Rechiffrer aussi les vault_key_shares (pour les vaults partagés)
+    let shared_vaults = sqlx::query(
+        "SELECT vault_id, user_id, key_envelope FROM vault_key_shares WHERE user_id = (SELECT id FROM users WHERE username = ?1)",
+    )
+    .bind(username.as_str())
+    .fetch_all(&pool)
+    .await
+    .context("failed to query shared vault keys")?;
+
+    for share_row in shared_vaults {
+        let vault_id: Uuid = share_row.try_get("vault_id")
+            .context("failed to read vault_id from share")?;
+        let user_id: Uuid = share_row.try_get("user_id")
+            .context("failed to read user_id from share")?;
+        let share_envelope_bytes: Vec<u8> = share_row
+            .try_get("key_envelope")
+            .context("failed to extract share envelope bytes")?;
+        let share_envelope = SecretBox::new(Box::new(share_envelope_bytes));
+
+        // Désérialiser et déchiffrer avec l'ancienne master_key
+        let share_payload = heelonvault_core::services::vault_service::deserialize_vault_key_envelope(&share_envelope)
+            .context("failed to deserialize share envelope")?;
+        let vault_key = crypto_service
+            .decrypt(&share_payload, &old_master_key)
+            .await
+            .context("failed to decrypt shared vault key with old master key")?;
+
+        // Rechiffrer avec la nouvelle master_key
+        let rewrapped_share_payload = crypto_service
+            .encrypt(&vault_key, &new_master_key_for_vaults)
+            .await
+            .context("failed to re-encrypt shared vault key with new master key")?;
+        let rewrapped_share_envelope = heelonvault_core::services::vault_service::serialize_vault_key_envelope(&rewrapped_share_payload);
+
+        // Mettre à jour l'envelope du share
+        sqlx::query("UPDATE vault_key_shares SET key_envelope = ?1 WHERE vault_id = ?2 AND user_id = ?3")
+            .bind(rewrapped_share_envelope.expose_secret().as_slice())
+            .bind(vault_id)
+            .bind(user_id)
+            .execute(&pool)
+            .await
+            .context("failed to update share key envelope")?;
+    }
+
+    // 8. Nettoyer
     let _ = sqlx::query("DELETE FROM auth_policy").execute(&pool).await;
     pool.close().await;
     Ok(())

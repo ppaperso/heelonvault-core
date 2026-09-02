@@ -1,7 +1,9 @@
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use secrecy::SecretString;
+use sqlx::SqlitePool;
 use tracing::warn;
 use uuid::Uuid;
 
@@ -9,6 +11,17 @@ use crate::errors::AppError;
 use crate::repositories::user_repository::UserRepository;
 use crate::services::access_control::{Action, Resource, check_permission};
 use crate::services::backup_service::{BackupMetadata, BackupService};
+
+/// Deletes the temporary snapshot even if the export fails or panics.
+struct SnapshotGuard {
+    path: PathBuf,
+}
+
+impl Drop for SnapshotGuard {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct RotationBackupTicket {
@@ -64,6 +77,7 @@ where
 {
     user_repo: TUserRepo,
     backup_service: TBackupSvc,
+    pool: SqlitePool,
 }
 
 impl<TUserRepo, TBackupSvc> BackupApplicationServiceImpl<TUserRepo, TBackupSvc>
@@ -71,11 +85,64 @@ where
     TUserRepo: UserRepository + Send + Sync,
     TBackupSvc: BackupService + Send + Sync,
 {
-    pub fn new(user_repo: TUserRepo, backup_service: TBackupSvc) -> Self {
+    pub fn new(user_repo: TUserRepo, backup_service: TBackupSvc, pool: SqlitePool) -> Self {
         Self {
             user_repo,
             backup_service,
+            pool,
         }
+    }
+
+    /// Produces a consistent copy of the live database through `VACUUM INTO`.
+    ///
+    /// Reading the `.db` file directly would miss everything still sitting in the `-wal`
+    /// file, yielding a backup that decrypts cleanly but is missing recent writes.
+    async fn snapshot_database(&self, sqlite_db_path: &Path) -> Result<SnapshotGuard, AppError> {
+        let mut snapshot_path = sqlite_db_path.to_path_buf();
+        let snapshot_name = match sqlite_db_path.file_name().and_then(|name| name.to_str()) {
+            Some(name) => format!(".{name}.snapshot"),
+            None => ".heelonvault.snapshot".to_string(),
+        };
+        snapshot_path.set_file_name(snapshot_name);
+
+        // VACUUM INTO refuses to write onto an existing file.
+        if snapshot_path.exists() {
+            fs::remove_file(&snapshot_path).map_err(AppError::Io)?;
+        }
+
+        let guard = SnapshotGuard {
+            path: snapshot_path.clone(),
+        };
+
+        let snapshot_arg = snapshot_path
+            .to_str()
+            .ok_or_else(|| AppError::Validation("database path is not valid UTF-8".to_string()))?;
+        // SQLite rejects bound parameters in `VACUUM INTO`, so the path must be inlined.
+        // Rather than escaping, refuse any path that could break out of the literal.
+        if snapshot_arg.contains('\'') || snapshot_arg.contains('\0') {
+            return Err(AppError::Validation(
+                "database path contains characters that cannot be used for a snapshot".to_string(),
+            ));
+        }
+        // `raw_sql` runs the statement unprepared, which VACUUM requires.
+        sqlx::raw_sql(sqlx::AssertSqlSafe(format!("VACUUM INTO '{snapshot_arg}'")))
+            .execute(&self.pool)
+            .await?;
+
+        if !snapshot_path.exists() {
+            return Err(AppError::Storage(
+                "database snapshot was not produced".to_string(),
+            ));
+        }
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&snapshot_path, fs::Permissions::from_mode(0o600))
+                .map_err(AppError::Io)?;
+        }
+
+        Ok(guard)
     }
 }
 
@@ -102,8 +169,10 @@ where
             warn!(actor_id = %actor_id, "backup export permission denied");
         })?;
 
+        let snapshot = self.snapshot_database(sqlite_db_path).await?;
+
         self.backup_service.export_hvb_with_recovery_key(
-            sqlite_db_path,
+            snapshot.path.as_path(),
             backup_file_path,
             recovery_phrase,
         )
@@ -195,6 +264,21 @@ mod tests {
 
     use super::{BackupApplicationService, BackupApplicationServiceImpl};
 
+    /// These tests cover authorization only. A file-backed pool is required because
+    /// `VACUUM INTO` produces nothing from an in-memory database.
+    fn unique_db_path() -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("heelonvault-src-{}.db", Uuid::new_v4()))
+    }
+
+    async fn test_pool() -> sqlx::SqlitePool {
+        let path = std::env::temp_dir().join(format!("heelonvault-rbac-{}.db", Uuid::new_v4()));
+        sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect(&format!("sqlite://{}?mode=rwc", path.display()))
+            .await
+            .expect("file-backed sqlite pool")
+    }
+
     #[derive(Default, Clone)]
     struct StubUserRepo {
         users: Arc<Mutex<HashMap<Uuid, User>>>,
@@ -285,6 +369,29 @@ mod tests {
         async fn update_show_passwords_in_edit(&self, _: Uuid, _: bool) -> Result<(), AppError> {
             Ok(())
         }
+        async fn get_recovery_phrase_envelope(
+            &self,
+            _: Uuid,
+        ) -> Result<Option<secrecy::SecretBox<Vec<u8>>>, AppError> {
+            Ok(None)
+        }
+        async fn set_recovery_phrase_envelope(
+            &self,
+            _: Uuid,
+            _: secrecy::SecretBox<Vec<u8>>,
+        ) -> Result<(), AppError> {
+            Ok(())
+        }
+        async fn get_recovery_verifier(&self, _: Uuid) -> Result<Option<Vec<u8>>, AppError> {
+            Ok(None)
+        }
+        async fn set_recovery_verifier(
+            &self,
+            _: Uuid,
+            _: secrecy::SecretBox<Vec<u8>>,
+        ) -> Result<(), AppError> {
+            Ok(())
+        }
     }
 
     #[derive(Default, Clone)]
@@ -299,6 +406,19 @@ mod tests {
                     "test recovery phrase".to_string().into(),
                 ),
             })
+        }
+        fn build_recovery_verifier(
+            &self,
+            _: &secrecy::SecretString,
+        ) -> Result<secrecy::SecretBox<Vec<u8>>, AppError> {
+            Ok(secrecy::SecretBox::new(Box::new(vec![0_u8; 65])))
+        }
+        fn verify_recovery_phrase(
+            &self,
+            _: &secrecy::SecretString,
+            _: &[u8],
+        ) -> Result<bool, AppError> {
+            Ok(true)
         }
         fn export_hvb_with_recovery_key(
             &self,
@@ -322,28 +442,6 @@ mod tests {
                 plaintext_size: 2048,
             })
         }
-        fn export_backup(
-            &self,
-            _: &std::path::Path,
-            _: &std::path::Path,
-            _: secrecy::SecretBox<Vec<u8>>,
-        ) -> Result<BackupMetadata, AppError> {
-            Ok(BackupMetadata {
-                sha256_hex: "ghi789".to_string(),
-                plaintext_size: 512,
-            })
-        }
-        fn import_backup(
-            &self,
-            _: &std::path::Path,
-            _: &std::path::Path,
-            _: secrecy::SecretBox<Vec<u8>>,
-        ) -> Result<BackupMetadata, AppError> {
-            Ok(BackupMetadata {
-                sha256_hex: "jkl012".to_string(),
-                plaintext_size: 4096,
-            })
-        }
     }
 
     #[tokio::test]
@@ -353,18 +451,19 @@ mod tests {
         user_repo.insert_user(admin_id, UserRole::Admin);
 
         let backup_service = StubBackupService;
-        let app_service = BackupApplicationServiceImpl::new(user_repo, backup_service);
+        let app_service =
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
 
         let result = app_service
             .export_backup_secured(
                 admin_id,
-                std::path::Path::new("/tmp/db.db"),
+                unique_db_path().as_path(),
                 std::path::Path::new("/tmp/backup.hvb"),
                 &secrecy::SecretString::new("recovery phrase".to_string().into()),
             )
             .await;
 
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "export should succeed: {:?}", result.err());
     }
 
     #[tokio::test]
@@ -374,12 +473,13 @@ mod tests {
         user_repo.insert_user(user_id, UserRole::User);
 
         let backup_service = StubBackupService;
-        let app_service = BackupApplicationServiceImpl::new(user_repo, backup_service);
+        let app_service =
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
 
         let result = app_service
             .export_backup_secured(
                 user_id,
-                std::path::Path::new("/tmp/db.db"),
+                unique_db_path().as_path(),
                 std::path::Path::new("/tmp/backup.hvb"),
                 &secrecy::SecretString::new("recovery phrase".to_string().into()),
             )
@@ -395,7 +495,8 @@ mod tests {
         user_repo.insert_user(admin_id, UserRole::Admin);
 
         let backup_service = StubBackupService;
-        let app_service = BackupApplicationServiceImpl::new(user_repo, backup_service);
+        let app_service =
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
 
         let result = app_service
             .restore_backup_secured(
@@ -416,7 +517,8 @@ mod tests {
         user_repo.insert_user(user_id, UserRole::User);
 
         let backup_service = StubBackupService;
-        let app_service = BackupApplicationServiceImpl::new(user_repo, backup_service);
+        let app_service =
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
 
         let result = app_service
             .restore_backup_secured(
@@ -436,12 +538,13 @@ mod tests {
         let missing_id = Uuid::new_v4();
 
         let backup_service = StubBackupService;
-        let app_service = BackupApplicationServiceImpl::new(user_repo, backup_service);
+        let app_service =
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
 
         let result = app_service
             .export_backup_secured(
                 missing_id,
-                std::path::Path::new("/tmp/db.db"),
+                unique_db_path().as_path(),
                 std::path::Path::new("/tmp/backup.hvb"),
                 &secrecy::SecretString::new("recovery phrase".to_string().into()),
             )
@@ -457,12 +560,13 @@ mod tests {
         user_repo.insert_user(admin_id, UserRole::Admin);
 
         let backup_service = StubBackupService;
-        let app_service = BackupApplicationServiceImpl::new(user_repo, backup_service);
+        let app_service =
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
 
         let result = app_service
             .export_rotation_backup_secured(
                 admin_id,
-                std::path::Path::new("/tmp/db.db"),
+                unique_db_path().as_path(),
                 std::path::Path::new("/tmp/backup.hvb"),
             )
             .await;
@@ -480,12 +584,13 @@ mod tests {
         user_repo.insert_user(admin_id, UserRole::Admin);
 
         let backup_service = StubBackupService;
-        let app_service = BackupApplicationServiceImpl::new(user_repo, backup_service);
+        let app_service =
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
 
         let ticket = app_service
             .export_rotation_backup_secured(
                 admin_id,
-                std::path::Path::new("/tmp/db.db"),
+                unique_db_path().as_path(),
                 std::path::Path::new("/tmp/backup.hvb"),
             )
             .await
@@ -500,5 +605,65 @@ mod tests {
             .await;
 
         assert!(restore_result.is_ok());
+    }
+
+    /// Guards against reading the `.db` file directly: in WAL mode the recent rows only
+    /// live in the `-wal` sidecar, so a raw copy would silently lose them.
+    #[tokio::test]
+    async fn snapshot_captures_rows_still_held_in_the_wal() {
+        let db_path = unique_db_path();
+        let pool = match sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect(&format!("sqlite://{}?mode=rwc", db_path.display()))
+            .await
+        {
+            Ok(pool) => pool,
+            Err(_) => return,
+        };
+
+        if sqlx::raw_sql(sqlx::AssertSqlSafe("PRAGMA journal_mode=WAL".to_string()))
+            .execute(&pool)
+            .await
+            .is_err()
+        {
+            return;
+        }
+        if sqlx::query("CREATE TABLE probe (value TEXT NOT NULL)")
+            .execute(&pool)
+            .await
+            .is_err()
+            || sqlx::query("INSERT INTO probe VALUES ('written-to-wal')")
+                .execute(&pool)
+                .await
+                .is_err()
+        {
+            return;
+        }
+
+        let user_repo = StubUserRepo::default();
+        let admin_id = Uuid::new_v4();
+        user_repo.insert_user(admin_id, UserRole::Admin);
+        let app_service = BackupApplicationServiceImpl::new(user_repo, StubBackupService, pool);
+
+        let snapshot = match app_service.snapshot_database(db_path.as_path()).await {
+            Ok(value) => value,
+            Err(err) => panic!("snapshot should succeed: {err:?}"),
+        };
+
+        let snapshot_bytes = std::fs::read(snapshot.path.as_path()).unwrap_or_default();
+        let raw_bytes = std::fs::read(db_path.as_path()).unwrap_or_default();
+
+        assert!(
+            snapshot_bytes
+                .windows(14)
+                .any(|window| window == b"written-to-wal"),
+            "the snapshot must contain rows that are still in the WAL"
+        );
+        assert!(
+            !raw_bytes.windows(14).any(|w| w == b"written-to-wal"),
+            "precondition: the raw .db file does not hold the row yet"
+        );
+
+        let _ = std::fs::remove_file(&db_path);
     }
 }

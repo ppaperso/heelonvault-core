@@ -15,6 +15,8 @@ pub(crate) fn build_profile_view<
     window: adw::ApplicationWindow,
     runtime_handle: Handle,
     user_service: Arc<TUser>,
+    user_repo: Arc<heelonvault_core::repositories::user_repository::SqlxUserRepository>,
+    crypto_service: Arc<heelonvault_core::services::crypto_service::CryptoServiceImpl>,
     totp_service: Arc<TTotp>,
     auth_policy_service: Arc<TPolicy>,
     backup_service: Arc<TBackup>,

@@ -11,6 +11,17 @@ use heelonvault_core::models::UserRole;
 use heelonvault_core::services::backup_application_service::BackupApplicationService;
 use tempfile::TempDir;
 use uuid::Uuid;
+
+/// `VACUUM INTO` produces nothing from an in-memory database, so the snapshot taken
+/// during an export needs a file-backed pool.
+async fn test_pool() -> sqlx::SqlitePool {
+    let path = std::env::temp_dir().join(format!("heelonvault-itest-{}.db", Uuid::new_v4()));
+    sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect(&format!("sqlite://{}?mode=rwc", path.display()))
+        .await
+        .expect("file-backed sqlite pool")
+}
 #[tokio::test]
 async fn test_non_admin_cannot_export_backup() {
     // Case 1: Non-admin user attempts export
@@ -23,6 +34,7 @@ async fn test_non_admin_cannot_export_backup() {
         heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl::new(
             user_repo,
             backup_service,
+            test_pool().await,
         );
 
     let temp_dir = TempDir::new().unwrap();
@@ -57,6 +69,7 @@ async fn test_admin_can_export_backup() {
         heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl::new(
             user_repo,
             backup_service,
+            test_pool().await,
         );
 
     let temp_dir = TempDir::new().unwrap();
@@ -93,6 +106,7 @@ async fn test_missing_user_returns_not_found() {
         heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl::new(
             user_repo,
             backup_service,
+            test_pool().await,
         );
 
     let temp_dir = TempDir::new().unwrap();

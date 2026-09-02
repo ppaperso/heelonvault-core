@@ -1118,10 +1118,16 @@
             main_stack_for_profile_admin_teams.set_visible_child_name("teams_view");
         });
 
+        // Create user_repo and crypto_service for profile view
+        let user_repo = Arc::new(heelonvault_core::repositories::user_repository::SqlxUserRepository::new(database_pool.clone()));
+        let crypto_service = Arc::new(heelonvault_core::services::crypto_service::CryptoServiceImpl::default());
+
         let profile_view = Self::build_profile_view(
             window.clone(),
             runtime_handle.clone(),
             Arc::clone(&user_service),
+            Arc::clone(&user_repo),
+            Arc::clone(&crypto_service),
             Arc::clone(&totp_service),
             Arc::clone(&auth_policy_service),
             Arc::clone(&backup_service),

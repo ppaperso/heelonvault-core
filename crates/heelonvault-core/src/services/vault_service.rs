@@ -130,31 +130,51 @@ where
             crypto_service,
         }
     }
+}
 
-    fn serialize_envelope(payload: &EncryptedPayload) -> SecretBox<Vec<u8>> {
-        let mut bytes = Vec::with_capacity(NONCE_LEN + payload.ciphertext.expose_secret().len());
-        bytes.extend_from_slice(&payload.nonce);
-        bytes.extend_from_slice(payload.ciphertext.expose_secret().as_slice());
-        SecretBox::new(Box::new(bytes))
+// Fonctions statiques pour sérialisation/désérialisation des envelopes de vault keys
+// Utilisables sans instancier VaultServiceImpl
+pub fn serialize_vault_key_envelope(payload: &EncryptedPayload) -> SecretBox<Vec<u8>> {
+    let mut bytes = Vec::with_capacity(NONCE_LEN + payload.ciphertext.expose_secret().len());
+    bytes.extend_from_slice(&payload.nonce);
+    bytes.extend_from_slice(payload.ciphertext.expose_secret().as_slice());
+    SecretBox::new(Box::new(bytes))
+}
+
+pub fn deserialize_vault_key_envelope(bytes: &SecretBox<Vec<u8>>) -> Result<EncryptedPayload, AppError> {
+    if bytes.expose_secret().len() < NONCE_LEN {
+        return Err(AppError::Storage(
+            "vault key envelope is invalid".to_string(),
+        ));
     }
 
-    fn deserialize_envelope(bytes: &SecretBox<Vec<u8>>) -> Result<EncryptedPayload, AppError> {
-        if bytes.expose_secret().len() < NONCE_LEN {
-            return Err(AppError::Storage(
-                "vault key envelope is invalid".to_string(),
-            ));
-        }
+    let mut nonce = [0_u8; NONCE_LEN];
+    nonce.copy_from_slice(&bytes.expose_secret()[0..NONCE_LEN]);
+    let ciphertext = bytes.expose_secret()[NONCE_LEN..].to_vec();
 
-        let mut nonce = [0_u8; NONCE_LEN];
-        nonce.copy_from_slice(&bytes.expose_secret()[0..NONCE_LEN]);
-        let ciphertext = bytes.expose_secret()[NONCE_LEN..].to_vec();
+    Ok(EncryptedPayload {
+        nonce,
+        ciphertext: SecretBox::new(Box::new(ciphertext)),
+    })
+}
 
-        Ok(EncryptedPayload {
-            nonce,
-            ciphertext: SecretBox::new(Box::new(ciphertext)),
-        })
+impl<TVaultRepo, TEnvelopeRepo, TUserRepo, TTeamRepo, TAuditSvc, TCrypto>
+    VaultServiceImpl<TVaultRepo, TEnvelopeRepo, TUserRepo, TTeamRepo, TAuditSvc, TCrypto>
+where
+    TVaultRepo: VaultRepository + Send + Sync,
+    TEnvelopeRepo: VaultKeyEnvelopeRepository + Send + Sync,
+    TUserRepo: UserRepository + Send + Sync,
+    TTeamRepo: TeamRepository + Send + Sync,
+    TAuditSvc: AuditLogService + Send + Sync,
+    TCrypto: CryptoService + Send + Sync,
+{
+    pub fn serialize_envelope(payload: &EncryptedPayload) -> SecretBox<Vec<u8>> {
+        serialize_vault_key_envelope(payload)
     }
 
+    pub fn deserialize_envelope(bytes: &SecretBox<Vec<u8>>) -> Result<EncryptedPayload, AppError> {
+        deserialize_vault_key_envelope(bytes)
+    }
     fn generate_vault_key() -> Result<SecretBox<Vec<u8>>, AppError> {
         let mut key = vec![0_u8; VAULT_KEY_LEN];
         getrandom::fill(key.as_mut_slice())
@@ -818,6 +838,29 @@ mod tests {
             Ok(())
         }
         async fn update_show_passwords_in_edit(&self, _: Uuid, _: bool) -> Result<(), AppError> {
+            Ok(())
+        }
+        async fn get_recovery_phrase_envelope(
+            &self,
+            _: Uuid,
+        ) -> Result<Option<secrecy::SecretBox<Vec<u8>>>, AppError> {
+            Ok(None)
+        }
+        async fn set_recovery_phrase_envelope(
+            &self,
+            _: Uuid,
+            _: secrecy::SecretBox<Vec<u8>>,
+        ) -> Result<(), AppError> {
+            Ok(())
+        }
+        async fn get_recovery_verifier(&self, _: Uuid) -> Result<Option<Vec<u8>>, AppError> {
+            Ok(None)
+        }
+        async fn set_recovery_verifier(
+            &self,
+            _: Uuid,
+            _: secrecy::SecretBox<Vec<u8>>,
+        ) -> Result<(), AppError> {
             Ok(())
         }
     }

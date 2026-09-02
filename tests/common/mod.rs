@@ -170,28 +170,4 @@ impl heelonvault_core::services::backup_service::BackupService for StubBackupSer
             plaintext_size: 1024,
         })
     }
-
-    fn export_backup(
-        &self,
-        _: &std::path::Path,
-        _: &std::path::Path,
-        _: secrecy::SecretBox<Vec<u8>>,
-    ) -> Result<heelonvault_core::services::backup_service::BackupMetadata, AppError> {
-        Ok(heelonvault_core::services::backup_service::BackupMetadata {
-            sha256_hex: "abcd1234".to_string(),
-            plaintext_size: 1024,
-        })
-    }
-
-    fn import_backup(
-        &self,
-        _: &std::path::Path,
-        _: &std::path::Path,
-        _: secrecy::SecretBox<Vec<u8>>,
-    ) -> Result<heelonvault_core::services::backup_service::BackupMetadata, AppError> {
-        Ok(heelonvault_core::services::backup_service::BackupMetadata {
-            sha256_hex: "abcd1234".to_string(),
-            plaintext_size: 1024,
-        })
-    }
 }

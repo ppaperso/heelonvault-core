@@ -34,6 +34,7 @@ uuid    = { version = "1.16", features = ["serde", "v4"] }
 dirs    = "5.0"
 
 # --- Dépendances directes de ui/ (ui/ est dans heelonvault-app depuis Phase 5a) ---
+getrandom  = "0.3"
 hex        = "0.4"
 sha2       = "0.10"
 zeroize    = "1.8"

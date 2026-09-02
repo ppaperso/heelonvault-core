@@ -14,7 +14,9 @@ pub struct AuthenticatedSession {
 }
 
 pub struct BootstrapServicesContext {
+    /// Generates the phrase shown at the identity step and parks it until the oath step.
     pub generate_recovery_key: Arc<dyn Fn() -> Result<String, AppError> + Send + Sync>,
+    /// Persists the account with the exact phrase produced by `generate_recovery_key`.
     pub do_bootstrap:
         Arc<dyn Fn(String, Vec<u8>) -> Result<BootstrapResult, AppError> + Send + Sync>,
 }

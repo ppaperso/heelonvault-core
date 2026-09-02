@@ -116,6 +116,33 @@ impl heelonvault_core::repositories::user_repository::UserRepository for StubUse
         Ok(())
     }
 
+    async fn get_recovery_phrase_envelope(
+        &self,
+        _: Uuid,
+    ) -> Result<Option<secrecy::SecretBox<Vec<u8>>>, AppError> {
+        Ok(None)
+    }
+
+    async fn set_recovery_phrase_envelope(
+        &self,
+        _: Uuid,
+        _: secrecy::SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    async fn get_recovery_verifier(&self, _: Uuid) -> Result<Option<Vec<u8>>, AppError> {
+        Ok(None)
+    }
+
+    async fn set_recovery_verifier(
+        &self,
+        _: Uuid,
+        _: secrecy::SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        Ok(())
+    }
+
     async fn update_totp_secret_envelope(
         &self,
         _: Uuid,
@@ -159,35 +186,26 @@ impl heelonvault_core::services::backup_service::BackupService for StubBackupSer
         })
     }
 
+    fn build_recovery_verifier(
+        &self,
+        _: &secrecy::SecretString,
+    ) -> Result<secrecy::SecretBox<Vec<u8>>, AppError> {
+        Ok(secrecy::SecretBox::new(Box::new(vec![0_u8; 65])))
+    }
+
+    fn verify_recovery_phrase(
+        &self,
+        _: &secrecy::SecretString,
+        _: &[u8],
+    ) -> Result<bool, AppError> {
+        Ok(true)
+    }
+
     fn import_hvb_with_recovery_key(
         &self,
         _: &std::path::Path,
         _: &secrecy::SecretString,
         _: &std::path::Path,
-    ) -> Result<heelonvault_core::services::backup_service::BackupMetadata, AppError> {
-        Ok(heelonvault_core::services::backup_service::BackupMetadata {
-            sha256_hex: "abcd1234".to_string(),
-            plaintext_size: 1024,
-        })
-    }
-
-    fn export_backup(
-        &self,
-        _: &std::path::Path,
-        _: &std::path::Path,
-        _: secrecy::SecretBox<Vec<u8>>,
-    ) -> Result<heelonvault_core::services::backup_service::BackupMetadata, AppError> {
-        Ok(heelonvault_core::services::backup_service::BackupMetadata {
-            sha256_hex: "abcd1234".to_string(),
-            plaintext_size: 1024,
-        })
-    }
-
-    fn import_backup(
-        &self,
-        _: &std::path::Path,
-        _: &std::path::Path,
-        _: secrecy::SecretBox<Vec<u8>>,
     ) -> Result<heelonvault_core::services::backup_service::BackupMetadata, AppError> {
         Ok(heelonvault_core::services::backup_service::BackupMetadata {
             sha256_hex: "abcd1234".to_string(),

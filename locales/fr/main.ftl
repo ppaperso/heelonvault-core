@@ -347,6 +347,27 @@ profile-export-success-body = Export termine. Notez votre Recovery Key:
 
     { $key }
 profile-export-failed = Echec de l'export .hvb.
+profile-export-success-detail =
+    Sauvegarde ecrite et verifiee.
+
+    Fichier : { $path }
+    Taille de la base : { $size } octets
+
+    Conservez votre Recovery Key : sans elle, cette sauvegarde ne pourra pas etre restauree.
+profile-export-verifier-unavailable = Impossible de lire l'empreinte de la Recovery Key pour ce compte.
+profile-export-reentry-title = Confirmez votre Recovery Key
+profile-export-reentry-body = Saisissez les 24 mots notes lors de la creation de ce coffre.
+profile-export-reentry-helper = Les mots sont separes par des espaces et la casse est ignoree. HeelonVault ne les conserve jamais en clair.
+profile-export-reentry-counter = { $count } / 24 mots
+profile-export-reentry-confirm = Verifier et exporter
+profile-export-reentry-mismatch = Ces mots ne correspondent pas a la Recovery Key de ce coffre. L'export a ete annule.
+profile-export-provision-title = Aucune Recovery Key sur ce coffre
+profile-export-provision-body =
+    Ce coffre ne possede pas d'empreinte de Recovery Key : l'export ne peut pas etre rattache a une cle existante.
+
+    Une nouvelle Recovery Key va etre generee. Toute cle conservee auparavant devient caduque et ne permettra pas de restaurer les sauvegardes futures.
+profile-export-provision-confirm = Generer une nouvelle cle
+profile-export-provision-failed = Impossible de generer et d'enregistrer une nouvelle Recovery Key.
 profile-import-chooser-title = Importer des donnees CSV
 profile-import-accept = Importer
 profile-import-invalid-file = Fichier CSV invalide.

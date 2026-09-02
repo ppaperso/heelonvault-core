@@ -17,7 +17,7 @@ use gtk4::prelude::*;
 use gtk4::{Align, Orientation};
 use libadwaita as adw;
 use libadwaita::prelude::*;
-use secrecy::SecretBox;
+use secrecy::{ExposeSecret, SecretBox};
 use sqlx::{Row, SqlitePool};
 use tokio::runtime::Handle;
 use tracing::{info, warn};
@@ -29,7 +29,7 @@ use crate::ui::dialogs::add_edit_dialog::{AddEditDialog, DialogMode};
 use crate::ui::dialogs::manage_teams_dialog::ManageTeamsDialog;
 #[cfg(feature = "premium")]
 use crate::ui::dialogs::manage_users_dialog::ManageUsersDialog;
-#[cfg(feature = "premium")]
+use crate::ui::dialogs::recovery_key_export_dialog;
 use crate::ui::dialogs::recovery_key_export_dialog::{
     ExportRunner, RecoveryKeyExportDialog, RecoveryKeyExportDialogDeps,
 };
@@ -38,12 +38,14 @@ use crate::ui::messages;
 use crate::ui::window_sizing;
 #[cfg(feature = "premium")]
 use heelonvault_core::models::LicenseTier;
+use heelonvault_core::repositories::user_repository::UserRepository;
 use heelonvault_core::services::admin_service::AdminService;
 #[cfg(feature = "premium")]
 use heelonvault_core::services::audit_report_provider::ReportError;
 use heelonvault_core::services::auth_policy_service::AuthPolicyService;
 use heelonvault_core::services::backup_application_service::BackupApplicationService;
 use heelonvault_core::services::backup_service::BackupService;
+use heelonvault_core::services::crypto_service::CryptoService;
 use heelonvault_core::services::import_service::ImportService;
 use heelonvault_core::services::login_history_service::list_recent_logins;
 use heelonvault_core::services::pin_cache_service::PinCache;

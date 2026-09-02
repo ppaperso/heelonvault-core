@@ -52,6 +52,25 @@ pub trait LocalUserRepository {
         user_id: Uuid,
         show_passwords_in_edit: bool,
     ) -> Result<(), AppError>;
+    /// Get the recovery phrase envelope for a user
+    async fn get_recovery_phrase_envelope(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Option<SecretBox<Vec<u8>>>, AppError>;
+    /// Set the recovery phrase envelope for a user
+    async fn set_recovery_phrase_envelope(
+        &self,
+        user_id: Uuid,
+        recovery_phrase_envelope: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError>;
+    /// Get the recovery phrase verifier for a user
+    async fn get_recovery_verifier(&self, user_id: Uuid) -> Result<Option<Vec<u8>>, AppError>;
+    /// Set the recovery phrase verifier for a user
+    async fn set_recovery_verifier(
+        &self,
+        user_id: Uuid,
+        recovery_verifier: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError>;
 }
 
 pub struct SqlxUserRepository {
@@ -317,6 +336,76 @@ impl UserRepository for SqlxUserRepository {
         if result.rows_affected() == 0 {
             return Err(AppError::Storage(
                 "user not found for show_passwords_in_edit update".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    async fn get_recovery_phrase_envelope(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Option<SecretBox<Vec<u8>>>, AppError> {
+        let row_opt = sqlx::query("SELECT recovery_phrase_envelope FROM users WHERE id = ?1")
+            .bind(user_id.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
+
+        match row_opt {
+            Some(row) => {
+                let envelope: Option<Vec<u8>> = row.try_get("recovery_phrase_envelope")?;
+                Ok(envelope.map(|bytes| SecretBox::new(Box::new(bytes))))
+            }
+            None => Ok(None),
+        }
+    }
+
+    async fn set_recovery_phrase_envelope(
+        &self,
+        user_id: Uuid,
+        recovery_phrase_envelope: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        let result = sqlx::query("UPDATE users SET recovery_phrase_envelope = ?1 WHERE id = ?2")
+            .bind(sqlx_bind_secret(&recovery_phrase_envelope))
+            .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::Storage(
+                "user not found for recovery phrase update".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    async fn get_recovery_verifier(&self, user_id: Uuid) -> Result<Option<Vec<u8>>, AppError> {
+        let row_opt = sqlx::query("SELECT recovery_verifier FROM users WHERE id = ?1")
+            .bind(user_id.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
+
+        match row_opt {
+            Some(row) => Ok(row.try_get("recovery_verifier")?),
+            None => Ok(None),
+        }
+    }
+
+    async fn set_recovery_verifier(
+        &self,
+        user_id: Uuid,
+        recovery_verifier: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        let result = sqlx::query("UPDATE users SET recovery_verifier = ?1 WHERE id = ?2")
+            .bind(sqlx_bind_secret(&recovery_verifier))
+            .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::Storage(
+                "user not found for recovery verifier update".to_string(),
             ));
         }
 

@@ -9,9 +9,9 @@ use crate::services::crypto_service::CryptoService;
 
 const PASSWORD_ENVELOPE_VERSION: u8 = 1;
 
-struct UserCredentialRecord {
-    password_salt: SecretBox<Vec<u8>>,
-    password_hash: SecretBox<Vec<u8>>,
+pub struct UserCredentialRecord {
+    pub password_salt: SecretBox<Vec<u8>>,
+    pub password_hash: SecretBox<Vec<u8>>,
 }
 
 #[trait_variant::make(AuthService: Send)]
@@ -95,7 +95,7 @@ where
         diff == 0
     }
 
-    fn encode_password_envelope(record: &UserCredentialRecord) -> SecretBox<Vec<u8>> {
+    pub fn encode_password_envelope(record: &UserCredentialRecord) -> SecretBox<Vec<u8>> {
         let salt = record.password_salt.expose_secret();
         let hash = record.password_hash.expose_secret();
 
@@ -109,7 +109,7 @@ where
         SecretBox::new(Box::new(envelope))
     }
 
-    fn decode_password_envelope(
+    pub fn decode_password_envelope(
         password_envelope: &SecretBox<Vec<u8>>,
     ) -> Result<UserCredentialRecord, AppError> {
         let bytes = password_envelope.expose_secret().as_slice();

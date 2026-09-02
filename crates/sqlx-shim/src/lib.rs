@@ -16,6 +16,7 @@ pub use sqlx_core::query_builder::{self, QueryBuilder};
 pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
 pub use sqlx_core::raw_sql::{RawSql, raw_sql};
 pub use sqlx_core::row::Row;
+pub use sqlx_core::sql_str::{AssertSqlSafe, SqlSafeStr};
 pub use sqlx_core::statement::Statement;
 pub use sqlx_core::transaction::{Transaction, TransactionManager};
 pub use sqlx_core::type_info::TypeInfo;

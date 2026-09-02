@@ -14,6 +14,18 @@ use super::{AuthenticatedSession, feedback};
 type BootstrapCallback =
     Arc<dyn Fn(String, Vec<u8>) -> Result<BootstrapResult, AppError> + Send + Sync>;
 
+/// Two distinct word positions in `0..24`, drawn from the OS RNG so they leak nothing
+/// about the phrase itself. Falls back to a fixed pair if the RNG is unavailable.
+fn pick_verification_indices() -> (usize, usize) {
+    let mut bytes = [0_u8; 2];
+    if getrandom::fill(&mut bytes).is_err() {
+        return (0, 12);
+    }
+    let index_a = usize::from(bytes[0]) % 24;
+    let index_b = (index_a + 1 + usize::from(bytes[1]) % 23) % 24;
+    (index_a.min(index_b), index_a.max(index_b))
+}
+
 pub(super) fn handle_init_identity_step(
     init_username: &gtk4::Entry,
     error_label: &gtk4::Label,
@@ -47,15 +59,7 @@ pub(super) fn handle_init_identity_step(
                     for (index, label) in word_labels.iter().enumerate() {
                         label.set_text(&words[index]);
                     }
-                    let phrase_sum: u64 = phrase.bytes().map(|value| value as u64).sum();
-                    let index_a = (phrase_sum % 24) as usize;
-                    let index_b_raw = ((phrase_sum / 24).wrapping_add(7) % 24) as usize;
-                    let index_b = if index_b_raw == index_a {
-                        (index_a + 1) % 24
-                    } else {
-                        index_b_raw
-                    };
-                    let (index_a, index_b) = (index_a.min(index_b), index_a.max(index_b));
+                    let (index_a, index_b) = pick_verification_indices();
                     init_verify_indices.set((index_a, index_b));
 
                     let hint = heelonvault_core::i18n::tr_args(

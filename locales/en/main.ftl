@@ -347,6 +347,27 @@ profile-export-success-body = Export completed. Record your Recovery Key:
 
     { $key }
 profile-export-failed = .hvb export failed.
+profile-export-success-detail =
+    Backup written and verified.
+
+    File: { $path }
+    Database size: { $size } bytes
+
+    Keep your Recovery Key safe: without it this backup cannot be restored.
+profile-export-verifier-unavailable = Unable to read the Recovery Key fingerprint for this account.
+profile-export-reentry-title = Confirm your Recovery Key
+profile-export-reentry-body = Type the 24 words you saved when this vault was created.
+profile-export-reentry-helper = Words are separated by spaces and are not case sensitive. HeelonVault never stores them in clear text.
+profile-export-reentry-counter = { $count } / 24 words
+profile-export-reentry-confirm = Verify and export
+profile-export-reentry-mismatch = Those words do not match this vault's Recovery Key. The export was cancelled.
+profile-export-provision-title = No Recovery Key on this vault
+profile-export-provision-body =
+    This vault has no Recovery Key fingerprint, so the export cannot be tied to an existing key.
+
+    A new Recovery Key will be generated. Any key you may have kept from before becomes void and will not restore future backups.
+profile-export-provision-confirm = Generate a new key
+profile-export-provision-failed = Unable to generate and store a new Recovery Key.
 profile-import-chooser-title = Import CSV data
 profile-import-accept = Import
 profile-import-invalid-file = Invalid CSV file.

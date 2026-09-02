@@ -1603,26 +1603,17 @@
     });
 
     let window_for_export = window.clone();
-    // Suppress unused-variable warnings for premium-only params in community build
-    #[cfg(not(feature = "premium"))]
-    let _ = (&backup_service, &backup_app_service, &database_path);
-    #[cfg(feature = "premium")]
     let backup_app_for_export: Arc<TBackupApp> = Arc::clone(&backup_app_service);
-    #[cfg(feature = "premium")]
     let backup_for_export = Arc::clone(&backup_service);
-    #[cfg(feature = "premium")]
     let database_path_for_export = database_path.clone();
-    #[cfg(feature = "premium")]
     let actor_user_id_for_export: Uuid = user_id;
     let is_admin_for_export = is_admin;
-    #[cfg(feature = "premium")]
     let begin_critical_for_export = Rc::clone(&begin_critical_operation);
-    #[cfg(feature = "premium")]
     let end_critical_for_export = Rc::clone(&end_critical_operation);
+    let session_for_export = Rc::clone(&session_master_key);
+    let runtime_for_export = runtime_handle.clone();
     export_button.connect_clicked(move |_| {
         if is_admin_for_export {
-        #[cfg(feature = "premium")]
-        {
         let window_for_dialog = window_for_export.clone();
         let backup_for_dialog = Arc::clone(&backup_for_export);
         let backup_app_for_dialog = Arc::clone(&backup_app_for_export);
@@ -1636,7 +1627,7 @@
             MainWindow::show_feedback_dialog(&window_for_feedback, title, body);
         });
 
-        let run_export: ExportRunner = Rc::new(move |backup_path: PathBuf, recovery_phrase| {
+        let run_export: ExportRunner = Arc::new(move |backup_path: PathBuf, recovery_phrase| {
             let backup_app_for_task = Arc::clone(&backup_app_for_dialog);
             let db_for_task = db_path_for_dialog.clone();
             Box::pin(async move {
@@ -1648,20 +1639,82 @@
                         &recovery_phrase,
                     )
                     .await
-                    .map(|_| ())
             })
         });
 
+        let user_repo_for_verifier = Arc::clone(&user_repo);
+        let user_id_for_verifier = actor_user_id_for_export;
+        let load_verifier: recovery_key_export_dialog::LoadVerifierRunner = Arc::new(move || {
+            let user_repo = Arc::clone(&user_repo_for_verifier);
+            Box::pin(async move { user_repo.get_recovery_verifier(user_id_for_verifier).await })
+        });
+
+        let backup_for_verify = Arc::clone(&backup_for_dialog);
+        let verify_phrase: recovery_key_export_dialog::VerifyPhraseRunner =
+            Arc::new(move |phrase, verifier| {
+                let backup_service = Arc::clone(&backup_for_verify);
+                Box::pin(async move {
+                    backup_service.verify_recovery_phrase(&phrase, verifier.as_slice())
+                })
+            });
+
+        let user_repo_for_provision = Arc::clone(&user_repo);
+        let crypto_for_provision = Arc::clone(&crypto_service);
+        let backup_for_provision = Arc::clone(&backup_for_dialog);
+        let master_key_for_provision = MainWindow::snapshot_session_master_key(&session_for_export);
+        let provision_recovery: recovery_key_export_dialog::ProvisionRecoveryRunner =
+            Arc::new(move || {
+                let user_repo = Arc::clone(&user_repo_for_provision);
+                let crypto = Arc::clone(&crypto_for_provision);
+                let backup_service = Arc::clone(&backup_for_provision);
+                let master_key_bytes = master_key_for_provision.clone();
+
+                Box::pin(async move {
+                    let Some(master_key_bytes) = master_key_bytes else {
+                        return Err(heelonvault_core::errors::AppError::Validation(
+                            "session master key unavailable".to_string(),
+                        ));
+                    };
+                    let master_key = SecretBox::new(Box::new(master_key_bytes));
+
+                    let bundle = backup_service.generate_recovery_key()?;
+
+                    let encrypted = crypto
+                        .encrypt(
+                            &SecretBox::new(Box::new(
+                                bundle.recovery_phrase.expose_secret().as_bytes().to_vec(),
+                            )),
+                            &master_key,
+                        )
+                        .await?;
+                    user_repo
+                        .set_recovery_phrase_envelope(
+                            user_id_for_verifier,
+                            heelonvault_core::services::crypto_service::encode_envelope(&encrypted),
+                        )
+                        .await?;
+
+                    let verifier = backup_service.build_recovery_verifier(&bundle.recovery_phrase)?;
+                    user_repo
+                        .set_recovery_verifier(user_id_for_verifier, verifier)
+                        .await?;
+
+                    Ok(bundle)
+                })
+            });
+
         RecoveryKeyExportDialog::show(RecoveryKeyExportDialogDeps {
             parent_window: window_for_dialog.upcast::<gtk4::Window>(),
-            backup_service: backup_for_dialog,
             cancel_label_key: "trash-dialog-cancel",
             on_feedback,
             on_begin_critical: Some(begin_critical_for_dialog),
             on_end_critical: Some(end_critical_for_dialog),
             run_export,
+            load_verifier,
+            verify_phrase,
+            provision_recovery,
+            runtime_handle: runtime_for_export.clone(),
         });
-        } // end #[cfg(feature = "premium")]
         } else {
             MainWindow::show_feedback_dialog(
                 &window_for_export,

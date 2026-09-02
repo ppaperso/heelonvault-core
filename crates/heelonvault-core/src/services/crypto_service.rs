@@ -36,6 +36,41 @@ pub struct EncryptedPayload {
     pub ciphertext: SecretBox<Vec<u8>>,
 }
 
+/// Envelope layout used for at-rest blobs stored in a single DB column:
+/// `version(1) || nonce(NONCE_LEN) || ciphertext`.
+pub const ENVELOPE_VERSION: u8 = 1;
+
+pub fn encode_envelope(payload: &EncryptedPayload) -> SecretBox<Vec<u8>> {
+    let ciphertext = payload.ciphertext.expose_secret();
+    let mut envelope = Vec::with_capacity(1 + NONCE_LEN + ciphertext.len());
+    envelope.push(ENVELOPE_VERSION);
+    envelope.extend_from_slice(&payload.nonce);
+    envelope.extend_from_slice(ciphertext.as_slice());
+    SecretBox::new(Box::new(envelope))
+}
+
+pub fn decode_envelope(envelope: &[u8]) -> Result<EncryptedPayload, AppError> {
+    if envelope.len() <= 1 + NONCE_LEN {
+        return Err(AppError::Validation(
+            "encrypted envelope is truncated".to_string(),
+        ));
+    }
+    if envelope[0] != ENVELOPE_VERSION {
+        return Err(AppError::Validation(format!(
+            "unsupported envelope version: {}",
+            envelope[0]
+        )));
+    }
+
+    let mut nonce = [0_u8; NONCE_LEN];
+    nonce.copy_from_slice(&envelope[1..=NONCE_LEN]);
+
+    Ok(EncryptedPayload {
+        nonce,
+        ciphertext: SecretBox::new(Box::new(envelope[1 + NONCE_LEN..].to_vec())),
+    })
+}
+
 #[trait_variant::make(CryptoService: Send)]
 pub trait LocalCryptoService {
     async fn generate_kdf_salt(&self) -> Result<SecretBox<Vec<u8>>, AppError>;
