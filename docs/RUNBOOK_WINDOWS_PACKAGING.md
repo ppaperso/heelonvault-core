@@ -168,10 +168,17 @@ wix --version          # doit afficher 7.x.x
 
 > **Vérifications** :
 > ```powershell
-> where wix    # Doit retourner un chemin (ex: C:\Users\...\.dotnet\tools\wix.exe)
+> # WiX v7 est un outil global .NET — il peut ne pas être dans le PATH système
+> # Vérification alternative 1 : localiser l'exécutable
+> (Get-Command wix).Source    # Doit retourner C:\Users\...\.dotnet\tools\wix.exe
+> 
+> # Vérification alternative 2 : vérifier que la commande fonctionne
+> wix --version                   # Doit afficher 7.x.x
 > ```
 >
-> `wix.exe` doit être dans le PATH Windows. Si l'organisation dépasse 10 000 $/an de revenus sur des projets utilisant WiX, un sponsoring OSMF est requis (voir `https://docs.firegiant.com/wix/osmf/`).
+> **⚠️ Note importante** : `where wix` peut ne **rien retourner** même si WiX est bien installé. C'est normal car WiX est installé comme outil global .NET dans `%USERPROFILE%\.dotnet\tools\` qui n'est pas toujours dans le PATH système. Utilisez `(Get-Command wix).Source` ou `wix --version` pour vérifier l'installation.
+>
+> Si l'organisation dépasse 10 000 $/an de revenus sur des projets utilisant WiX, un sponsoring OSMF est requis (voir `https://docs.firegiant.com/wix/osmf/`).
 
 ### 0.5 Vérification de la stack complète
 
@@ -183,7 +190,7 @@ echo "=== Git ==="; git --version
 echo "=== Rustup ==="; rustup --version
 echo "=== dotnet ==="; dotnet --version    # Doit afficher 8.x.x ou plus
 echo "=== WiX ==="; wix --version
-echo "=== WiX path ==="; where wix
+echo "=== WiX path ==="; (Get-Command wix).Source
 ```
 
 **2. Dans MSYS2 MINGW64 (outils build)** :
