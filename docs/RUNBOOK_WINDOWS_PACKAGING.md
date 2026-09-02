@@ -69,16 +69,18 @@ pacman -Syu
 > # Dans MSYS2 MINGW64, après la mise à jour pacman :
 > curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 > # Suivre les instructions, choisir "Proceed with installation (default)"
-> # Le script rustup modifie automatiquement ~/.bashrc pour charger le PATH
-> # ⚠️ IMPORTANT : Fermer et RELANCER MSYS2 MINGW64 pour que les changements prennent effet
-> # Si vous voulez charger le PATH immédiatement sans redémarrer :
-> source /c/Users/$USER/.cargo/env
+> # ⚠️ IMPORTANT : Le script rustup modifie ~/.bashrc mais celui-ci n'est pas toujours sourcé automatiquement dans MSYS2.
+> # Pour une solution immédiate dans la session actuelle :
+> export PATH="$PATH:/c/Users/$USER/.cargo/bin"
+> # Pour une solution permanente, ajoutez ces lignes à votre ~/.bashrc :
+> echo 'export PATH="$PATH:/c/Users/'$USER'/.cargo/bin"' >> ~/.bashrc
+> echo 'export PATH="$PATH:/c/Users/'$USER'/.rustup/toolchains/stable-x86_64-pc-windows-gnu/bin"' >> ~/.bashrc
+> # Puis fermez et relancez MSYS2 MINGW64
 > ```
 > 
 > **Option 2** : Ajouter le PATH Windows à MSYS2 (si vous préférez utiliser rustup installé via winget) :
 > ```bash
-> # Dans MSYS2 MINGW64, ajouter les chemins Windows :
-> # $USERPROFILE dans MSYS2 = /c/Users/<votre_utilisateur>
+> # Dans MSYS2 MINGW64, $USERPROFILE = /c/Users/<votre_utilisateur>
 > export PATH="$PATH:$USERPROFILE/.cargo/bin"
 > export PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/bin"
 > # Vérifier :
