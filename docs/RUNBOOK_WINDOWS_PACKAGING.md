@@ -8,27 +8,79 @@
 
 ## 0. Pré-requis — Stack à installer
 
-### 0.0 Répertoire de travail (obligatoire)
+### 0.0 Récupération du code source
 
-Toutes les commandes de ce runbook doivent être lancées depuis la racine du repo.
+> **Première étape obligatoire** — cloner le dépôt avant toute installation :
 
-```bash
-pwd
-# Attendu (suffixe): .../heelonvault-core
+```powershell
+# Dans PowerShell ou CMD, choisir un dossier de travail (ex: C:\dev)
+cd C:\dev
 
-test -f Cargo.toml && test -f wix/main.wxs && test -f scripts/collect-dlls.sh
-# Attendu: aucune sortie d'erreur
+# Cloner le dépôt (remplacer par le branch si nécessaire)
+git clone https://github.com/ppaperso/heelonvault-core.git
+cd heelonvault-core
 ```
+
+> **Vérification** (toujours en PowerShell, MSYS2/Git Bash pas encore installés à ce stade) :
+> ```powershell
+> Get-Location
+> # Attendu (suffixe) : ...\heelonvault-core
+>
+> Test-Path Cargo.toml, wix\main.wxs, scripts\collect-dlls.sh
+> # Attendu : True, True, True (un booléen par chemin, dans l'ordre)
+> ```
+
+> **Note** : Toutes les commandes de ce runbook doivent être lancées depuis ce répertoire (`heelonvault-core/`).
+
+### 0.0.1 Outils de base Windows
+
+> **À installer AVANT MSYS2** (dans PowerShell ou CMD) :
+
+```powershell
+# 1. Git — nécessaire pour lire rust-toolchain.toml et cloner les dépendances
+winget install --id Git.Git -e --source winget
+# Alternative : télécharger depuis https://git-scm.com/download/win
+
+# 2. Rustup — gestionnaire de toolchains Rust
+winget install --id Rustlang.Rustup -e --source winget
+# Alternative : https://win.rustup.rs/
+
+# 3. .NET SDK 7+ — requis pour WiX v7 (dotnet tool)
+winget install --id Microsoft.DotNet.SDK.7 -e --source winget
+# Alternative : https://dotnet.microsoft.com/download/dotnet/7.0
+```
+
+> **Vérifications post-installation** :
+> ```powershell
+> git --version
+> rustup --version
+> dotnet --version    # Doit afficher 7.x.x ou plus
+> ```
 
 ### 0.1 Rust toolchain (target Windows natif)
 
+> **Se positionner dans le repo depuis MSYS2** — MSYS2 a son propre `$HOME` et ses propres chemins (`/c/...`), distincts de la session PowerShell utilisée en 0.0. Ouvrir MSYS2 MINGW64 et naviguer explicitement vers le dossier cloné :
+> ```bash
+> cd /c/dev/heelonvault-core   # adapter si un autre dossier a été choisi en 0.0
+> pwd && test -f Cargo.toml && test -f rust-toolchain.toml
+> # Attendu : aucune sortie d'erreur
+> ```
+
 ```bash
-# Dans MSYS2 MINGW64
-# rust-toolchain.toml pin le channel (ex: 1.98.0) sans host — installer le host
-# GNU explicitement pour ce repo évite d'installer un toolchain "stable" inutile.
-rustup toolchain install $(grep channel ../rust-toolchain.toml | cut -d'"' -f2)-x86_64-pc-windows-gnu
-rustup show   # vérifier que x86_64-pc-windows-gnu est actif pour ce repo
+# Dans MSYS2 MINGW64, depuis la racine du repo (voir ci-dessus)
+# Installer la toolchain pinnée dans rust-toolchain.toml
+rustup set default-host x86_64-pc-windows-gnu
+rustup toolchain install $(grep channel rust-toolchain.toml | cut -d'"' -f2)-x86_64-pc-windows-gnu
+rustup default $(grep channel rust-toolchain.toml | cut -d'"' -f2)-x86_64-pc-windows-gnu
+rustup show   # vérifier que x86_64-pc-windows-gnu est actif
 ```
+
+> **Si `rust-toolchain.toml` est manquant** (ex: clone shallow) :
+> ```bash
+> # Installer la version MSRV requise (1.98.0 pour ce repo)
+> rustup install 1.98.0-x86_64-pc-windows-gnu
+> rustup default 1.98.0-x86_64-pc-windows-gnu
+> ```
 
 ### 0.2 Paquets MSYS2 MINGW64
 
@@ -51,20 +103,34 @@ pacman -S --needed \
 
 ### 0.3 WiX v7
 
-```bash
-# Hors MSYS2, dans un terminal Windows standard (ou PowerShell)
+```powershell
+# Hors MSYS2, dans PowerShell (nécessite .NET SDK installé en 0.0.1)
 dotnet tool install --global wix
 wix eula accept wix7   # obligatoire (OSMF EULA v1.1) sinon le build échoue
-wix --version   # doit afficher 7.x.x
+wix --version          # doit afficher 7.x.x
 ```
 
-> `wix.exe` doit être dans le PATH Windows. Vérifie avec `where wix` en PowerShell.
-> Si l'organisation dépasse 10 000 $/an de revenus sur des projets utilisant WiX, un sponsoring OSMF est requis (voir `docs.firegiant.com/wix/osmf/`).
+> **Vérifications** :
+> ```powershell
+> where wix    # Doit retourner un chemin (ex: C:\Users\...\.dotnet\tools\wix.exe)
+> ```
+>
+> `wix.exe` doit être dans le PATH Windows. Si l'organisation dépasse 10 000 $/an de revenus sur des projets utilisant WiX, un sponsoring OSMF est requis (voir `https://docs.firegiant.com/wix/osmf/`).
 
 ### 0.4 Vérification de la stack complète
 
-Exécute ce bloc dans MSYS2 MINGW64 avant tout :
+> **À exécuter dans 2 terminaux distincts** :
 
+**1. Dans PowerShell (outils Windows)** :
+```powershell
+echo "=== Git ==="; git --version
+echo "=== Rustup ==="; rustup --version
+echo "=== dotnet ==="; dotnet --version
+echo "=== WiX ==="; wix --version
+echo "=== WiX path ==="; where wix
+```
+
+**2. Dans MSYS2 MINGW64 (outils build)** :
 ```bash
 echo "=== Rust ===" && rustc --version && cargo --version
 echo "=== ntldd ===" && ntldd --version
@@ -72,29 +138,75 @@ echo "=== ImageMagick ===" && convert --version | head -1
 echo "=== glib-compile-schemas ===" && glib-compile-schemas --version
 echo "=== gdk-pixbuf-query-loaders ===" && gdk-pixbuf-query-loaders --version 2>&1 | head -1
 echo "=== python3 ===" && python3 --version
-echo "=== wix ===" && wix --version
+echo "=== wix ===" && wix --version 2>&1 | head -1
 ```
 
-**Résultats attendus** : chaque commande retourne une version sans erreur.
+**Résultats attendus** : Chaque commande retourne une version **sans erreur**. Si une commande échoue, revenir à la section correspondante (0.0.1, 0.1, 0.2, ou 0.3).
 
 ---
 
 ## 1. Build du binaire
 
+> **Ce runbook couvre le build MSI avec Premium intégré**.
+> Pour un build Community (sans code premium), utiliser `--no-default-features` et omettre `--features premium`.
+
+### 1.1 Prérequis Premium
+
+> **Pour inclure le code premium dans le MSI** (nécessaire pour ce runbook) :
+
+> ⚠️ **À clarifier avant de suivre cette section** : comment `--features premium` récupère-t-il concrètement le code du repo privé — dépendance git dans `Cargo.toml` (résolue par `cargo` lui-même), submodule, ou script dans `build.rs` ? Le mécanisme détermine où l'authentification SSH doit être disponible (variable selon que c'est `cargo`, `git`, ou un sous-processus qui fait l'appel). À documenter ici une fois confirmé — le reste de cette section suppose une dépendance git classique.
+
+> **Vérifier l'accès SSH au repo premium — depuis MSYS2 MINGW64**, pas PowerShell : c'est ce shell qui exécute `cargo build` en 1.2, donc c'est son `$HOME`/agent SSH qui doit être configuré, pas celui de PowerShell (les deux ont des `~/.ssh` distincts par défaut).
+
+```bash
+# Dans MSYS2 MINGW64
+git ls-remote git@github.com:ppaperso/heelonvault-premium.git
+# Doit lister les refs (branches/tags) du repo sans erreur.
+# Un simple "ssh -T git@github.com" confirme l'authentification GitHub générale
+# mais PAS l'accès en lecture à ce repo précis — préférer ls-remote.
+```
+
+> **Si l'accès échoue** :
+> - Vérifier qu'une clé SSH existe dans le `$HOME` de MSYS2 : `ls ~/.ssh/id_ed25519.pub 2>/dev/null || ls ~/.ssh/id_rsa.pub 2>/dev/null`
+> - Si absente, soit en générer une nouvelle dans MSYS2, soit copier celle déjà utilisée côté Windows (`cp /c/Users/<user>/.ssh/id_ed25519* ~/.ssh/`)
+> - Ajouter la clé publique à votre compte GitHub : `Settings > SSH and GPG keys`
+> - Assurez-vous que le compte a accès en **lecture** au repo `ppaperso/heelonvault-premium`
+
+### 1.2 Build avec Premium (pour le MSI)
+
 ```bash
 # Depuis la racine du repo, dans MSYS2 MINGW64
-cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app
+# --features premium active le téléchargement et la compilation du code premium
+cargo build --release --locked --target x86_64-pc-windows-gnu \
+  -p heelonvault-app \
+  --features premium
 ```
 
 > `--target x86_64-pc-windows-gnu` est explicite et obligatoire : c'est ce chemin (`target/x86_64-pc-windows-gnu/release/`) que `wix/main.wxs` attend, indépendamment du host/toolchain par défaut.
 
-Vérification :
+**Vérification** :
 
 ```bash
 ls -lh target/x86_64-pc-windows-gnu/release/heelonvault.exe
 file target/x86_64-pc-windows-gnu/release/heelonvault.exe
 # Attendu : PE32+ executable (GUI) x86-64
 ```
+
+> **Important** : Le binaire doit être de type **GUI** (subsystem "windows") et non **CUI** (console).
+>
+> **Note sur le licensing** : Le code premium est **inclus** dans le binaire. L'affichage des fonctionnalités premium dépend de la **présence d'une licence valide** (`LicenseService::load_license()`). Sans licence, l'application fonctionne en mode Community avec les menus premium masqués.
+
+### 1.3 Build Community (optionnel - sans code premium)
+
+> **Si vous ne voulez PAS inclure le code premium** (build open-source uniquement) :
+
+```bash
+cargo build --release --locked --target x86_64-pc-windows-gnu \
+  -p heelonvault-app \
+  --no-default-features
+```
+
+> **⚠️ Attention** : Ce build **n'inclut pas** le code premium et ne peut pas afficher les fonctionnalités premium même avec une licence valide.
 
 ---
 
@@ -239,7 +351,12 @@ Vérifie `install.log` si le code retour est non-zéro.
 
 - Ouvrir le menu Démarrer → HeelonVault
 - Ou `"C:\Program Files\HeelonVault\heelonvault.exe"`
+- **L'application se lance comme une application GUI native** (sans fenêtre console visible)
 - L'application doit démarrer sans crash ni dialog d'erreur GLib/GTK
+
+> **Note** : Depuis cette version, HeelonVault s'exécute comme une **application GUI native** sur Windows (subsystem "windows"). La fenêtre console ne s'affiche plus. Les logs sont écrits dans `%LOCALAPPDATA%\heelonvault\logs\`.
+
+> Pour activer les logs console lors du développement, utilisez : `set HEELONVAULT_CONSOLE=1` avant de lancer l'application.
 
 ### 5.3 Désinstallation
 
@@ -249,7 +366,20 @@ msiexec /x heelonvault-windows-x86_64.msi /l*v uninstall.log
 
 Vérifier que `C:\Program Files\HeelonVault\` est supprimé.
 
-### 5.4 Checklist QA minimale
+### 5.4 Logs et Debug
+
+**Emplacement des logs** :
+```text
+%LOCALAPPDATA%\heelonvault\logs\heelonvault-YYYY-MM-DD.log
+```
+
+**Format** : JSON structuré (un objet par ligne)
+
+**Sur Windows, il n'y a pas de console de debug activable** : le binaire est compilé en mode GUI (`windows_subsystem = "windows"`), donc `stdout` n'est jamais visible, quelle que soit la valeur de `HEELONVAULT_CONSOLE`. Le seul moyen de debug est de consulter les fichiers de logs ci-dessus (`type` ou un éditeur de texte).
+
+> `HEELONVAULT_CONSOLE=1` n'a d'effet que sur Linux/macOS, où il ajoute un `console_layer` en plus du `file_layer` déjà toujours actif. Ne pas s'attendre à un comportement équivalent sur Windows.
+
+### 5.5 Checklist QA minimale
 
 - [ ] Installation silencieuse sans erreur
 - [ ] Raccourci Start Menu présent et fonctionnel
@@ -302,9 +432,13 @@ git push origin v1.1.1-rc.1
 
 ## Annexe — Séquence complète en une fois
 
+> **Pour un MSI avec Premium intégré** (recommandé) :
+
 ```bash
-# 1. Build binaire
-cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app
+# 1. Build binaire (avec features premium)
+cargo build --release --locked --target x86_64-pc-windows-gnu \
+  -p heelonvault-app \
+  --features premium
 
 # 2. Collect DLLs + thème + icônes + migrations, génère dlls.wxs
 bash scripts/collect-dlls.sh \
@@ -317,12 +451,17 @@ bash scripts/collect-dlls.sh \
 wix build \
   wix/main.wxs \
   wix/dlls.wxs \
-  -d ProductVersion=1.1.0 \
+  -d ProductVersion=1.2.0-rc.1 \
   -o heelonvault-windows-x86_64.msi
 
 # 4. Checksum
 sha256sum heelonvault-windows-x86_64.msi > heelonvault-windows-x86_64.msi.sha256
 ```
+
+> **Pour un build Community (sans Premium)** : Remplacer l'étape 1 par :
+> ```bash
+> cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app --no-default-features
+> ```
 
 ---
 
@@ -343,3 +482,56 @@ Une fois ce runbook validé localement, voici les deltas à anticiper pour le wo
 **Signature Authenticode** : le MSI produit par ce runbook n'est pas signé — Windows 11 SmartScreen avertira les utilisateurs à l'installation. Si un certificat de signature de code est disponible, ajouter une étape `signtool sign /fd sha256 /tr <timestamp-url> /td sha256 heelonvault-windows-x86_64.msi` avant le calcul du checksum (étape 4). Sans certificat, documenter ce risque dans les notes de release.
 
 **`loaders.cache` et chemins Windows** : `gdk-pixbuf-query-loaders` génère un cache avec des chemins absolus MSYS2. Vérifier que les chemins dans `loaders.cache` sont compatibles avec le chemin d'installation MSI (`C:\Program Files\HeelonVault\lib\...`). Si non, un post-processing sed peut être nécessaire.
+
+--- 
+
+### 🔐 Points spécifiques pour le build Premium en CI
+
+**Accès au repo privé heelonvault-premium** :
+- Le `GITHUB_TOKEN` par défaut généré par Actions n'a accès qu'au repo courant (`heelonvault-core`) — il ne donne **pas** accès à `heelonvault-premium`. Il faut un **Personal Access Token fine-grained** dédié, avec accès en lecture (`Contents: Read-only`) explicitement accordé sur le repo `ppaperso/heelonvault-premium`, stocké comme secret (ex: `PREMIUM_REPO_TOKEN`).
+- **Ne jamais** stocker le token en clair dans les fichiers
+- Exemple pour GitHub Actions — **attention à utiliser le bon secret dans `run:`**, pas le `GITHUB_TOKEN` par défaut :
+  ```yaml
+  - name: Configure Git for private repo
+    run: |
+      git config --global url."https://${{ env.GITHUB_TOKEN }}@github.com".insteadOf "ssh://git@github.com"
+    env:
+      GITHUB_TOKEN: ${{ secrets.PREMIUM_REPO_TOKEN }}  # PAT fine-grained, Contents:Read sur heelonvault-premium
+  ```
+  > La version précédente référençait `secrets.GITHUB_TOKEN` dans `run:` alors que `env:` déclarait `PREMIUM_REPO_TOKEN` — les deux noms ne correspondaient pas, et `secrets.GITHUB_TOKEN` n'aurait de toute façon pas eu accès au repo privé.
+
+**Build avec features premium** :
+```yaml
+- name: Build with Premium
+  run: |
+    cargo build --release --locked --target x86_64-pc-windows-gnu \
+      -p heelonvault-app \
+      --features premium
+```
+
+**Sécurité du cache Cargo** :
+- Le cache (`~/.cargo/registry/cache/`) contient le code source de `heelonvault-premium`
+- **Exclure** ce cache des artefacts publics ou des logs
+- Utiliser `actions/cache` avec prudence :
+  ```yaml
+  - name: Cache Cargo
+    uses: actions/cache@v3
+    with:
+      path: |
+        ~/.cargo/registry/index/
+        ~/.cargo/registry/cache/
+        target/
+      key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    # ⚠️ Le cache contient du code premium — ne pas le partager publiquement
+  ```
+
+**Nettoyage des logs** :
+- Les logs de build peuvent contenir des paths vers `heelonvault-premium`
+- Filtrer les logs avant publication :
+  ```yaml
+  - name: Sanitize logs
+    run: |
+      # Masquer les paths du repo privé dans les logs
+      cargo build ... 2>&1 | sed 's/ppaperso\/heelonvault-premium/[REDACTED]/g'
+  ```
+  

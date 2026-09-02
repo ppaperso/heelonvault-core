@@ -1,4 +1,5 @@
 #![allow(clippy::items_after_test_module, clippy::type_complexity)]
+#![windows_subsystem = "windows"]
 
 mod ui;
 
@@ -287,14 +288,14 @@ fn main() -> Result<()> {
 
     let startup_flags = StartupFlags::from_args(&args);
     if startup_flags.show_version {
-        println!("{}", env!("CARGO_PKG_VERSION"));
-        return Ok(());
+        // Version will be logged below with the rest of startup info
     }
 
     // Renderer preference should be set by the launcher environment (AppImage,
     // package scripts, or user shell) to keep this binary free of unsafe env mutation.
 
     let _logging_guard = init_logging()?;
+    info!("HeelonVault v{} starting", env!("CARGO_PKG_VERSION"));
     register_resources()?;
 
     let runtime = Builder::new_multi_thread()
@@ -313,9 +314,8 @@ fn main() -> Result<()> {
     if startup_flags.startup_check_only {
         info!(
             needs_bootstrap = start_needs_bootstrap,
-            "startup check completed successfully"
+            "startup-check: ok"
         );
-        println!("startup-check: ok");
         return Ok(());
     }
 
@@ -868,49 +868,56 @@ fn init_logging() -> Result<WorkerGuard> {
     let is_debug_logging = base_filter_spec.to_ascii_lowercase().contains("debug");
     let is_dev_mode = cfg!(debug_assertions);
 
-    if is_dev_mode {
+    // Check if console output is explicitly requested via environment variable
+    let force_console = env::var("HEELONVAULT_CONSOLE")
+        .ok()
+        .filter(|v| v == "1" || v.to_lowercase() == "true")
+        .is_some();
+
+    // File layer is always active - writes JSON logs to files
+    let file_layer = tracing_subscriber::fmt::layer()
+        .json()
+        .with_ansi(false)
+        .with_writer(file_writer)
+        .with_target(is_debug_logging)
+        .with_line_number(is_debug_logging)
+        .with_file(is_debug_logging)
+        .with_timer(LocalRfc3339Timer);
+
+    // On Windows with GUI subsystem, console output is not visible.
+    // Console layer is only added on non-Windows platforms.
+    // Note: On Windows, even with HEELONVAULT_CONSOLE=1, the subsystem is GUI so stdout won't show.
+    if (is_dev_mode || force_console) && !cfg!(windows) {
+        // Non-Windows: add console layer (default formatter)
         let console_layer = tracing_subscriber::fmt::layer()
-            .pretty()
             .with_writer(std::io::stdout)
             .with_target(false)
-            .with_timer(LocalRfc3339Timer);
-        let file_layer = tracing_subscriber::fmt::layer()
-            .json()
-            .with_ansi(false)
-            .with_writer(file_writer)
-            .with_target(is_debug_logging)
-            .with_line_number(is_debug_logging)
-            .with_file(is_debug_logging)
             .with_timer(LocalRfc3339Timer);
 
         tracing_subscriber::registry()
             .with(env_filter)
-            .with(console_layer)
             .with(file_layer)
+            .with(console_layer)
             .try_init()
             .map_err(|error| anyhow!("failed to initialize tracing subscriber: {error}"))?;
     } else {
-        let console_layer = tracing_subscriber::fmt::layer()
-            .compact()
-            .with_writer(std::io::stdout)
-            .with_target(false)
-            .with_timer(LocalRfc3339Timer);
-        let file_layer = tracing_subscriber::fmt::layer()
-            .json()
-            .with_ansi(false)
-            .with_writer(file_writer)
-            .with_target(is_debug_logging)
-            .with_line_number(is_debug_logging)
-            .with_file(is_debug_logging)
-            .with_timer(LocalRfc3339Timer);
-
+        // Windows or console not requested: only file layer
         tracing_subscriber::registry()
             .with(env_filter)
-            .with(console_layer)
             .with(file_layer)
             .try_init()
             .map_err(|error| anyhow!("failed to initialize tracing subscriber: {error}"))?;
     }
+
+    // Set a panic hook that routes to tracing::error! to avoid silent panics
+    // Critical now that Windows console is hidden by GUI subsystem
+    std::panic::set_hook(Box::new(|info| {
+        let location = info.location().map(|l| l.to_string()).unwrap_or_default();
+        let message = info.payload().downcast_ref::<&str>().map(|s| s.to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "unknown panic".into());
+        tracing::error!(%location, %message, "application panicked");
+    }));
 
     Ok(guard)
 }
