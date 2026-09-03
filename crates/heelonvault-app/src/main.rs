@@ -292,6 +292,7 @@ impl Write for DailyLogFileWriter {
 /// Sur Windows, GTK4 cherche ses ressources (thèmes, icônes, schemas, loaders)
 /// dans des chemins spécifiques. En mode portable, on configure ces chemins
 /// pour pointer vers le dossier d'installation de l'application.
+#[allow(unsafe_code)]
 fn setup_windows_resources() {
     if cfg!(target_os = "windows") {
         if let Ok(exe) = env::current_exe() {
@@ -299,21 +300,24 @@ fn setup_windows_resources() {
                 let dir = install_dir.to_string_lossy();
 
                 // Racine des données GTK
-                env::set_var("GTK_DATA_PREFIX", &*dir);
-                env::set_var("GTK_EXE_PREFIX", &*dir);
-                env::set_var("XDG_DATA_DIRS", format!("{}/share", dir));
+                // SAFETY: These are called once at startup, single-threaded, before any GTK initialization
+                unsafe {
+                    env::set_var("GTK_DATA_PREFIX", &*dir);
+                    env::set_var("GTK_EXE_PREFIX", &*dir);
+                    env::set_var("XDG_DATA_DIRS", format!("{}/share", dir));
 
-                // Schemas GSettings
-                env::set_var("GSETTINGS_SCHEMA_DIR", format!("{}/share/glib-2.0/schemas", dir));
+                    // Schemas GSettings
+                    env::set_var("GSETTINGS_SCHEMA_DIR", format!("{}/share/glib-2.0/schemas", dir));
 
-                // Loaders gdk-pixbuf (scan dynamique du dossier, pas de cache)
-                env::set_var("GDK_PIXBUF_MODULEDIR", format!("{}/lib/gdk-pixbuf-2.0/2.10.0/loaders", dir));
+                    // Loaders gdk-pixbuf (scan dynamique du dossier, pas de cache)
+                    env::set_var("GDK_PIXBUF_MODULEDIR", format!("{}/lib/gdk-pixbuf-2.0/2.10.0/loaders", dir));
 
-                // Thème par défaut
-                env::set_var("GTK_THEME", "Adwaita");
+                    // Thème par défaut
+                    env::set_var("GTK_THEME", "Adwaita");
 
-                // Migrations : permet à l'application de trouver le dossier migrations
-                env::set_var("HEELONVAULT_MIGRATIONS_DIR", format!("{}/migrations", dir));
+                    // Migrations : permet à l'application de trouver le dossier migrations
+                    env::set_var("HEELONVAULT_MIGRATIONS_DIR", format!("{}/migrations", dir));
+                }
             }
         }
     }
