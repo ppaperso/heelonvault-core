@@ -283,6 +283,42 @@ impl Write for DailyLogFileWriter {
     }
 }
 
+/// Configure les variables d'environnement pour GTK4/libadwaita
+/// en mode "portable" (ressources à côté de l'exécutable).
+/// 
+/// Cette fonction DOIT être appelée avant toute initialisation GTK4,
+/// c'est-à-dire avant `register_resources()` qui appelle `gio::resources_register_include!`.
+/// 
+/// Sur Windows, GTK4 cherche ses ressources (thèmes, icônes, schemas, loaders)
+/// dans des chemins spécifiques. En mode portable, on configure ces chemins
+/// pour pointer vers le dossier d'installation de l'application.
+fn setup_windows_resources() {
+    if cfg!(target_os = "windows") {
+        if let Ok(exe) = env::current_exe() {
+            if let Some(install_dir) = exe.parent() {
+                let dir = install_dir.to_string_lossy();
+
+                // Racine des données GTK
+                env::set_var("GTK_DATA_PREFIX", &*dir);
+                env::set_var("GTK_EXE_PREFIX", &*dir);
+                env::set_var("XDG_DATA_DIRS", format!("{}/share", dir));
+
+                // Schemas GSettings
+                env::set_var("GSETTINGS_SCHEMA_DIR", format!("{}/share/glib-2.0/schemas", dir));
+
+                // Loaders gdk-pixbuf (scan dynamique du dossier, pas de cache)
+                env::set_var("GDK_PIXBUF_MODULEDIR", format!("{}/lib/gdk-pixbuf-2.0/2.10.0/loaders", dir));
+
+                // Thème par défaut
+                env::set_var("GTK_THEME", "Adwaita");
+
+                // Migrations : permet à l'application de trouver le dossier migrations
+                env::set_var("HEELONVAULT_MIGRATIONS_DIR", format!("{}/migrations", dir));
+            }
+        }
+    }
+}
+
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
 
@@ -296,6 +332,11 @@ fn main() -> Result<()> {
 
     let _logging_guard = init_logging()?;
     info!("HeelonVault v{} starting", env!("CARGO_PKG_VERSION"));
+    
+    // Configure Windows-specific environment variables for portable GTK4
+    // MUST be called before any GTK4 initialization (before register_resources)
+    setup_windows_resources();
+    
     register_resources()?;
 
     let runtime = Builder::new_multi_thread()

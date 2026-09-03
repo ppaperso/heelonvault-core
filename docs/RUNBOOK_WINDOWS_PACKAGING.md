@@ -1,239 +1,143 @@
 # Runbook — Packaging Windows MSI HeelonVault
 
-> Validé sur les fichiers réels : `collect-dlls.sh`, `wix/main.wxs`, `Cargo.toml`  
-> Cible : MSYS2 MINGW64 shell sur Windows x86_64, target Rust `x86_64-pc-windows-gnu`  
-> WiX : v7 (`wix.exe`), pas candle/light — voir `docs/msi_build_procedure.md` pour la procédure pas-à-pas complète (VM dédiée)
+> **Cible :** MSYS2 MINGW64 shell sur Windows x86_64, target Rust `x86_64-pc-windows-gnu`  
+> **WiX :** v7 (`wix.exe`)  
+> **Scripts d'automatisation :** `scripts/windows/setup_win_env.ps1` (PowerShell) et `scripts/windows/setup_msys2.sh` (Bash)
+> **Validé avec :** Nouveau workflow (staging.wxs + collect-staging.sh + setup_windows_resources)
 
 ---
 
-## 0. Pré-requis — Stack à installer
+## 0. Pré-requis — Configuration Automatique via Scripts
 
-### 0.0 Outils de base Windows
+> **✅ NOUVEAU :** Utilisez les scripts dédiés pour configurer l'environnement **automatiquement**.
 
-> **À installer EN PREMIER** (dans PowerShell ou CMD, **avant toute autre étape**) :
+### 0.1 Configuration Windows (PowerShell - Admin)
 
-```powershell
-# 1. Git — OBLIGATOIRE pour cloner le dépôt et les dépendances
-winget install --id Git.Git -e --source winget
-# Alternative : télécharger depuis https://git-scm.com/download/win
+**Script :** `scripts/windows/setup_win_env.ps1`
 
-# 2. Rustup — gestionnaire de toolchains Rust
-winget install --id Rustlang.Rustup -e --source winget
-# Alternative : https://win.rustup.rs/
-
-# 3. .NET SDK 8+ — requis pour WiX v7 (dotnet tool)
-winget install --id Microsoft.DotNet.SDK.8 -e --source winget
-# Alternative : https://dotnet.microsoft.com/download/dotnet/8.0
-```
-
-> **Vérifications post-installation** :
-> ```powershell
-> git --version
-> rustup --version
-> dotnet --version    # Doit afficher 8.x.x ou plus
-> ```
-
-> **⚠️ ERREUR COURANTE** : Si vous obtenez `git: The term 'git' is not recognized...`, c'est que Git n'est pas encore installé.
-> **Solution** : Installez Git **avant** de tenter de cloner le dépôt (voir ci-dessus).
-
-### 0.0.5 Installation de MSYS2 MINGW64
-
-> **À installer après les outils de base** (toujours dans PowerShell ou CMD) :
+> **À exécuter EN PREMIER dans PowerShell (admin)** :
+> Ce script installe et configure **tous les outils Windows** :
+> - Git
+> - .NET SDK 8+ (requis pour WiX v7)
+> - MSYS2 MINGW64
+> - WiX v7 (outil global .NET)
+> - Acceptation de la licence WiX
+> - Configuration du PATH pour MSYS2
 
 ```powershell
-# Installer MSYS2 avec le package MINGW64
-winget install --id MSYS2.MSYS2 -e --source winget
-# Alternative : télécharger depuis https://www.msys2.org/
+# Depuis la racine du repo (ou n'importe où)
+# EXÉCUTER EN TANT QU'ADMINISTRATEUR
+Set-Location C:\dev\heelonvault-core
+.\scripts\windows\setup_win_env.ps1
 ```
 
-> **Lancement de MSYS2 MINGW64** :
-> - Via le menu Démarrer : `MSYS2 MinGW 64-bit` (rechercher "MinGW" ou "MSYS2")
-> - Ou depuis l'explorateur : `C:\msys64\mingw64.exe`
-> - **Ne pas utiliser** `msys2.exe` ou `bash.exe` — il faut spécifiquement **`mingw64.exe`**
+> **✅ Résultat attendu :** Toutes les commandes Windows de base sont disponibles.
+> **⚠️ IMPORTANT :** Après exécution, **redémarrez MSYS2 MINGW64** pour appliquer les changements de PATH.
 
-> **Première mise à jour MSYS2** (obligatoire après installation) :
-> ```bash
-> # Dans la fenêtre MSYS2 MINGW64 qui s'ouvre :
-pacman -Syu
-# Si pacman demande de fermer la fenêtre, relancer MSYS2 MINGW64 et exécuter à nouveau :
-pacman -Syu
-# Attendre la fin complète avant de continuer
-```
+### 0.2 Configuration MSYS2 MINGW64 (Bash)
 
-> **⚠️ Compatibilité Rustup entre PowerShell et MSYS2** :
-> Rustup installé via `winget` dans PowerShell **n'est pas disponible** dans MSYS2 (environnements PATH séparés).
-> **Deux options** :
-> 
-> **Option 1 — Recommandée** : Installer rustup **directement dans MSYS2** :
-> ```bash
-> # Dans MSYS2 MINGW64, après la mise à jour pacman :
-> curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-> # Suivre les instructions, choisir "Proceed with installation (default)"
-> # ⚠️ IMPORTANT : Le script rustup modifie ~/.bashrc mais celui-ci n'est pas toujours sourcé automatiquement dans MSYS2.
-> # Pour une solution immédiate dans la session actuelle :
-> export PATH="$PATH:/c/Users/$USER/.cargo/bin"
-> # Pour une solution permanente, ajoutez ces lignes à votre ~/.bashrc :
-> echo 'export PATH="$PATH:/c/Users/'$USER'/.cargo/bin"' >> ~/.bashrc
-> echo 'export PATH="$PATH:/c/Users/'$USER'/.rustup/toolchains/stable-x86_64-pc-windows-gnu/bin"' >> ~/.bashrc
-> # Puis fermez et relancez MSYS2 MINGW64
-> ```
-> 
-> **Option 2** : Ajouter le PATH Windows à MSYS2 (si vous préférez utiliser rustup installé via winget) :
-> ```bash
-> # Dans MSYS2 MINGW64, $USERPROFILE = /c/Users/<votre_utilisateur>
-> export PATH="$PATH:$USERPROFILE/.cargo/bin"
-> export PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/bin"
-> # Vérifier :
-> rustup --version
-> ```
+**Script :** `scripts/windows/setup_msys2.sh`
 
-### 0.1 Récupération du code source
-
-> **Deuxième étape** — cloner le dépôt **après avoir installé Git** :
-
-```powershell
-# Dans PowerShell ou CMD, choisir un dossier de travail (ex: C:\dev)
-cd C:\dev
-
-# Cloner le dépôt (remplacer par le branch si nécessaire)
-git clone https://github.com/ppaperso/heelonvault-core.git
-cd heelonvault-core
-```
-
-> **Vérification** (toujours en PowerShell, MSYS2/Git Bash pas encore installés à ce stade) :
-> ```powershell
-> Get-Location
-> # Attendu (suffixe) : ...\heelonvault-core
->
-> Test-Path Cargo.toml, wix\main.wxs, scripts\collect-dlls.sh
-> # Attendu : True, True, True (un booléen par chemin, dans l'ordre)
-> ```
-
-> **Note** : Toutes les commandes de ce runbook doivent être lancées depuis ce répertoire (`heelonvault-core/`).
-
-### 0.2 Rust toolchain (target Windows natif)
-
-> **Se positionner dans le repo depuis MSYS2** — MSYS2 (installé en 0.0.5) a son propre `$HOME` et ses propres chemins (`/c/...`), distincts de PowerShell. Ouvrir **MSYS2 MINGW64** (via menu Démarrer ou `C:\msys64\mingw64.exe`) et naviguer explicitement vers le dossier cloné :
-> ```bash
-> cd /c/dev/heelonvault-core   # adapter si un autre dossier a été choisi en 0.1
-> pwd && test -f Cargo.toml && test -f rust-toolchain.toml
-> # Attendu : aucune sortie d'erreur
-> ```
+> **À exécuter DEUXIÈMEMENT dans MSYS2 MINGW64** :
+> Ce script configure **tout l'environnement de build** :
+> - Mise à jour MSYS2
+> - Installation des paquets de compilation (git, ntldd, imagemagick, glib2, gtk4, etc.)
+> - Installation de Rustup/cargo dans MSYS2
+> - Configuration permanente du PATH
+> - Vérification complète de tous les outils
 
 ```bash
-# Dans MSYS2 MINGW64, depuis la racine du repo (voir ci-dessus)
-# Installer la toolchain pinnée dans rust-toolchain.toml
-rustup set default-host x86_64-pc-windows-gnu
-rustup toolchain install $(grep channel rust-toolchain.toml | cut -d'"' -f2)-x86_64-pc-windows-gnu
-rustup default $(grep channel rust-toolchain.toml | cut -d'"' -f2)-x86_64-pc-windows-gnu
-rustup show   # vérifier que x86_64-pc-windows-gnu est actif
+# Lancer MSYS2 MINGW64 (via menu Démarrer ou C:\msys64\mingw64.exe)
+# Puis depuis la racine du repo :
+cd /c/dev/heelonvault-core
+bash scripts/windows/setup_msys2.sh
 ```
 
-> **Si `rust-toolchain.toml` est manquant** (ex: clone shallow) :
-> ```bash
-> # Installer la version MSRV requise (1.98.0 pour ce repo)
-> rustup install 1.98.0-x86_64-pc-windows-gnu
-> rustup default 1.98.0-x86_64-pc-windows-gnu
-> ```
+> **✅ Résultat attendu :** Toutes les commandes de build sont disponibles dans MSYS2.
+> **⚠️ IMPORTANT :** Ce script **doit** être exécuté **après** `setup_win_env.ps1`.
 
-### 0.3 Paquets MSYS2 MINGW64
+### 0.3 Vérification finale de la stack
 
-> **À exécuter dans MSYS2 MINGW64** (installé en 0.0.5, lancé via menu Démarrer ou `C:\msys64\mingw64.exe`) :
+> **Dans 2 terminaux distincts** :
 
-```bash
-pacman -S --needed \
-  mingw-w64-x86_64-rust \
-  mingw-w64-x86_64-pkgconf \
-  mingw-w64-x86_64-ntldd \
-  mingw-w64-x86_64-imagemagick \
-  mingw-w64-x86_64-glib2 \
-  mingw-w64-x86_64-gdk-pixbuf2 \
-  mingw-w64-x86_64-gtk4 \
-  mingw-w64-x86_64-graphene \
-  mingw-w64-x86_64-libepoxy \
-  mingw-w64-x86_64-libadwaita \
-  python3
-```
-
-> GTK4 + `libadwaita` (pas GTK3) — l'app utilise libadwaita, qui requiert aussi le thème d'icônes Adwaita (collecté automatiquement par `collect-dlls.sh`, section 2).
-
-### 0.4 WiX v7
-
-```powershell
-# Hors MSYS2, dans PowerShell (nécessite .NET SDK 8+ installé en 0.0)
-dotnet tool install --global wix
-wix eula accept wix7   # obligatoire (OSMF EULA v1.1) sinon le build échoue
-wix --version          # doit afficher 7.x.x
-```
-
-> **Vérifications** :
-> ```powershell
-> # WiX v7 est un outil global .NET — il peut ne pas être dans le PATH système
-> # Vérification alternative 1 : localiser l'exécutable
-> (Get-Command wix).Source    # Doit retourner C:\Users\...\.dotnet\tools\wix.exe
-> 
-> # Vérification alternative 2 : vérifier que la commande fonctionne
-> wix --version                   # Doit afficher 7.x.x
-> ```
->
-> **⚠️ Note importante** : `where wix` peut ne **rien retourner** même si WiX est bien installé. C'est normal car WiX est installé comme outil global .NET dans `%USERPROFILE%\.dotnet\tools\` qui n'est pas toujours dans le PATH système. Utilisez `(Get-Command wix).Source` ou `wix --version` pour vérifier l'installation.
->
-> Si l'organisation dépasse 10 000 $/an de revenus sur des projets utilisant WiX, un sponsoring OSMF est requis (voir `https://docs.firegiant.com/wix/osmf/`).
-
-### 0.5 Vérification de la stack complète
-
-> **À exécuter dans 2 terminaux distincts** :
-
-**1. Dans PowerShell (outils Windows)** :
+**PowerShell (outils Windows)** :
 ```powershell
 echo "=== Git ==="; git --version
 echo "=== Rustup ==="; rustup --version
-echo "=== dotnet ==="; dotnet --version    # Doit afficher 8.x.x ou plus
-echo "=== WiX ==="; wix --version
+echo "=== dotnet ==="; dotnet --version
+echo "=== WiX ===" wix --version
 echo "=== WiX path ==="; (Get-Command wix).Source
 ```
 
-**2. Dans MSYS2 MINGW64 (outils build)** :
+**MSYS2 MINGW64 (outils build)** :
 ```bash
 echo "=== Rust ===" && rustc --version && cargo --version
 echo "=== ntldd ===" && ntldd --version
 echo "=== ImageMagick ===" && convert --version | head -1
 echo "=== glib-compile-schemas ===" && glib-compile-schemas --version
-echo "=== gdk-pixbuf-query-loaders ===" && gdk-pixbuf-query-loaders --version 2>&1 | head -1
+echo "=== gdk-pixbuf-query-loaders ===" && command -v gdk-pixbuf-query-loaders
 echo "=== python3 ===" && python3 --version
-echo "=== wix ===" && wix --version 2>&1 | head -1
+echo "=== ls ===" && ls --version 2>&1 | head -1
 ```
 
-**Résultats attendus** : Chaque commande retourne une version **sans erreur**. Si une commande échoue, revenir à la section correspondante (0.0, 0.2, 0.3, ou 0.4).
-
----
+> **✅ Toutes les commandes doivent retourner une version sans erreur.**
+> **Si une commande échoue, relancez les scripts correspondants.**
 
 ## 1. Build du binaire
 
 > **Ce runbook couvre le build MSI avec Premium intégré**.
 > Pour un build Community (sans code premium), utiliser `--no-default-features` et omettre `--features premium`.
 
-### 1.1 Prérequis Premium
+
+### 1.1 Prérequis Premium — Configuration SSH pour MSYS2
 
 > **Pour inclure le code premium dans le MSI** (nécessaire pour ce runbook) :
+> Le crate `heelonvault-premium` est référencé dans `Cargo.toml` comme dépendance git :
+> ```toml
+> heelonvault-premium = { git = "ssh://git@github.com/ppaperso/heelonvault-premium.git", branch = "main", optional = true }
+> ```
+> **C'est donc `cargo` qui récupère le code via SSH**, et **MSYS2 MINGW64** exécute cargo.
 
-> ⚠️ **À clarifier avant de suivre cette section** : comment `--features premium` récupère-t-il concrètement le code du repo privé — dépendance git dans `Cargo.toml` (résolue par `cargo` lui-même), submodule, ou script dans `build.rs` ? Le mécanisme détermine où l'authentification SSH doit être disponible (variable selon que c'est `cargo`, `git`, ou un sous-processus qui fait l'appel). À documenter ici une fois confirmé — le reste de cette section suppose une dépendance git classique.
+#### Votre Configuration SSH Actuelle (Validée)
 
-> **Vérifier l'accès SSH au repo premium — depuis MSYS2 MINGW64**, pas PowerShell : c'est ce shell qui exécute `cargo build` en 1.2, donc c'est son `$HOME`/agent SSH qui doit être configuré, pas celui de PowerShell (les deux ont des `~/.ssh` distincts par défaut).
+Vous avez configuré MSYS2 avec :
+- **Clé privée :** `~/.ssh/premium_deploy_key`
+- **Clé publique :** `~/.ssh/premium_deploy_key.pub`
+- **Fichier config :** `~/.ssh/config` avec un host dédié
 
-```bash
-# Dans MSYS2 MINGW64
-git ls-remote git@github.com:ppaperso/heelonvault-premium.git
-# Doit lister les refs (branches/tags) du repo sans erreur.
-# Un simple "ssh -T git@github.com" confirme l'authentification GitHub générale
-# mais PAS l'accès en lecture à ce repo précis — préférer ls-remote.
+**Votre configuration `~/.ssh/config` :**
+```
+Host github.com-heelonvault-premium
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/premium_deploy_key
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
 ```
 
-> **Si l'accès échoue** :
-> - Vérifier qu'une clé SSH existe dans le `$HOME` de MSYS2 : `ls ~/.ssh/id_ed25519.pub 2>/dev/null || ls ~/.ssh/id_rsa.pub 2>/dev/null`
-> - Si absente, soit en générer une nouvelle dans MSYS2, soit copier celle déjà utilisée côté Windows (`cp /c/Users/<user>/.ssh/id_ed25519* ~/.ssh/`)
-> - Ajouter la clé publique à votre compte GitHub : `Settings > SSH and GPG keys`
-> - Assurez-vous que le compte a accès en **lecture** au repo `ppaperso/heelonvault-premium`
+**✅ Vérification que tout est en place :**
+```bash
+# Dans MSYS2 MINGW64 :
+echo "=== Vérification SSH ==="
+echo "Clé privée : $(test -f ~/.ssh/premium_deploy_key && echo '✅ PRÉSENTE' || echo '❌ ABSENTE')"
+echo "Clé publique : $(test -f ~/.ssh/premium_deploy_key.pub && echo '✅ PRÉSENTE' || echo '❌ ABSENTE')"
+echo "Config : $(test -f ~/.ssh/config && echo '✅ PRÉSENT' || echo '❌ ABSENT')"
+
+# Test d'accès au repo premium
+git ls-remote git@github.com-heelonvault-premium:ppaperso/heelonvault-premium.git
+```
+
+> **✅ Résultat attendu :**
+> - Les 3 fichiers sont présents
+> - `git ls-remote` retourne une liste de refs **sans erreur**
+
+> **Si `Permission denied (publickey)`** :
+> 1. Vérifiez les permissions : `chmod 600 ~/.ssh/premium_deploy_key`
+> 2. Vérifiez que la clé publique est sur GitHub : [https://github.com/settings/keys](https://github.com/settings/keys)
+> 3. Vérifiez le contenu du config : `cat ~/.ssh/config`
+> 4. Testez l'authentification générale : `ssh -T git@github.com-heelonvault-premium`
+
+> **✅ Lorsque `git ls-remote` fonctionne, vous pouvez passer à l'étape 1.2 (Build avec Premium).**
 
 ### 1.2 Build avec Premium (pour le MSI)
 
@@ -273,29 +177,40 @@ cargo build --release --locked --target x86_64-pc-windows-gnu \
 
 ---
 
-## 2. Collect-DLLs — génération de `wix/dlls.wxs`
+## 2. Staging — copie des fichiers pour le MSI
+
+**⚠️ NOUVEAU WORKFLOW (remplace collect-dlls.sh) :**
+
+Le script `collect-staging.sh` **ne génère PAS de XML WiX**. Il copie uniquement les fichiers nécessaires dans `wix/staging/`.
+Le fragment WiX `staging.wxs` utilise `<Files Include="wix\staging\**\*">` pour inclure automatiquement tous les fichiers.
 
 ```bash
-bash scripts/collect-dlls.sh \
+bash scripts/collect-staging.sh \
   --binary   target/x86_64-pc-windows-gnu/release/heelonvault.exe \
   --msys2    /mingw64 \
-  --staging  wix/staging \
-  --out      wix/dlls.wxs
+  --staging  wix/staging
 ```
+
+**Note importante :** Le paramètre `--out` a été supprimé car aucun fichier .wxs n'est généré.
 
 ### Sorties attendues
 
 | Chemin | Contenu |
 | -------- | --------- |
-| `wix/staging/*.dll` | DLLs mingw64 transitives |
+| `wix/staging/heelonvault.exe` | Binaire principal |
+| `wix/staging/*.dll` | DLLs mingw64 transitives (30-80 fichiers) |
 | `wix/staging/share/glib-2.0/schemas/gschemas.compiled` | Schémas GLib compilés |
-| `wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.dll` | Loaders pixbuf |
-| `wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache` | Cache loaders |
-| `wix/staging/share/themes/Adwaita/**` | Thème GTK4 Adwaita (packagé via `GTK4ThemeComponents`) |
-| `wix/staging/share/icons/Adwaita/**` | Thème d'icônes Adwaita requis par libadwaita (packagé via `IconComponents`) |
-| `wix/staging/migrations/*.sql` | Migrations SQL copiées depuis `migrations/` (packagé via `MigrationsComponents`) |
+| `wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.dll` | Loaders pixbuf (DLLs uniquement) |
+| `wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache` | **❌ NON PRÉSENT** — Exclu intentionnellement |
+| `wix/staging/share/themes/Adwaita/**` | Thème GTK4 Adwaita (filtré : CSS, PNG, SVG, index.theme) |
+| `wix/staging/share/icons/Adwaita/**` | Icônes Adwaita (filtré : tailles standard uniquement) |
+| `wix/staging/migrations/*.sql` | Migrations SQL copiées depuis `migrations/` |
 | `wix/staging/heelonvault.ico` | Icône multi-résolution |
-| `wix/dlls.wxs` | Fragment WiX généré — DllComponents, PixbufLoaderComponents, GTK4ThemeComponents, IconComponents, MigrationsComponents |
+
+**✅ Améliorations clés :**
+- **loaders.cache n'est PAS copié** — GDK_PIXBUF_MODULEDIR est configuré dans le code Rust pour un scan dynamique
+- **Filtrage agressif** : uniquement les fichiers essentiels (tailles d'icônes standard, fichiers thème nécessaires)
+- **Taille réduite** : ~80-120 Mo au lieu de ~500 Mo
 
 ### Vérifications post-script
 
@@ -306,10 +221,13 @@ ls wix/staging/*.dll | wc -l
 # gschemas.compiled présent
 ls -lh wix/staging/share/glib-2.0/schemas/gschemas.compiled
 
-# loaders.cache non vide
-wc -l wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+# loaders.cache DOIT être ABSENT (exclu intentionnellement)
+! test -f wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache && echo "OK: loaders.cache absent"
 
-# Thème et icônes Adwaita staged (non vide)
+# Vérification alternative : zero fichier .cache dans staging
+find wix/staging -name "*.cache" -type f | wc -l  # Doit afficher 0
+
+# Thème et icônes Adwaita staged (doit être > 0)
 find wix/staging/share/themes/Adwaita -type f | wc -l
 find wix/staging/share/icons/Adwaita -type f | wc -l
 
@@ -319,14 +237,11 @@ ls migrations/*.sql | wc -l
 
 # Icône présente
 ls -lh wix/staging/heelonvault.ico
-
-# dlls.wxs bien formé (doit se terminer par </Wix>)
-tail -3 wix/dlls.wxs
 ```
 
 ### Point d'attention : chemin de l'icône
 
-`collect-dlls.sh` cherche l'icône source ici :
+`collect-staging.sh` cherche l'icône source ici :
 
 ```text
 assets/icons/hicolor/256x256/apps/heelonvault.png
@@ -341,28 +256,37 @@ Si l'icône est manquante, le script continue avec un warning — mais le build 
 
 ## 3. Build MSI
 
+**⚠️ NOUVEAU : Plus que 2 fichiers .wxs au lieu de 3**
+
 ```bash
 # Depuis la racine du repo, dans un terminal avec wix.exe dans le PATH
 # (PowerShell ou MSYS2 si wix.exe est accessible)
 wix build \
   wix/main.wxs \
-  wix/dlls.wxs \
+  wix/staging.wxs \
   -d ProductVersion=1.1.0 \
+  -d BinaryPath=target\x86_64-pc-windows-gnu\release\heelonvault.exe \
   -o heelonvault-windows-x86_64.msi
 ```
 
-> `main.wxs` déclare `Version="$(var.ProductVersion)"` — une variable de préprocesseur, jamais un littéral. Le flag `-d ProductVersion=X.Y.Z` est **obligatoire** (X.Y.Z sans suffixe `-rc.N`, le format MSI ne l'accepte pas).
+> **Nouvelles variables obligatoires :**
+> - `ProductVersion=X.Y.Z` — comme avant (X.Y.Z sans suffixe `-rc.N`)
+> - `BinaryPath=...` — **NOUVEAU** : chemin vers le binaire (remplace le chemin en dur dans main.wxs)
+
+> `main.wxs` déclare `Version="$(var.ProductVersion)"` et `Source="$(var.BinaryPath)"` — des variables de préprocesseur. Les flags `-d` sont **obligatoires**.
 
 ### Erreurs fréquentes et résolutions
 
 | Erreur | Cause probable | Fix |
 | -------- | ---------------- | ----- |
 | `Undefined preprocessor variable: ProductVersion` | `-d ProductVersion=...` manquant | Ajouter le flag `-d ProductVersion=X.Y.Z` à `wix build` |
-| `Cannot find source file: target\x86_64-pc-windows-gnu\release\heelonvault.exe` | `main.wxs` attend ce chemin relatif depuis la racine | Lancer `wix build` depuis la racine du repo, avec un binaire buildé via `--target x86_64-pc-windows-gnu` |
-| `Cannot find source file: wix\staging\heelonvault.ico` | Chemin relatif dans `main.wxs` | Idem, ou ajuster `--basepath` |
-| `Duplicate symbol 'DllComponents'` | `dlls.wxs` corrompu ou généré deux fois | Supprimer `wix/dlls.wxs` et relancer le script |
-| `Unresolved reference to symbol 'GDKPIXBUF_LOADERS_DIR'` / `ADWAITAFOLDER` / `ADWAITAICONSFOLDER` / `MIGRATIONSFOLDER` | `PixbufLoaderComponents`/`GTK4ThemeComponents`/`IconComponents`/`MigrationsComponents` dans `dlls.wxs` référencent ces dirs déclarés dans `main.wxs` | Les deux `.wxs` doivent être passés à `wix build` |
+| `Undefined preprocessor variable: BinaryPath` | `-d BinaryPath=...` manquant | Ajouter le flag `-d BinaryPath=target\x86_64-pc-windows-gnu\release\heelonvault.exe` |
+| `Cannot find source file: wix\staging\heelonvault.ico` | Chemin relatif dans `main.wxs` | Lancer `wix build` depuis la racine du repo |
 | `bind.FileVersion` vide | EXE sans version resource | Normal pour un build Rust non signé, WiX utilise `0.0.0.0` |
+
+**✅ Les erreurs liées à dlls.wxs ont disparu :**
+- `Duplicate symbol 'DllComponents'` — plus applicable
+- `Unresolved reference to symbol 'GDKPIXBUF_LOADERS_DIR'` — résolu par staging.wxs
 
 Vérification :
 
@@ -503,18 +427,19 @@ cargo build --release --locked --target x86_64-pc-windows-gnu \
   -p heelonvault-app \
   --features premium
 
-# 2. Collect DLLs + thème + icônes + migrations, génère dlls.wxs
-bash scripts/collect-dlls.sh \
+# 2. Staging — copie des fichiers (remplace collect-dlls.sh, AUCUN XML généré)
+bash scripts/collect-staging.sh \
   --binary   target/x86_64-pc-windows-gnu/release/heelonvault.exe \
   --msys2    /mingw64 \
-  --staging  wix/staging \
-  --out      wix/dlls.wxs
+  --staging  wix/staging
 
 # 3. Build MSI (depuis racine repo, wix.exe dans PATH)
+#    NOUVEAU : staging.wxs au lieu de dlls.wxs, + variable BinaryPath
 wix build \
   wix/main.wxs \
-  wix/dlls.wxs \
+  wix/staging.wxs \
   -d ProductVersion=1.2.0-rc.1 \
+  -d BinaryPath=target\x86_64-pc-windows-gnu\release\heelonvault.exe \
   -o heelonvault-windows-x86_64.msi
 
 # 4. Checksum
@@ -525,76 +450,28 @@ sha256sum heelonvault-windows-x86_64.msi > heelonvault-windows-x86_64.msi.sha256
 > ```bash
 > cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app --no-default-features
 > ```
+> 
+> **Note sur le runtime Windows :** Le code Rust dans `main.rs` configure automatiquement `GDK_PIXBUF_MODULEDIR` et autres variables d'environnement via `setup_windows_resources()`. Cela permet à GTK4 de trouver les loaders dynamiquement sans besoin de `loaders.cache`.
 
 ---
 
-## Annexe — Points de vigilance pour la transposition en GitHub Actions
 
-Une fois ce runbook validé localement, voici les deltas à anticiper pour le workflow CI :
+---
 
-**Shell** : le runner `windows-latest` a Git Bash disponible. Appeler le script via `shell: bash` dans le step. MSYS2 complet nécessite l'action `msys2/setup-msys2@v2`.
+## Annexe — Référence pour automatisation future (HORS SCOPE)
 
-**PATH de wix** : après `dotnet tool install --global wix`, ajouter `$env:USERPROFILE\.dotnet\tools` au PATH du runner. **Requiert .NET SDK 8+** (WiX v7 n'est pas compatible avec .NET 7).
+> **⚠️ CE RUNBOOK EST 100% MANUEL** — Aucune CI/CD n'est configurée.
+> Cette section est conservée à titre de **référence technique uniquement**.
 
-**Chemin relatif de l'icône** : dans le runner, `GITHUB_WORKSPACE` est la racine du repo — s'assurer que le working directory du step est la racine, pas un sous-dossier.
+**Rappel des changements clés vs ancien workflow :**
+- `collect-dlls.sh` → `collect-staging.sh` (pas de génération XML)
+- `dlls.wxs` → `staging.wxs` (fragment statique avec `<Files Include>`)
+- `--out wix/dlls.wxs` → **supprimé** (aucune sortie XML)
+- `loaders.cache` → **exclu** (GDK_PIXBUF_MODULEDIR configuré dans le code Rust)
 
-**Trigger tags** : préférer un pattern robuste (`v*-rc*`) avec validation regex dans le job pour éviter les faux déclenchements.
+**Si automatisation future :**
+- Remplacer `collect-dlls.sh` par `collect-staging.sh` dans les scripts CI
+- Remplacer `wix/dlls.wxs` par `wix/staging.wxs` dans la commande `wix build`
+- Ajouter le flag `-d BinaryPath=...` à la commande `wix build`
+- **Important :** La note sur `loaders.cache` et chemins Windows **n'est plus applicable** car loaders.cache n'est plus inclus
 
-**Cache cargo** : utiliser `actions/cache` sur `~/.cargo/registry` et `target/` pour éviter de rebuilder toutes les dépendances à chaque run.
-
-**Signature Authenticode** : le MSI produit par ce runbook n'est pas signé — Windows 11 SmartScreen avertira les utilisateurs à l'installation. Si un certificat de signature de code est disponible, ajouter une étape `signtool sign /fd sha256 /tr <timestamp-url> /td sha256 heelonvault-windows-x86_64.msi` avant le calcul du checksum (étape 4). Sans certificat, documenter ce risque dans les notes de release.
-
-**`loaders.cache` et chemins Windows** : `gdk-pixbuf-query-loaders` génère un cache avec des chemins absolus MSYS2. Vérifier que les chemins dans `loaders.cache` sont compatibles avec le chemin d'installation MSI (`C:\Program Files\HeelonVault\lib\...`). Si non, un post-processing sed peut être nécessaire.
-
---- 
-
-### 🔐 Points spécifiques pour le build Premium en CI
-
-**Accès au repo privé heelonvault-premium** :
-- Le `GITHUB_TOKEN` par défaut généré par Actions n'a accès qu'au repo courant (`heelonvault-core`) — il ne donne **pas** accès à `heelonvault-premium`. Il faut un **Personal Access Token fine-grained** dédié, avec accès en lecture (`Contents: Read-only`) explicitement accordé sur le repo `ppaperso/heelonvault-premium`, stocké comme secret (ex: `PREMIUM_REPO_TOKEN`).
-- **Ne jamais** stocker le token en clair dans les fichiers
-- Exemple pour GitHub Actions — **attention à utiliser le bon secret dans `run:`**, pas le `GITHUB_TOKEN` par défaut :
-  ```yaml
-  - name: Configure Git for private repo
-    run: |
-      git config --global url."https://${{ env.GITHUB_TOKEN }}@github.com".insteadOf "ssh://git@github.com"
-    env:
-      GITHUB_TOKEN: ${{ secrets.PREMIUM_REPO_TOKEN }}  # PAT fine-grained, Contents:Read sur heelonvault-premium
-  ```
-  > La version précédente référençait `secrets.GITHUB_TOKEN` dans `run:` alors que `env:` déclarait `PREMIUM_REPO_TOKEN` — les deux noms ne correspondaient pas, et `secrets.GITHUB_TOKEN` n'aurait de toute façon pas eu accès au repo privé.
-
-**Build avec features premium** :
-```yaml
-- name: Build with Premium
-  run: |
-    cargo build --release --locked --target x86_64-pc-windows-gnu \
-      -p heelonvault-app \
-      --features premium
-```
-
-**Sécurité du cache Cargo** :
-- Le cache (`~/.cargo/registry/cache/`) contient le code source de `heelonvault-premium`
-- **Exclure** ce cache des artefacts publics ou des logs
-- Utiliser `actions/cache` avec prudence :
-  ```yaml
-  - name: Cache Cargo
-    uses: actions/cache@v3
-    with:
-      path: |
-        ~/.cargo/registry/index/
-        ~/.cargo/registry/cache/
-        target/
-      key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    # ⚠️ Le cache contient du code premium — ne pas le partager publiquement
-  ```
-
-**Nettoyage des logs** :
-- Les logs de build peuvent contenir des paths vers `heelonvault-premium`
-- Filtrer les logs avant publication :
-  ```yaml
-  - name: Sanitize logs
-    run: |
-      # Masquer les paths du repo privé dans les logs
-      cargo build ... 2>&1 | sed 's/ppaperso\/heelonvault-premium/[REDACTED]/g'
-  ```
-  

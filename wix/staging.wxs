@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  HeelonVault Windows Installer - Staging Fragment
+  
+  Fragment statique pour ingestion automatique des fichiers du dossier wix/staging/
+  Remplace l'ancien dlls.wxs généré dynamiquement par collect-dlls.sh.
+  
+  Ce fragment utilise la fonctionnalité <Files Include="**\*"> de WiX v7 pour :
+  - Inclure automatiquement tous les fichiers dans wix/staging/
+  - Créer automatiquement les ComponentGroups avec la bonne hiérarchie de dossiers
+  - Générer des GUIDs déterministes (Guid="*" dans main.wxs)
+  
+  NOTE: Le script collect-staging.sh prépare ce dossier avec la structure finale.
+  WiX crée automatiquement les sous-répertoires et un Component par fichier.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Fragment>
+    <!--
+      Ingestion automatique du dossier staging/.
+      Le script collect-staging.sh prépare ce dossier avec la structure
+      finale exacte (exe, dlls, share/, lib/, migrations/).
+      WiX crée automatiquement les sous-répertoires et un Component par fichier.
+    -->
+    <ComponentGroup Id="StagingComponents" Directory="INSTALLFOLDER">
+      <Files Include="wix\staging\**\*">
+        <!-- Filtrer les fichiers de développement et caches -->
+        <Exclude Files="wix\staging\**\*-symbolic.svg" />
+        <Exclude Files="wix\staging\**\*.pdb" />
+        <Exclude Files="wix\staging\**\*.a" />
+        <Exclude Files="wix\staging\**\*.lib" />
+        <Exclude Files="wix\staging\**\*.def" />
+        <Exclude Files="wix\staging\**\*.cache" />
+      </Files>
+    </ComponentGroup>
+  </Fragment>
+</Wix>
