@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# --- Couleurs ---
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+# --- Sécurité : s'assurer que les binaires de base sont accessibles ---
+export PATH="/usr/local/bin:/usr/bin:/bin:/mingw64/bin:$PATH"
 
+# --- Couleurs ---
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 info() { echo -e "${CYAN}[INFO]${NC} $*"; }
 ok()   { echo -e "${GREEN}[ OK ]${NC} $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
@@ -19,9 +17,6 @@ if [[ "${MSYSTEM:-}" != "MINGW64" ]]; then
     exit 1
 fi
 
-# Sécurité : s'assurer que les binaires de base sont accessibles
-export PATH="/usr/local/bin:/usr/bin:/bin:/mingw64/bin:$PATH"
-
 # --- 1. Mise à jour MSYS2 ---
 info "Synchronisation et mise à jour des paquets de base..."
 pacman -Syu --noconfirm
@@ -29,27 +24,27 @@ pacman -Syu --noconfirm
 # --- 2. Installation des paquets ---
 info "Installation des paquets de compilation et dépendances..."
 packages=(
-    git
-    curl
-    mingw-w64-x86_64-pkgconf
-    mingw-w64-x86_64-ntldd
-    mingw-w64-x86_64-imagemagick
-    mingw-w64-x86_64-glib2
-    mingw-w64-x86_64-gdk-pixbuf2
-    mingw-w64-x86_64-gtk4
-    mingw-w64-x86_64-graphene
-    mingw-w64-x86_64-libepoxy
-    mingw-w64-x86_64-libadwaita
-    python3
+    git curl mingw-w64-x86_64-pkgconf mingw-w64-x86_64-ntldd
+    mingw-w64-x86_64-imagemagick mingw-w64-x86_64-glib2
+    mingw-w64-x86_64-gdk-pixbuf2 mingw-w64-x86_64-gtk4
+    mingw-w64-x86_64-graphene mingw-w64-x86_64-libepoxy
+    mingw-w64-x86_64-libadwaita python3
 )
 pacman -S --needed --noconfirm "${packages[@]}"
 
 # --- 3. Rustup ---
 if command -v cargo &>/dev/null; then
-    ok "Rustup déjà présent ($('cargo --version'))"
+    ok "Rustup déjà présent ($(cargo --version))"
 else
     info "Installation de rustup..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+    # Rendre cargo disponible immédiatement dans ce shell
+    if [[ -f "$HOME/.cargo/env" ]]; then
+        source "$HOME/.cargo/env"
+    else
+        export PATH="$HOME/.cargo/bin:$PATH"
+    fi
+    ok "Rustup installé ($(cargo --version))"
 fi
 
 # --- 4. Configuration permanente du PATH ---
@@ -64,13 +59,18 @@ PROFILE_D="/etc/profile.d"
 mkdir -p "$PROFILE_D"
 
 if [[ ! -f "$PROFILE_D/dotnet_tools.sh" ]]; then
-    # $USER est l'utilisateur Windows dans MSYS2
     cat > "$PROFILE_D/dotnet_tools.sh" << EOF
 export PATH="/c/Program Files/dotnet:\$PATH"
 export PATH="/c/Users/$USER/.dotnet/tools:\$PATH"
 EOF
     ok "PATH dotnet configuré dans /etc/profile.d/"
+else
+    ok "PATH dotnet déjà présent dans /etc/profile.d/"
 fi
+
+# Rendre WiX disponible immédiatement dans ce shell (profile.d n'est pas sourcé automatiquement)
+export PATH="/c/Program Files/dotnet:$PATH"
+export PATH="/c/Users/$USER/.dotnet/tools:$PATH"
 
 # --- 5. Vérifications finales ---
 info "Vérifications des outils MSYS2..."

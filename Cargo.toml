@@ -11,14 +11,13 @@ resolver = "2"
 # sur la copie locale du workspace, pour éviter la duplication de traits.
 heelonvault-core = { path = "crates/heelonvault-core" }
 
-[patch."ssh://git@github.com/ppaperso/heelonvault-premium.git"]
-# En développement multi-root, utiliser le dépôt local premium plutôt que le
-# checkout git distant pour garder core/premium alignés sur la même version.
+# Patch pour heelonvault-premium (dépôt local adjacent)
+# Permet de builder le workspace sans avoir à cloner le repo premium séparément
+# si on utilise --no-default-features (mode community)
+[patch.'ssh://git@github.com/ppaperso/heelonvault-premium.git']
 heelonvault-premium = { path = "../heelonvault-premium" }
 
 [patch."git+ssh://git@github.com/ppaperso/heelonvault-premium.git?branch=main"]
-# Cargo résout la dépendance git premium avec cette source canonique dans
-# Cargo.lock ; la surcouche locale doit donc couvrir ce cas explicite.
 heelonvault-premium = { path = "../heelonvault-premium" }
 
 [workspace.dependencies]

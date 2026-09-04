@@ -14,15 +14,21 @@ path = "src/main.rs"
 
 # Les features sont activées ici par l'assembleur et propagées vers heelonvault-core.
 # C'est le SEUL endroit où l'édition compilée est décidée.
+# 
+# Note: Activation premium se fait au RUNTIME via licence, mais le code premium
+# est toujours inclus dans le livrable (default = ["heelonvault-premium"]).
+# La feature 'premium' est conservée pour compatibilité avec les scripts existants.
 [features]
-default   = []
-premium   = ["dep:heelonvault-premium"]
+default = ["heelonvault-premium"]
+premium = ["heelonvault-premium"]
 licensing = ["premium"]
 
 [dependencies]
 # Core library locale (aucun cycle possible : core ne dépend pas d'app)
-heelonvault-core    = { path = "../heelonvault-core" }
-heelonvault-premium = { git = "ssh://git@github.com/ppaperso/heelonvault-premium.git", branch = "main", optional = true }
+heelonvault-core = { path = "../heelonvault-core" }
+# Dépendance optionnelle (pour le dev) mais TOUJOURS incluse dans le livrable final
+# Chemin: ../../../heelonvault-premium (depuis heelonvault-core/crates/heelonvault-app/)
+heelonvault-premium = { path = "../../../heelonvault-premium", optional = true }
 
 # Dépendances directes de main.rs (wiring des services, assembly layer)
 # Ces crates sont aussi dans heelonvault-core mais Cargo n'exporte pas
@@ -66,3 +72,4 @@ tracing-subscriber  = { version = "0.3", features = ["env-filter", "fmt", "json"
 # Compilation des ressources GTK GLib (gresources.xml → .gresource)
 # Note Phase 4b : build.rs devra référencer ../../assets/ depuis crates/heelonvault-app/
 glib-build-tools = "0.20"
+

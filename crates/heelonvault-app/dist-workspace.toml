@@ -1,0 +1,19 @@
+[workspace]
+# Déclare le package courant comme membre du workspace pour cargo-dist
+members = ["cargo:."]
+
+# Configuration pour cargo-dist
+[dist]
+targets = ["x86_64-pc-windows-msvc"]
+bin-names = ["Heelonvault"]
+
+installers = ["msi"]
+
+additional-resources = [
+    "../../assets/",
+    "../../locales/",
+    "../../migrations/",
+    "../../resources/",
+]
+
+
