@@ -14,7 +14,6 @@
    Manufacturer="ppaperso"
    UpgradeCode="B0C8A091-55B8-4101-A510-119779831DFD">
 
-```
 <Package
     Description="HeelonVault — Binaire GTK4/Libadwaita"
     Comments="HeelonVault"
@@ -349,7 +348,6 @@
 <WixVariable
     Id="WixUIDialogBmp"
     Value="" />
-```
 
   </Product>
 
