@@ -1,5 +1,5 @@
 # ============================================================
-# HeelonVault — Remote Windows MSI Build (VERSION ULTIME)
+# HeelonVault — Remote Windows MSI Build (VERSION FINALE)
 # ============================================================
 
 # ------------------------------------------------------------
@@ -10,16 +10,13 @@ VM_USER := "builduser"
 SSH_KEY := "~/.ssh/id_ed25519"
 
 PROJECT_ROOT := ".."
-# ⚠️ Utiliser / pour PowerShell (compatible avec les 2 OS)
 REMOTE_ROOT := "C:/Users/" + VM_USER + "/build/heelonvault"
 REMOTE_CORE := REMOTE_ROOT + "/heelonvault-core"
 CRATE_DIR := "crates/heelonvault-app"
 LOCAL_DIST := "./dist"
 
-# Chemin vers dist.exe (avec / pour PowerShell)
+# Chemin vers dist.exe sur la VM Windows
 DIST_EXE_PATH := "C:/Users/" + VM_USER + "/.cargo/bin/dist.exe"
-
-# Triple cible pour dist build (requis car --artifacts désactive le mode host)
 WINDOWS_TARGET := "x86_64-pc-windows-msvc"
 
 # ------------------------------------------------------------
@@ -45,7 +42,7 @@ clean-remote:
         "powershell -NoProfile -NonInteractive -Command \"if (Test-Path '{{REMOTE_ROOT}}') { Remove-Item -Recurse -Force '{{REMOTE_ROOT}}' }; New-Item -ItemType Directory -Force -Path '{{REMOTE_ROOT}}'\""
 
 # ------------------------------------------------------------
-# Synchronisation des deux projets (CORRIGÉE)
+# Synchronisation des deux projets
 # ------------------------------------------------------------
 @sync:
     #!/usr/bin/env bash
@@ -75,46 +72,76 @@ clean-remote:
 # ------------------------------------------------------------
 # Build MSI
 # ------------------------------------------------------------
-@build-msi: sync
+@build-msi:
     #!/usr/bin/env bash
-    set -euxo pipefail
+    set -euo pipefail
+
     echo "🔨 Compilation du MSI sur Windows..."
-    echo "🔍 Vérification de dist.exe..."
+
+    # Verification de l'initialisation dist
+    echo "🔧 Vérification de la configuration cargo-dist..."
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
-        "powershell -NoProfile -NonInteractive -Command \"cargo --version; & '{{DIST_EXE_PATH}}' --version\""
-    echo "🚀 Lancement de dist build (default inclut heelonvault-premium)..."
+        "powershell -NoProfile -NonInteractive -Command \
+        \"if (-not (Test-Path '{{REMOTE_CORE}}/crates/heelonvault-app/dist-workspace.toml')) { \
+            Write-Error 'Configuration cargo-dist manquante. Exécutez dist init manuellement sur la VM.'; \
+            exit 1 \
+        }\""
+
+    echo "🚀 Génération et compilation avec MSVC..."
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
-        "powershell -NoProfile -NonInteractive -Command \"Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; & '{{DIST_EXE_PATH}}' build --target={{WINDOWS_TARGET}}\""
-    echo "📦 Recherche du MSI..."
-    mkdir -p {{LOCAL_DIST}}
+        "powershell -NoProfile -NonInteractive -Command \
+        \"\$msvc_path = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64'; \
+         \$env:PATH = \$msvc_path + ';' + \$env:USERPROFILE + '\\.cargo\\bin;' + 'C:\\msys64\\mingw64\\bin;' + \$env:PATH; \
+         Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \
+         & '{{DIST_EXE_PATH}}' generate --mode=msi --target={{WINDOWS_TARGET}}; \
+         & '{{DIST_EXE_PATH}}' build --artifacts=local --target={{WINDOWS_TARGET}}\""
+
+    echo "🔎 Recherche du MSI généré..."
+
     MSI_PATH=$(ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
         "powershell -NoProfile -NonInteractive -Command \
-            \"\$msi = Get-ChildItem '{{REMOTE_CORE}}/{{CRATE_DIR}}/target/dist/*.msi' | Select-Object -First 1; \
-            if (-not \$msi) { Write-Error 'Aucun MSI trouvé'; exit 1 }; \
-            Write-Output \$msi.FullName\"" \
+        \"\$msi = Get-ChildItem '{{REMOTE_CORE}}/{{CRATE_DIR}}/target' -Recurse -Filter '*.msi' | Sort-Object LastWriteTime -Descending | Select-Object -First 1; \
+        if (-not \$msi) { Write-Error 'Aucun MSI trouvé sous target'; exit 1 }; \
+        Write-Output \$msi.FullName\"" \
         | tr -d '\r')
+
     echo "📄 MSI trouvé : $MSI_PATH"
-    test -n "$MSI_PATH" || { echo "❌ MSI introuvable"; exit 1; }
+
+    test -n "$MSI_PATH" || {
+        echo "❌ MSI introuvable"
+        exit 1
+    }
+
+    echo "📦 Préparation du MSI pour transfert..."
+
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
-        "powershell -NoProfile -NonInteractive -Command \"[IO.File]::ReadAllBytes('$MSI_PATH')\"" \
-        > {{LOCAL_DIST}}/Heelonvault.msi
-    test -s {{LOCAL_DIST}}/Heelonvault.msi
-    echo "✅ MSI disponible dans {{LOCAL_DIST}}/Heelonvault.msi"
+        "powershell -NoProfile -NonInteractive -Command \
+        \"Copy-Item -LiteralPath '$MSI_PATH' -Destination 'C:/Users/{{VM_USER}}/Downloads/HeelonVault.msi' -Force\""
+
+    echo "📥 Transfert du MSI vers Fedora..."
+
+    mkdir -p {{LOCAL_DIST}}
+
+    scp -i {{SSH_KEY}} \
+        {{VM_USER}}@{{VM_IP}}:"C:/Users/{{VM_USER}}/Downloads/HeelonVault.msi" \
+        {{LOCAL_DIST}}/HeelonVault.msi
+
+    echo "🔍 Vérification du fichier MSI..."
+
+    test -s {{LOCAL_DIST}}/HeelonVault.msi || {
+        echo "❌ MSI vide ou transfert échoué"
+        exit 1
+    }
+
+    echo "📦 Taille du MSI :"
+    ls -lh {{LOCAL_DIST}}/HeelonVault.msi
+
+    echo ""
+    echo "✅ MSI disponible : {{LOCAL_DIST}}/HeelonVault.msi"
 
 # ------------------------------------------------------------
-# Build local (pour développement)
+# Pipelines combinés
 # ------------------------------------------------------------
-build:
-    # Build avec code premium (par défaut)
-    cargo build
+full-build: sync build-msi
 
-build-community:
-    # Build SANS code premium (pour tests community)
-    cargo build --no-default-features
-
-# ------------------------------------------------------------
-# Rebuild complet
-# ------------------------------------------------------------
-rebuild-msi:
-    just clean-remote
-    just build-msi
+rebuild-msi: clean-remote full-build

@@ -20,6 +20,11 @@ heelonvault-premium = { path = "../heelonvault-premium" }
 [patch."git+ssh://git@github.com/ppaperso/heelonvault-premium.git?branch=main"]
 heelonvault-premium = { path = "../heelonvault-premium" }
 
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
 [workspace.dependencies]
 # Outils de développement
 cargo-deny = "0.15"

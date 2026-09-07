@@ -2,11 +2,12 @@
 # Déclare le package courant comme membre du workspace pour cargo-dist
 members = ["cargo:."]
 
-# Configuration pour cargo-dist
+# Config for 'dist'
 [dist]
+# Target platforms to build apps for (Rust target-triple syntax)
 targets = ["x86_64-pc-windows-msvc"]
 bin-names = ["Heelonvault"]
-
+# The installers to generate for each app
 installers = ["msi"]
 
 additional-resources = [
@@ -15,5 +16,7 @@ additional-resources = [
     "../../migrations/",
     "../../resources/",
 ]
+# The preferred dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.32.0"
 
 

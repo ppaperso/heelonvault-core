@@ -8,6 +8,12 @@ license = "Apache-2.0"
 description = "HeelonVault — Binaire GTK4/Libadwaita (assembleur Open Core)"
 repository = "https://github.com/ppaperso/heelonvault-core"
 
+[package.metadata.wix]
+upgrade-guid = "0E1ECD9D-20BA-4136-915B-2963C3EB5B55"
+path-guid = "E04AA49B-38F6-4390-88E3-DA26DF841A51"
+license = false
+eula = false
+
 [[bin]]
 name = "heelonvault"
 path = "src/main.rs"
