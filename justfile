@@ -197,13 +197,7 @@ install-wix:
     @echo "🔧 Installation de WiX Toolset sur la VM..."
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
         "powershell -NoProfile -NonInteractive -Command \
-        \"if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) { \\
-            Write-Host 'Installation de WiX Toolset...'; \\
-            winget install --id WiXToolset.WiXToolset --accept-package-agreements --accept-source-agreements; \\
-            Write-Host 'WiX Toolset installe avec succes'; \\
-        } else { \\
-            Write-Host 'WiX Toolset est deja installe'; \\
-        }\""
+        'if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) { Write-Host "Installation de WiX Toolset..."; winget install --id WiXToolset.WiXToolset --accept-package-agreements --accept-source-agreements; Write-Host "WiX Toolset installe avec succes" } else { Write-Host "WiX Toolset est deja installe" }'"
 
 # ------------------------------------------------------------
 # Test du parsing ntldd sur la VM
@@ -212,9 +206,4 @@ test-ntldd:
     @echo "🔍 Test du parsing ntldd sur la VM..."
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
         "powershell -NoProfile -NonInteractive -Command \
-        \"Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \\
-         if (Test-Path 'target\\{{WINDOWS_TARGET}}\\release\\heelonvault.exe') { \\
-             & 'C:\\msys64\\mingw64\\bin\\ntldd.exe' -R 'target\\{{WINDOWS_TARGET}}\\release\\heelonvault.exe' \\
-         } else { \\
-             Write-Host 'Binaire non trouve. Executez d abord : just sync + compilation manuelle' \\
-         }\""
+        'Set-Location "{{REMOTE_CORE}}/{{CRATE_DIR}}"; if (Test-Path "target/{{WINDOWS_TARGET}}/release/heelonvault.exe") { & "C:/msys64/mingw64/bin/ntldd.exe" -R "target/{{WINDOWS_TARGET}}/release/heelonvault.exe" } else { Write-Host "Binaire non trouve. Executez d abord : just sync + compilation manuelle" }'"
