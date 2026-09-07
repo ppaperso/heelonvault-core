@@ -1,5 +1,5 @@
 # ============================================================
-# HeelonVault — Remote Windows MSI Build (VERSION FINALE)
+# HeelonVault — Remote Windows MSI Build (WiX Manual Approach)
 # ============================================================
 
 # ------------------------------------------------------------
@@ -15,7 +15,7 @@ REMOTE_CORE := REMOTE_ROOT + "/heelonvault-core"
 CRATE_DIR := "crates/heelonvault-app"
 LOCAL_DIST := "./dist"
 
-# Chemin vers dist.exe sur la VM Windows
+# Chemin vers les outils Windows
 DIST_EXE_PATH := "C:/Users/" + VM_USER + "/.cargo/bin/dist.exe"
 WINDOWS_TARGET := "x86_64-pc-windows-msvc"
 
@@ -31,7 +31,7 @@ default:
 check-windows:
     @echo "🔍 Vérification de l'environnement Rust sur Windows..."
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
-        "powershell -NoProfile -NonInteractive -Command \"cargo --version; & '{{DIST_EXE_PATH}}' --version\""
+        "powershell -NoProfile -NonInteractive -Command \"cargo --version\""
 
 # ------------------------------------------------------------
 # Nettoyage du workspace Windows
@@ -70,74 +70,118 @@ clean-remote:
     echo "✅ Sources transférées."
 
 # ------------------------------------------------------------
-# Build MSI
+# Build MSI (Approche manuelle avec WiX Toolset)
 # ------------------------------------------------------------
 @build-msi:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    echo "🔨 Compilation du MSI sur Windows..."
+    echo "🔨 Génération manuelle du MSI avec WiX Toolset..."
 
-    # Verification de l'initialisation dist
-    echo "🔧 Vérification de la configuration cargo-dist..."
+    # 1. Vérification de l'environnement WiX
+    echo "🔧 Vérification de WiX Toolset..."
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
         "powershell -NoProfile -NonInteractive -Command \
-        \"if (-not (Test-Path '{{REMOTE_CORE}}/crates/heelonvault-app/dist-workspace.toml')) { \
-            Write-Error 'Configuration cargo-dist manquante. Exécutez dist init manuellement sur la VM.'; \
-            exit 1 \
+        \"if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) { \\
+            Write-Error 'WiX Toolset non installé. Exécutez : winget install WiXToolset.WiXToolset'; \\
+            exit 1 \\
         }\""
 
-    echo "🚀 Génération et compilation avec MSVC..."
+    # 2. Vérification que MSYS2 est accessible
+    echo "🔧 Vérification de MSYS2..."
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
         "powershell -NoProfile -NonInteractive -Command \
-        \"\$msvc_path = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64'; \
-         \$env:PATH = \$msvc_path + ';' + \$env:USERPROFILE + '\\.cargo\\bin;' + 'C:\\msys64\\mingw64\\bin;' + \$env:PATH; \
-         Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \
-         & '{{DIST_EXE_PATH}}' generate --mode=msi --target={{WINDOWS_TARGET}}; \
-         & '{{DIST_EXE_PATH}}' build --artifacts=local --target={{WINDOWS_TARGET}}\""
+        \"if (-not (Test-Path 'C:/msys64/mingw64/bin')) { \\
+            Write-Error 'MSYS2 non installé ou chemin incorrect'; \\
+            exit 1 \\
+        }\""
 
-    echo "🔎 Recherche du MSI généré..."
-
-    MSI_PATH=$(ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
+    # 3. Compilation du binaire Rust
+    echo "🚀 Compilation Rust avec MSVC..."
+    ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
         "powershell -NoProfile -NonInteractive -Command \
-        \"\$msi = Get-ChildItem '{{REMOTE_CORE}}/{{CRATE_DIR}}/target' -Recurse -Filter '*.msi' | Sort-Object LastWriteTime -Descending | Select-Object -First 1; \
-        if (-not \$msi) { Write-Error 'Aucun MSI trouvé sous target'; exit 1 }; \
-        Write-Output \$msi.FullName\"" \
-        | tr -d '\r')
+        \"\$msvc_path = 'C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64'; \\
+         \$env:PATH = \$msvc_path + ';' + \$env:USERPROFILE + '\\.cargo\\bin;' + 'C:\\msys64\\mingw64\\bin;' + \$env:PATH; \\
+         Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \\
+         cargo build --release --target {{WINDOWS_TARGET}} --manifest-path Cargo.toml 2>&1 | Write-Output\""
+
+    # 4. Préparation du staging
+    echo "📦 Préparation du dossier de staging..."
+    ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
+        "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \
+        \"Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \\
+         & 'scripts\\windows\\prepare-staging.ps1' \\
+            -BinaryPath 'target\\{{WINDOWS_TARGET}}\\release\\heelonvault.exe' \\
+            -Msys2Bin 'C:\\msys64\\mingw64\\bin' \\
+            -StagingDir 'wix\\staging' \\
+            -OutputDir 'wix\\output'\""
+
+    # 5. Récupération de la version
+    echo "📋 Récupération de la version..."
+    VERSION=$(ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
+        "powershell -NoProfile -NonInteractive -Command \
+        \"Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \\
+         (Get-Content Cargo.toml | Select-String -Pattern '^version\\s*=\\s*\"([^\"]+)\"').Matches[0].Groups[1].Value\"" | tr -d '\r')
+    
+    echo "Version: $VERSION"
+
+    # 6. Compilation WiX avec candle (avec WixUtilExtension pour <Files Include="...">)
+    echo "🕯️  Exécution de candle (compilation WiX)..."
+    ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
+        "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \
+        \"Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \\
+         \$wixBin = 'C:\\Program Files (x86)\\WiX Toolset v3.11\\bin'; \\
+         \$env:PATH = \"\$wixBin;\$env:PATH\"; \\
+         candle.exe 'wix\\main.wxs' 'wix\\staging.wxs' \\
+            -out 'wix\\output' \\
+            -dVersion=$VERSION \\
+            -ext WixUtilExtension \\
+            2>&1 | Write-Output\""
+
+    # 7. Linkage avec light (avec WixUIExtension + WixUtilExtension)
+    echo "💡 Exécution de light (linkage MSI)..."
+    ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
+        "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \
+        \"Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \\
+         \$wixBin = 'C:\\Program Files (x86)\\WiX Toolset v3.11\\bin'; \\
+         \$env:PATH = \"\$wixBin;\$env:PATH\"; \\
+         light.exe 'wix\\output\\main.wixobj' 'wix\\output\\staging.wixobj' \\
+            -out 'wix\\output\\HeelonVault-$VERSION.msi' \\
+            -ext WixUIExtension \\
+            -ext WixUtilExtension \\
+            -cultures:en-us \\
+            2>&1 | Write-Output\""
+
+    # 8. Vérification et transfert du MSI
+    MSI_PATH="{{REMOTE_CORE}}/{{CRATE_DIR}}/wix/output/HeelonVault-$VERSION.msi"
+    
+    echo "🔎 Vérification du MSI généré..."
+    ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
+        "powershell -NoProfile -NonInteractive -Command \
+        \"if (-not (Test-Path '$MSI_PATH')) { \\
+            Write-Error 'MSI non trouvé'; \\
+            exit 1 \\
+        }\""
 
     echo "📄 MSI trouvé : $MSI_PATH"
 
-    test -n "$MSI_PATH" || {
-        echo "❌ MSI introuvable"
-        exit 1
-    }
-
-    echo "📦 Préparation du MSI pour transfert..."
-
+    # 9. Transfert vers Downloads (pour compatibilité)
+    echo "📦 Copie vers Downloads..."
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
         "powershell -NoProfile -NonInteractive -Command \
         \"Copy-Item -LiteralPath '$MSI_PATH' -Destination 'C:/Users/{{VM_USER}}/Downloads/HeelonVault.msi' -Force\""
 
+    # 10. Transfert vers Fedora
     echo "📥 Transfert du MSI vers Fedora..."
-
     mkdir -p {{LOCAL_DIST}}
-
     scp -i {{SSH_KEY}} \
-        {{VM_USER}}@{{VM_IP}}:"C:/Users/{{VM_USER}}/Downloads/HeelonVault.msi" \
-        {{LOCAL_DIST}}/HeelonVault.msi
-
-    echo "🔍 Vérification du fichier MSI..."
-
-    test -s {{LOCAL_DIST}}/HeelonVault.msi || {
-        echo "❌ MSI vide ou transfert échoué"
-        exit 1
-    }
-
-    echo "📦 Taille du MSI :"
-    ls -lh {{LOCAL_DIST}}/HeelonVault.msi
+        {{VM_USER}}@{{VM_IP}}:"$MSI_PATH" \
+        {{LOCAL_DIST}}/HeelonVault-$VERSION.msi
 
     echo ""
-    echo "✅ MSI disponible : {{LOCAL_DIST}}/HeelonVault.msi"
+    echo "✅ MSI disponible : {{LOCAL_DIST}}/HeelonVault-$VERSION.msi"
+    echo "📦 Taille du MSI :"
+    ls -lh {{LOCAL_DIST}}/HeelonVault-$VERSION.msi
 
 # ------------------------------------------------------------
 # Pipelines combinés
@@ -145,3 +189,32 @@ clean-remote:
 full-build: sync build-msi
 
 rebuild-msi: clean-remote full-build
+
+# ------------------------------------------------------------
+# Installation de WiX Toolset sur la VM (si necessaire)
+# ------------------------------------------------------------
+install-wix:
+    @echo "🔧 Installation de WiX Toolset sur la VM..."
+    ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
+        "powershell -NoProfile -NonInteractive -Command \
+        \"if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) { \\
+            Write-Host 'Installation de WiX Toolset...'; \\
+            winget install --id WiXToolset.WiXToolset --accept-package-agreements --accept-source-agreements; \\
+            Write-Host 'WiX Toolset installe avec succes'; \\
+        } else { \\
+            Write-Host 'WiX Toolset est deja installe'; \\
+        }\""
+
+# ------------------------------------------------------------
+# Test du parsing ntldd sur la VM
+# ------------------------------------------------------------
+test-ntldd:
+    @echo "🔍 Test du parsing ntldd sur la VM..."
+    ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
+        "powershell -NoProfile -NonInteractive -Command \
+        \"Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \\
+         if (Test-Path 'target\\{{WINDOWS_TARGET}}\\release\\heelonvault.exe') { \\
+             & 'C:\\msys64\\mingw64\\bin\\ntldd.exe' -R 'target\\{{WINDOWS_TARGET}}\\release\\heelonvault.exe' \\
+         } else { \\
+             Write-Host 'Binaire non trouve. Executez d abord : just sync + compilation manuelle' \\
+         }\""

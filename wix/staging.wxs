@@ -13,7 +13,7 @@
   NOTE: Le script collect-staging.sh prépare ce dossier avec la structure finale.
   WiX crée automatiquement les sous-répertoires et un Component par fichier.
 -->
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Fragment>
     <!--
       Ingestion automatique du dossier staging/.
