@@ -44,7 +44,7 @@
     - magick (ImageMagick, optionnel, pour la generation de l'icone)
 
     Test manuel recommande avant utilisation :
-    C:\msys64\mingw64\bin\ntldd.exe -R target\x86_64-pc-windows-msvc\release\heelonvault.exe
+    C:\msys64\mingw64\bin\ntldd.exe -R target\distrib\heelonvault-app-x86_64-pc-windows-msvc\heelonvault.exe
 #>
 
 param(

@@ -111,7 +111,7 @@ clean-remote:
         "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \
         \"Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \\
          & 'scripts\\windows\\prepare-staging.ps1' \\
-            -BinaryPath 'target\\{{WINDOWS_TARGET}}\\release\\heelonvault.exe' \\
+            -BinaryPath 'target\\distrib\\heelonvault-app-{{WINDOWS_TARGET}}\\heelonvault.exe' \\
             -Msys2Bin 'C:\\msys64\\mingw64\\bin' \\
             -StagingDir 'wix\\staging' \\
             -OutputDir 'wix\\output'\""
@@ -130,7 +130,7 @@ clean-remote:
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
         "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \
         \"Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \\
-         \$wixBin = 'C:\\Program Files (x86)\\WiX Toolset v3.11\\bin'; \\
+         \$wixBin = 'C:\\Program Files (x86)\\WiX Toolset v3.14\\bin'; \\
          \$env:PATH = \"\$wixBin;\$env:PATH\"; \\
          candle.exe 'wix\\main.wxs' 'wix\\staging.wxs' \\
             -out 'wix\\output' \\
@@ -143,7 +143,7 @@ clean-remote:
     ssh -i {{SSH_KEY}} -o IdentitiesOnly=yes {{VM_USER}}@{{VM_IP}} \
         "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \
         \"Set-Location '{{REMOTE_CORE}}/{{CRATE_DIR}}'; \\
-         \$wixBin = 'C:\\Program Files (x86)\\WiX Toolset v3.11\\bin'; \\
+         \$wixBin = 'C:\\Program Files (x86)\\WiX Toolset v3.14\\bin'; \\
          \$env:PATH = \"\$wixBin;\$env:PATH\"; \\
          light.exe 'wix\\output\\main.wixobj' 'wix\\output\\staging.wixobj' \\
             -out 'wix\\output\\HeelonVault-$VERSION.msi' \\
