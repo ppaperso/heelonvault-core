@@ -9,6 +9,7 @@ use heelonvault_core::errors::AppError;
 use heelonvault_core::i18n::I18nArg;
 use heelonvault_core::services::admin_service::BootstrapResult;
 
+use super::views::LoginDialogWidgets;
 use super::{AuthenticatedSession, feedback};
 
 type BootstrapCallback =
@@ -36,8 +37,9 @@ pub(super) fn handle_init_identity_step(
     init_verify_a_label: &gtk4::Label,
     init_verify_b_label: &gtk4::Label,
     init_oath_words: Rc<RefCell<Vec<String>>>,
-    check_init_identity_gate: &Rc<impl Fn()>,
+    _check_init_identity_gate: &Rc<impl Fn()>,
     step_stack: &gtk4::Stack,
+    submit_button: &gtk4::Button,
 ) {
     let username = init_username.text().trim().to_string();
     if username.is_empty() {
@@ -84,7 +86,9 @@ pub(super) fn handle_init_identity_step(
                     init_verify_b_label.set_text(label_b.as_str());
 
                     *init_oath_words.borrow_mut() = words;
-                    check_init_identity_gate();
+                    // Désactiver le bouton submit car les entrées de vérification sont vides
+                    // La gate oath sera appelée quand les entrées changeront
+                    submit_button.set_sensitive(false);
                     step_stack.set_visible_child_name("init-oath");
                 } else {
                     feedback::show_feedback(
@@ -191,6 +195,119 @@ pub(super) fn handle_init_oath_step(
                     &error_for_result,
                     heelonvault_core::tr!("login-error-interrupted").as_str(),
                 );
+            }
+        }
+    });
+}
+
+/// Configure le handler du bouton submit pour le mode bootstrap.
+/// Ce handler gère les transitions entre les étapes :
+/// - init-identity -> init-oath (génération de la clé de récupération)
+/// - init-oath -> init-pending (vérification des mots et bootstrap)
+/// 
+/// # Arguments
+/// * `widgets` - Tous les widgets de la dialogue
+/// * `gen_key_fn` - Fonction pour générer la clé de récupération (optionnelle)
+/// * `do_bootstrap_fn` - Fonction pour exécuter le bootstrap
+/// * `window` - Fenêtre de la dialogue
+/// * `authenticated` - Cellule indiquant si l'authentification a réussi
+/// * `on_authenticated` - Callback appelé après authentification réussie
+pub(super) fn setup_bootstrap_submit_handler(
+    widgets: &LoginDialogWidgets,
+    gen_key_fn: Option<Arc<dyn Fn() -> Result<String, AppError> + Send + Sync>>,
+    do_bootstrap_fn: Option<BootstrapCallback>,
+    window: &gtk4::Window,
+    authenticated: Rc<Cell<bool>>,
+    on_authenticated: Rc<dyn Fn(AuthenticatedSession)>,
+) {
+    // État partagé pour les mots de la phrase de récupération
+    let init_oath_words: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+    
+    // Indices des mots à vérifier
+    let init_verify_indices: Rc<Cell<(usize, usize)>> = Rc::new(Cell::new((0, 1)));
+    
+    // État pour suivre si le presse-papier contient la phrase
+    let init_clipboard_dirty: Rc<Cell<bool>> = Rc::new(Cell::new(false));
+    let init_clipboard_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
+    
+    // Cloner les widgets et états pour le handler
+    let step_stack = widgets.step_stack.clone();
+    let init_username_entry = widgets.init_username_entry.clone();
+    let init_password_entry = widgets.init_password_entry.clone();
+    let init_pending_spinner = widgets.init_pending_spinner.clone();
+    let submit_button = widgets.submit_button.clone();
+    let submit_spinner = widgets.submit_spinner.clone();
+    let error_label = widgets.error_label.clone();
+    let button_label = widgets.button_label.clone();
+    let word_labels = widgets.word_labels.clone();
+    let init_verify_hint_label = widgets.init_verify_hint_label.clone();
+    let init_verify_a_label = widgets.init_verify_a_label.clone();
+    let init_verify_b_label = widgets.init_verify_b_label.clone();
+    let gen_key_fn_for_handler = gen_key_fn.clone();
+    let do_bootstrap_fn_for_handler = do_bootstrap_fn.clone();
+    let window_for_handler = window.clone();
+    let authenticated_for_handler = Rc::clone(&authenticated);
+    let on_authenticated_for_handler = Rc::clone(&on_authenticated);
+    let init_oath_words_for_handler = Rc::clone(&init_oath_words);
+    let init_verify_indices_for_handler = Rc::clone(&init_verify_indices);
+    let init_clipboard_dirty_for_handler = Rc::clone(&init_clipboard_dirty);
+    let init_clipboard_timer_for_handler = Rc::clone(&init_clipboard_timer);
+
+    widgets.submit_button.connect_clicked(move |_| {
+        // Vérifier l'étape courante
+        let child_name = step_stack.visible_child_name();
+        let current_step = child_name
+            .as_ref()
+            .map(|n| n.as_str())
+            .unwrap_or("");
+
+        match current_step {
+            "init-identity" => {
+                // Étape 1: Générer la clé de récupération et passer à l'étape oath
+                // gen_key_fn_for_handler est Option<Arc<...>>, on passe &gen_key_fn_for_handler
+                let gen_key_ref: Option<&Arc<dyn Fn() -> Result<String, AppError> + Send + Sync>> = 
+                    gen_key_fn_for_handler.as_ref();
+                handle_init_identity_step(
+                    &init_username_entry,
+                    &error_label,
+                    gen_key_ref,
+                    &word_labels,
+                    Rc::clone(&init_verify_indices_for_handler),
+                    &init_verify_hint_label,
+                    &init_verify_a_label,
+                    &init_verify_b_label,
+                    Rc::clone(&init_oath_words_for_handler),
+                    &Rc::new(move || {}), // _check_init_identity_gate - pas utilisé ici car on passe à oath
+                    &step_stack,
+                    &submit_button,
+                );
+                // Mettre à jour le texte du bouton pour l'étape oath
+                button_label.set_text(heelonvault_core::tr!("init-confirm-button").as_str());
+                submit_button.add_css_class("suggested-action");
+            }
+            "init-oath" => {
+                // Étape 2: Vérifier les mots et exécuter le bootstrap
+                handle_init_oath_step(
+                    Rc::clone(&init_clipboard_dirty_for_handler),
+                    Rc::clone(&init_clipboard_timer_for_handler),
+                    &init_username_entry,
+                    &init_password_entry,
+                    &step_stack,
+                    &init_pending_spinner,
+                    do_bootstrap_fn_for_handler.clone(),
+                    &window_for_handler,
+                    &error_label,
+                    &submit_button,
+                    &submit_spinner,
+                    Rc::clone(&authenticated_for_handler),
+                    Rc::clone(&on_authenticated_for_handler),
+                );
+            }
+            "init-pending" => {
+                // En attente, ne rien faire
+            }
+            _ => {
+                // Cas normal (ne devrait pas arriver en mode bootstrap)
             }
         }
     });

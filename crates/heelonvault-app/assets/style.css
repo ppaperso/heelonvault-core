@@ -2689,3 +2689,14 @@ frame.add-edit-footer-card {
     margin-top: 8px;
     margin-bottom: 8px;
 }
+
+/* Feedback visuel pour les entrées de vérification de la recovery phrase */
+entry.success {
+    background-color: alpha(#1F8678, 0.15);
+    border-color: #1F8678;
+}
+
+entry.error {
+    background-color: alpha(#E74C3C, 0.15);
+    border-color: #E74C3C;
+}

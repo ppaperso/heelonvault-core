@@ -13,6 +13,7 @@ pub struct AuthenticatedSession {
     pub master_key: SecretBox<Vec<u8>>,
 }
 
+#[derive(Clone)]
 pub struct BootstrapServicesContext {
     /// Generates the phrase shown at the identity step and parks it until the oath step.
     pub generate_recovery_key: Arc<dyn Fn() -> Result<String, AppError> + Send + Sync>,

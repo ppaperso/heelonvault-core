@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 //! Unit-style checks for critical lifecycle log markers.
 //! These tests protect startup/logout/shutdown markers used by smoke checks.
 
@@ -18,7 +16,7 @@ fn lifecycle_log_markers_exist_in_source_code() {
         "../../heelonvault-app/src/ui/windows/main_window/impl_core_parts/new_body.inc"
     );
     let login_close =
-        include_str!("../../heelonvault-app/src/ui/dialogs/login_dialog/parts/new_body.inc");
+        include_str!("../../heelonvault-app/src/ui/dialogs/login_dialog/core.rs");
 
     let startup_markers = [
         "tokio runtime started",

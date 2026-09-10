@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+use directories::ProjectDirs;
 use gtk4::prelude::{Cast, DisplayExt, ListModelExt, MonitorExt};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -20,8 +21,8 @@ struct MainWindowState {
 }
 
 fn state_file_path() -> PathBuf {
-    if let Some(config_dir) = dirs::config_dir() {
-        return config_dir
+    if let Some(proj_dirs) = ProjectDirs::from("fr", "Heelonys", "HeelonVault") {
+        return proj_dirs.config_dir()
             .join("heelonvault")
             .join("ui_main_window_state.json");
     }

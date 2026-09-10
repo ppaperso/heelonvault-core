@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+use directories::ProjectDirs;
 use gtk4::prelude::*;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -27,8 +28,8 @@ const RESTORE_MIN_WIDTH: i32 = 480;
 const RESTORE_MIN_HEIGHT: i32 = 500;
 
 fn ui_window_state_path() -> PathBuf {
-    if let Some(config_dir) = dirs::config_dir() {
-        return config_dir.join("heelonvault").join("ui_window_state.json");
+    if let Some(proj_dirs) = ProjectDirs::from("fr", "Heelonys", "HeelonVault") {
+        return proj_dirs.config_dir().join("heelonvault").join("ui_window_state.json");
     }
 
     if let Ok(home) = std::env::var("HOME") {

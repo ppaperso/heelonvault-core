@@ -297,31 +297,30 @@ impl Write for DailyLogFileWriter {
 /// pour pointer vers le dossier d'installation de l'application.
 #[allow(unsafe_code)]
 fn setup_windows_resources() {
-    if cfg!(target_os = "windows") {
-        if let Ok(exe) = env::current_exe() {
-            if let Some(install_dir) = exe.parent() {
-                let dir = install_dir.to_string_lossy();
+    if cfg!(target_os = "windows")
+        && let Ok(exe) = env::current_exe()
+        && let Some(install_dir) = exe.parent()
+    {
+        let dir = install_dir.to_string_lossy();
 
-                // Racine des données GTK
-                // SAFETY: These are called once at startup, single-threaded, before any GTK initialization
-                unsafe {
-                    env::set_var("GTK_DATA_PREFIX", &*dir);
-                    env::set_var("GTK_EXE_PREFIX", &*dir);
-                    env::set_var("XDG_DATA_DIRS", format!("{}/share", dir));
+        // Racine des données GTK
+        // SAFETY: These are called once at startup, single-threaded, before any GTK initialization
+        unsafe {
+            env::set_var("GTK_DATA_PREFIX", &*dir);
+            env::set_var("GTK_EXE_PREFIX", &*dir);
+            env::set_var("XDG_DATA_DIRS", format!("{}/share", dir));
 
-                    // Schemas GSettings
-                    env::set_var("GSETTINGS_SCHEMA_DIR", format!("{}/share/glib-2.0/schemas", dir));
+            // Schemas GSettings
+            env::set_var("GSETTINGS_SCHEMA_DIR", format!("{}/share/glib-2.0/schemas", dir));
 
-                    // Loaders gdk-pixbuf (scan dynamique du dossier, pas de cache)
-                    env::set_var("GDK_PIXBUF_MODULEDIR", format!("{}/lib/gdk-pixbuf-2.0/2.10.0/loaders", dir));
+            // Loaders gdk-pixbuf (scan dynamique du dossier, pas de cache)
+            env::set_var("GDK_PIXBUF_MODULEDIR", format!("{}/lib/gdk-pixbuf-2.0/2.10.0/loaders", dir));
 
-                    // Thème par défaut
-                    env::set_var("GTK_THEME", "Adwaita");
+            // Thème par défaut
+            env::set_var("GTK_THEME", "Adwaita");
 
-                    // Migrations : permet à l'application de trouver le dossier migrations
-                    env::set_var("HEELONVAULT_MIGRATIONS_DIR", format!("{}/migrations", dir));
-                }
-            }
+            // Migrations : permet à l'application de trouver le dossier migrations
+            env::set_var("HEELONVAULT_MIGRATIONS_DIR", format!("{}/migrations", dir));
         }
     }
 }
@@ -689,6 +688,9 @@ fn run_application(
                         "login flow trace: MainWindow::new completed"
                     );
                     main_for_success.window().set_icon_name(Some("heelonvault"));
+                    // Afficher la fenêtre principale AVANT de fermer la fenêtre de login
+                    // Sinon GTK termine l'application quand la dernière fenêtre est fermée
+                    main_for_success.window().present();
 
                     let refresh_entries_started = Instant::now();
                     main_for_success.refresh_entries();
