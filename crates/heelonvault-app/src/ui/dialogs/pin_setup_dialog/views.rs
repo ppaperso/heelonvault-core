@@ -1,4 +1,22 @@
-{
+use gtk4::prelude::*;
+use gtk4::{Align, InputPurpose, Orientation};
+use libadwaita as adw;
+
+use heelonvault_core::services::pin_cache_service::{PIN_MAX_LEN, PIN_MIN_LEN};
+use super::types::PinSetupDialogWidgets;
+
+/// Construit l'interface utilisateur complete de la dialogue de configuration du PIN.
+///
+/// # Arguments
+/// * `parent` - La fenetre parente
+/// * `pin_currently_active` - Si vrai, le bouton de desactivation PIN est affiche
+///
+/// # Returns
+/// Une structure `PinSetupDialogWidgets` contenant tous les widgets crees.
+pub fn build_pin_setup_view(
+    parent: &adw::ApplicationWindow,
+    pin_currently_active: bool,
+) -> PinSetupDialogWidgets {
     // ── Window ────────────────────────────────────────────────────────────
     let window = gtk4::Window::builder()
         .modal(true)
@@ -15,10 +33,12 @@
         .spacing(0)
         .build();
 
+    // ── Header ───────────────────────────────────────────────────────────
     let header = adw::HeaderBar::new();
     header.set_decoration_layout(Some(":close"));
     window.set_titlebar(Some(&header));
 
+    // ── Body ──────────────────────────────────────────────────────────────
     let body = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
         .spacing(16)
@@ -64,8 +84,7 @@
     // Confirm PIN entry
     let confirm_entry = gtk4::Entry::new();
     confirm_entry.set_visibility(false);
-    confirm_entry
-        .set_placeholder_text(Some(heelonvault_core::tr!("pin-setup-confirm-placeholder").as_str()));
+    confirm_entry.set_placeholder_text(Some(heelonvault_core::tr!("pin-setup-confirm-placeholder").as_str()));
     confirm_entry.set_max_length(PIN_MAX_LEN as i32);
     confirm_entry.set_hexpand(true);
     confirm_entry.set_input_purpose(InputPurpose::Pin);
@@ -81,7 +100,7 @@
     feedback_label.set_visible(false);
     body.append(&feedback_label);
 
-    // Action buttons
+    // Action buttons row
     let btn_row = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(8)
@@ -89,92 +108,37 @@
         .halign(Align::End)
         .build();
 
+    // Save button
     let save_button = gtk4::Button::with_label(heelonvault_core::tr!("pin-setup-save").as_str());
     save_button.add_css_class("suggested-action");
     btn_row.append(&save_button);
 
-    if pin_currently_active {
-        let disable_button = gtk4::Button::with_label(heelonvault_core::tr!("pin-setup-disable").as_str());
-        disable_button.add_css_class("destructive-action");
-        btn_row.append(&disable_button);
-
-        let on_pin_disabled = Rc::new(on_pin_disabled);
-        let on_pin_disabled_for_btn = Rc::clone(&on_pin_disabled);
-        let win_for_disable = window.clone();
-        disable_button.connect_clicked(move |_| {
-            win_for_disable.close();
-            on_pin_disabled_for_btn();
-        });
-    }
+    // Disable button (conditional)
+    let disable_button = if pin_currently_active {
+        let btn = gtk4::Button::with_label(heelonvault_core::tr!("pin-setup-disable").as_str());
+        btn.add_css_class("destructive-action");
+        btn_row.append(&btn);
+        Some(btn)
+    } else {
+        None
+    };
 
     body.append(&btn_row);
     root.append(&body);
     window.set_child(Some(&root));
 
-    // ── Helpers ───────────────────────────────────────────────────────────
-    fn show_feedback(label: &gtk4::Label, msg: &str, is_error: bool) {
-        label.set_text(msg);
-        label.remove_css_class("inline-status-error");
-        label.remove_css_class("inline-status-success");
-        if is_error {
-            label.add_css_class("inline-status-error");
-        } else {
-            label.add_css_class("inline-status-success");
-        }
-        label.set_visible(true);
+    PinSetupDialogWidgets {
+        window,
+        root,
+        header,
+        body,
+        desc_label,
+        len_hint,
+        pin_entry,
+        confirm_entry,
+        feedback_label,
+        btn_row,
+        save_button,
+        disable_button,
     }
-
-    fn hide_feedback(label: &gtk4::Label) {
-        label.set_text("");
-        label.set_visible(false);
-    }
-
-    // ── Save handler ──────────────────────────────────────────────────────
-    let win_for_save = window.clone();
-    let pin_for_save = pin_entry.clone();
-    let confirm_for_save = confirm_entry.clone();
-    let feedback_for_save = feedback_label.clone();
-    let master_key = Rc::new(master_key);
-    let on_cache_created = Rc::new(on_cache_created);
-
-    save_button.connect_clicked(move |_| {
-        let pin = pin_for_save.text().to_string();
-        let confirm = confirm_for_save.text().to_string();
-
-        if pin != confirm {
-            show_feedback(
-                &feedback_for_save,
-                heelonvault_core::tr!("pin-setup-error-mismatch").as_str(),
-                true,
-            );
-            return;
-        }
-
-        if let Err(e) = validate_pin(&pin) {
-            show_feedback(&feedback_for_save, &e.to_string(), true);
-            return;
-        }
-
-        match PinCache::wrap(master_key.as_ref(), &pin, user_id) {
-            Ok(cache) => {
-                win_for_save.close();
-                on_cache_created(cache);
-            }
-            Err(e) => {
-                show_feedback(
-                    &feedback_for_save,
-                    &format!("{}: {e}", heelonvault_core::tr!("pin-setup-error-internal").as_str()),
-                    true,
-                );
-            }
-        }
-    });
-
-    // Reset feedback on any change.
-    for entry in [&pin_entry, &confirm_entry] {
-        let fb = feedback_label.clone();
-        entry.connect_changed(move |_| hide_feedback(&fb));
-    }
-
-    Self { window }
 }
