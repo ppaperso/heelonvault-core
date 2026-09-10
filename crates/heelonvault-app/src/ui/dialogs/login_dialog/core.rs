@@ -53,7 +53,11 @@ impl LoginDialog {
         auth_policy_service: Arc<TPolicy>,
         user_service: Arc<TUser>,
         totp_service: Arc<TTotp>,
+        #[cfg(not(feature = "premium"))]
+        #[allow(unused_variables)]
         federated_auth_service: Arc<TFederated>,
+        #[cfg(not(feature = "premium"))]
+        #[allow(unused_variables)]
         startup_psc_artifact: Option<String>,
         bootstrap_ctx: Option<BootstrapServicesContext>,
         license_badge_text: String,
@@ -72,8 +76,6 @@ impl LoginDialog {
         TTotp: TotpService + Send + Sync + 'static,
         TFederated: FederatedAuthService + Send + Sync + 'static,
     {
-        #[cfg(not(feature = "premium"))]
-        let _ = (&federated_auth_service, &startup_psc_artifact);
         include!("parts/new_body.inc")
     }
 
@@ -86,7 +88,7 @@ impl LoginDialog {
         error_label: &gtk4::Label,
         lock_active: Rc<Cell<bool>>,
     ) where
-        TWidget: IsA<gtk4::Editable> + Clone + 'static,
+        TWidget: IsA<gtk4::Editable> + 'static,
     {
         let error_for_reset = error_label.clone();
         widget.connect_changed(move |_| {
