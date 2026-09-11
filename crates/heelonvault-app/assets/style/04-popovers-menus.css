@@ -1,0 +1,188 @@
+/* Popovers, app menu, nav drawer, secret card manage popover */
+
+    popover,
+    popover.background {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+    }
+
+    popover contents {
+        background: transparent;
+        padding: 0;
+        border: none;
+    }
+
+    popover menu,
+    popover box {
+        background: #FFFFFF;
+        color: #2C3E50;
+        border-radius: 16px;
+        border: 1px solid #A4DFCF;
+        box-shadow: 0 20px 40px rgba(7, 57, 58, 0.12);
+    }
+
+    popover modelbutton,
+    popover menuitem,
+    popover label {
+        color: #2C3E50;
+    }
+
+    popover modelbutton:hover,
+    popover menuitem:hover {
+        background: #F3F6F3;
+    }
+
+    .app-menu-popover box {
+        min-width: 260px;
+    }
+
+    .profile-login-history-popover label,
+    headerbar .profile-login-history-popover label {
+        color: #2C3E50;
+    }
+
+    .profile-login-history-title,
+    headerbar .profile-login-history-title {
+        color: #07393A;
+        font-weight: 700;
+    }
+
+    .profile-login-history-row,
+    headerbar .profile-login-history-row {
+        color: #2C3E50;
+        font-size: 0.86rem;
+    }
+
+    .profile-login-history-muted,
+    headerbar .profile-login-history-muted {
+        color: #5F7E80;
+        font-size: 0.82rem;
+    }
+
+    .app-menu-section {
+        margin-top: 8px;
+        margin-bottom: 2px;
+        font-weight: 600;
+    }
+
+    button.app-menu-item {
+        min-height: 34px;
+        padding: 5px 8px;
+        border-radius: 10px;
+        color: #2C3E50;
+        background: transparent;
+        border: 1px solid transparent;
+        box-shadow: none;
+    }
+
+    button.app-menu-item label,
+    button.app-menu-item image {
+        color: #2C3E50;
+    }
+
+    button.app-menu-item:hover {
+        background: #EAF3F1;
+        border-color: rgba(87, 185, 177, 0.35);
+        transform: none;
+        box-shadow: none;
+    }
+
+    button.app-menu-item:hover label,
+    button.app-menu-item:hover image,
+    button.app-menu-item:focus-visible label,
+    button.app-menu-item:focus-visible image {
+        color: #07393A;
+    }
+
+    button.app-menu-item:focus-visible {
+        background: #EAF3F1;
+        border-color: rgba(87, 185, 177, 0.45);
+        outline: none;
+    }
+
+    button.app-menu-item-destructive,
+    button.app-menu-item-destructive label,
+    button.app-menu-item-destructive image {
+        color: #C01C28;
+    }
+
+    button.nav-drawer-scrim {
+        background: rgba(7, 57, 58, 0.18);
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0;
+    }
+
+    .nav-drawer {
+        background: linear-gradient(170deg, #FFFFFF 0%, #EEF8F7 100%);
+        border: 1px solid rgba(87, 185, 177, 0.42);
+        border-radius: 18px;
+        box-shadow: 0 22px 46px rgba(7, 57, 58, 0.22);
+        padding: 8px;
+    }
+
+    .nav-drawer-title {
+        color: #07393A;
+        font-weight: 780;
+        letter-spacing: 0.02em;
+    }
+
+    .nav-drawer-section {
+        color: #5F7E80;
+        font-weight: 680;
+        letter-spacing: 0.06em;
+        margin-top: 8px;
+        margin-bottom: 2px;
+    }
+
+    button.nav-drawer-btn {
+        border-radius: 12px;
+        border: 1px solid transparent;
+        background: rgba(255, 255, 255, 0.48);
+    }
+
+    button.nav-drawer-btn:hover {
+        border-color: rgba(87, 185, 177, 0.48);
+        background: rgba(234, 243, 241, 0.96);
+        box-shadow: 0 8px 18px rgba(7, 57, 58, 0.12);
+    }
+
+    .secret-card-manage-popover box {
+        min-width: 148px;
+        border-radius: 12px;
+        background: #FFFFFF;
+        border: 1px solid rgba(164, 223, 207, 0.70);
+        box-shadow: 0 10px 24px rgba(7, 57, 58, 0.14);
+        padding: 4px;
+    }
+
+    .secret-card-manage-btn {
+        min-height: 30px;
+        border-radius: 8px;
+        color: #2C3E50;
+        background: transparent;
+        border: 1px solid transparent;
+    }
+
+    .secret-card-manage-btn:hover {
+        background: #EAF3F1;
+        color: #07393A;
+    }
+
+    .secret-card-manage-btn-destructive,
+    .secret-card-manage-btn-destructive label,
+    .secret-card-manage-btn-destructive image {
+        color: #C01C28;
+    }
+
+    .secret-card-manage-btn-destructive:hover {
+        background: rgba(192, 28, 40, 0.10);
+        color: #A4131E;
+    }
+
+.profile-login-history-popover {
+    min-width: 280px;
+}
+

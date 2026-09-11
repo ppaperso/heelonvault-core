@@ -1,0 +1,67 @@
+/* Toasts and tooltips */
+
+    toast {
+        background-image: linear-gradient(120deg, #13A1A1, #1F8678);
+        color: #FFFFFF;
+        border-radius: 12px;
+        border: 1px solid rgba(7, 57, 58, 0.18);
+        box-shadow: 0 10px 24px rgba(7, 57, 58, 0.22);
+    }
+
+    toast label,
+    toast button,
+    toast image {
+        color: #FFFFFF;
+    }
+
+    toast button {
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 999px;
+        transition: all 220ms ease;
+    }
+
+    toast button:hover {
+        background: rgba(255, 255, 255, 0.22);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(7, 57, 58, 0.20);
+    }
+
+    toast button:active {
+        background: rgba(7, 57, 58, 0.22);
+        transform: translateY(0);
+        box-shadow: none;
+    }
+
+    toast button:focus {
+        outline: 2px solid #13A1A1;
+        outline-offset: 2px;
+    }
+
+    /* ─── TOOLTIPS PREMIUM ─────────────────────────────────────────────── */
+
+    tooltip {
+        background: transparent;
+        padding: 0;
+    }
+
+    tooltip > * {
+        background: linear-gradient(145deg, #07393A 0%, #0C5254 60%, #0F6B60 100%);
+        color: #FFFFFF;
+        border-radius: 14px;
+        border: 1px solid rgba(164, 223, 207, 0.35);
+        box-shadow:
+            0 16px 40px rgba(7, 57, 58, 0.40),
+            0  4px 12px rgba(7, 57, 58, 0.25),
+            inset 0 1px 0 rgba(255, 255, 255, 0.10);
+        padding: 0;
+    }
+
+    tooltip label {
+        color: #FFFFFF;
+        font-size: 0.90rem;
+        font-family: "Space Grotesk", "Inter", "Cantarell", sans-serif;
+        padding: 11px 15px;
+        line-height: 1.55;
+    }
+

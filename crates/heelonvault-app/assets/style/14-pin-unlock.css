@@ -1,0 +1,131 @@
+/* PIN quick-unlock, master-key-change progress, password strength widget */
+
+.mkchange-step-row {
+    min-height: 44px;
+}
+
+.mkchange-step-icon {
+    margin-right: 4px;
+}
+
+.mkchange-step-icon-pending {
+    opacity: 0.45;
+}
+
+.mkchange-step-icon-done {
+    /* GTK4: @success_color est une variable GTK native, valide — alarme linter supprimée */
+    color: @success_color;
+}
+
+.mkchange-step-icon-error {
+    /* GTK4: @error_color est une variable GTK native, valide — alarme linter supprimée */
+    color: @error_color;
+}
+
+/* ── Password strength widget ─────────────────────────────────────────── */
+.password-strength-root {
+    margin-top: 2px;
+}
+
+.password-strength-row {
+    min-height: 18px;
+}
+
+.password-strength-bar {
+    min-height: 6px;
+    border-radius: 999px;
+}
+
+.password-strength-hint {
+    font-size: 0.78rem;
+}
+
+/* ANSSI badge pills (abc / ABC / 123 / #?!) */
+.psb-badge {
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.psb-badge-on {
+    /* GTK4: @success_color est une variable GTK native, valide — alarme linter supprimée */
+    color: @success_color;
+    /* GTK4: alpha() est une fonction GTK CSS native, valide — alarme linter supprimée */
+    background: alpha(@success_color, 0.15);
+}
+
+.psb-badge-off {
+    opacity: 0.35;
+}
+
+.password-strength-bar.low block.filled,
+.password-strength-bar.low trough block.filled {
+    /* GTK4: @error_color est une variable GTK native, valide — alarme linter supprimée */
+    background-color: @error_color;
+}
+
+.password-strength-bar.medium block.filled,
+.password-strength-bar.medium trough block.filled {
+    /* GTK4: @warning_color est une variable GTK native, valide — alarme linter supprimée */
+    background-color: @warning_color;
+}
+
+.password-strength-bar.high block.filled,
+.password-strength-bar.high trough block.filled {
+    /* GTK4: @success_color est une variable GTK native, valide — alarme linter supprimée */
+    background-color: @success_color;
+}
+
+/* ── PIN Quick-Unlock ──────────────────────────────────────────────────────── */
+
+.pin-unlock-window {
+    border-radius: 12px;
+}
+
+.pin-unlock-icon {
+    color: alpha(@accent_color, 0.75);
+    margin-bottom: 4px;
+}
+
+.pin-unlock-heading {
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.pin-digit-entry {
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
+}
+
+.pin-feedback-label {
+    font-size: 0.88rem;
+    margin-top: 2px;
+}
+
+.pin-fallback-btn {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-top: 2px;
+}
+
+.pin-setup-window {
+    border-radius: 12px;
+}
+
+.profile-section-separator {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+/* Feedback visuel pour les entrées de vérification de la recovery phrase */
+entry.success {
+    background-color: alpha(#1F8678, 0.15);
+    border-color: #1F8678;
+}
+
+entry.error {
+    background-color: alpha(#E74C3C, 0.15);
+    border-color: #E74C3C;
+}
+

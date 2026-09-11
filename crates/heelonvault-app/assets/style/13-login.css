@@ -1,0 +1,219 @@
+/* Login screen: hero, card, badges, CPS teaser, entries, pills */
+
+.login-shell {
+    min-width: 460px;
+}
+
+.login-panel {
+    padding: 12px;
+}
+
+.login-hero,
+.login-card {
+    border-radius: 20px;
+    border: 1px solid rgba(164, 223, 207, 0.95);
+    box-shadow: 0 20px 40px rgba(7, 57, 58, 0.08);
+}
+
+.login-card {
+    background: linear-gradient(135deg, #FFFFFF, #F3F6F3);
+}
+
+.login-hero {
+    background: linear-gradient(135deg, #07393A, #0A5F5C);
+    color: #FFFFFF;
+}
+
+.login-hero-icon {
+    color: #FFFFFF;
+    opacity: 0.95;
+}
+
+.login-hero-title {
+    color: #FFFFFF;
+}
+
+.login-hero-copy,
+.login-hero-meta {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.login-hero-badge {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.85);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.login-license-badge {
+    background: linear-gradient(120deg, #A4DFCF, #57B9B1);
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    color: #07393A;
+    font-weight: 800;
+    box-shadow: 0 8px 18px rgba(7, 57, 58, 0.26);
+}
+
+.login-badge {
+    background: rgba(255, 255, 255, 0.14);
+    color: #A4DFCF;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-weight: 700;
+}
+
+.beta-badge {
+    border-radius: 999px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.login-beta-badge {
+    background: linear-gradient(120deg, #F7D66E, #E8A43A);
+    color: #5A2E00;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    padding: 5px 11px;
+    font-size: 0.70rem;
+    box-shadow: 0 8px 16px rgba(232, 164, 58, 0.30);
+}
+
+frame.login-cps-teaser {
+    border: 1px solid rgba(164, 223, 207, 0.85);
+    border-radius: 12px;
+    background: rgba(164, 223, 207, 0.14);
+    opacity: 1.0;
+}
+
+.login-cps-image {
+    border-radius: 6px;
+}
+
+.login-cps-badge {
+    background: rgba(19, 161, 161, 0.18);
+    border: 1px solid rgba(19, 161, 161, 0.45);
+    color: #07393A;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.login-cps-title {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #07393A;
+}
+
+.login-cps-copy {
+    font-size: 0.76rem;
+    color: #4A6572;
+}
+
+.login-field-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #07393A;
+}
+
+.login-field-label-caps {
+    text-transform: uppercase;
+}
+
+button.login-lang-flag {
+    min-width: 34px;
+    min-height: 30px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(7, 57, 58, 0.24);
+    background: rgba(255, 255, 255, 0.78);
+    font-size: 1.0rem;
+}
+
+button.login-lang-flag:hover {
+    background: rgba(164, 223, 207, 0.22);
+}
+
+button.login-lang-flag:checked {
+    border-color: #13A1A1;
+    background: rgba(19, 161, 161, 0.18);
+    box-shadow: 0 0 0 1px rgba(19, 161, 161, 0.22);
+}
+
+.login-support-copy,
+.login-strength {
+    color: #7F8C9A;
+}
+
+entry.login-entry,
+passwordentry.login-entry {
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 16px;
+    border: 1px solid rgba(164, 223, 207, 0.95);
+    padding: 12px 14px;
+    color: #2C3E50;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+entry.login-entry:focus,
+passwordentry.login-entry:focus {
+    border-color: #13A1A1;
+    box-shadow: 0 0 0 2px rgba(19, 161, 161, 0.18);
+}
+
+entry.login-totp-entry {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.18rem;
+}
+
+.login-totp-icon {
+    color: #13A1A1;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+button.primary-pill,
+button.secondary-pill {
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-weight: 700;
+    transition: all 200ms ease;
+}
+
+button.primary-pill {
+    background: linear-gradient(120deg, #13A1A1, #1F8678);
+    color: #FFFFFF;
+    box-shadow: 0 8px 20px rgba(19, 161, 161, 0.28);
+}
+
+button.primary-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(19, 161, 161, 0.38);
+}
+
+.login-sec-dot {
+    color: #13A1A1;
+    font-weight: 900;
+}
+
+button.secondary-pill {
+    background: transparent;
+    color: #07393A;
+    border: 1px solid rgba(7, 57, 58, 0.28);
+}
+
+button.secondary-pill:hover {
+    background: rgba(164, 223, 207, 0.22);
+    transform: translateY(-2px);
+}
+
+label.login-error {
+    color: #E74C3C;
+    font-weight: 600;
+}
+

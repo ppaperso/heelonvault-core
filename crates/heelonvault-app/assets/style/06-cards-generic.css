@@ -1,0 +1,196 @@
+/* Generic .card component, card sub-elements (icon badge, title, hint, actions, tag pills), Heelonys seal component */
+
+    .card {
+        background: linear-gradient(135deg, #FFFFFF, #F3F6F3);
+        border: 1px solid #A4DFCF;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(7, 57, 58, 0.08);
+    }
+
+    /* Badge icône */
+    .card-icon-badge {
+        border-radius: 10px;
+        padding: 6px;
+        min-width: 32px;
+        min-height: 32px;
+    }
+
+    .card-icon-badge-success { background: rgba(31, 134, 120, 0.12); }
+    .card-icon-badge-warning { background: rgba(230, 184, 0,   0.12); }
+    .card-icon-badge-error   { background: rgba(231,  76, 60,  0.12); }
+
+    /* Titre de la card */
+    .card-title {
+        font-weight: 650;
+        font-size: 0.95rem;
+        color: #07393A;
+    }
+
+    /* Catégorie */
+    .card-category {
+        font-size: 0.73rem;
+        color: #6B9EA3;
+        font-weight: 500;
+    }
+
+    /* Ligne identifiant/domaine */
+    .card-hint {
+        font-family: "Space Mono", "JetBrains Mono", monospace;
+        font-size: 0.72rem;
+        color: #8CACB0;
+        font-weight: 400;
+    }
+
+    /* Séparateur fin */
+    .card-sep {
+        background: rgba(164, 223, 207, 0.5);
+        min-height: 1px;
+        margin-top: 2px;
+        margin-bottom: 2px;
+    }
+
+    /* Boutons d'action dans les cards */
+    .card-action-btn {
+        min-width: 28px;
+        min-height: 28px;
+        padding: 4px;
+        opacity: 0.65;
+        transition: opacity 150ms ease, transform 150ms ease;
+    }
+
+    .card-action-btn:hover {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+
+    /* Bouton corbeille */
+    .card-delete-btn {
+        opacity: 0.35;
+        min-width: 26px;
+        min-height: 26px;
+        padding: 3px;
+        transition: opacity 180ms ease, color 180ms ease;
+    }
+
+    .card-delete-btn:hover {
+        opacity: 0.9;
+    }
+
+    /* Badges d'alerte */
+    .card-alert-badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 2px 6px;
+    }
+
+    .card-alert-warning {
+        background: rgba(230, 184, 0, 0.15);
+        color: #9A7A00;
+        border: 1px solid rgba(230, 184, 0, 0.4);
+    }
+
+    .card-alert-error {
+        background: rgba(231, 76, 60, 0.12);
+        color: #C0392B;
+        border: 1px solid rgba(231, 76, 60, 0.35);
+    }
+
+    .card-usage-badge {
+        background: rgba(19, 161, 161, 0.14);
+        color: #0A5F5C;
+        border: 1px solid rgba(19, 161, 161, 0.32);
+    }
+
+    /* Tag pills */
+    .card-tag-pill {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #0A5F5C;
+        background: rgba(19, 161, 161, 0.10);
+        border: 1px solid rgba(19, 161, 161, 0.28);
+        border-radius: 999px;
+        padding: 1px 7px;
+    }
+
+    .card-tag-more {
+        font-size: 0.63rem;
+        font-weight: 600;
+        color: #6B9EA3;
+    }
+
+.heelonys-seal {
+    border-radius: 10px;
+    border: 1px solid rgba(182, 141, 76, 0.88);
+    background-image:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.00) 28%),
+        linear-gradient(145deg, #1E2329, #0F1217);
+    color: #F0EBDD;
+    padding: 5px 9px;
+    box-shadow:
+        0 0 8px rgba(181, 138, 74, 0.18),
+        0 4px 12px rgba(5, 8, 12, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.28);
+}
+
+.heelonys-seal:hover {
+    background-image:
+        linear-gradient(128deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.00) 36%),
+        linear-gradient(145deg, #252A31, #101419);
+    box-shadow:
+        0 0 11px rgba(186, 144, 80, 0.24),
+        0 5px 15px rgba(5, 8, 12, 0.50),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.34);
+}
+
+.heelonys-seal-login {
+    border-radius: 11px;
+    padding: 6px 10px;
+}
+
+.heelonys-seal-compact {
+    border-radius: 9px;
+    padding: 4px 8px;
+}
+
+.heelonys-seal-emblem {
+    margin-right: 1px;
+}
+
+.heelonys-seal-shield,
+.heelonys-seal-dot,
+.heelonys-seal-divider,
+.heelonys-seal-cert {
+    color: #B68D4C;
+}
+
+.heelonys-seal-shield {
+    -gtk-icon-size: 14px;
+    opacity: 0.96;
+}
+
+.heelonys-seal-dot {
+    font-size: 0.72rem;
+    font-weight: 800;
+    opacity: 0.95;
+}
+
+.heelonys-seal-divider {
+    min-height: 20px;
+    opacity: 0.72;
+}
+
+.heelonys-seal-cert {
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.heelonys-seal-customer {
+    color: #F1EEE5;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+

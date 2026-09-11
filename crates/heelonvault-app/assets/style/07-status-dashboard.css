@@ -1,0 +1,258 @@
+/* Status card, role pills, security/dashboard KPI badges, risk badges, audit badges, log viewer */
+
+    .dashboard-footer {
+        border-top: 1px solid rgba(164, 223, 207, 0.65);
+        padding-top: 8px;
+    }
+
+    .dashboard-footer-label {
+        color: #6B9EA3;
+        font-size: 0.84rem;
+        font-weight: 520;
+    }
+
+    /* ─── STATUS CARD ──────────────────────────────────────────────────── */
+    .status-card {
+        background: linear-gradient(135deg, #FFFFFF 0%, #EEF8F7 100%);
+        border-color: rgba(87, 185, 177, 0.50);
+        border-radius: 18px;
+        box-shadow: 0 4px 16px rgba(7, 57, 58, 0.08);
+    }
+
+    /* Avatar name / role */
+    .status-username {
+        font-weight: 650;
+        font-size: 1.12rem;
+        color: #07393A;
+    }
+
+    .status-role-pill {
+        font-size: 0.80rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        border-radius: 999px;
+        padding: 2px 10px;
+    }
+
+    .status-role-admin {
+        background: rgba(19, 161, 161, 0.14);
+        color: #0A5F5C;
+        border: 1px solid rgba(19, 161, 161, 0.32);
+    }
+
+    .status-role-user {
+        background: rgba(44, 62, 80, 0.09);
+        color: #4A5568;
+        border: 1px solid rgba(44, 62, 80, 0.18);
+    }
+
+    /* Séparateurs verticaux dans la status card */
+    .status-vsep {
+        background: rgba(164, 223, 207, 0.55);
+        min-width: 1px;
+    }
+
+    /* Chips de statistiques */
+    .status-stat-chip {
+        margin-left: 6px;
+        margin-right: 6px;
+    }
+
+    .status-stat-icon {
+        color: #57B9B1;
+        opacity: 0.80;
+    }
+
+    .status-stat-value {
+        font-weight: 700;
+        font-size: 1.20rem;
+        color: #07393A;
+    }
+
+    .status-stat-sub {
+        font-size: 0.82rem;
+        color: #8CACB0;
+        font-weight: 500;
+    }
+
+    /* Dernière connexion */
+    .status-meta-icon   { color: #8CACB0; }
+    .status-last-login  { font-size: 0.88rem; color: #8CACB0; }
+
+    /* Badge sécurité */
+    .status-weak-badge {
+        border-radius: 999px;
+        padding: 2px 8px;
+    }
+
+    .status-weak-ok {
+        background: rgba(31, 134, 120, 0.10);
+        border: 1px solid rgba(31, 134, 120, 0.28);
+    }
+
+    .status-weak-warn {
+        background: rgba(231, 76, 60, 0.10);
+        border: 1px solid rgba(231, 76, 60, 0.30);
+    }
+
+    .status-weak-label      { font-size: 0.88rem; font-weight: 600; color: #6B9EA3; }
+    .status-weak-label-warn { color: #C0392B; }
+
+    /* ---legacy metric-tile kept for compat--- */
+    .metric-tile {
+        background: rgba(19, 161, 161, 0.08);
+        border: 1px solid rgba(87, 185, 177, 0.40);
+        border-radius: 12px;
+        padding: 8px 10px;
+    }
+
+    .security-badge {
+        border-radius: 12px;
+        padding: 8px 14px;
+        background: rgba(19, 161, 161, 0.08);
+        border: 1px solid rgba(19, 161, 161, 0.20);
+        min-width: 80px;
+    }
+
+    .security-badge:hover {
+        background: rgba(19, 161, 161, 0.14);
+    }
+
+    .security-badge-active {
+        border-width: 2px;
+        background: rgba(19, 161, 161, 0.16);
+    }
+
+    .security-badge-count {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .security-badge-label {
+        font-size: 0.75rem;
+        opacity: 0.75;
+    }
+
+    .security-badge.badge-weak { color: #E53935; }
+    .security-badge.badge-reused { color: #FB8C00; }
+    .security-badge.badge-expired { color: #13A1A1; }
+    .security-badge.badge-score { color: #13A1A1; }
+
+    .security-badge.badge-score.score-good { color: #43A047; }
+    .security-badge.badge-score.score-medium { color: #FB8C00; }
+    .security-badge.badge-score.score-bad { color: #E53935; }
+
+    .dashboard-kpi-card {
+        border-radius: 16px;
+        padding: 16px;
+        background: rgba(19, 161, 161, 0.06);
+        border: 1px solid rgba(19, 161, 161, 0.15);
+    }
+
+    .dashboard-kpi-value {
+        font-size: 2rem;
+        font-weight: 800;
+    }
+
+    .dashboard-kpi-label {
+        font-size: 0.8rem;
+        opacity: 0.70;
+    }
+
+    .score-good {
+        color: #43A047;
+    }
+
+    .score-medium {
+        color: #FB8C00;
+    }
+
+    .score-bad {
+        color: #E53935;
+    }
+
+    .risk-badge-weak,
+    .risk-badge-reused,
+    .risk-badge-expired {
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 0.72rem;
+        font-weight: 650;
+    }
+
+    .risk-badge-weak {
+        color: #E53935;
+        background: rgba(229, 57, 53, 0.14);
+        border: 1px solid rgba(229, 57, 53, 0.28);
+    }
+
+    .risk-badge-reused {
+        color: #FB8C00;
+        background: rgba(251, 140, 0, 0.14);
+        border: 1px solid rgba(251, 140, 0, 0.28);
+    }
+
+    .risk-badge-expired {
+        color: #13A1A1;
+        background: rgba(19, 161, 161, 0.14);
+        border: 1px solid rgba(19, 161, 161, 0.28);
+    }
+
+    .log-viewer {
+        font-family: "Space Mono", monospace;
+        font-size: 0.78rem;
+        background: #0D1117;
+        color: #C9D1D9;
+        padding: 8px;
+        border-radius: 8px;
+    }
+
+    .audit-count-badge {
+        min-width: 24px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(19, 161, 161, 0.14);
+        color: #0A5F5C;
+        font-weight: 700;
+        font-size: 0.78rem;
+    }
+
+    .audit-count-badge-pulse {
+        animation: audit-badge-pulse 220ms ease-out;
+    }
+
+    @keyframes audit-badge-pulse {
+        0% {
+            transform: scale(1);
+            background: rgba(19, 161, 161, 0.14);
+        }
+        45% {
+            transform: scale(1.08);
+            background: rgba(19, 161, 161, 0.30);
+        }
+        100% {
+            transform: scale(1);
+            background: rgba(19, 161, 161, 0.14);
+        }
+    }
+
+/* NOTE: pre-existing overlap with .status-role-pill/-admin/-user above (higher
+   specificity here always wins for background/color/border — found while
+   splitting this file, not introduced by the split; left as-is, worth a
+   deliberate consolidation later). */
+label.status-role-pill {
+    box-shadow: 0 1px 2px rgba(7, 57, 58, 0.10);
+}
+
+label.status-role-user {
+    background: rgba(44, 62, 80, 0.14);
+    color: #2f3a4a;
+    border: 1px solid rgba(44, 62, 80, 0.26);
+}
+
+label.status-role-admin {
+    background: rgba(19, 161, 161, 0.18);
+    color: #0a4f4d;
+    border: 1px solid rgba(19, 161, 161, 0.36);
+}
+

@@ -8,5 +8,21 @@
     <file>images/cps_card.png</file>
     <file>images/nis2-rgpd.png</file>
     <file>style.css</file>
+    <file>style/01-base.css</file>
+    <file>style/02-buttons.css</file>
+    <file>style/03-headerbar.css</file>
+    <file>style/04-popovers-menus.css</file>
+    <file>style/05-toasts-tooltips.css</file>
+    <file>style/06-cards-generic.css</file>
+    <file>style/07-status-dashboard.css</file>
+    <file>style/08-vault-sidebar.css</file>
+    <file>style/09-secret-cards.css</file>
+    <file>style/10-secret-filters.css</file>
+    <file>style/11-profile-account.css</file>
+    <file>style/12-add-edit-dialog.css</file>
+    <file>style/13-login.css</file>
+    <file>style/14-pin-unlock.css</file>
+    <file>style/15-trust-console.css</file>
+    <file>style/16-panic.css</file>
   </gresource>
 </gresources>

@@ -1,0 +1,124 @@
+/* Base: reset, window background, generic utility classes (accent/success/warning/error/heading), form controls, focus rings */
+
+* {
+        font-family: "Space Grotesk", "Inter", "Cantarell", sans-serif;
+    }
+
+    window,
+    dialog,
+    .background {
+        background: #F3F6F3;
+        color: #2C3E50;
+    }
+
+    .accent,
+    label.accent {
+        background: rgba(19, 161, 161, 0.12);
+        color: #0A5F5C;
+        border-radius: 999px;
+        padding: 6px 14px;
+    }
+
+    label.success,
+    .success {
+        color: #1F8678;
+    }
+
+    label.warning,
+    .warning {
+        color: #13A1A1;
+    }
+
+    label.error,
+    .error {
+        color: #E74C3C;
+    }
+
+    label.heading,
+    .heading,
+    .title-1,
+    .title-2,
+    .title-3,
+    .title-4 {
+        color: #07393A;
+    }
+
+    entry,
+    textview,
+    spinbutton {
+        border-radius: 12px;
+        border: 1px solid #57B9B1;
+        background: #FFFFFF;
+           color: #13A1A1;
+    }
+
+    entry:focus,
+    textview:focus,
+    spinbutton:focus,
+    button:focus,
+    row:focus {
+        outline: 2px solid #13A1A1;
+        outline-offset: 2px;
+    }
+
+    list,
+    listview,
+    preferencesgroup {
+        background: transparent;
+    }
+
+/* ── Runtime theme rules migrated from main.rs install_application_css() ───── */
+window.app-window,
+window {
+    background:
+        radial-gradient(circle at top left, rgba(164, 223, 207, 0.55), transparent 42%),
+        radial-gradient(circle at top right, rgba(111, 211, 180, 0.22), transparent 36%),
+        #F3F6F3;
+    color: #2C3E50;
+}
+
+label.inline-status {
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 6px 10px;
+}
+
+label.inline-status-loading {
+    background: rgba(19, 161, 161, 0.12);
+    color: #0A5F5C;
+}
+
+label.inline-status-success {
+    background: rgba(31, 134, 120, 0.14);
+    color: #1F8678;
+}
+
+label.inline-status-error {
+    background: rgba(192, 28, 40, 0.12);
+    color: #C01C28;
+}
+
+/* Badge styles for status indicators */
+.badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14);
+}
+
+.badge-disabled {
+    background: #e02424;
+    color: white;
+}
+
+.badge-enabled {
+    background: #33d417;
+    color: white;
+}
+
+/* Reduce vertical spacing in PreferencesGroup */
+preferencesgroup {
+    margin-bottom: 12px;
+}
+

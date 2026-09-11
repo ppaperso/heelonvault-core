@@ -1,0 +1,33 @@
+/* Generic button variants (suggested-action, pill, destructive-action) */
+
+    button {
+        border-radius: 12px;
+        transition: all 220ms ease;
+    }
+
+    button.suggested-action {
+        background-image: linear-gradient(120deg, #13A1A1, #1F8678);
+        color: #FFFFFF;
+        border-radius: 999px;
+        padding: 12px 20px;
+        box-shadow: 0 8px 20px rgba(7, 57, 58, 0.18);
+        border: none;
+    }
+
+    button.suggested-action:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(7, 57, 58, 0.24);
+    }
+
+    button.suggested-action:active {
+        transform: translateY(0);
+    }
+
+    button.pill {
+        border-radius: 999px;
+    }
+
+    button.destructive-action {
+        border-radius: 999px;
+    }
+

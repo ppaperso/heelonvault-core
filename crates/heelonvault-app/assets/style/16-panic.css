@@ -1,0 +1,42 @@
+/* Panic mode badge and buttons */
+
+    .panic-badge {
+        background: linear-gradient(140deg, #5A0F16 0%, #6F1722 100%);
+        border: 1px solid rgba(255, 196, 196, 0.36);
+        border-radius: 999px;
+        padding: 3px 9px;
+        box-shadow: 0 10px 24px rgba(44, 6, 10, 0.34);
+    }
+
+    .panic-badge-label {
+        color: #FFFFFF;
+        font-weight: 820;
+        letter-spacing: 0.05em;
+        margin-right: 3px;
+    }
+
+    .panic-soft-btn,
+    .panic-soft-btn image {
+        color: #FFFFFF;
+        opacity: 0.98;
+    }
+
+    .panic-soft-btn:hover,
+    .panic-soft-btn:hover image {
+        background: rgba(255, 255, 255, 0.18);
+        opacity: 1;
+    }
+
+    .panic-hard-btn,
+    .panic-hard-btn image {
+        color: #FFFFFF;
+        opacity: 1;
+    }
+
+    .panic-hard-btn:hover,
+    .panic-hard-btn:hover image {
+        color: #FFFFFF;
+        background: rgba(0, 0, 0, 0.22);
+        opacity: 1;
+    }
+

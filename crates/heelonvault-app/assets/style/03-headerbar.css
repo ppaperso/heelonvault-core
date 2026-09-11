@@ -1,0 +1,183 @@
+/* Headerbar chrome, main window title bar, header badges, PIN badge, header seal */
+
+    headerbar {
+        background: linear-gradient(135deg, #07393A, #0A5F5C);
+        color: #FFFFFF;
+    }
+
+    headerbar label,
+    headerbar image,
+    headerbar button {
+        color: #FFFFFF;
+    }
+
+    headerbar .title-1,
+    headerbar .title-2,
+    headerbar .title-3,
+    headerbar .title-4,
+    headerbar .heading,
+    headerbar .caption,
+    headerbar .dim-label {
+        color: #FFFFFF;
+    }
+
+    headerbar .accent {
+        background: rgba(255, 255, 255, 0.18);
+        color: #FFFFFF;
+    }
+
+    headerbar .warning {
+        color: #A4DFCF;
+    }
+
+    .header-date-label {
+        color: #FFFFFF;
+        font-size: 0.96rem;
+        font-weight: 640;
+        letter-spacing: 0.04em;
+    }
+
+    /* Overrides finaux: badges dans la barre haute */
+    headerbar label.accent,
+    headerbar .accent {
+        background: rgba(255, 255, 255, 0.22);
+        color: #FFFFFF;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 999px;
+        padding: 3px 10px;
+    }
+
+    headerbar label.warning,
+    headerbar .warning {
+        background: rgba(255, 255, 255, 0.16);
+        color: #FFFFFF;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 999px;
+        padding: 3px 10px;
+    }
+
+    headerbar label.header-badge,
+    headerbar .header-badge {
+        font-size: 0.80rem;
+        font-weight: 600;
+        min-height: 22px;
+        line-height: 1;
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+    headerbar button.header-pin-badge {
+        padding: 0;
+        min-height: 0;
+        min-width: 0;
+        border-radius: 999px;
+        box-shadow: none;
+    }
+
+    headerbar button.header-pin-badge:hover label {
+        box-shadow: 0 2px 6px rgba(7, 57, 58, 0.20);
+        filter: brightness(0.95);
+    }
+
+    /* Override pill colors for the dark header background */
+    headerbar button.header-pin-badge label.status-role-user {
+        background: rgba(255, 255, 255, 0.20);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    headerbar button.header-pin-badge label.status-role-disabled {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    /* Warning state (≤ 2 h, > 15 min) — amber ring */
+    headerbar button.header-pin-badge label.status-role-user.pin-status-warning {
+        background: rgba(255, 180, 30, 0.14);
+        color: #FFD580;
+        border: 1px solid rgba(255, 180, 30, 0.55);
+    }
+
+    /* Critical state (≤ 15 min) — amber filled + pulse */
+    headerbar button.header-pin-badge label.status-role-user.pin-status-critical {
+        background: rgba(255, 155, 0, 0.26);
+        color: #FFE47F;
+        border: 1px solid rgba(255, 180, 30, 0.70);
+        animation: pin-badge-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pin-badge-pulse {
+        0%, 100% { opacity: 1.0; }
+        50%       { opacity: 0.65; }
+    }
+
+    headerbar .heelonys-seal-compact {
+        padding: 3px 7px;
+        border-radius: 8px;
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+    headerbar .heelonys-seal-compact .heelonys-seal-cert {
+        font-size: 0.56rem;
+        letter-spacing: 0.06em;
+    }
+
+    headerbar .heelonys-seal-compact .heelonys-seal-customer {
+        font-size: 0.70rem;
+        font-weight: 700;
+    }
+
+    headerbar .heelonys-seal-compact .heelonys-seal-divider {
+        min-height: 14px;
+    }
+
+    headerbar label.admin-badge,
+    headerbar .admin-badge,
+    headerbar label.dev-badge,
+    headerbar .dev-badge {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+.main-window {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), #F3F6F3 42%);
+}
+
+headerbar.main-headerbar {
+    background: linear-gradient(120deg, #07393A, #0A5F5C);
+    color: #FFFFFF;
+    border-radius: 16px;
+    padding: 4px 6px;
+}
+
+.main-title {
+    color: #FFFFFF;
+    font-weight: 800;
+}
+
+.header-beta-badge {
+    background: rgba(247, 214, 110, 0.92);
+    color: #4D2600;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    padding: 2px 10px;
+    font-size: 0.66rem;
+    margin-left: 2px;
+    min-height: 20px;
+    box-shadow: 0 4px 12px rgba(7, 57, 58, 0.22);
+}
+
+button.main-add-button {
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+entry.main-search-entry,
+searchentry.main-search-entry {
+    border-radius: 14px;
+    border: 1px solid rgba(164, 223, 207, 0.95);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 10px 12px;
+}
+
