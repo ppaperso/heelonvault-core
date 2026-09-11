@@ -41,7 +41,7 @@ pub fn build_dialog(
     let on_unlocked_rc: Rc<dyn Fn(Option<Zeroizing<Vec<u8>>>)> = Rc::new(on_unlocked);
     let window_for_unlock = widgets.window.clone();
     let main_for_unlock = Rc::clone(&main);
-    
+
     events::setup_unlock_handler(
         &widgets,
         window_for_unlock,
@@ -54,7 +54,7 @@ pub fn build_dialog(
     let on_use_master_password_rc: Rc<dyn Fn()> = Rc::new(on_use_master_password);
     let window_for_fallback = widgets.window.clone();
     let main_for_fallback = Rc::clone(&main);
-    
+
     events::setup_fallback_handler(
         &widgets,
         window_for_fallback,
@@ -65,13 +65,8 @@ pub fn build_dialog(
     // 6. Configurer le handler quit
     let window_for_quit = widgets.window.clone();
     let main_for_quit = Rc::clone(&main);
-    
-    events::setup_quit_handler(
-        &widgets,
-        window_for_quit,
-        main_for_quit,
-        parent,
-    );
+
+    events::setup_quit_handler(&widgets, window_for_quit, main_for_quit, parent);
 
     // 7. Retourner la structure
     super::PinUnlockDialog {

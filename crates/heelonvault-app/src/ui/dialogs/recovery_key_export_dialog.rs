@@ -7,12 +7,12 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use chrono::Local;
-use tokio::runtime::Handle;
 use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita as adw;
 use libadwaita::prelude::*;
 use secrecy::{ExposeSecret, SecretString};
+use tokio::runtime::Handle;
 
 use heelonvault_core::errors::AppError;
 use heelonvault_core::i18n::I18nArg;
@@ -36,7 +36,8 @@ pub type LoadVerifierRunner = Arc<dyn Fn() -> LoadVerifierFuture + Send + Sync>;
 #[allow(dead_code)]
 pub type VerifyPhraseFuture = Pin<Box<dyn Future<Output = Result<bool, AppError>> + 'static>>;
 #[allow(dead_code)]
-pub type VerifyPhraseRunner = Arc<dyn Fn(SecretString, Vec<u8>) -> VerifyPhraseFuture + Send + Sync>;
+pub type VerifyPhraseRunner =
+    Arc<dyn Fn(SecretString, Vec<u8>) -> VerifyPhraseFuture + Send + Sync>;
 
 /// Generates and persists a recovery key when the vault carries none.
 #[allow(dead_code)]
@@ -48,7 +49,7 @@ pub type ProvisionRecoveryRunner = Arc<dyn Fn() -> ProvisionFuture + Send + Sync
 #[allow(dead_code)]
 pub struct RecoveryKeyExportDialogDeps {
     pub parent_window: gtk4::Window,
-    pub cancel_label_key: &'static str,    
+    pub cancel_label_key: &'static str,
     pub on_feedback: FeedbackFn,
     pub on_begin_critical: Option<Rc<dyn Fn()>>,
     pub on_end_critical: Option<Rc<dyn Fn()>>,
@@ -110,9 +111,7 @@ impl RecoveryKeyExportDialog {
 
             let (sender, receiver) = tokio::sync::oneshot::channel();
             std::thread::spawn(move || {
-                let result = runtime.block_on(async move {
-                    load_verifier().await
-                });
+                let result = runtime.block_on(async move { load_verifier().await });
                 let _ = sender.send(result);
             });
 
@@ -294,9 +293,7 @@ impl RecoveryKeyExportDialog {
 
             let (sender, receiver) = tokio::sync::oneshot::channel();
             std::thread::spawn(move || {
-                let result = runtime.block_on(async move {
-                    provision_recovery().await
-                });
+                let result = runtime.block_on(async move { provision_recovery().await });
                 let _ = sender.send(result);
             });
 
@@ -719,7 +716,8 @@ impl RecoveryKeyExportDialog {
                         Err(AppError::Authorization(_)) => {
                             on_feedback(
                                 heelonvault_core::tr!("profile-export-accept").as_str(),
-                                heelonvault_core::tr!("profile-export-admin-required-body").as_str(),
+                                heelonvault_core::tr!("profile-export-admin-required-body")
+                                    .as_str(),
                             );
                         }
                         Err(_) => {

@@ -22,7 +22,8 @@ struct MainWindowState {
 
 fn state_file_path() -> PathBuf {
     if let Some(proj_dirs) = ProjectDirs::from("fr", "Heelonys", "HeelonVault") {
-        return proj_dirs.config_dir()
+        return proj_dirs
+            .config_dir()
             .join("heelonvault")
             .join("ui_main_window_state.json");
     }

@@ -1,11 +1,11 @@
-use std::rc::Rc;
 use gtk4::prelude::*;
 use secrecy::SecretBox;
+use std::rc::Rc;
 use uuid::Uuid;
 
-use heelonvault_core::services::pin_cache_service::{PinCache, validate_pin};
 use super::feedback;
 use super::types::PinSetupDialogWidgets;
+use heelonvault_core::services::pin_cache_service::{PinCache, validate_pin};
 
 /// Connecte le handler du bouton save.
 ///
@@ -55,7 +55,10 @@ pub fn setup_save_handler(
             Err(e) => {
                 feedback::show_feedback(
                     &feedback_for_save,
-                    &format!("{}: {e}", heelonvault_core::tr!("pin-setup-error-internal").as_str()),
+                    &format!(
+                        "{}: {e}",
+                        heelonvault_core::tr!("pin-setup-error-internal").as_str()
+                    ),
                     true,
                 );
             }

@@ -8,18 +8,20 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita as adw;
 use secrecy::SecretBox;
-use tracing::{info, warn};
 use tokio::runtime::Handle;
+use tracing::{info, warn};
 
-use heelonvault_core::services::admin_service::BootstrapResult;
 use super::bootstrap_flow::setup_bootstrap_submit_handler;
-use super::views::{LoginDialogWidgets, build_login_view, setup_bootstrap_gates, setup_language_toggle};
 use super::events;
-use super::window_state;
-use super::types::{AuthenticatedSession, BootstrapServicesContext, LoginAttemptOutcome};
 use super::feedback;
 use super::lock_state;
+use super::types::{AuthenticatedSession, BootstrapServicesContext, LoginAttemptOutcome};
+use super::views::{
+    LoginDialogWidgets, build_login_view, setup_bootstrap_gates, setup_language_toggle,
+};
+use super::window_state;
 use heelonvault_core::errors::AppError;
+use heelonvault_core::services::admin_service::BootstrapResult;
 use heelonvault_core::services::auth_policy_service::AuthPolicyService;
 use heelonvault_core::services::auth_service::AuthService;
 use heelonvault_core::services::totp_service::TotpService;
@@ -45,7 +47,8 @@ where
     authenticated: Rc<Cell<bool>>,
     lock_active: Rc<Cell<bool>>,
     lock_timer: Rc<RefCell<Option<glib::SourceId>>>,
-    on_restore_requested: Arc<dyn Fn(PathBuf, String, String) -> Result<(), AppError> + Send + Sync>,
+    on_restore_requested:
+        Arc<dyn Fn(PathBuf, String, String) -> Result<(), AppError> + Send + Sync>,
     on_restore_completed: Rc<dyn Fn()>,
     on_authenticated: Rc<dyn Fn(AuthenticatedSession)>,
     on_cancelled: Rc<dyn Fn()>,
@@ -65,7 +68,10 @@ impl super::LoginDialog {
         startup_psc_artifact: Option<String>,
         bootstrap_ctx: Option<BootstrapServicesContext>,
         license_badge_text: String,
-        on_restore_requested: impl Fn(PathBuf, String, String) -> Result<(), AppError> + Send + Sync + 'static,
+        on_restore_requested: impl Fn(PathBuf, String, String) -> Result<(), AppError>
+        + Send
+        + Sync
+        + 'static,
         on_restore_completed: impl Fn() + 'static,
         on_authenticated: impl Fn(AuthenticatedSession) + 'static,
         on_cancelled: impl Fn() + 'static,
@@ -79,8 +85,9 @@ impl super::LoginDialog {
     {
         // 1. Création de la fenêtre
         let in_bootstrap_mode = bootstrap_ctx.is_some();
-        let (initial_width, initial_height) = window_state::resolve_login_window_size(in_bootstrap_mode);
-        
+        let (initial_width, initial_height) =
+            window_state::resolve_login_window_size(in_bootstrap_mode);
+
         let window = gtk4::Window::builder()
             .application(application)
             .transient_for(parent)
@@ -90,7 +97,7 @@ impl super::LoginDialog {
             .default_width(initial_width)
             .default_height(initial_height)
             .build();
-        
+
         let (login_min_width, login_min_height) = window_state::login_min_size();
         window.set_size_request(login_min_width, login_min_height);
 
@@ -102,19 +109,22 @@ impl super::LoginDialog {
 
         // 2c. Convertir on_authenticated en Rc avant de l'utiliser
         let on_authenticated_rc: Rc<dyn Fn(AuthenticatedSession)> = Rc::new(on_authenticated);
-        
+
         // 2d. Configuration des gates bootstrap si mode initialisation
         if in_bootstrap_mode {
             setup_bootstrap_gates(&widgets);
-            
+
             // Extraire les callbacks depuis bootstrap_ctx
-            let gen_key_fn = bootstrap_ctx.as_ref().map(|ctx| Arc::clone(&ctx.generate_recovery_key));
+            let gen_key_fn = bootstrap_ctx
+                .as_ref()
+                .map(|ctx| Arc::clone(&ctx.generate_recovery_key));
             let do_bootstrap_fn = bootstrap_ctx.as_ref().map(|ctx| {
-                let fn_arc: &Arc<dyn Fn(String, Vec<u8>) -> Result<BootstrapResult, AppError> + Send + Sync> = 
-                    &ctx.do_bootstrap;
+                let fn_arc: &Arc<
+                    dyn Fn(String, Vec<u8>) -> Result<BootstrapResult, AppError> + Send + Sync,
+                > = &ctx.do_bootstrap;
                 Arc::clone(fn_arc)
             });
-            
+
             // Configuration du handler submit pour le mode bootstrap
             setup_bootstrap_submit_handler(
                 &widgets,
@@ -130,10 +140,11 @@ impl super::LoginDialog {
         let authenticated = Rc::new(Cell::new(false));
         let lock_active = Rc::new(Cell::new(false));
         let lock_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
-        
+
         // Convertir les impl Fn en dyn Fn pour le stockage
-        let on_restore_requested_arc: Arc<dyn Fn(PathBuf, String, String) -> Result<(), AppError> + Send + Sync> = 
-            Arc::new(on_restore_requested);
+        let on_restore_requested_arc: Arc<
+            dyn Fn(PathBuf, String, String) -> Result<(), AppError> + Send + Sync,
+        > = Arc::new(on_restore_requested);
         let on_restore_completed_rc: Rc<dyn Fn()> = Rc::new(on_restore_completed);
         let on_cancelled_rc: Rc<dyn Fn()> = Rc::new(on_cancelled);
 
@@ -170,7 +181,7 @@ impl super::LoginDialog {
                 on_authenticated: Rc::clone(&on_authenticated_rc),
                 on_cancelled: Rc::clone(&on_cancelled_rc),
             });
-            
+
             Self::setup_submit_handler(&window, &widgets, Rc::clone(&context));
         }
 
@@ -183,7 +194,7 @@ impl super::LoginDialog {
             // En mode bootstrap, on configure un handler simple avec le log marker
             let authenticated_for_close = Rc::clone(&authenticated);
             let on_cancelled_for_close = Rc::clone(&on_cancelled_rc);
-            
+
             window.connect_close_request(move |win| {
                 info!(
                     authenticated = authenticated_for_close.get(),
@@ -194,12 +205,14 @@ impl super::LoginDialog {
                     win.width(),
                     win.height(),
                 );
-                
+
                 if !authenticated_for_close.get() {
                     warn!("login window closed before authentication, requesting application quit");
                     on_cancelled_for_close();
                 } else {
-                    info!("login window closed after authentication, returning to application flow");
+                    info!(
+                        "login window closed after authentication, returning to application flow"
+                    );
                 }
                 glib::Propagation::Proceed
             });
@@ -207,7 +220,7 @@ impl super::LoginDialog {
             // Mode normal (non bootstrap)
             let authenticated_for_close = Rc::clone(&authenticated);
             let on_cancelled_for_close = Rc::clone(&on_cancelled_rc);
-            
+
             window.connect_close_request(move |win| {
                 info!(
                     authenticated = authenticated_for_close.get(),
@@ -218,12 +231,14 @@ impl super::LoginDialog {
                     win.width(),
                     win.height(),
                 );
-                
+
                 if !authenticated_for_close.get() {
                     warn!("login window closed before authentication, requesting application quit");
                     on_cancelled_for_close();
                 } else {
-                    info!("login window closed after authentication, returning to application flow");
+                    info!(
+                        "login window closed after authentication, returning to application flow"
+                    );
                 }
                 glib::Propagation::Proceed
             });
@@ -237,8 +252,7 @@ impl super::LoginDialog {
         window: &gtk4::Window,
         widgets: &LoginDialogWidgets,
         context: Rc<LoginContext<TAuth, TPolicy, TUser, TTotp>>,
-    )
-    where
+    ) where
         TAuth: AuthService + Send + Sync + 'static,
         TPolicy: AuthPolicyService + Send + Sync + 'static,
         TUser: UserService + Send + Sync + 'static,
@@ -247,9 +261,13 @@ impl super::LoginDialog {
         let widgets_clone = widgets.clone();
         let context_for_handler = Rc::clone(&context);
         let window_clone = window.clone();
-        
+
         widgets.submit_button.connect_clicked(move |_| {
-            Self::handle_submit(&window_clone, &widgets_clone, Rc::clone(&context_for_handler));
+            Self::handle_submit(
+                &window_clone,
+                &widgets_clone,
+                Rc::clone(&context_for_handler),
+            );
         });
     }
 
@@ -258,8 +276,7 @@ impl super::LoginDialog {
         window: &gtk4::Window,
         widgets: &LoginDialogWidgets,
         context: Rc<LoginContext<TAuth, TPolicy, TUser, TTotp>>,
-    )
-    where
+    ) where
         TAuth: AuthService + Send + Sync + 'static,
         TPolicy: AuthPolicyService + Send + Sync + 'static,
         TUser: UserService + Send + Sync + 'static,
@@ -311,7 +328,7 @@ impl super::LoginDialog {
 
         // Lancer la tâche d'authentification dans un thread
         let (result_sender, result_receiver) = tokio::sync::oneshot::channel();
-        
+
         std::thread::spawn(move || {
             let password_bytes = password_for_task;
             let result: Result<LoginAttemptOutcome, AppError> = runtime.block_on(async move {
@@ -333,7 +350,7 @@ impl super::LoginDialog {
                 let lock_state_result = auth_policy_service
                     .get_state(canonical_username.as_str())
                     .await?;
-                
+
                 if lock_state_result.is_locked() {
                     return Ok(LoginAttemptOutcome::Locked {
                         remaining_lock_secs: lock_state_result.remaining_lock_secs,
@@ -410,7 +427,7 @@ impl super::LoginDialog {
                     master_key,
                 }))
             });
-            
+
             let _ = result_sender.send(result);
         });
 
@@ -423,11 +440,15 @@ impl super::LoginDialog {
         let error_label_for_result = widgets.error_label.clone();
         let submit_button_for_result = widgets.submit_button.clone();
         let submit_spinner_for_result = widgets.submit_spinner.clone();
-        
+
         glib::MainContext::default().spawn_local(async move {
             match result_receiver.await {
                 Ok(Ok(LoginAttemptOutcome::Success(session))) => {
-                    feedback::set_pending_state(&submit_button_for_result, &submit_spinner_for_result, false);
+                    feedback::set_pending_state(
+                        &submit_button_for_result,
+                        &submit_spinner_for_result,
+                        false,
+                    );
                     lock_active_for_result.set(false);
                     authenticated_for_result.set(true);
                     on_authenticated_for_result(session);
@@ -437,13 +458,23 @@ impl super::LoginDialog {
                     // Afficher le champ TOTP
                     totp_step_box_for_task.set_visible(true);
                     totp_entry_for_task.grab_focus();
-                    feedback::set_pending_state(&submit_button_for_result, &submit_spinner_for_result, false);
+                    feedback::set_pending_state(
+                        &submit_button_for_result,
+                        &submit_spinner_for_result,
+                        false,
+                    );
                     lock_active_for_result.set(false);
                 }
-                Ok(Ok(LoginAttemptOutcome::InvalidCredentials { remaining_lock_secs })) => {
+                Ok(Ok(LoginAttemptOutcome::InvalidCredentials {
+                    remaining_lock_secs,
+                })) => {
                     lock_active_for_result.set(false);
                     if remaining_lock_secs > 0 {
-                        feedback::set_pending_state(&submit_button_for_result, &submit_spinner_for_result, false);
+                        feedback::set_pending_state(
+                            &submit_button_for_result,
+                            &submit_spinner_for_result,
+                            false,
+                        );
                         lock_state::start_lock_countdown(
                             &submit_button_for_result,
                             &submit_spinner_for_result,
@@ -455,18 +486,28 @@ impl super::LoginDialog {
                             feedback::show_feedback,
                         );
                     } else {
-                        feedback::set_pending_state(&submit_button_for_result, &submit_spinner_for_result, false);
+                        feedback::set_pending_state(
+                            &submit_button_for_result,
+                            &submit_spinner_for_result,
+                            false,
+                        );
                         feedback::show_feedback(
                             &error_label_for_result,
                             heelonvault_core::tr!("login-error-credentials").as_str(),
                         );
                     }
                 }
-                Ok(Ok(LoginAttemptOutcome::InvalidTotp { remaining_lock_secs })) => {
+                Ok(Ok(LoginAttemptOutcome::InvalidTotp {
+                    remaining_lock_secs,
+                })) => {
                     lock_active_for_result.set(false);
                     totp_entry_for_task.grab_focus();
                     if remaining_lock_secs > 0 {
-                        feedback::set_pending_state(&submit_button_for_result, &submit_spinner_for_result, false);
+                        feedback::set_pending_state(
+                            &submit_button_for_result,
+                            &submit_spinner_for_result,
+                            false,
+                        );
                         lock_state::start_lock_countdown(
                             &submit_button_for_result,
                             &submit_spinner_for_result,
@@ -484,21 +525,24 @@ impl super::LoginDialog {
                         );
                         let button_after_delay = submit_button_for_result.clone();
                         let spinner_after_delay = submit_spinner_for_result.clone();
-                        glib::timeout_add_local_once(
-                            Duration::from_millis(1200),
-                            move || {
-                                feedback::set_pending_state(
-                                    &button_after_delay,
-                                    &spinner_after_delay,
-                                    false,
-                                );
-                            },
-                        );
+                        glib::timeout_add_local_once(Duration::from_millis(1200), move || {
+                            feedback::set_pending_state(
+                                &button_after_delay,
+                                &spinner_after_delay,
+                                false,
+                            );
+                        });
                     }
                 }
-                Ok(Ok(LoginAttemptOutcome::Locked { remaining_lock_secs })) => {
+                Ok(Ok(LoginAttemptOutcome::Locked {
+                    remaining_lock_secs,
+                })) => {
                     lock_active_for_result.set(false);
-                    feedback::set_pending_state(&submit_button_for_result, &submit_spinner_for_result, false);
+                    feedback::set_pending_state(
+                        &submit_button_for_result,
+                        &submit_spinner_for_result,
+                        false,
+                    );
                     lock_state::start_lock_countdown(
                         &submit_button_for_result,
                         &submit_spinner_for_result,
@@ -512,23 +556,24 @@ impl super::LoginDialog {
                 }
                 Ok(Err(error)) => {
                     lock_active_for_result.set(false);
-                    feedback::set_pending_state(&submit_button_for_result, &submit_spinner_for_result, false);
+                    feedback::set_pending_state(
+                        &submit_button_for_result,
+                        &submit_spinner_for_result,
+                        false,
+                    );
                     feedback::show_feedback(
                         &error_label_for_result,
                         format!("Erreur: {}", error).as_str(),
                     );
                     let button_after_delay = submit_button_for_result.clone();
                     let spinner_after_delay = submit_spinner_for_result.clone();
-                    glib::timeout_add_local_once(
-                        Duration::from_millis(1200),
-                        move || {
-                            feedback::set_pending_state(
-                                &button_after_delay,
-                                &spinner_after_delay,
-                                false,
-                            );
-                        },
-                    );
+                    glib::timeout_add_local_once(Duration::from_millis(1200), move || {
+                        feedback::set_pending_state(
+                            &button_after_delay,
+                            &spinner_after_delay,
+                            false,
+                        );
+                    });
                 }
                 Err(_) => {
                     lock_active_for_result.set(false);
@@ -538,16 +583,13 @@ impl super::LoginDialog {
                     );
                     let button_after_delay = submit_button_for_result.clone();
                     let spinner_after_delay = submit_spinner_for_result.clone();
-                    glib::timeout_add_local_once(
-                        Duration::from_millis(1200),
-                        move || {
-                            feedback::set_pending_state(
-                                &button_after_delay,
-                                &spinner_after_delay,
-                                false,
-                            );
-                        },
-                    );
+                    glib::timeout_add_local_once(Duration::from_millis(1200), move || {
+                        feedback::set_pending_state(
+                            &button_after_delay,
+                            &spinner_after_delay,
+                            false,
+                        );
+                    });
                 }
             }
         });
@@ -557,7 +599,7 @@ impl super::LoginDialog {
     pub fn window(&self) -> &gtk4::Window {
         &self.window
     }
-    
+
     /// Présente la fenêtre de dialogue
     pub fn present(&self) {
         self.window.present();

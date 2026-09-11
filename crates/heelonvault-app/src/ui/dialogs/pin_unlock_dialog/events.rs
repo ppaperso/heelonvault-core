@@ -65,7 +65,13 @@ pub fn setup_unlock_handler(
                 let msg = if remaining == 1 {
                     heelonvault_core::i18n::tr("pin-error-wrong-last")
                 } else {
-                    heelonvault_core::i18n::tr_args("pin-error-wrong", &[("remaining", heelonvault_core::i18n::I18nArg::Num(remaining as i64))])
+                    heelonvault_core::i18n::tr_args(
+                        "pin-error-wrong",
+                        &[(
+                            "remaining",
+                            heelonvault_core::i18n::I18nArg::Num(remaining as i64),
+                        )],
+                    )
                 };
                 feedback::show_feedback(&feedback_for_unlock, &msg, true);
 
@@ -78,7 +84,9 @@ pub fn setup_unlock_handler(
             Err(PinUnlockError::Exhausted) => {
                 // Cache already wiped by try_pin_unlock.  Close dialog and fall
                 // back to full master-password login.
-                tracing::warn!("PIN cache exhausted after max failed attempts — falling back to full login");
+                tracing::warn!(
+                    "PIN cache exhausted after max failed attempts — falling back to full login"
+                );
                 win_for_unlock.close();
                 on_unlocked_for_btn(None); // None signals cache exhaustion to caller
             }
@@ -89,8 +97,12 @@ pub fn setup_unlock_handler(
     let do_unlock_for_btn = Rc::clone(&do_unlock_rc);
     let do_unlock_for_entry = Rc::clone(&do_unlock_rc);
 
-    widgets.unlock_button.connect_clicked(move |_| do_unlock_for_btn());
-    widgets.pin_entry.connect_activate(move |_| do_unlock_for_entry());
+    widgets
+        .unlock_button
+        .connect_clicked(move |_| do_unlock_for_btn());
+    widgets
+        .pin_entry
+        .connect_activate(move |_| do_unlock_for_entry());
 }
 
 /// Connecte le handler pour cacher le feedback lors des changements de texte.
@@ -99,7 +111,9 @@ pub fn setup_unlock_handler(
 /// * `widgets` - Les widgets de la dialogue
 pub fn setup_feedback_reset(widgets: &PinUnlockDialogWidgets) {
     let feedback_for_change = widgets.feedback_label.clone();
-    widgets.pin_entry.connect_changed(move |_| feedback::hide_feedback(&feedback_for_change));
+    widgets
+        .pin_entry
+        .connect_changed(move |_| feedback::hide_feedback(&feedback_for_change));
 }
 
 /// Connecte le handler du bouton fallback (utiliser le mot de passe maitre).
@@ -118,7 +132,7 @@ pub fn setup_fallback_handler(
     let main_for_fallback = Rc::clone(&main);
     let win_for_fallback = window;
     let on_use_master_password_rc = Rc::clone(&on_use_master_password);
-    
+
     widgets.fallback_button.connect_clicked(move |_| {
         main_for_fallback.clear_pin_cache();
         win_for_fallback.close();
@@ -142,7 +156,7 @@ pub fn setup_quit_handler(
     let main_for_quit = Rc::clone(&main);
     let win_for_quit = window;
     let parent_for_quit = parent.clone();
-    
+
     widgets.quit_button.connect_clicked(move |_| {
         let app = parent_for_quit.application();
         main_for_quit.clear_sensitive_session();

@@ -204,7 +204,7 @@ pub(super) fn handle_init_oath_step(
 /// Ce handler gère les transitions entre les étapes :
 /// - init-identity -> init-oath (génération de la clé de récupération)
 /// - init-oath -> init-pending (vérification des mots et bootstrap)
-/// 
+///
 /// # Arguments
 /// * `widgets` - Tous les widgets de la dialogue
 /// * `gen_key_fn` - Fonction pour générer la clé de récupération (optionnelle)
@@ -222,14 +222,14 @@ pub(super) fn setup_bootstrap_submit_handler(
 ) {
     // État partagé pour les mots de la phrase de récupération
     let init_oath_words: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
-    
+
     // Indices des mots à vérifier
     let init_verify_indices: Rc<Cell<(usize, usize)>> = Rc::new(Cell::new((0, 1)));
-    
+
     // État pour suivre si le presse-papier contient la phrase
     let init_clipboard_dirty: Rc<Cell<bool>> = Rc::new(Cell::new(false));
     let init_clipboard_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
-    
+
     // Cloner les widgets et états pour le handler
     let step_stack = widgets.step_stack.clone();
     let init_username_entry = widgets.init_username_entry.clone();
@@ -256,16 +256,13 @@ pub(super) fn setup_bootstrap_submit_handler(
     widgets.submit_button.connect_clicked(move |_| {
         // Vérifier l'étape courante
         let child_name = step_stack.visible_child_name();
-        let current_step = child_name
-            .as_ref()
-            .map(|n| n.as_str())
-            .unwrap_or("");
+        let current_step = child_name.as_ref().map(|n| n.as_str()).unwrap_or("");
 
         match current_step {
             "init-identity" => {
                 // Étape 1: Générer la clé de récupération et passer à l'étape oath
                 // gen_key_fn_for_handler est Option<Arc<...>>, on passe &gen_key_fn_for_handler
-                let gen_key_ref: Option<&Arc<dyn Fn() -> Result<String, AppError> + Send + Sync>> = 
+                let gen_key_ref: Option<&Arc<dyn Fn() -> Result<String, AppError> + Send + Sync>> =
                     gen_key_fn_for_handler.as_ref();
                 handle_init_identity_step(
                     &init_username_entry,

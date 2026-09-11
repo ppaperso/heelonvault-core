@@ -1,12 +1,12 @@
-use std::rc::Rc;
 use secrecy::SecretBox;
+use std::rc::Rc;
 use uuid::Uuid;
 
 use libadwaita as adw;
 
-use heelonvault_core::services::pin_cache_service::PinCache;
 use super::events;
 use super::views;
+use heelonvault_core::services::pin_cache_service::PinCache;
 
 /// Construit et configure la dialogue complete de configuration du PIN.
 ///
@@ -54,11 +54,7 @@ pub fn build_dialog(
     let on_pin_disabled_rc: Rc<dyn Fn()> = Rc::new(on_pin_disabled);
     let window_for_disable = widgets.window.clone();
 
-    events::setup_disable_handler(
-        &widgets,
-        window_for_disable,
-        on_pin_disabled_rc,
-    );
+    events::setup_disable_handler(&widgets, window_for_disable, on_pin_disabled_rc);
 
     // 5. Retourner la structure
     super::PinSetupDialog {

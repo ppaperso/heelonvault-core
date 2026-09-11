@@ -1,6 +1,7 @@
 use gtk4::prelude::*;
 use gtk4::{
-    Align, InputPurpose, Justification, Orientation, PolicyType, Separator, Stack, StackTransitionType,
+    Align, InputPurpose, Justification, Orientation, PolicyType, Separator, Stack,
+    StackTransitionType,
 };
 use libadwaita as adw;
 
@@ -143,14 +144,14 @@ pub struct LoginDialogWidgets {
 }
 
 /// Construit l'interface utilisateur complète de la dialogue de connexion.
-/// 
+///
 /// Cette fonction crée tous les widgets nécessaires pour l'interface de connexion,
 /// y compris la section hero, le formulaire de connexion, les sections TOTP et bootstrap.
-/// 
+///
 /// # Arguments
 /// * `license_badge_text` - Texte pour le badge de licence
 /// * `in_bootstrap_mode` - Si vrai, active le mode d'initialisation (premier admin)
-/// 
+///
 /// # Returns
 /// Une structure `LoginDialogWidgets` contenant tous les widgets créés.
 pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> LoginDialogWidgets {
@@ -218,7 +219,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
     title_label.add_css_class("login-hero-title");
     title_label.set_halign(Align::Start);
 
-    let subtitle_label = gtk4::Label::new(Some(heelonvault_core::tr!("login-hero-subtitle").as_str()));
+    let subtitle_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("login-hero-subtitle").as_str()));
     subtitle_label.add_css_class("login-hero-copy");
     subtitle_label.set_wrap(true);
     subtitle_label.set_halign(Align::Start);
@@ -244,65 +246,66 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
 
     // License seal (Premium) ou badge simple
     #[cfg(feature = "premium")]
-    let (license_seal, license_badge) = if let Some(customer_name) = professional_customer_name(license_badge_text.as_str()) {
-        let seal = gtk4::Box::builder()
-            .orientation(Orientation::Horizontal)
-            .spacing(8)
-            .halign(Align::Start)
-            .valign(Align::Center)
-            .build();
-        seal.add_css_class("heelonys-seal");
-        seal.add_css_class("heelonys-seal-login");
+    let (license_seal, license_badge) =
+        if let Some(customer_name) = professional_customer_name(license_badge_text.as_str()) {
+            let seal = gtk4::Box::builder()
+                .orientation(Orientation::Horizontal)
+                .spacing(8)
+                .halign(Align::Start)
+                .valign(Align::Center)
+                .build();
+            seal.add_css_class("heelonys-seal");
+            seal.add_css_class("heelonys-seal-login");
 
-        let icon_box = gtk4::Box::builder()
-            .orientation(Orientation::Horizontal)
-            .spacing(2)
-            .valign(Align::Center)
-            .build();
-        icon_box.add_css_class("heelonys-seal-emblem");
+            let icon_box = gtk4::Box::builder()
+                .orientation(Orientation::Horizontal)
+                .spacing(2)
+                .valign(Align::Center)
+                .build();
+            icon_box.add_css_class("heelonys-seal-emblem");
 
-        let shield_icon = gtk4::Image::from_icon_name("security-high-symbolic");
-        shield_icon.add_css_class("heelonys-seal-shield");
-        let check_dot = gtk4::Label::new(Some("•"));
-        check_dot.add_css_class("heelonys-seal-dot");
-        icon_box.append(&shield_icon);
-        icon_box.append(&check_dot);
+            let shield_icon = gtk4::Image::from_icon_name("security-high-symbolic");
+            shield_icon.add_css_class("heelonys-seal-shield");
+            let check_dot = gtk4::Label::new(Some("•"));
+            check_dot.add_css_class("heelonys-seal-dot");
+            icon_box.append(&shield_icon);
+            icon_box.append(&check_dot);
 
-        let divider = Separator::new(Orientation::Vertical);
-        divider.add_css_class("heelonys-seal-divider");
+            let divider = Separator::new(Orientation::Vertical);
+            divider.add_css_class("heelonys-seal-divider");
 
-        let text_box = gtk4::Box::builder()
-            .orientation(Orientation::Vertical)
-            .spacing(1)
-            .valign(Align::Center)
-            .build();
+            let text_box = gtk4::Box::builder()
+                .orientation(Orientation::Vertical)
+                .spacing(1)
+                .valign(Align::Center)
+                .build();
 
-        let cert_label = gtk4::Label::new(Some("CERTIFIE PAR HEELONYS"));
-        cert_label.set_halign(Align::Start);
-        cert_label.add_css_class("heelonys-seal-cert");
-        let customer_label = gtk4::Label::new(Some(customer_name.as_str()));
-        customer_label.set_halign(Align::Start);
-        customer_label.add_css_class("heelonys-seal-customer");
-        text_box.append(&cert_label);
-        text_box.append(&customer_label);
+            let cert_label = gtk4::Label::new(Some("CERTIFIE PAR HEELONYS"));
+            cert_label.set_halign(Align::Start);
+            cert_label.add_css_class("heelonys-seal-cert");
+            let customer_label = gtk4::Label::new(Some(customer_name.as_str()));
+            customer_label.set_halign(Align::Start);
+            customer_label.add_css_class("heelonys-seal-customer");
+            text_box.append(&cert_label);
+            text_box.append(&customer_label);
 
-        seal.append(&icon_box);
-        seal.append(&divider);
-        seal.append(&text_box);
-        badges_box.append(&seal);
+            seal.append(&icon_box);
+            seal.append(&divider);
+            seal.append(&text_box);
+            badges_box.append(&seal);
 
-        // Retourner un dummy license_badge pour satisfaire la structure
-        let dummy_badge = gtk4::Label::new(None);
-        (seal, dummy_badge)
-    } else {
-        let lb = gtk4::Label::new(Some(license_badge_text.as_str()));
-        lb.add_css_class("login-hero-badge");
-        lb.add_css_class("login-license-badge");
-        badges_box.append(&lb);
-        // Retourner un dummy license_seal
-        let dummy_seal = gtk4::Box::builder().build();
-        (dummy_seal, lb)
-    };
+            // Retourner un dummy license_badge pour satisfaire la structure
+            let dummy_badge = gtk4::Label::new(None);
+            (seal, dummy_badge)
+        } else {
+            let lb = gtk4::Label::new(Some(license_badge_text.as_str()));
+            lb.add_css_class("login-hero-badge");
+            lb.add_css_class("login-license-badge");
+            badges_box.append(&lb);
+            // Retourner un dummy license_seal
+            let dummy_seal = gtk4::Box::builder().build();
+            (dummy_seal, lb)
+        };
 
     #[cfg(not(feature = "premium"))]
     let license_badge = {
@@ -343,7 +346,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
         .halign(Align::Fill)
         .build();
 
-    let language_label = gtk4::Label::new(Some(heelonvault_core::tr!("login-language-label").as_str()));
+    let language_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("login-language-label").as_str()));
     language_label.add_css_class("login-field-label");
     language_label.set_halign(Align::Start);
     language_label.set_hexpand(true);
@@ -425,7 +429,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
     cps_frame.set_child(Some(&cps_box));
 
     // Champs de connexion
-    let username_label = gtk4::Label::new(Some(heelonvault_core::tr!("login-username-label").as_str()));
+    let username_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("login-username-label").as_str()));
     username_label.add_css_class("login-field-label");
     username_label.add_css_class("login-field-label-caps");
     username_label.set_halign(Align::Start);
@@ -437,7 +442,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
     username_entry.add_css_class("login-entry");
     username_entry.set_activates_default(true);
 
-    let password_label = gtk4::Label::new(Some(heelonvault_core::tr!("login-password-label").as_str()));
+    let password_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("login-password-label").as_str()));
     password_label.add_css_class("login-field-label");
     password_label.add_css_class("login-field-label-caps");
     password_label.set_halign(Align::Start);
@@ -455,7 +461,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
     strength_label.set_halign(Align::Start);
     strength_label.set_visible(false);
 
-    let restore_button = gtk4::Button::with_label(heelonvault_core::tr!("login-restore-button").as_str());
+    let restore_button =
+        gtk4::Button::with_label(heelonvault_core::tr!("login-restore-button").as_str());
     restore_button.add_css_class("flat");
     restore_button.set_halign(Align::End);
 
@@ -524,7 +531,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
         .build();
     totp_step_box.add_css_class("login-totp-block");
 
-    let totp_back_button = gtk4::Button::with_label(heelonvault_core::tr!("login-totp-back").as_str());
+    let totp_back_button =
+        gtk4::Button::with_label(heelonvault_core::tr!("login-totp-back").as_str());
     totp_back_button.add_css_class("flat");
     totp_back_button.set_halign(Align::Start);
 
@@ -541,7 +549,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
     totp_title.add_css_class("login-field-label");
     totp_title.set_halign(Align::Center);
 
-    let totp_subtitle = gtk4::Label::new(Some(heelonvault_core::tr!("login-totp-subtitle").as_str()));
+    let totp_subtitle =
+        gtk4::Label::new(Some(heelonvault_core::tr!("login-totp-subtitle").as_str()));
     totp_subtitle.add_css_class("login-support-copy");
     totp_subtitle.set_wrap(true);
     totp_subtitle.set_justify(Justification::Center);
@@ -665,13 +674,16 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
         .spacing(14)
         .build();
 
-    let init_step_label_1 = gtk4::Label::new(Some(heelonvault_core::tr!("init-step-label-identity").as_str()));
+    let init_step_label_1 = gtk4::Label::new(Some(
+        heelonvault_core::tr!("init-step-label-identity").as_str(),
+    ));
     init_step_label_1.add_css_class("dim-label");
     init_step_label_1.set_halign(Align::End);
 
     let init_sep_1 = Separator::new(Orientation::Horizontal);
 
-    let init_username_label = gtk4::Label::new(Some(heelonvault_core::tr!("init-username-label").as_str()));
+    let init_username_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("init-username-label").as_str()));
     init_username_label.add_css_class("login-field-label");
     init_username_label.add_css_class("login-field-label-caps");
     init_username_label.set_halign(Align::Start);
@@ -682,7 +694,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
         .build();
     init_username_entry.add_css_class("login-entry");
 
-    let init_password_label = gtk4::Label::new(Some(heelonvault_core::tr!("init-password-label").as_str()));
+    let init_password_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("init-password-label").as_str()));
     init_password_label.add_css_class("login-field-label");
     init_password_label.add_css_class("login-field-label-caps");
     init_password_label.set_halign(Align::Start);
@@ -696,7 +709,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
 
     let init_strength_bar = PasswordStrengthBar::new();
 
-    let init_confirm_label = gtk4::Label::new(Some(heelonvault_core::tr!("init-confirm-label").as_str()));
+    let init_confirm_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("init-confirm-label").as_str()));
     init_confirm_label.add_css_class("login-field-label");
     init_confirm_label.add_css_class("login-field-label-caps");
     init_confirm_label.set_halign(Align::Start);
@@ -724,14 +738,16 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
         .spacing(10)
         .build();
 
-    let init_step_label_2 = gtk4::Label::new(Some(heelonvault_core::tr!("init-step-label-oath").as_str()));
+    let init_step_label_2 =
+        gtk4::Label::new(Some(heelonvault_core::tr!("init-step-label-oath").as_str()));
     init_step_label_2.add_css_class("dim-label");
     init_step_label_2.set_halign(Align::End);
 
     let init_warning_frame = gtk4::Frame::new(None);
     init_warning_frame.add_css_class("init-warning-banner");
 
-    let init_warning_label = gtk4::Label::new(Some(heelonvault_core::tr!("init-oath-warning").as_str()));
+    let init_warning_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("init-oath-warning").as_str()));
     init_warning_label.set_wrap(true);
     init_warning_label.add_css_class("caption");
     init_warning_label.set_margin_top(8);
@@ -741,7 +757,9 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
     init_warning_label.set_halign(Align::Start);
     init_warning_frame.set_child(Some(&init_warning_label));
 
-    let init_key_title = gtk4::Label::new(Some(heelonvault_core::tr!("init-recovery-key-title").as_str()));
+    let init_key_title = gtk4::Label::new(Some(
+        heelonvault_core::tr!("init-recovery-key-title").as_str(),
+    ));
     init_key_title.add_css_class("login-field-label");
     init_key_title.add_css_class("login-field-label-caps");
     init_key_title.set_halign(Align::Start);
@@ -788,7 +806,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
 
     init_grid_frame.set_child(Some(&word_flow));
 
-    let init_copy_button = gtk4::Button::with_label(heelonvault_core::tr!("init-copy-button").as_str());
+    let init_copy_button =
+        gtk4::Button::with_label(heelonvault_core::tr!("init-copy-button").as_str());
     init_copy_button.add_css_class("flat");
     init_copy_button.set_halign(Align::End);
 
@@ -860,7 +879,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
     init_pending_spinner.set_halign(Align::Center);
     init_pending_spinner.set_size_request(32, 32);
 
-    let init_pending_label = gtk4::Label::new(Some(heelonvault_core::tr!("init-progress-label").as_str()));
+    let init_pending_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("init-progress-label").as_str()));
     init_pending_label.add_css_class("login-support-copy");
     init_pending_label.set_halign(Align::Center);
 
@@ -1009,10 +1029,10 @@ fn professional_customer_name(license_badge_text: &str) -> Option<String> {
 }
 
 /// Configure le basculement de langue (FR/EN) pour tous les widgets.
-/// 
+///
 /// Cette fonction connecte les boutons de langue et met à jour dynamiquement
 /// tous les textes de l'interface lorsque la langue change.
-/// 
+///
 /// # Arguments
 /// * `widgets` - Référence vers tous les widgets de la dialogue
 /// * `in_bootstrap_mode` - Si vrai, adapte les textes pour le mode bootstrap
@@ -1028,55 +1048,129 @@ pub fn setup_language_toggle(widgets: &LoginDialogWidgets, in_bootstrap_mode: bo
         let widgets_clone = widgets.clone();
         let guard_clone = Rc::clone(&language_toggle_guard);
         let in_bootstrap = in_bootstrap_mode;
-        
+
         Rc::new(move || {
             guard_clone.set(true);
 
             // Mettre à jour les textes en fonction du mode bootstrap
             if in_bootstrap {
-                widgets_clone.title_label.set_text(heelonvault_core::tr!("init-hero-title").as_str());
-                widgets_clone.subtitle_label.set_text(heelonvault_core::tr!("init-hero-subtitle").as_str());
-                widgets_clone.button_label.set_text(heelonvault_core::tr!("init-next-button").as_str());
+                widgets_clone
+                    .title_label
+                    .set_text(heelonvault_core::tr!("init-hero-title").as_str());
+                widgets_clone
+                    .subtitle_label
+                    .set_text(heelonvault_core::tr!("init-hero-subtitle").as_str());
+                widgets_clone
+                    .button_label
+                    .set_text(heelonvault_core::tr!("init-next-button").as_str());
             } else {
-                widgets_clone.title_label.set_text(heelonvault_core::tr!("login-hero-title").as_str());
-                widgets_clone.subtitle_label.set_text(heelonvault_core::tr!("login-hero-subtitle").as_str());
-                widgets_clone.button_label.set_text(heelonvault_core::tr!("login-button").as_str());
+                widgets_clone
+                    .title_label
+                    .set_text(heelonvault_core::tr!("login-hero-title").as_str());
+                widgets_clone
+                    .subtitle_label
+                    .set_text(heelonvault_core::tr!("login-hero-subtitle").as_str());
+                widgets_clone
+                    .button_label
+                    .set_text(heelonvault_core::tr!("login-button").as_str());
             }
 
             // Mettre à jour les textes communs
-            widgets_clone.cps_name.set_text(heelonvault_core::tr!("login-cps-name").as_str());
-            widgets_clone.cps_sub.set_text(heelonvault_core::tr!("login-cps-subtitle").as_str());
-            widgets_clone.cps_badge.set_text(heelonvault_core::tr!("login-cps-badge").as_str());
-            widgets_clone.username_label.set_text(heelonvault_core::tr!("login-username-label").as_str());
-            widgets_clone.username_entry.set_placeholder_text(Some(heelonvault_core::tr!("login-username-placeholder").as_str()));
-            widgets_clone.password_label.set_text(heelonvault_core::tr!("login-password-label").as_str());
-            widgets_clone.password_entry.set_placeholder_text(Some(heelonvault_core::tr!("login-password-placeholder").as_str()));
-            widgets_clone.restore_button.set_label(heelonvault_core::tr!("login-restore-button").as_str());
-            widgets_clone.totp_back_button.set_label(heelonvault_core::tr!("login-totp-back").as_str());
-            widgets_clone.totp_title.set_text(heelonvault_core::tr!("login-totp-title").as_str());
-            widgets_clone.totp_subtitle.set_text(heelonvault_core::tr!("login-totp-subtitle").as_str());
-            widgets_clone.back_button.set_label(heelonvault_core::tr!("login-back-button").as_str());
-            widgets_clone.sec_text.set_text(heelonvault_core::tr!("login-security-note").as_str());
-            widgets_clone.language_label.set_text(heelonvault_core::tr!("login-language-label").as_str());
-            widgets_clone.language_fr_button.set_tooltip_text(Some(heelonvault_core::tr!("login-language-fr").as_str()));
-            widgets_clone.language_en_button.set_tooltip_text(Some(heelonvault_core::tr!("login-language-en").as_str()));
+            widgets_clone
+                .cps_name
+                .set_text(heelonvault_core::tr!("login-cps-name").as_str());
+            widgets_clone
+                .cps_sub
+                .set_text(heelonvault_core::tr!("login-cps-subtitle").as_str());
+            widgets_clone
+                .cps_badge
+                .set_text(heelonvault_core::tr!("login-cps-badge").as_str());
+            widgets_clone
+                .username_label
+                .set_text(heelonvault_core::tr!("login-username-label").as_str());
+            widgets_clone.username_entry.set_placeholder_text(Some(
+                heelonvault_core::tr!("login-username-placeholder").as_str(),
+            ));
+            widgets_clone
+                .password_label
+                .set_text(heelonvault_core::tr!("login-password-label").as_str());
+            widgets_clone.password_entry.set_placeholder_text(Some(
+                heelonvault_core::tr!("login-password-placeholder").as_str(),
+            ));
+            widgets_clone
+                .restore_button
+                .set_label(heelonvault_core::tr!("login-restore-button").as_str());
+            widgets_clone
+                .totp_back_button
+                .set_label(heelonvault_core::tr!("login-totp-back").as_str());
+            widgets_clone
+                .totp_title
+                .set_text(heelonvault_core::tr!("login-totp-title").as_str());
+            widgets_clone
+                .totp_subtitle
+                .set_text(heelonvault_core::tr!("login-totp-subtitle").as_str());
+            widgets_clone
+                .back_button
+                .set_label(heelonvault_core::tr!("login-back-button").as_str());
+            widgets_clone
+                .sec_text
+                .set_text(heelonvault_core::tr!("login-security-note").as_str());
+            widgets_clone
+                .language_label
+                .set_text(heelonvault_core::tr!("login-language-label").as_str());
+            widgets_clone
+                .language_fr_button
+                .set_tooltip_text(Some(heelonvault_core::tr!("login-language-fr").as_str()));
+            widgets_clone
+                .language_en_button
+                .set_tooltip_text(Some(heelonvault_core::tr!("login-language-en").as_str()));
 
             // Bootstrap widgets (même s'ils ne sont pas visibles, on met à jour pour quand ils le seront)
-            widgets_clone.init_step_label_1.set_text(heelonvault_core::tr!("init-step-label-identity").as_str());
-            widgets_clone.init_username_label.set_text(heelonvault_core::tr!("init-username-label").as_str());
-            widgets_clone.init_username_entry.set_placeholder_text(Some(heelonvault_core::tr!("init-username-placeholder").as_str()));
-            widgets_clone.init_password_label.set_text(heelonvault_core::tr!("init-password-label").as_str());
-            widgets_clone.init_password_entry.set_placeholder_text(Some(heelonvault_core::tr!("init-password-placeholder").as_str()));
-            widgets_clone.init_confirm_label.set_text(heelonvault_core::tr!("init-confirm-label").as_str());
-            widgets_clone.init_confirm_entry.set_placeholder_text(Some(heelonvault_core::tr!("init-confirm-placeholder").as_str()));
-            widgets_clone.init_step_label_2.set_text(heelonvault_core::tr!("init-step-label-oath").as_str());
-            widgets_clone.init_warning_label.set_text(heelonvault_core::tr!("init-oath-warning").as_str());
-            widgets_clone.init_key_title.set_text(heelonvault_core::tr!("init-recovery-key-title").as_str());
-            widgets_clone.init_copy_button.set_label(heelonvault_core::tr!("init-copy-button").as_str());
-            widgets_clone.init_verify_hint_label.set_text(heelonvault_core::tr!("init-oath-warning").as_str());
-            widgets_clone.init_verify_a_entry.set_placeholder_text(Some(heelonvault_core::tr!("init-verify-placeholder").as_str()));
-            widgets_clone.init_verify_b_entry.set_placeholder_text(Some(heelonvault_core::tr!("init-verify-placeholder").as_str()));
-            widgets_clone.init_pending_label.set_text(heelonvault_core::tr!("init-progress-label").as_str());
+            widgets_clone
+                .init_step_label_1
+                .set_text(heelonvault_core::tr!("init-step-label-identity").as_str());
+            widgets_clone
+                .init_username_label
+                .set_text(heelonvault_core::tr!("init-username-label").as_str());
+            widgets_clone.init_username_entry.set_placeholder_text(Some(
+                heelonvault_core::tr!("init-username-placeholder").as_str(),
+            ));
+            widgets_clone
+                .init_password_label
+                .set_text(heelonvault_core::tr!("init-password-label").as_str());
+            widgets_clone.init_password_entry.set_placeholder_text(Some(
+                heelonvault_core::tr!("init-password-placeholder").as_str(),
+            ));
+            widgets_clone
+                .init_confirm_label
+                .set_text(heelonvault_core::tr!("init-confirm-label").as_str());
+            widgets_clone.init_confirm_entry.set_placeholder_text(Some(
+                heelonvault_core::tr!("init-confirm-placeholder").as_str(),
+            ));
+            widgets_clone
+                .init_step_label_2
+                .set_text(heelonvault_core::tr!("init-step-label-oath").as_str());
+            widgets_clone
+                .init_warning_label
+                .set_text(heelonvault_core::tr!("init-oath-warning").as_str());
+            widgets_clone
+                .init_key_title
+                .set_text(heelonvault_core::tr!("init-recovery-key-title").as_str());
+            widgets_clone
+                .init_copy_button
+                .set_label(heelonvault_core::tr!("init-copy-button").as_str());
+            widgets_clone
+                .init_verify_hint_label
+                .set_text(heelonvault_core::tr!("init-oath-warning").as_str());
+            widgets_clone.init_verify_a_entry.set_placeholder_text(Some(
+                heelonvault_core::tr!("init-verify-placeholder").as_str(),
+            ));
+            widgets_clone.init_verify_b_entry.set_placeholder_text(Some(
+                heelonvault_core::tr!("init-verify-placeholder").as_str(),
+            ));
+            widgets_clone
+                .init_pending_label
+                .set_text(heelonvault_core::tr!("init-progress-label").as_str());
 
             // Définir la langue active initiale sur les boutons
             let current_lang = heelonvault_core::i18n::current_language();
@@ -1095,21 +1189,24 @@ pub fn setup_language_toggle(widgets: &LoginDialogWidgets, in_bootstrap_mode: bo
                 .as_ref()
                 .map(|n| n.as_str().to_string())
                 .unwrap_or_else(|| "credentials".to_string());
-            
+
             match step.as_str() {
                 "totp" => {
-                    button_label_clone.set_text(heelonvault_core::tr!("login-button-verify").as_str());
+                    button_label_clone
+                        .set_text(heelonvault_core::tr!("login-button-verify").as_str());
                 }
                 "init-identity" => {
                     button_label_clone.set_text(heelonvault_core::tr!("init-next-button").as_str());
                 }
                 "init-oath" => {
-                    button_label_clone.set_text(heelonvault_core::tr!("init-confirm-button").as_str());
+                    button_label_clone
+                        .set_text(heelonvault_core::tr!("init-confirm-button").as_str());
                 }
                 "init-pending" => {}
                 _ => {
                     if in_bootstrap {
-                        button_label_clone.set_text(heelonvault_core::tr!("init-next-button").as_str());
+                        button_label_clone
+                            .set_text(heelonvault_core::tr!("init-next-button").as_str());
                     } else {
                         button_label_clone.set_text(heelonvault_core::tr!("login-button").as_str());
                     }
@@ -1163,7 +1260,7 @@ pub fn setup_language_toggle(widgets: &LoginDialogWidgets, in_bootstrap_mode: bo
 }
 
 /// Extrait l'indice numérique d'un label de vérification (ex: "Mot n°5" -> 4)
-/// 
+///
 /// Les labels de vérification ont le format "Mot n°X" ou "Word #X" où X est le numéro du mot (1-based).
 /// Cette fonction retourne l'indice 0-based pour accéder au tableau des mots.
 /// Gère aussi les caractères de formattage invisibles (U+2066..U+2069, etc.).
@@ -1180,9 +1277,9 @@ fn parse_index_from_label(label_text: &str) -> Option<usize> {
             !c.is_control() && !(0x2066..=0x2069).contains(&code)
         })
         .collect();
-    
+
     let text = cleaned_text.to_lowercase();
-    
+
     // Essayer de trouver un nombre dans le texte
     // Utiliser .len() pour gérer correctement les caractères UTF-8 multi-octets
     if let Some(start) = text.find("n°") {
@@ -1192,7 +1289,7 @@ fn parse_index_from_label(label_text: &str) -> Option<usize> {
             return Some(num.saturating_sub(1));
         }
     }
-    
+
     // Alternative: chercher "#" suivi d'un nombre
     if let Some(start) = text.find('#') {
         let num_part = &text[start + "#".len()..];
@@ -1200,7 +1297,7 @@ fn parse_index_from_label(label_text: &str) -> Option<usize> {
             return Some(num.saturating_sub(1));
         }
     }
-    
+
     // Alternative: chercher simplement le premier nombre dans le texte
     // (pour gérer des formats inattendus)
     if let Ok(num) = text
@@ -1211,25 +1308,27 @@ fn parse_index_from_label(label_text: &str) -> Option<usize> {
     {
         return Some(num.saturating_sub(1));
     }
-    
+
     None
 }
 
 /// Configure les "gates" (portails de validation) pour le mode bootstrap.
-/// 
+///
 /// Ces gates activent/désactivent le bouton submit en fonction de la validité des champs :
 /// - **Identity step** : username non vide, password non vide, confirmation == password, strength >= 3
 /// - **Oath step** : les mots de vérification correspondent aux mots générés
-/// 
+///
 /// # Arguments
 /// * `widgets` - Référence vers tous les widgets de la dialogue
 pub fn setup_bootstrap_gates(widgets: &LoginDialogWidgets) {
+    use gtk4::glib;
     use std::cell::{Cell, RefCell};
     use std::rc::Rc;
-    use gtk4::glib;
 
     // Connecter la strength bar à l'entry password pour qu'elle mette à jour son score
-    widgets.init_strength_bar.connect_to_password_entry(&widgets.init_password_entry);
+    widgets
+        .init_strength_bar
+        .connect_to_password_entry(&widgets.init_password_entry);
 
     // ─── Gate 1: Identity step ───────────────────────────────────────────────────
     // Le bouton est activé si : username non vide + password non vide + confirm == password + strength >= 3
@@ -1239,13 +1338,13 @@ pub fn setup_bootstrap_gates(widgets: &LoginDialogWidgets) {
         let confirm_entry = widgets.init_confirm_entry.clone();
         let strength_bar = widgets.init_strength_bar.clone();
         let submit_button = widgets.submit_button.clone();
-        
+
         Rc::new(move || {
             let username_ok = !username_entry.text().trim().is_empty();
             let password_ok = !password_entry.text().is_empty();
             let confirm_ok = password_entry.text() == confirm_entry.text();
             let strength_ok = strength_bar.last_score() >= 3;
-            
+
             let all_ok = username_ok && password_ok && confirm_ok && strength_ok;
             submit_button.set_sensitive(all_ok);
         })
@@ -1267,7 +1366,7 @@ pub fn setup_bootstrap_gates(widgets: &LoginDialogWidgets) {
         let confirm_entry = widgets.init_confirm_entry.clone();
         confirm_entry.connect_changed(move |_| gate());
     }
-    
+
     // Connecter aussi à la strength bar (qui met à jour son score interne)
     // La strength bar écoute déjà les changements de l'entry, donc on déclenche la gate
     // quand son score change via un signal personnalisé ou on rely sur le fait que
@@ -1278,56 +1377,59 @@ pub fn setup_bootstrap_gates(widgets: &LoginDialogWidgets) {
     let word_labels_for_oath = widgets.word_labels.clone();
     let init_verify_a_label_for_indices = widgets.init_verify_a_label.clone();
     let init_verify_b_label_for_indices = widgets.init_verify_b_label.clone();
-    
+
     let check_init_oath_gate = {
         let verify_a_entry = widgets.init_verify_a_entry.clone();
         let verify_b_entry = widgets.init_verify_b_entry.clone();
         let word_labels = word_labels_for_oath.clone();
         let submit_button = widgets.submit_button.clone();
-        
+
         Rc::new(move || {
             // Extraire les mots depuis les word_labels
             let words: Vec<String> = word_labels
                 .iter()
                 .map(|label| label.text().to_string())
                 .collect();
-            
+
             if words.len() != 24 {
                 submit_button.set_sensitive(false);
                 return;
             }
-            
+
             // Extraire les indices depuis les labels (format : "Mot n°X")
             let ia_text = init_verify_a_label_for_indices.text();
             let ib_text = init_verify_b_label_for_indices.text();
             let ia_str = ia_text.as_str();
             let ib_str = ib_text.as_str();
-            
-            let (ia, ib) = match (parse_index_from_label(ia_str), parse_index_from_label(ib_str)) {
+
+            let (ia, ib) = match (
+                parse_index_from_label(ia_str),
+                parse_index_from_label(ib_str),
+            ) {
                 (Some(a), Some(b)) => (a, b),
                 _ => {
                     submit_button.set_sensitive(false);
                     return;
                 }
             };
-            
+
             let a_ok = verify_a_entry.text().trim().to_lowercase() == words[ia].to_lowercase();
             let b_ok = verify_b_entry.text().trim().to_lowercase() == words[ib].to_lowercase();
             submit_button.set_sensitive(a_ok && b_ok);
-            
+
             // Feedback visuel : appliquer des classes CSS pour indiquer le statut
             // Supprimer les classes précédentes
             verify_a_entry.remove_css_class("error");
             verify_a_entry.remove_css_class("success");
             verify_b_entry.remove_css_class("error");
             verify_b_entry.remove_css_class("success");
-            
+
             if a_ok {
                 verify_a_entry.add_css_class("success");
             } else if !verify_a_entry.text().trim().is_empty() {
                 verify_a_entry.add_css_class("error");
             }
-            
+
             if b_ok {
                 verify_b_entry.add_css_class("success");
             } else if !verify_b_entry.text().trim().is_empty() {
@@ -1352,34 +1454,34 @@ pub fn setup_bootstrap_gates(widgets: &LoginDialogWidgets) {
     // État pour suivre si le presse-papier contient la phrase (nettoyage auto après 60s)
     let init_clipboard_dirty: Rc<Cell<bool>> = Rc::new(Cell::new(false));
     let init_clipboard_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
-    
+
     {
         let word_labels_for_copy = widgets.word_labels.clone();
         let dirty_for_copy = Rc::clone(&init_clipboard_dirty);
         let timer_for_copy = Rc::clone(&init_clipboard_timer);
         let copy_button = widgets.init_copy_button.clone();
-        
+
         copy_button.connect_clicked(move |_| {
             // Extraire la phrase depuis les word_labels (24 mots)
             let words: Vec<String> = word_labels_for_copy
                 .iter()
                 .map(|label| label.text().to_string())
                 .collect();
-            
+
             let phrase = words.join(" ");
             if phrase.is_empty() || words.len() != 24 {
                 return;
             }
-            
+
             if let Some(display) = gtk4::gdk::Display::default() {
                 display.clipboard().set_text(&phrase);
                 dirty_for_copy.set(true);
-                
+
                 // Nettoyer le presse-papier après 60 secondes
                 if let Some(id) = timer_for_copy.borrow_mut().take() {
                     id.remove();
                 }
-                
+
                 let dirty_for_timer = Rc::clone(&dirty_for_copy);
                 let id = glib::timeout_add_seconds_local(60, move || {
                     if let Some(disp) = gtk4::gdk::Display::default() {

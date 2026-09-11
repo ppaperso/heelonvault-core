@@ -1,5 +1,5 @@
-use gtk4::prelude::*;
 use super::views::LoginDialogWidgets;
+use gtk4::prelude::*;
 
 /// Configure les écouteurs de signaux pour les widgets de connexion.
 /// Note: Le bouton submit n'est PAS connecté ici pour éviter les boucles infinies.

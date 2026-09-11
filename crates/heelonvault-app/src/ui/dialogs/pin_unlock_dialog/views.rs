@@ -60,7 +60,8 @@ pub fn build_pin_unlock_view(parent: &adw::ApplicationWindow) -> PinUnlockDialog
     body.append(&title_label);
 
     // Subtitle
-    let subtitle_label = gtk4::Label::new(Some(heelonvault_core::tr!("pin-unlock-prompt").as_str()));
+    let subtitle_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("pin-unlock-prompt").as_str()));
     subtitle_label.add_css_class("dim-label");
     subtitle_label.set_halign(Align::Center);
     subtitle_label.set_wrap(true);
@@ -70,7 +71,9 @@ pub fn build_pin_unlock_view(parent: &adw::ApplicationWindow) -> PinUnlockDialog
     // PIN entry — digits-only, masked, max 8 chars
     let pin_entry = gtk4::Entry::new();
     pin_entry.set_visibility(false);
-    pin_entry.set_placeholder_text(Some(heelonvault_core::tr!("pin-unlock-entry-placeholder").as_str()));
+    pin_entry.set_placeholder_text(Some(
+        heelonvault_core::tr!("pin-unlock-entry-placeholder").as_str(),
+    ));
     pin_entry.set_max_length(8);
     pin_entry.set_hexpand(true);
     pin_entry.add_css_class("pin-digit-entry");
@@ -94,7 +97,8 @@ pub fn build_pin_unlock_view(parent: &adw::ApplicationWindow) -> PinUnlockDialog
         .hexpand(true)
         .build();
 
-    let unlock_button = gtk4::Button::with_label(heelonvault_core::tr!("pin-unlock-button").as_str());
+    let unlock_button =
+        gtk4::Button::with_label(heelonvault_core::tr!("pin-unlock-button").as_str());
     unlock_button.add_css_class("suggested-action");
     unlock_button.add_css_class("pill");
     unlock_button.set_hexpand(true);

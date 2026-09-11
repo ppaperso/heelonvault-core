@@ -29,7 +29,10 @@ const RESTORE_MIN_HEIGHT: i32 = 500;
 
 fn ui_window_state_path() -> PathBuf {
     if let Some(proj_dirs) = ProjectDirs::from("fr", "Heelonys", "HeelonVault") {
-        return proj_dirs.config_dir().join("heelonvault").join("ui_window_state.json");
+        return proj_dirs
+            .config_dir()
+            .join("heelonvault")
+            .join("ui_window_state.json");
     }
 
     if let Ok(home) = std::env::var("HOME") {

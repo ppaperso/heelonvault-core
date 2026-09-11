@@ -2,8 +2,8 @@ use gtk4::prelude::*;
 use gtk4::{Align, InputPurpose, Orientation};
 use libadwaita as adw;
 
-use heelonvault_core::services::pin_cache_service::{PIN_MAX_LEN, PIN_MIN_LEN};
 use super::types::PinSetupDialogWidgets;
+use heelonvault_core::services::pin_cache_service::{PIN_MAX_LEN, PIN_MIN_LEN};
 
 /// Construit l'interface utilisateur complete de la dialogue de configuration du PIN.
 ///
@@ -49,22 +49,28 @@ pub fn build_pin_setup_view(
         .build();
 
     // Description
-    let desc_label = gtk4::Label::new(Some(heelonvault_core::tr!("pin-setup-description").as_str()));
+    let desc_label = gtk4::Label::new(Some(
+        heelonvault_core::tr!("pin-setup-description").as_str(),
+    ));
     desc_label.set_halign(Align::Start);
     desc_label.set_wrap(true);
     desc_label.add_css_class("dim-label");
     body.append(&desc_label);
 
     // PIN length hint
-    let len_hint = gtk4::Label::new(Some(
-        &heelonvault_core::i18n::tr_args(
-            "pin-setup-length-hint",
-            &[
-                ("min", heelonvault_core::i18n::I18nArg::Num(PIN_MIN_LEN as i64)),
-                ("max", heelonvault_core::i18n::I18nArg::Num(PIN_MAX_LEN as i64)),
-            ],
-        ),
-    ));
+    let len_hint = gtk4::Label::new(Some(&heelonvault_core::i18n::tr_args(
+        "pin-setup-length-hint",
+        &[
+            (
+                "min",
+                heelonvault_core::i18n::I18nArg::Num(PIN_MIN_LEN as i64),
+            ),
+            (
+                "max",
+                heelonvault_core::i18n::I18nArg::Num(PIN_MAX_LEN as i64),
+            ),
+        ],
+    )));
     len_hint.set_halign(Align::Start);
     len_hint.set_wrap(true);
     len_hint.add_css_class("caption");
@@ -74,7 +80,9 @@ pub fn build_pin_setup_view(
     // New PIN entry
     let pin_entry = gtk4::Entry::new();
     pin_entry.set_visibility(false);
-    pin_entry.set_placeholder_text(Some(heelonvault_core::tr!("pin-setup-entry-placeholder").as_str()));
+    pin_entry.set_placeholder_text(Some(
+        heelonvault_core::tr!("pin-setup-entry-placeholder").as_str(),
+    ));
     pin_entry.set_max_length(PIN_MAX_LEN as i32);
     pin_entry.set_hexpand(true);
     pin_entry.set_input_purpose(InputPurpose::Pin);
@@ -84,7 +92,9 @@ pub fn build_pin_setup_view(
     // Confirm PIN entry
     let confirm_entry = gtk4::Entry::new();
     confirm_entry.set_visibility(false);
-    confirm_entry.set_placeholder_text(Some(heelonvault_core::tr!("pin-setup-confirm-placeholder").as_str()));
+    confirm_entry.set_placeholder_text(Some(
+        heelonvault_core::tr!("pin-setup-confirm-placeholder").as_str(),
+    ));
     confirm_entry.set_max_length(PIN_MAX_LEN as i32);
     confirm_entry.set_hexpand(true);
     confirm_entry.set_input_purpose(InputPurpose::Pin);

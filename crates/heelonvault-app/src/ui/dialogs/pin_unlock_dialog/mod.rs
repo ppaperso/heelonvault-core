@@ -63,7 +63,9 @@ mod tests {
     #[test]
     #[allow(unused_imports)]
     fn test_events_functions_are_accessible() {
-        use super::events::{setup_fallback_handler, setup_feedback_reset, setup_quit_handler, setup_unlock_handler};
+        use super::events::{
+            setup_fallback_handler, setup_feedback_reset, setup_quit_handler, setup_unlock_handler,
+        };
     }
 
     #[test]
@@ -78,4 +80,3 @@ mod tests {
         use super::core::build_dialog;
     }
 }
-

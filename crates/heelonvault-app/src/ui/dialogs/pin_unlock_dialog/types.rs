@@ -1,4 +1,4 @@
-use gtk4::{Button, Box, Entry, Image, Label, Window};
+use gtk4::{Box, Button, Entry, Image, Label, Window};
 use libadwaita as adw;
 
 /// Structure contenant tous les widgets de la dialogue de debitage par PIN.
