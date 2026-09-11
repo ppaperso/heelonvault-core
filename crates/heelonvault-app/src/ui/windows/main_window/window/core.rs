@@ -214,15 +214,7 @@ where
     events::setup_panic_button_handler(&panic_button, window.clone());
     
     // Add button handler - TODO: extract from new_body.inc
-    // events::setup_add_button_handler(
-    //     &add_button,
-    //     window.clone(),
-    //     Rc::clone(&active_vault_id),
-    //     runtime_handle.clone(),
-    //     Arc::clone(&_vault_service),
-    //     Rc::new(|_mode| {}),
-    //     admin_user_id,
-    // );
+    // Needs open_editor callback which depends on more extraction
     
     // Trash button handler
     let refresh_entries_clone = Rc::clone(&refresh_entries);
@@ -236,6 +228,29 @@ where
         admin_user_id,
         Rc::clone(&session_master_key),
         refresh_entries_clone,
+    );
+    
+    // Key controller for auto-lock and keyboard shortcuts
+    events::setup_key_controller(
+        &window,
+        &search_entry,
+        &center_panel.secret_flow,
+        Rc::clone(&filter_runtime.actions_by_widget),
+        Rc::clone(&auto_lock_source),
+        Rc::clone(&auto_lock_armed),
+        Rc::clone(&auto_lock_timeout_secs),
+        Rc::clone(&on_auto_lock),
+        Rc::clone(&session_master_key),
+    );
+    
+    // Motion controller for auto-lock reset
+    events::setup_motion_controller(
+        &window,
+        Rc::clone(&auto_lock_source),
+        Rc::clone(&auto_lock_armed),
+        Rc::clone(&auto_lock_timeout_secs),
+        Rc::clone(&on_auto_lock),
+        Rc::clone(&session_master_key),
     );
     
     // Sort button handlers

@@ -326,6 +326,7 @@ pub(super) fn build_sidebar_row(title: &str, icon_name: &str) -> (gtk4::ListBoxR
     (row, label)
 }
 
+#[allow(dead_code)]
 pub(super) fn build_vault_sidebar_row(
     title: &str,
     vault_id: Uuid,

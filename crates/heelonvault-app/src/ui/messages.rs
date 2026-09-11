@@ -1,13 +1,16 @@
 use heelonvault_core::i18n::{I18nArg, tr, tr_args};
 
+#[allow(dead_code)]
 pub fn twofa_badge_disabled() -> String {
     tr("twofa-badge-disabled")
 }
 
+#[allow(dead_code)]
 pub fn twofa_badge_enabled() -> String {
     tr("twofa-badge-enabled")
 }
 
+#[allow(dead_code)]
 pub fn profile_totp_code_invalid_error() -> String {
     tr("profile-totp-code-invalid-error")
 }
@@ -20,6 +23,7 @@ pub fn login_totp_code_invalid_error() -> String {
     tr("login-totp-code-invalid-error")
 }
 
+#[allow(dead_code)]
 pub fn validate_totp_code_format(code: &str) -> Option<String> {
     heelonvault_core::i18n::validate_totp_code_format(code)
 }
@@ -32,26 +36,32 @@ pub fn login_totp_error_message(code: &str) -> String {
     }
 }
 
+#[allow(dead_code)]
 pub fn toast_secret_saved(name: &str) -> String {
     tr_args("toast-secret-saved", &[("name", I18nArg::Str(name))])
 }
 
+#[allow(dead_code)]
 pub fn toast_secret_deleted(name: &str) -> String {
     tr_args("toast-secret-deleted", &[("name", I18nArg::Str(name))])
 }
 
+#[allow(dead_code)]
 pub fn toast_password_copied() -> String {
     tr("toast-password-copied")
 }
 
+#[allow(dead_code)]
 pub fn toast_login_copied() -> String {
     tr("toast-login-copied")
 }
 
+#[allow(dead_code)]
 pub fn toast_url_opened() -> String {
     tr("toast-url-opened")
 }
 
+#[allow(dead_code)]
 pub fn toast_url_opened_login_copied() -> String {
     tr("toast-url-opened-login-copied")
 }

@@ -5,6 +5,7 @@ use gtk4::prelude::*;
 
 use super::{FilterRuntime, SecretFilterMeta};
 
+#[allow(dead_code)]
 pub(super) fn apply_filters(secret_flow: &gtk4::FlowBox, filter_runtime: &FilterRuntime) {
     let values = filter_runtime.meta_by_widget.borrow();
 
@@ -47,6 +48,7 @@ pub(super) fn apply_filters(secret_flow: &gtk4::FlowBox, filter_runtime: &Filter
         .set_visible(visible_count == 0);
 }
 
+#[allow(dead_code)]
 pub(super) fn update_audit_badge(label: &gtk4::Label, value: usize) {
     let next_text = value.to_string();
     let current_text = label.text().to_string();
@@ -64,6 +66,7 @@ pub(super) fn update_audit_badge(label: &gtk4::Label, value: usize) {
     });
 }
 
+#[allow(dead_code)]
 pub(super) fn normalize_search_text(raw: &str) -> String {
     let mut normalized = String::with_capacity(raw.len());
     for ch in raw.chars() {
@@ -100,6 +103,7 @@ pub(super) fn normalize_search_text(raw: &str) -> String {
         .join(" ")
 }
 
+#[allow(dead_code)]
 pub(super) fn within_one_edit(left: &str, right: &str) -> bool {
     let left_chars: Vec<char> = left.chars().collect();
     let right_chars: Vec<char> = right.chars().collect();
@@ -143,6 +147,7 @@ pub(super) fn within_one_edit(left: &str, right: &str) -> bool {
     edits <= 1
 }
 
+#[allow(dead_code)]
 pub(super) fn token_matches_haystack(token: &str, haystack: &str) -> bool {
     if token.is_empty() {
         return true;
@@ -161,6 +166,7 @@ pub(super) fn token_matches_haystack(token: &str, haystack: &str) -> bool {
         .any(|word| within_one_edit(token, word))
 }
 
+#[allow(dead_code)]
 pub(super) fn parse_search_terms(query: &str) -> Vec<(Option<String>, String)> {
     // Pre-process: join tokens that end with ':' with the immediately following
     // token so that "field: value" (space after colon) is treated the same as
@@ -235,6 +241,7 @@ pub(super) fn parse_search_terms(query: &str) -> Vec<(Option<String>, String)> {
         .collect()
 }
 
+#[allow(dead_code)]
 pub(super) fn matches_search_term(
     meta: &SecretFilterMeta,
     term: &(Option<String>, String),
@@ -259,6 +266,7 @@ pub(super) fn matches_search_term(
     }
 }
 
+#[allow(dead_code)]
 fn url_host_from_raw(url: &str) -> String {
     let trimmed = url.trim();
     let without_scheme = trimmed
@@ -273,10 +281,12 @@ fn url_host_from_raw(url: &str) -> String {
         .to_ascii_lowercase()
 }
 
+#[allow(dead_code)]
 fn contains_any_phrase(haystack: &str, phrases: &[&str]) -> bool {
     phrases.iter().any(|phrase| haystack.contains(phrase))
 }
 
+#[allow(dead_code)]
 pub(super) fn classify_health_access(
     title: &str,
     login: &str,

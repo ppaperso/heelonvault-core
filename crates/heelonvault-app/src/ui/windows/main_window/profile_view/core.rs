@@ -1,6 +1,7 @@
 use super::*;
 use libadwaita as adw;
 
+#[allow(dead_code)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn build_profile_view<
     TUser,

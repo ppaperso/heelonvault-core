@@ -5,7 +5,6 @@
 )]
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -24,7 +23,7 @@ use tracing::{info, warn};
 use uuid::Uuid;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::ui::dialogs::add_edit_dialog::{AddEditDialog, DialogMode};
+use crate::ui::dialogs::add_edit_dialog::DialogMode;
 #[cfg(feature = "premium")]
 use crate::ui::dialogs::manage_teams_dialog::ManageTeamsDialog;
 #[cfg(feature = "premium")]
@@ -33,9 +32,15 @@ use crate::ui::dialogs::recovery_key_export_dialog;
 use crate::ui::dialogs::recovery_key_export_dialog::{
     ExportRunner, RecoveryKeyExportDialog, RecoveryKeyExportDialogDeps,
 };
-use crate::ui::dialogs::trash_dialog::TrashDialog;
 use crate::ui::messages;
 use crate::ui::window_sizing;
+
+#[allow(unused_imports)]
+use std::collections::HashMap;
+#[allow(unused_imports)]
+use crate::ui::dialogs::add_edit_dialog::AddEditDialog;
+#[allow(unused_imports)]
+use crate::ui::dialogs::trash_dialog::TrashDialog;
 #[cfg(feature = "premium")]
 use heelonvault_core::models::LicenseTier;
 use heelonvault_core::repositories::user_repository::UserRepository;
@@ -73,9 +78,11 @@ mod secret_flow;
 mod shell;
 mod sidebar;
 mod types;
+mod window;
 
 use self::types::{FilterRuntime, SecretFilterMeta, SecretRowView};
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SecretCategoryFilter {
     All,
@@ -85,6 +92,7 @@ enum SecretCategoryFilter {
     SecureDocument,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AuditFilter {
     All,
@@ -92,6 +100,7 @@ enum AuditFilter {
     Duplicate,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SecretSortMode {
     Recent,
@@ -99,6 +108,7 @@ enum SecretSortMode {
     Risk,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SecretKind {
     Password,
@@ -125,6 +135,7 @@ pub struct MainWindow {
     audit_service: Rc<Arc<heelonvault_core::services::audit_service::AuditService>>,
 }
 
+#[allow(dead_code)]
 struct CenterPanelWidgets {
     frame: gtk4::Frame,
     main_stack: gtk4::Stack,
@@ -144,11 +155,13 @@ struct CenterPanelWidgets {
     empty_copy: gtk4::Label,
 }
 
+#[allow(dead_code)]
 struct ProfileViewWidgets {
     container: gtk4::ScrolledWindow,
     back_button: gtk4::Button,
 }
 
+#[allow(dead_code)]
 struct SidebarWidgets {
     frame: gtk4::Frame,
     my_vaults_title: gtk4::Label,

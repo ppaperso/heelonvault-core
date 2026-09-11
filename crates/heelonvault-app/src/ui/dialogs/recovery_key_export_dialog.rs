@@ -18,27 +18,37 @@ use heelonvault_core::errors::AppError;
 use heelonvault_core::i18n::I18nArg;
 use heelonvault_core::services::backup_service::{BackupMetadata, RecoveryKeyBundle};
 
+#[allow(dead_code)]
 pub type ExportFuture = Pin<Box<dyn Future<Output = Result<BackupMetadata, AppError>> + 'static>>;
+#[allow(dead_code)]
 pub type ExportRunner = Arc<dyn Fn(PathBuf, SecretString) -> ExportFuture + Send + Sync>;
+#[allow(dead_code)]
 pub type FeedbackFn = Rc<dyn Fn(&str, &str)>;
 
 /// Loads the stored recovery verifier for the acting user, if any.
+#[allow(dead_code)]
 pub type LoadVerifierFuture =
     Pin<Box<dyn Future<Output = Result<Option<Vec<u8>>, AppError>> + 'static>>;
+#[allow(dead_code)]
 pub type LoadVerifierRunner = Arc<dyn Fn() -> LoadVerifierFuture + Send + Sync>;
 
 /// Checks a re-typed phrase against the stored verifier.
+#[allow(dead_code)]
 pub type VerifyPhraseFuture = Pin<Box<dyn Future<Output = Result<bool, AppError>> + 'static>>;
+#[allow(dead_code)]
 pub type VerifyPhraseRunner = Arc<dyn Fn(SecretString, Vec<u8>) -> VerifyPhraseFuture + Send + Sync>;
 
 /// Generates and persists a recovery key when the vault carries none.
+#[allow(dead_code)]
 pub type ProvisionFuture =
     Pin<Box<dyn Future<Output = Result<RecoveryKeyBundle, AppError>> + 'static>>;
+#[allow(dead_code)]
 pub type ProvisionRecoveryRunner = Arc<dyn Fn() -> ProvisionFuture + Send + Sync>;
 
+#[allow(dead_code)]
 pub struct RecoveryKeyExportDialogDeps {
     pub parent_window: gtk4::Window,
-    pub cancel_label_key: &'static str,
+    pub cancel_label_key: &'static str,    
     pub on_feedback: FeedbackFn,
     pub on_begin_critical: Option<Rc<dyn Fn()>>,
     pub on_end_critical: Option<Rc<dyn Fn()>>,
@@ -49,8 +59,10 @@ pub struct RecoveryKeyExportDialogDeps {
     pub runtime_handle: Handle,
 }
 
+#[allow(dead_code)]
 pub struct RecoveryKeyExportDialog;
 
+#[allow(dead_code)]
 impl RecoveryKeyExportDialog {
     pub fn show(deps: RecoveryKeyExportDialogDeps) {
         let deps = Rc::new(deps);

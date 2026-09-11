@@ -13,10 +13,12 @@ use uuid::Uuid;
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
 
+#[allow(dead_code)]
 pub struct TrashDialog {
     window: gtk4::Window,
 }
 
+#[allow(dead_code)]
 impl TrashDialog {
     #[allow(clippy::too_many_arguments)]
     pub fn new<TSecret, TVault>(

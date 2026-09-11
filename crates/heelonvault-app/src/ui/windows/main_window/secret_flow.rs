@@ -21,6 +21,7 @@ use heelonvault_core::services::vault_service::VaultService;
 
 use super::{FilterRuntime, SecretFilterMeta, SecretKind, SecretRowView, search_filter};
 
+#[allow(dead_code)]
 pub(super) fn evaluate_password_strength_label(secret_value: &str) -> String {
     if secret_value.len() >= 12 {
         let has_uppercase = secret_value.chars().any(|c| c.is_uppercase());

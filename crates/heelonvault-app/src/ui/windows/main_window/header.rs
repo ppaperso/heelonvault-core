@@ -3,6 +3,7 @@ use gtk4::{Align, Orientation};
 
 use super::MainWindow;
 
+#[allow(dead_code)]
 pub(super) fn build_header_license_badge(license_badge_text: &str) -> gtk4::Widget {
     if let Some(customer_name) = MainWindow::professional_customer_name(license_badge_text) {
         let seal = gtk4::Box::builder()

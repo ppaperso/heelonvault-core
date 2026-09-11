@@ -1,6 +1,7 @@
 use super::*;
 use heelonvault_core::services::pin_cache_service::{PinCache, PinUnlockError};
 
+#[allow(dead_code)]
 impl MainWindow {
     pub fn window(&self) -> &adw::ApplicationWindow {
         &self.window
@@ -153,6 +154,7 @@ impl MainWindow {
         }
     }
 
+    #[allow(dead_code)]
     pub(in crate::ui::windows::main_window) fn apply_filters(
         secret_flow: &gtk4::FlowBox,
         filter_runtime: &FilterRuntime,
@@ -179,12 +181,14 @@ impl MainWindow {
         }
     }
 
+    #[allow(dead_code)]
     pub(in crate::ui::windows::main_window) fn parse_search_terms(
         query: &str,
     ) -> Vec<(Option<String>, String)> {
         search_filter::parse_search_terms(query)
     }
 
+    #[allow(dead_code)]
     pub(in crate::ui::windows::main_window) fn matches_search_term(
         meta: &SecretFilterMeta,
         term: &(Option<String>, String),
@@ -400,7 +404,7 @@ impl MainWindow {
         }
     }
 
-    pub(in crate::ui::windows::main_window) fn refresh_login_history_popover(
+    pub fn refresh_login_history_popover(
         runtime_handle: Handle,
         database_pool: SqlitePool,
         user_id: Uuid,
@@ -524,6 +528,7 @@ impl MainWindow {
 			}
 		});
     }
+    #[allow(dead_code)]
     #[allow(clippy::too_many_arguments)]
     pub(in crate::ui::windows::main_window) fn build_profile_view<
         TUser,
@@ -612,6 +617,7 @@ impl MainWindow {
         sidebar::build_sidebar_panel()
     }
 
+    #[allow(dead_code)]
     pub(in crate::ui::windows::main_window) fn build_vault_sidebar_row(
         title: &str,
         vault_id: Uuid,
