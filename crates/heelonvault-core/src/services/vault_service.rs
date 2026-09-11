@@ -141,7 +141,9 @@ pub fn serialize_vault_key_envelope(payload: &EncryptedPayload) -> SecretBox<Vec
     SecretBox::new(Box::new(bytes))
 }
 
-pub fn deserialize_vault_key_envelope(bytes: &SecretBox<Vec<u8>>) -> Result<EncryptedPayload, AppError> {
+pub fn deserialize_vault_key_envelope(
+    bytes: &SecretBox<Vec<u8>>,
+) -> Result<EncryptedPayload, AppError> {
     if bytes.expose_secret().len() < NONCE_LEN {
         return Err(AppError::Storage(
             "vault key envelope is invalid".to_string(),
@@ -222,9 +224,8 @@ where
         let encrypted_payload = self.crypto_service.encrypt(&vault_key, &master_key).await?;
         let serialized = Self::serialize_envelope(&encrypted_payload);
 
-        self.vault_repo.create_vault(&vault).await?;
         self.vault_repo
-            .update_vault_key_envelope(vault.id, serialized)
+            .create_vault_with_envelope(&vault, serialized)
             .await?;
 
         self.audit_service
@@ -570,6 +571,17 @@ mod tests {
         async fn create_vault(&self, vault: &Vault) -> Result<(), AppError> {
             let mut guard = self.lock_vaults()?;
             guard.insert(vault.id, vault.clone());
+            Ok(())
+        }
+
+        async fn create_vault_with_envelope(
+            &self,
+            vault: &Vault,
+            encrypted_vault_key_envelope: SecretBox<Vec<u8>>,
+        ) -> Result<(), AppError> {
+            self.lock_vaults()?.insert(vault.id, vault.clone());
+            self.lock_envelopes()?
+                .insert(vault.id, encrypted_vault_key_envelope);
             Ok(())
         }
 

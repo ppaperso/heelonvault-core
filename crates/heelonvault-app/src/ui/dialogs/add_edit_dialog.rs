@@ -14,7 +14,7 @@ use time::Duration;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use tokio::runtime::Handle;
-use tracing::warn;
+use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::ui::widgets::password_strength_bar::PasswordStrengthBar;

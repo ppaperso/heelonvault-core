@@ -772,7 +772,14 @@
                         on_saved_for_result(title_for_result);
                         on_cancel_for_result();
                     }
-                    Ok(Err(_)) | Err(_) => {
+                    Ok(Err(error)) => {
+                        error!(error = %error, "secret save failed");
+                        error_for_result
+                            .set_text(heelonvault_core::tr!("add-edit-error-save-failed").as_str());
+                        error_for_result.set_visible(true);
+                    }
+                    Err(_) => {
+                        error!("secret save task ended without reporting a result");
                         error_for_result
                             .set_text(heelonvault_core::tr!("add-edit-error-save-failed").as_str());
                         error_for_result.set_visible(true);

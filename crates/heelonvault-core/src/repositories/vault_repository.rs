@@ -38,6 +38,16 @@ pub trait LocalVaultRepository {
     async fn list_owned_vaults(&self, user_id: Uuid) -> Result<Vec<Vault>, AppError>;
     async fn list_shared_vaults(&self, user_id: Uuid) -> Result<Vec<Vault>, AppError>;
     async fn create_vault(&self, vault: &Vault) -> Result<(), AppError>;
+    /// Insert a vault together with its key envelope in a single statement.
+    ///
+    /// Creating the row first and adding the envelope afterwards leaves an unusable vault
+    /// behind if the process stops in between: the vault key is random and unrecoverable,
+    /// so the vault can never be opened again.
+    async fn create_vault_with_envelope(
+        &self,
+        vault: &Vault,
+        encrypted_vault_key_envelope: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError>;
     async fn delete_vault(&self, vault_id: Uuid) -> Result<(), AppError>;
     async fn update_vault_key_envelope(
         &self,
@@ -246,6 +256,25 @@ impl VaultRepository for SqlxVaultRepository {
             .bind(&vault.name)
             .execute(&self.pool)
             .await?;
+
+        Ok(())
+    }
+
+    async fn create_vault_with_envelope(
+        &self,
+        vault: &Vault,
+        encrypted_vault_key_envelope: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        sqlx::query(
+            "INSERT INTO vaults (id, owner_user_id, name, vault_key_envelope)
+             VALUES (?1, ?2, ?3, ?4)",
+        )
+        .bind(vault.id.to_string())
+        .bind(vault.owner_user_id.to_string())
+        .bind(&vault.name)
+        .bind(sqlx_bind_secret(&encrypted_vault_key_envelope))
+        .execute(&self.pool)
+        .await?;
 
         Ok(())
     }

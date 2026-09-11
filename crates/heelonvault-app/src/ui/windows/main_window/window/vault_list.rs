@@ -11,6 +11,7 @@ use libadwaita as adw;
 use libadwaita::prelude::*;
 use secrecy::SecretBox;
 use tokio::runtime::Handle;
+use tracing::{error, info};
 use uuid::Uuid;
 
 use heelonvault_core::services::secret_service::SecretService;
@@ -198,9 +199,13 @@ where
                 if owned_vaults.is_empty()
                     && let Some(master_key) = master_for_default_create
                 {
-                    let _ = vault_service_for_task
+                    match vault_service_for_task
                         .create_vault(user_id, "perso", SecretBox::new(Box::new(master_key)))
-                        .await;
+                        .await
+                    {
+                        Ok(vault) => info!(vault_id = %vault.id, "default vault created"),
+                        Err(error) => error!(error = %error, "default vault creation failed"),
+                    }
                     owned_vaults = vault_service_for_task.list_owned_vaults(user_id).await?;
                 }
 
