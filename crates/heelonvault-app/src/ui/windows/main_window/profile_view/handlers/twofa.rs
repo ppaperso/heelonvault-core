@@ -20,6 +20,7 @@ pub struct TwoFaHandlerDeps<TTotp> {
     pub runtime_handle: Handle,
     pub totp_service: Arc<TTotp>,
     pub user_id: Uuid,
+    pub session_master_key: Rc<RefCell<Vec<u8>>>,
 }
 
 /// Wire the whole TOTP lifecycle: activate, confirm, cancel and disable.
@@ -37,6 +38,7 @@ pub fn setup<TTotp>(
         runtime_handle,
         totp_service,
         user_id,
+        session_master_key,
     } = deps;
 
     let pending_totp_secret: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
@@ -115,6 +117,7 @@ pub fn setup<TTotp>(
     let pending_secret_for_confirm = Rc::clone(&pending_totp_secret);
     let totp_for_confirm = Arc::clone(&totp_service);
     let runtime_for_twofa_confirm = runtime_handle.clone();
+    let session_for_confirm = Rc::clone(&session_master_key);
     twofa_section.confirm_button.connect_clicked(move |_| {
         let username = username_for_twofa_confirm.text().trim().to_string();
         let code = twofa_code_for_confirm.text().trim().to_string();
@@ -149,6 +152,16 @@ pub fn setup<TTotp>(
         match totp_for_confirm.verify_setup_code(username.as_str(), secret.as_str(), code.as_str())
         {
             Ok(true) => {
+                let Some(account_key) =
+                    MainWindow::snapshot_session_master_key(&session_for_confirm)
+                else {
+                    MainWindow::set_inline_status(
+                        &twofa_status_for_confirm,
+                        heelonvault_core::tr!("profile-status-twofa-enable-failed").as_str(),
+                        "error",
+                    );
+                    return;
+                };
                 MainWindow::set_inline_status(
                     &twofa_status_for_confirm,
                     heelonvault_core::tr!("profile-status-twofa-enabling").as_str(),
@@ -159,9 +172,16 @@ pub fn setup<TTotp>(
                 let runtime_for_task = runtime_for_twofa_confirm.clone();
                 let totp_for_task = Arc::clone(&totp_for_confirm);
                 std::thread::spawn(move || {
+                    let account_key = secrecy::SecretBox::new(Box::new(account_key));
                     let result = runtime_for_task.block_on(async move {
                         totp_for_task
-                            .enable_totp(user_id, username.as_str(), secret.as_str(), code.as_str())
+                            .enable_totp(
+                                user_id,
+                                username.as_str(),
+                                &account_key,
+                                secret.as_str(),
+                                code.as_str(),
+                            )
                             .await
                     });
                     let _ = sender.send(result);

@@ -58,6 +58,48 @@ impl fmt::Display for AccessDeniedReason {
     }
 }
 
+/// Why a backup restore or an account re-key failed, so the UI can localize it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecoveryFailure {
+    InvalidPhrase,
+    WrongPhraseOrAlteredFile,
+    NotABackup,
+    UnsupportedBackupVersion(u16),
+    NoAccount,
+    MultipleAccounts,
+    /// A vault does not open with the account key; nothing was written.
+    InconsistentKeyMaterial,
+    /// The account key is not sealed with the recovery phrase in this backup.
+    RecoveryKeyMissing,
+}
+
+impl fmt::Display for RecoveryFailure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidPhrase => write!(f, "the recovery phrase is not a valid BIP39 phrase"),
+            Self::WrongPhraseOrAlteredFile => {
+                write!(f, "wrong recovery phrase or altered backup file")
+            }
+            Self::NotABackup => write!(f, "the file is not a HeelonVault backup"),
+            Self::UnsupportedBackupVersion(version) => {
+                write!(f, "unsupported backup format version {version}")
+            }
+            Self::NoAccount => write!(f, "the backup contains no account"),
+            Self::MultipleAccounts => write!(
+                f,
+                "password reset from a backup requires a single-account vault"
+            ),
+            Self::InconsistentKeyMaterial => write!(
+                f,
+                "a vault does not open with the account key; nothing was modified"
+            ),
+            Self::RecoveryKeyMissing => {
+                write!(f, "the backup holds no recovery key for this account")
+            }
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("initialization required: {0}")]
@@ -78,6 +120,11 @@ pub enum AppError {
     Crypto(String),
     #[error("authorization error: {0}")]
     Authorization(AccessDeniedReason),
+    #[error("recovery error: {0}")]
+    Recovery(RecoveryFailure),
+    /// Accounts of an account-key vault cannot share vaults yet, so it holds a single account.
+    #[error("this vault uses an account key and holds a single account")]
+    SingleAccountVault,
     #[error("feature not available in this edition: {0}")]
     FeatureNotAvailable(&'static str),
     #[error("the license has expired")]

@@ -1,11 +1,8 @@
 use std::fs;
-use std::io::Write;
 use std::path::Path;
 
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
-
-use crate::errors::AppError;
+use crate::errors::{AppError, RecoveryFailure};
+use crate::utils::private_fs;
 use aes_gcm::aead::Aead;
 use aes_gcm::aead::Payload;
 use aes_gcm::aead::consts::U12;
@@ -222,24 +219,17 @@ impl BackupServiceImpl {
 
     /// Splits a `.hvb` file into its authenticated prefix, decoded header and ciphertext.
     fn split_hvb_container(bytes: &[u8]) -> Result<(Vec<u8>, HvbHeaderV2, &[u8]), AppError> {
-        if bytes.len() < HVB_PREFIX_LEN {
-            return Err(AppError::Validation(
-                "not a .hvb backup file: too short".to_string(),
-            ));
-        }
-        if &bytes[..HVB_MAGIC.len()] != HVB_MAGIC {
-            return Err(AppError::Validation(
-                "not a .hvb backup file: bad magic".to_string(),
-            ));
+        if bytes.len() < HVB_PREFIX_LEN || &bytes[..HVB_MAGIC.len()] != HVB_MAGIC {
+            return Err(AppError::Recovery(RecoveryFailure::NotABackup));
         }
 
         let mut version_bytes = [0_u8; 2];
         version_bytes.copy_from_slice(&bytes[HVB_MAGIC.len()..HVB_MAGIC.len() + 2]);
         let version = u16::from_le_bytes(version_bytes);
         if version != HVB_FORMAT_VERSION {
-            return Err(AppError::Validation(format!(
-                "unsupported .hvb format version {version}; this build reads version {HVB_FORMAT_VERSION} only"
-            )));
+            return Err(AppError::Recovery(
+                RecoveryFailure::UnsupportedBackupVersion(version),
+            ));
         }
 
         let mut len_bytes = [0_u8; 4];
@@ -307,17 +297,17 @@ impl BackupServiceImpl {
             fs::remove_file(&temp_path).map_err(AppError::Io)?;
         }
 
-        let write_result = (|| -> Result<(), AppError> {
-            let mut file = fs::File::create(&temp_path).map_err(AppError::Io)?;
-            Self::set_owner_only_file_permissions(&temp_path)?;
-            file.write_all(bytes).map_err(AppError::Io)?;
-            file.sync_all().map_err(AppError::Io)?;
-            Ok(())
-        })();
+        let write_result = private_fs::write_private(&temp_path, bytes).map_err(AppError::Io);
 
         if let Err(err) = write_result {
             let _ = fs::remove_file(&temp_path);
             return Err(err);
+        }
+
+        // On Windows, fs::rename fails if the destination already exists.
+        // Remove it first to ensure cross-platform compatibility.
+        if path.exists() {
+            fs::remove_file(path).map_err(AppError::Io)?;
         }
 
         if let Err(err) = fs::rename(&temp_path, path).map_err(AppError::Io) {
@@ -325,7 +315,7 @@ impl BackupServiceImpl {
             return Err(err);
         }
 
-        Self::set_owner_only_file_permissions(path)
+        Ok(())
     }
 
     /// Single decryption path for `.hvb` v2: validates the container, authenticates the
@@ -376,11 +366,7 @@ impl BackupServiceImpl {
                     aad: prefix.as_slice(),
                 },
             )
-            .map_err(|_| {
-                AppError::Crypto(
-                    "backup decryption failed: wrong recovery key or altered file".to_string(),
-                )
-            })?;
+            .map_err(|_| AppError::Recovery(RecoveryFailure::WrongPhraseOrAlteredFile))?;
 
         Self::validate_sqlite_bytes(plaintext.as_slice())?;
         if plaintext.len() as u64 != header.plaintext_size {
@@ -407,26 +393,16 @@ impl BackupServiceImpl {
             fs::rename(target_sqlite_db_path, &old_path).map_err(AppError::Io)?;
         }
 
-        fs::write(target_sqlite_db_path, plaintext).map_err(AppError::Io)?;
-        Self::set_owner_only_file_permissions(target_sqlite_db_path)?;
-        Ok(())
+        private_fs::write_private(target_sqlite_db_path, plaintext).map_err(AppError::Io)
     }
 
     fn ensure_parent_exists(path: &Path) -> Result<(), AppError> {
         match path.parent() {
             Some(parent) if !parent.as_os_str().is_empty() => {
-                fs::create_dir_all(parent).map_err(AppError::Io)
+                private_fs::create_private_dir_all(parent).map_err(AppError::Io)
             }
             _ => Ok(()),
         }
-    }
-
-    fn set_owner_only_file_permissions(_path: &Path) -> Result<(), AppError> {
-        #[cfg(unix)]
-        {
-            fs::set_permissions(_path, fs::Permissions::from_mode(0o600)).map_err(AppError::Io)?;
-        }
-        Ok(())
     }
 }
 
@@ -574,7 +550,7 @@ impl BackupService for BackupServiceImpl {
     ) -> Result<BackupMetadata, AppError> {
         // Catches a mistyped word before spending seconds in Argon2.
         Mnemonic::parse_in_normalized(Language::English, recovery_phrase.expose_secret())
-            .map_err(|err| AppError::Validation(format!("invalid recovery phrase: {err}")))?;
+            .map_err(|_| AppError::Recovery(RecoveryFailure::InvalidPhrase))?;
 
         let backup_bytes = fs::read(backup_file_path).map_err(AppError::Io)?;
         let plaintext = Zeroizing::new(Self::open_hvb_container(
@@ -606,7 +582,7 @@ mod tests {
     use secrecy::ExposeSecret;
     use uuid::Uuid;
 
-    use crate::errors::AppError;
+    use crate::errors::{AppError, RecoveryFailure};
 
     use super::{
         BackupService, BackupServiceImpl, HVB_DEFAULT_M_COST_KIB, HVB_DEFAULT_P_COST,
@@ -739,7 +715,12 @@ mod tests {
             &restored_db_path,
         );
         assert!(
-            import_result.is_err(),
+            matches!(
+                import_result,
+                Err(AppError::Recovery(
+                    RecoveryFailure::WrongPhraseOrAlteredFile
+                ))
+            ),
             "a foreign recovery phrase must not restore the backup"
         );
     }

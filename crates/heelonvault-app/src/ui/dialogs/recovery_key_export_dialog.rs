@@ -1,5 +1,4 @@
 use std::cell::Cell;
-use std::fs;
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -755,13 +754,7 @@ impl RecoveryKeyExportDialog {
     }
 
     fn write_owner_only(path: &std::path::Path, content: &[u8]) -> std::io::Result<()> {
-        fs::write(path, content)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
-        }
-        Ok(())
+        heelonvault_core::utils::private_fs::write_private(path, content)
     }
 
     fn clear_clipboard() {

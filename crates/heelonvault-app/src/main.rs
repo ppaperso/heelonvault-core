@@ -6,7 +6,7 @@ mod ui;
 use std::cell::{Cell, RefCell};
 use std::env;
 use std::fs;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -22,6 +22,7 @@ use gtk4::gio;
 use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita as adw;
+use libadwaita::prelude::MessageDialogExt;
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Row, SqlitePool};
@@ -44,7 +45,6 @@ use crate::ui::windows::main_window::MainWindow;
 use heelonvault_core::config::constants::APP_ID;
 use heelonvault_core::errors::AppError;
 use heelonvault_core::models::UserRole;
-use heelonvault_core::models::secret_item::BlobStorage;
 #[cfg(feature = "premium")]
 use heelonvault_core::repositories::audit_log_repository::SqlxAuditLogRepository;
 use heelonvault_core::repositories::secret_repository::SqlxSecretRepository;
@@ -62,24 +62,24 @@ use heelonvault_core::services::audit_service::AuditAction;
 #[cfg(feature = "premium")]
 use heelonvault_core::services::audit_service::AuditService;
 use heelonvault_core::services::auth_policy_service::{AuthPolicyService, SqlxAuthPolicyService};
-use heelonvault_core::services::auth_service::{
-    AuthService, AuthServiceImpl, UserCredentialRecord,
-};
+use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl};
 use heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl;
 use heelonvault_core::services::backup_service::{BackupService, BackupServiceImpl};
-use heelonvault_core::services::crypto_service::{CryptoService, CryptoServiceImpl};
-use heelonvault_core::services::crypto_service::{EncryptedPayload, NONCE_LEN};
+use heelonvault_core::services::crypto_service::CryptoServiceImpl;
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::federated_auth_service::CommunityFederatedAuthService;
 use heelonvault_core::services::import_service::ImportServiceImpl;
 use heelonvault_core::services::login_history_service::record_successful_login;
 use heelonvault_core::services::password_service::PasswordServiceImpl;
+use heelonvault_core::services::recovery_service::reset_master_password_from_backup;
+use heelonvault_core::services::rekey_service::RekeyReport;
 use heelonvault_core::services::secret_service::SecretServiceImpl;
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::team_service::CommunityTeamService;
 use heelonvault_core::services::totp_service::SqliteTotpService;
 use heelonvault_core::services::user_service::{UserService, UserServiceImpl};
-use heelonvault_core::services::vault_service::{VaultKeyEnvelopeRepository, VaultServiceImpl};
+use heelonvault_core::services::vault_service::VaultServiceImpl;
+use heelonvault_core::utils::private_fs;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::admin_service_impl::AdminServiceImpl;
 #[cfg(feature = "premium")]
@@ -96,7 +96,7 @@ use uuid::Uuid;
 
 type VaultServiceHandle = VaultServiceImpl<
     SqlxVaultRepository,
-    SqlxVaultEnvelopeRepository,
+    SqlxVaultRepository,
     SqlxUserRepository,
     SqlxTeamRepository,
     AuditLogServiceHandle,
@@ -107,7 +107,7 @@ type SecretServiceHandle =
 type UserServiceHandle = UserServiceImpl<
     SqlxUserRepository,
     SqlxVaultRepository,
-    SqlxVaultEnvelopeRepository,
+    SqlxVaultRepository,
     SqlxSecretRepository,
     AuthServiceImpl<CryptoServiceImpl>,
     CryptoServiceImpl,
@@ -143,36 +143,6 @@ type BackupApplicationServiceHandle =
 type FederatedAuthServiceHandle = CommunityFederatedAuthService;
 #[cfg(feature = "premium")]
 type FederatedAuthServiceHandle = PscAuthServiceImpl;
-
-struct SqlxVaultEnvelopeRepository {
-    pool: SqlitePool,
-}
-
-impl SqlxVaultEnvelopeRepository {
-    fn new(pool: SqlitePool) -> Self {
-        Self { pool }
-    }
-}
-
-impl VaultKeyEnvelopeRepository for SqlxVaultEnvelopeRepository {
-    async fn get_vault_key_envelope(
-        &self,
-        vault_id: Uuid,
-    ) -> Result<Option<SecretBox<Vec<u8>>>, AppError> {
-        let row_opt = sqlx::query("SELECT vault_key_envelope FROM vaults WHERE id = ?1")
-            .bind(vault_id.to_string())
-            .fetch_optional(&self.pool)
-            .await?;
-
-        match row_opt {
-            Some(row) => {
-                let envelope_bytes: Option<Vec<u8>> = row.try_get("vault_key_envelope")?;
-                Ok(envelope_bytes.map(|bytes| SecretBox::new(Box::new(bytes))))
-            }
-            None => Ok(None),
-        }
-    }
-}
 
 struct AppContext {
     database_path: PathBuf,
@@ -256,11 +226,12 @@ impl DailyLogFileWriter {
 
     fn open_file(log_dir: &std::path::Path, base_name: &str, date_stamp: &str) -> Result<File> {
         let log_path = Self::path_for(log_dir, base_name, date_stamp);
-        OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&log_path)
-            .with_context(|| format!("failed to open log file {}", log_path.display()))
+        let file = private_fs::app_open_options(&log_path)
+            .and_then(|mut options| options.create(true).append(true).open(&log_path))
+            .with_context(|| format!("failed to open log file {}", log_path.display()))?;
+        private_fs::tighten_app_file(&log_path)
+            .with_context(|| format!("failed to restrict log file {}", log_path.display()))?;
+        Ok(file)
     }
 
     fn rotate_if_needed(&mut self) -> std::io::Result<()> {
@@ -572,27 +543,23 @@ fn run_application(
                         ))
                     })?;
 
+                    let recovery_phrase = SecretString::new(recovery_phrase.into_boxed_str());
                     context_for_restore
                         .backup_service
                         .import_hvb_with_recovery_key(
                             backup_file_path.as_path(),
-                            &secrecy::SecretString::new(recovery_phrase.into_boxed_str()),
+                            &recovery_phrase,
                             staging_path.as_path(),
                         )?;
 
-                    runtime_for_restore_task
-                        .block_on(async {
-                            apply_restored_login_password(
-                                staging_path.as_path(),
-                                new_password.as_str(),
-                            )
-                            .await
-                        })
-                        .map_err(|error| {
-                            AppError::Storage(format!(
-                                "failed to update restored password envelope: {error}"
-                            ))
-                        })?;
+                    let new_password = SecretString::new(new_password.into_boxed_str());
+                    let report =
+                        runtime_for_restore_task.block_on(reset_restored_database_password(
+                            staging_path.as_path(),
+                            &context_for_restore.crypto_service,
+                            &recovery_phrase,
+                            &new_password,
+                        ))?;
 
                     runtime_for_restore_task.block_on(async {
                         context_for_restore.pool.close().await;
@@ -606,7 +573,7 @@ fn run_application(
                         AppError::Storage(format!("failed to promote restored database: {error}"))
                     })?;
                     context_for_restore.auth_service.signal_shutdown();
-                    Ok(())
+                    Ok(report)
                 },
                 move || {
                     if let Err(error) = restart_current_process() {
@@ -706,6 +673,34 @@ fn run_application(
                         total_elapsed_ms = login_success_started.elapsed().as_millis() as u64,
                         "login flow trace: refresh_entries invoked"
                     );
+
+                    // A migrated account whose recovery phrase could not be read at migration
+                    // time cannot be restored from a backup until the phrase is sealed again.
+                    let (recovery_sender, recovery_receiver) = tokio::sync::oneshot::channel();
+                    let runtime_for_recovery = runtime_for_success.clone();
+                    let user_service_for_recovery = Arc::clone(&context_for_success.user_service);
+                    std::thread::spawn(move || {
+                        let result = runtime_for_recovery.block_on(async move {
+                            user_service_for_recovery
+                                .account_needs_recovery_key(session_user_id)
+                                .await
+                        });
+                        let _ = recovery_sender.send(result);
+                    });
+                    let main_for_recovery = Rc::clone(&main_for_success);
+                    glib::MainContext::default().spawn_local(async move {
+                        if let Ok(Ok(true)) = recovery_receiver.await {
+                            let dialog = adw::MessageDialog::new(
+                                Some(main_for_recovery.window()),
+                                Some(heelonvault_core::tr!("recovery-key-missing-title").as_str()),
+                                Some(heelonvault_core::tr!("recovery-key-missing-body").as_str()),
+                            );
+                            dialog.add_response("ok", heelonvault_core::tr!("common-ok").as_str());
+                            dialog.set_default_response(Some("ok"));
+                            dialog.set_close_response("ok");
+                            dialog.present();
+                        }
+                    });
 
                     let runtime_for_history = runtime_for_success.clone();
                     let pool_for_history = context_for_success.pool.clone();
@@ -946,7 +941,7 @@ fn init_logging() -> Result<WorkerGuard> {
         let current_dir = env::current_dir().context("failed to resolve current directory")?;
         resolve_default_log_dir(&current_dir)
     };
-    fs::create_dir_all(&log_dir_path)
+    private_fs::create_private_dir_all(&log_dir_path)
         .with_context(|| format!("failed to create log directory {}", log_dir_path.display()))?;
 
     let rolling_writer = DailyLogFileWriter::new(log_dir_path.clone(), "heelonvault")?;
@@ -1009,6 +1004,7 @@ fn init_logging() -> Result<WorkerGuard> {
         tracing::error!(%location, %message, "application panicked");
     }));
 
+    harden_log_dir(&log_dir_path);
     Ok(guard)
 }
 
@@ -1025,7 +1021,7 @@ fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
     let auth_policy_service = Arc::new(SqlxAuthPolicyService::new(pool.clone()));
     let vault_service = Arc::new(VaultServiceImpl::new(
         SqlxVaultRepository::new(pool.clone()),
-        SqlxVaultEnvelopeRepository::new(pool.clone()),
+        SqlxVaultRepository::new(pool.clone()),
         SqlxUserRepository::new(pool.clone()),
         SqlxTeamRepository::new(pool.clone()),
         Arc::clone(&audit_log_service),
@@ -1039,7 +1035,7 @@ fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
     let user_service = Arc::new(UserServiceImpl::new(
         SqlxUserRepository::new(pool.clone()),
         SqlxVaultRepository::new(pool.clone()),
-        SqlxVaultEnvelopeRepository::new(pool.clone()),
+        SqlxVaultRepository::new(pool.clone()),
         SqlxSecretRepository::new(pool.clone()),
         Arc::clone(&auth_service),
         CryptoServiceImpl::default(),
@@ -1160,16 +1156,9 @@ async fn build_secondary_services(
 
 async fn initialize_app_context() -> Result<AppStartMode> {
     let database_path = resolve_database_path()?;
-    if let Some(parent) = database_path.parent()
-        && !parent.as_os_str().is_empty()
-    {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("failed to create database directory {}", parent.display()))?;
-    }
+    prepare_database_files(&database_path)?;
 
-    let connect_options = SqliteConnectOptions::new()
-        .filename(&database_path)
-        .create_if_missing(true);
+    let connect_options = hardened_sqlite_options(&database_path).create_if_missing(true);
 
     let pool = SqlitePool::connect_with(connect_options)
         .await
@@ -1355,7 +1344,7 @@ fn promote_staged_restore(staging_path: &Path, database_path: &Path) -> Result<(
     if let Some(parent) = database_path.parent()
         && !parent.as_os_str().is_empty()
     {
-        fs::create_dir_all(parent)
+        private_fs::create_private_dir_all(parent)
             .with_context(|| format!("failed to create database directory {}", parent.display()))?;
     }
 
@@ -1377,6 +1366,9 @@ fn promote_staged_restore(staging_path: &Path, database_path: &Path) -> Result<(
                 old_database_path.display()
             )
         })?;
+        // Kept as the only way back to the previous data, which includes its key material.
+        private_fs::tighten_app_file(&old_database_path)
+            .with_context(|| format!("failed to restrict {}", old_database_path.display()))?;
     }
 
     if let Err(error) = fs::rename(staging_path, database_path) {
@@ -1409,392 +1401,45 @@ fn restart_current_process() -> Result<()> {
     Ok(())
 }
 
-async fn apply_restored_login_password(database_path: &Path, new_password: &str) -> Result<()> {
-    let connect_options = SqliteConnectOptions::new()
-        .filename(database_path)
-        .create_if_missing(false);
+async fn reset_restored_database_password(
+    database_path: &Path,
+    crypto_service: &CryptoServiceImpl,
+    recovery_phrase: &SecretString,
+    new_password: &SecretString,
+) -> Result<RekeyReport, AppError> {
+    let connect_options = hardened_sqlite_options(database_path).create_if_missing(false);
     let pool = SqlitePool::connect_with(connect_options)
         .await
-        .with_context(|| {
-            format!(
-                "failed to open restored database at {}",
+        .map_err(|error| {
+            AppError::Storage(format!(
+                "failed to open restored database at {}: {error}",
                 database_path.display()
-            )
+            ))
         })?;
 
-    // Appliquer les migrations sur la base de données restaurée
-    // (elle peut venir d'une version ancienne du schéma)
-    let migrations_path = resolve_migrations_path()?;
-    sqlx::migrate::Migrator::new(migrations_path.as_path())
-        .await
-        .context("failed to load sqlx migrations for restored database")?
-        .run(&pool)
-        .await
-        .context("failed to run migrations on restored database")?;
-
-    let selected_user = sqlx::query(
-        "SELECT username FROM users ORDER BY CASE WHEN role = ?1 THEN 0 ELSE 1 END, rowid LIMIT 1",
-    )
-    .bind(UserRole::Admin.to_db_str())
-    .fetch_optional(&pool)
-    .await
-    .context("failed to resolve restored user for password reset")?
-    .ok_or_else(|| anyhow!("restored database does not contain any user"))?;
-
-    let username: String = selected_user
-        .try_get("username")
-        .context("failed to read restored username")?;
-
-    // 1. Lire l'envelope de mot de passe EXISTANT
-    let existing_envelope_row =
-        sqlx::query("SELECT password_envelope FROM users WHERE username = ?1")
-            .bind(username.as_str())
-            .fetch_optional(&pool)
+    let result = async {
+        // The backup may predate the current schema.
+        let migrations_path =
+            resolve_migrations_path().map_err(|error| AppError::Storage(format!("{error:#}")))?;
+        sqlx::migrate::Migrator::new(migrations_path.as_path())
             .await
-            .context("failed to read existing password envelope")?
-            .ok_or_else(|| anyhow!("user {} has no password envelope", username))?;
-
-    let existing_envelope_bytes: Vec<u8> = existing_envelope_row
-        .try_get("password_envelope")
-        .context("failed to extract password envelope bytes")?;
-
-    // 2. Décoder l'envelope pour obtenir salt et ancienne master_key
-    let existing_envelope = SecretBox::new(Box::new(existing_envelope_bytes));
-    let existing_record = heelonvault_core::services::auth_service::AuthServiceImpl::<
-        CryptoServiceImpl,
-    >::decode_password_envelope(&existing_envelope)
-    .map_err(|e| anyhow!("failed to decode existing password envelope: {}", e))?;
-
-    let existing_salt = existing_record.password_salt;
-    let old_master_key = existing_record.password_hash; // C'est l'ancienne master_key
-
-    // 3. Dériver la NOUVELLE master_key avec le NOUVEAU mot de passe + salt EXISTANT
-    let crypto_service = CryptoServiceImpl::with_defaults();
-    let new_password_secret = SecretString::new(new_password.to_string().into_boxed_str());
-    let new_master_key = crypto_service
-        .derive_key(&new_password_secret, &existing_salt)
-        .await
-        .context("failed to derive new master key")?;
-
-    // Cloner la new_master_key pour pouvoir l'utiliser plus tard
-    let new_master_key_for_vaults =
-        SecretBox::new(Box::new(new_master_key.expose_secret().clone()));
-
-    // 4. Créer un nouvel envelope de mot de passe
-    let new_record = UserCredentialRecord {
-        password_salt: SecretBox::new(Box::new(existing_salt.expose_secret().clone())),
-        password_hash: new_master_key,
-    };
-    let new_envelope = heelonvault_core::services::auth_service::AuthServiceImpl::<CryptoServiceImpl>::encode_password_envelope(&new_record);
-
-    // 5. METTRE A JOUR L'ENVELOPE DE MOT DE PASSE D'ABORD
-    // (sinon on ne pourra plus se connecter si le rechiffrement échoue)
-    sqlx::query("UPDATE users SET password_envelope = ?1 WHERE username = ?2")
-        .bind(new_envelope.expose_secret().as_slice())
-        .bind(username.as_str())
-        .execute(&pool)
-        .await
-        .context("failed to persist new password envelope")?;
-
-    // 6. RECHIFFRER TOUS LES VAULT KEY ENVELOPES
-    // Lire tous les vaults de l'utilisateur
-    let accessible_vaults = sqlx::query(
-        "SELECT id, owner_user_id FROM vaults WHERE owner_user_id = (SELECT id FROM users WHERE username = ?1)",
-    )
-    .bind(username.as_str())
-    .fetch_all(&pool)
-    .await
-    .context("failed to query user vaults")?;
-
-    for vault_row in &accessible_vaults {
-        let vault_id_str: String = vault_row.try_get("id").context("failed to read vault id")?;
-        let vault_id = Uuid::parse_str(&vault_id_str)
-            .map_err(|err| AppError::Storage(format!("parse vault id: {err}")))?;
-        let owner_user_id_str: String = vault_row
-            .try_get("owner_user_id")
-            .context("failed to read owner_user_id")?;
-        let _owner_user_id = Uuid::parse_str(&owner_user_id_str)
-            .map_err(|err| AppError::Storage(format!("parse owner_user_id: {err}")))?;
-
-        // Lire l'envelope de vault_key existant
-        let vault_envelope_row = sqlx::query("SELECT vault_key_envelope FROM vaults WHERE id = ?1")
-            .bind(vault_id)
-            .fetch_optional(&pool)
+            .map_err(|error| {
+                AppError::Storage(format!(
+                    "failed to load migrations for restored database: {error}"
+                ))
+            })?
+            .run(&pool)
             .await
-            .context("failed to read vault key envelope")?;
-
-        // Si le vault n'a pas d'envelope, on passe au suivant (cas possible dans les backups)
-        let vault_envelope_row = match vault_envelope_row {
-            Some(row) => row,
-            None => {
-                info!(
-                    "vault {} has no key envelope, skipping re-encryption",
-                    vault_id
-                );
-                continue;
-            }
-        };
-
-        let vault_envelope_bytes: Vec<u8> = vault_envelope_row
-            .try_get("vault_key_envelope")
-            .context("failed to extract vault key envelope bytes")?;
-        let vault_envelope = SecretBox::new(Box::new(vault_envelope_bytes));
-
-        // Désérialiser et déchiffrer avec l'ancienne master_key
-        let payload = heelonvault_core::services::vault_service::deserialize_vault_key_envelope(
-            &vault_envelope,
-        )
-        .context("failed to deserialize vault key envelope")?;
-        let vault_key = crypto_service
-            .decrypt(&payload, &old_master_key)
+            .map_err(|error| {
+                AppError::Storage(format!("failed to migrate restored database: {error}"))
+            })?;
+        reset_master_password_from_backup(&pool, crypto_service, recovery_phrase, new_password)
             .await
-            .context("failed to decrypt vault key with old master key")?;
-
-        // Rechiffrer avec la nouvelle master_key
-        let rewrapped_payload = crypto_service
-            .encrypt(&vault_key, &new_master_key_for_vaults)
-            .await
-            .context("failed to re-encrypt vault key with new master key")?;
-        let rewrapped_envelope =
-            heelonvault_core::services::vault_service::serialize_vault_key_envelope(
-                &rewrapped_payload,
-            );
-
-        // Mettre à jour l'envelope du vault
-        sqlx::query("UPDATE vaults SET vault_key_envelope = ?1 WHERE id = ?2")
-            .bind(rewrapped_envelope.expose_secret().as_slice())
-            .bind(vault_id)
-            .execute(&pool)
-            .await
-            .context("failed to update vault key envelope")?;
     }
+    .await;
 
-    // 7. RECHIFFRER TOUS LES SECRETS AVEC LES NOUVELLES VAULT KEYS
-    // Collecter toutes les vault_keys accessibles (propriétaire + partagés)
-    use std::collections::HashMap;
-    let mut vault_key_map: HashMap<Uuid, SecretBox<Vec<u8>>> = HashMap::new();
-
-    // Ajouter les vaults de l'utilisateur (propriétaire)
-    for vault_row in &accessible_vaults {
-        let vault_id_str: String = vault_row
-            .try_get("id")
-            .context("failed to read vault id for secret re-encryption")?;
-        let vault_id = Uuid::parse_str(&vault_id_str).map_err(|err| {
-            AppError::Storage(format!("parse vault id for secret re-encryption: {err}"))
-        })?;
-
-        let vault_envelope_row = sqlx::query("SELECT vault_key_envelope FROM vaults WHERE id = ?1")
-            .bind(vault_id)
-            .fetch_optional(&pool)
-            .await
-            .context("failed to read vault key envelope for secret re-encryption")?;
-
-        let vault_envelope_row = match vault_envelope_row {
-            Some(row) => row,
-            None => {
-                info!(
-                    "vault {} has no key envelope, skipping secret re-encryption",
-                    vault_id
-                );
-                continue;
-            }
-        };
-
-        let vault_envelope_bytes: Vec<u8> = vault_envelope_row
-            .try_get("vault_key_envelope")
-            .context("failed to extract vault key envelope bytes for secret re-encryption")?;
-        let vault_envelope = SecretBox::new(Box::new(vault_envelope_bytes));
-
-        let payload = heelonvault_core::services::vault_service::deserialize_vault_key_envelope(
-            &vault_envelope,
-        )
-        .context("failed to deserialize vault key envelope for secret re-encryption")?;
-        let vault_key = crypto_service
-            .decrypt(&payload, &old_master_key)
-            .await
-            .context("failed to decrypt vault key with old master key for secret re-encryption")?;
-
-        vault_key_map.insert(vault_id, vault_key);
-    }
-
-    // 7b. Rechiffrer aussi les vault_key_shares (pour les vaults partagés) ET collecter leurs vault_keys
-    let shared_vaults = sqlx::query(
-        "SELECT vault_id, user_id, key_envelope FROM vault_key_shares WHERE user_id = (SELECT id FROM users WHERE username = ?1)",
-    )
-    .bind(username.as_str())
-    .fetch_all(&pool)
-    .await
-    .context("failed to query shared vault keys")?;
-
-    for share_row in shared_vaults.iter() {
-        let vault_id_str: String = share_row
-            .try_get("vault_id")
-            .context("failed to read vault_id from share")?;
-        let vault_id = Uuid::parse_str(&vault_id_str)
-            .map_err(|err| AppError::Storage(format!("parse vault_id from share: {err}")))?;
-        let user_id_str: String = share_row
-            .try_get("user_id")
-            .context("failed to read user_id from share")?;
-        let user_id = Uuid::parse_str(&user_id_str)
-            .map_err(|err| AppError::Storage(format!("parse user_id from share: {err}")))?;
-        let share_envelope_bytes: Vec<u8> = share_row
-            .try_get("key_envelope")
-            .context("failed to extract share envelope bytes")?;
-        let share_envelope = SecretBox::new(Box::new(share_envelope_bytes));
-
-        // Désérialiser et déchiffrer avec l'ancienne master_key
-        let share_payload =
-            heelonvault_core::services::vault_service::deserialize_vault_key_envelope(
-                &share_envelope,
-            )
-            .context("failed to deserialize share envelope")?;
-        let vault_key = crypto_service
-            .decrypt(&share_payload, &old_master_key)
-            .await
-            .context("failed to decrypt shared vault key with old master key")?;
-
-        // Rechiffrer avec la nouvelle master_key
-        let rewrapped_share_payload = crypto_service
-            .encrypt(&vault_key, &new_master_key_for_vaults)
-            .await
-            .context("failed to re-encrypt shared vault key with new master key")?;
-        let rewrapped_share_envelope =
-            heelonvault_core::services::vault_service::serialize_vault_key_envelope(
-                &rewrapped_share_payload,
-            );
-
-        // Mettre à jour l'envelope du share
-        sqlx::query(
-            "UPDATE vault_key_shares SET key_envelope = ?1 WHERE vault_id = ?2 AND user_id = ?3",
-        )
-        .bind(rewrapped_share_envelope.expose_secret().as_slice())
-        .bind(vault_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .context("failed to update share key envelope")?;
-
-        // Ajouter à la map pour la ré-encryption des secrets
-        vault_key_map.insert(vault_id, vault_key);
-    }
-
-    // 7c. RECHIFFRER LES SECRETS pour tous les vaults accessibles
-    for (vault_id, vault_key) in &vault_key_map {
-        // Récupérer tous les secrets non supprimés de ce vault
-        let secrets = sqlx::query(
-            "SELECT id, secret_blob, blob_storage FROM secret_items WHERE vault_id = ?1 AND deleted_at IS NULL"
-        )
-        .bind(vault_id.to_string())
-        .fetch_all(&pool)
-        .await
-        .context("failed to query secrets for re-encryption")?;
-
-        for secret_row in secrets {
-            let secret_id_str: String = secret_row
-                .try_get("id")
-                .context("failed to read secret id")?;
-            let secret_id = Uuid::parse_str(&secret_id_str)
-                .map_err(|err| AppError::Storage(format!("parse secret id: {err}")))?;
-
-            let blob_storage_str: String = secret_row
-                .try_get("blob_storage")
-                .context("failed to read blob_storage")?;
-            let blob_storage = match blob_storage_str.as_str() {
-                "inline" => BlobStorage::Inline,
-                "file" => BlobStorage::File,
-                _ => {
-                    warn!("invalid blob_storage value: {}", blob_storage_str);
-                    continue;
-                }
-            };
-
-            // Pour simplifier, on ne traite que les secrets inline (les file blobs sont gérés différemment)
-            if matches!(blob_storage, BlobStorage::Inline) {
-                let secret_blob_bytes: Vec<u8> = secret_row
-                    .try_get("secret_blob")
-                    .context("failed to read secret_blob")?;
-
-                let secret_blob = SecretBox::new(Box::new(secret_blob_bytes));
-
-                // Désérialiser le payload du secret
-                // Essayer d'abord le format actuel (nonce || ciphertext)
-                let payload = if secret_blob.expose_secret().len() >= NONCE_LEN {
-                    // Format actuel : nonce (12 bytes) || ciphertext
-                    let mut nonce = [0_u8; NONCE_LEN];
-                    nonce.copy_from_slice(&secret_blob.expose_secret()[0..NONCE_LEN]);
-                    let ciphertext = secret_blob.expose_secret()[NONCE_LEN..].to_vec();
-                    Ok(EncryptedPayload {
-                        nonce,
-                        ciphertext: SecretBox::new(Box::new(ciphertext)),
-                    })
-                } else {
-                    // Essayer le format bincode (ancien format des vault_key_envelopes)
-                    // Cela peut arriver si le secret a été créé avec une ancienne version
-                    match heelonvault_core::services::vault_service::deserialize_vault_key_envelope(
-                        &secret_blob,
-                    ) {
-                        Ok(payload) => Ok(payload),
-                        Err(_) => Err(anyhow!(
-                            "failed to deserialize secret blob with both formats"
-                        )),
-                    }
-                };
-
-                match payload {
-                    Ok(payload) => {
-                        // Déchiffrer le secret avec l'ancienne vault_key
-                        let secret_plaintext = crypto_service
-                            .decrypt(&payload, vault_key)
-                            .await
-                            .context("failed to decrypt secret blob with vault key")?;
-
-                        // Rechiffrer avec la même vault_key (nouveau nonce)
-                        let new_encrypted = crypto_service
-                            .encrypt(&secret_plaintext, vault_key)
-                            .await
-                            .context("failed to re-encrypt secret blob")?;
-
-                        // Sérialiser dans le format actuel (nonce || ciphertext)
-                        let mut new_blob = Vec::with_capacity(
-                            NONCE_LEN + new_encrypted.ciphertext.expose_secret().len(),
-                        );
-                        new_blob.extend_from_slice(&new_encrypted.nonce);
-                        new_blob
-                            .extend_from_slice(new_encrypted.ciphertext.expose_secret().as_slice());
-
-                        // Mettre à jour le secret_blob dans la base
-                        sqlx::query("UPDATE secret_items SET secret_blob = ?1 WHERE id = ?2")
-                            .bind(new_blob)
-                            .bind(secret_id)
-                            .execute(&pool)
-                            .await
-                            .context("failed to update secret blob")?;
-
-                        info!("re-encrypted secret {}", secret_id);
-                    }
-                    Err(e) => {
-                        warn!(
-                            "failed to deserialize secret {} for re-encryption: {}",
-                            secret_id, e
-                        );
-                        continue;
-                    }
-                }
-            } else {
-                // Pour les secrets en mode 'file', on ne fait rien pour l'instant
-                // (ils nécessiteraient une gestion spéciale des fichiers)
-                info!(
-                    "skipping file-based secret {} (not implemented in restore)",
-                    secret_id_str
-                );
-            }
-        }
-    }
-
-    // 8. Nettoyer
-    let _ = sqlx::query("DELETE FROM auth_policy").execute(&pool).await;
     pool.close().await;
-    Ok(())
+    result
 }
 
 async fn ensure_privileged_account_context_initialized(
@@ -1880,6 +1525,119 @@ async fn load_password_envelopes_from_db(
         "loaded password envelopes from database into auth service"
     );
     Ok(())
+}
+
+/// Freed pages are zeroed and temporary tables stay in memory, so neither replaced key
+/// envelopes nor query spills linger on disk.
+fn hardened_sqlite_options(database_path: &Path) -> SqliteConnectOptions {
+    SqliteConnectOptions::new()
+        .filename(database_path)
+        .pragma("secure_delete", "ON")
+        .pragma("temp_store", "MEMORY")
+}
+
+/// Creates the database owner-only (SQLite would follow the umask) and restricts existing files.
+fn prepare_database_files(database_path: &Path) -> Result<()> {
+    let parent = match database_path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    };
+    private_fs::create_private_dir_all(parent)
+        .with_context(|| format!("failed to create database directory {}", parent.display()))?;
+
+    if database_path.exists() {
+        for path in database_file_set(database_path) {
+            if path.exists()
+                && private_fs::tighten_app_file(&path)
+                    .with_context(|| format!("failed to restrict {}", path.display()))?
+            {
+                info!(file = %path.display(), "database file access restricted");
+            }
+        }
+    } else {
+        private_fs::app_open_options(database_path)
+            .and_then(|mut options| options.write(true).create_new(true).open(database_path))
+            .with_context(|| {
+                format!("failed to create database file {}", database_path.display())
+            })?;
+    }
+
+    warn_if_world_accessible(parent);
+    warn_if_outside_user_profile(parent);
+    Ok(())
+}
+
+/// The database plus the files SQLite and the restore flow keep next to it.
+fn database_file_set(database_path: &Path) -> Vec<PathBuf> {
+    let with_suffix = |suffix: &str| {
+        let mut name = database_path.as_os_str().to_owned();
+        name.push(suffix);
+        PathBuf::from(name)
+    };
+    vec![
+        database_path.to_path_buf(),
+        with_suffix("-wal"),
+        with_suffix("-shm"),
+        with_suffix("-journal"),
+        database_path.with_extension("old"),
+    ]
+}
+
+/// Log files can hold usernames and the raw CSV rows rejected by an import.
+fn harden_log_dir(log_dir: &Path) {
+    let entries = match fs::read_dir(log_dir) {
+        Ok(entries) => entries,
+        Err(error) => {
+            warn!(dir = %log_dir.display(), %error, "cannot inspect log directory");
+            return;
+        }
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_app_file = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| {
+                (name.starts_with("heelonvault_") && name.ends_with(".log"))
+                    || name.starts_with("csv_import_rejects_")
+            });
+        if is_app_file && let Err(error) = private_fs::tighten_app_file(&path) {
+            warn!(file = %path.display(), %error, "cannot restrict log file permissions");
+        }
+    }
+    warn_if_world_accessible(log_dir);
+}
+
+/// Existing directories are never changed (they may be shared on purpose): only reported.
+fn warn_if_world_accessible(dir: &Path) {
+    match private_fs::is_world_accessible(dir) {
+        Ok(true) => warn!(
+            dir = %dir.display(),
+            "directory is readable by other local users; restrict it with `chmod 700`"
+        ),
+        Ok(false) => {}
+        Err(error) => warn!(dir = %dir.display(), %error, "cannot inspect directory permissions"),
+    }
+}
+
+/// On Windows the profile ACL is what keeps other users out; elsewhere it no longer applies.
+fn warn_if_outside_user_profile(database_dir: &Path) {
+    if !cfg!(windows) {
+        return;
+    }
+    let Some(base_dirs) = directories::BaseDirs::new() else {
+        return;
+    };
+    if let (Ok(dir), Ok(home)) = (
+        fs::canonicalize(database_dir),
+        fs::canonicalize(base_dirs.home_dir()),
+    ) && !dir.starts_with(&home)
+    {
+        warn!(
+            dir = %dir.display(),
+            "database is outside the user profile; other accounts may be able to read it"
+        );
+    }
 }
 
 fn resolve_database_path() -> Result<PathBuf> {

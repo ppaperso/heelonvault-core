@@ -15,6 +15,7 @@ use super::bootstrap_flow::setup_bootstrap_submit_handler;
 use super::events;
 use super::feedback;
 use super::lock_state;
+use super::restore_flow;
 use super::types::{AuthenticatedSession, BootstrapServicesContext, LoginAttemptOutcome};
 use super::views::{
     LoginDialogWidgets, build_login_view, setup_bootstrap_gates, setup_language_toggle,
@@ -47,8 +48,7 @@ where
     authenticated: Rc<Cell<bool>>,
     lock_active: Rc<Cell<bool>>,
     lock_timer: Rc<RefCell<Option<glib::SourceId>>>,
-    on_restore_requested:
-        Arc<dyn Fn(PathBuf, String, String) -> Result<(), AppError> + Send + Sync>,
+    on_restore_requested: restore_flow::RestoreHandler,
     on_restore_completed: Rc<dyn Fn()>,
     on_authenticated: Rc<dyn Fn(AuthenticatedSession)>,
     on_cancelled: Rc<dyn Fn()>,
@@ -68,8 +68,14 @@ impl super::LoginDialog {
         startup_psc_artifact: Option<String>,
         bootstrap_ctx: Option<BootstrapServicesContext>,
         license_badge_text: String,
-        on_restore_requested: impl Fn(PathBuf, String, String) -> Result<(), AppError>
-        + Send
+        on_restore_requested: impl Fn(
+            PathBuf,
+            String,
+            String,
+        ) -> Result<
+            heelonvault_core::services::rekey_service::RekeyReport,
+            AppError,
+        > + Send
         + Sync
         + 'static,
         on_restore_completed: impl Fn() + 'static,
@@ -142,9 +148,7 @@ impl super::LoginDialog {
         let lock_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
 
         // Convertir les impl Fn en dyn Fn pour le stockage
-        let on_restore_requested_arc: Arc<
-            dyn Fn(PathBuf, String, String) -> Result<(), AppError> + Send + Sync,
-        > = Arc::new(on_restore_requested);
+        let on_restore_requested_arc: restore_flow::RestoreHandler = Arc::new(on_restore_requested);
         let on_restore_completed_rc: Rc<dyn Fn()> = Rc::new(on_restore_completed);
         let on_cancelled_rc: Rc<dyn Fn()> = Rc::new(on_cancelled);
 
@@ -160,6 +164,22 @@ impl super::LoginDialog {
         back_button_for_close.connect_clicked(move |_| {
             window_for_back.close();
         });
+
+        // 4c. Connexion du bouton Restore pour ouvrir la dialogue de restauration
+        // Uniquement en mode NON bootstrap
+        if !in_bootstrap_mode {
+            let restore_parent = window.clone();
+            let restore_request_handler = Arc::clone(&on_restore_requested_arc);
+            let restore_complete_handler = Rc::clone(&on_restore_completed_rc);
+            let restore_button = widgets.restore_button.clone();
+            restore_button.connect_clicked(move |_| {
+                restore_flow::present_restore_dialog(
+                    &restore_parent,
+                    Arc::clone(&restore_request_handler),
+                    Rc::clone(&restore_complete_handler),
+                );
+            });
+        }
 
         // 5. Configuration du handler principal du bouton submit (uniquement si NON en mode bootstrap)
         if !in_bootstrap_mode {
@@ -244,7 +264,11 @@ impl super::LoginDialog {
             });
         }
 
-        Self { window }
+        Self {
+            window,
+            in_bootstrap_mode,
+            widgets,
+        }
     }
 
     /// Configure le handler du bouton submit avec toute la logique métier.
@@ -403,6 +427,13 @@ impl super::LoginDialog {
                         });
                     }
                 };
+                let master_key = super::login_flow::upgrade_legacy_credentials(
+                    user_service.as_ref(),
+                    canonical_username.as_str(),
+                    &password_bytes,
+                    master_key,
+                )
+                .await;
 
                 let user_profile = user_service
                     .get_user_profile_by_username(canonical_username.as_str())
@@ -600,8 +631,17 @@ impl super::LoginDialog {
         &self.window
     }
 
-    /// Présente la fenêtre de dialogue
+    /// Présente la fenêtre de dialogue et met le focus sur le champ approprié
     pub fn present(&self) {
         self.window.present();
+
+        // Mettre le focus sur le champ approprié selon le mode
+        if self.in_bootstrap_mode {
+            // Mode bootstrap : focus sur le champ init_username_entry
+            self.widgets.init_username_entry.grab_focus();
+        } else {
+            // Mode login normal : focus sur le champ username_entry
+            self.widgets.username_entry.grab_focus();
+        }
     }
 }

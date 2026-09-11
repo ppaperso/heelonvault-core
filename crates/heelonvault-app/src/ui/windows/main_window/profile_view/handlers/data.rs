@@ -18,10 +18,13 @@ use heelonvault_core::services::import_service::ImportService;
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
 
-use secrecy::{ExposeSecret, SecretBox};
+use secrecy::SecretBox;
 
-use heelonvault_core::repositories::user_repository::{SqlxUserRepository, UserRepository};
-use heelonvault_core::services::crypto_service::{CryptoService, CryptoServiceImpl};
+use heelonvault_core::repositories::user_repository::{
+    SqlxUserRepository, UserKeyMaterialRepository, UserRepository,
+};
+use heelonvault_core::services::account_key;
+use heelonvault_core::services::crypto_service::CryptoServiceImpl;
 
 use super::super::sections::data::DataSection;
 use crate::ui::dialogs::recovery_key_export_dialog;
@@ -104,11 +107,33 @@ pub fn setup<TBackup, TBackupApp, TImport, TSecret, TVault>(
                 MainWindow::show_feedback_dialog(&window_for_feedback, title, body);
             });
 
+            let user_repo_for_export = Arc::clone(&user_repo);
+            let crypto_for_export = Arc::clone(&crypto_service);
+            let account_key_for_export =
+                MainWindow::snapshot_session_master_key(&session_for_export);
             let run_export: ExportRunner =
                 Arc::new(move |backup_path: PathBuf, recovery_phrase| {
                     let backup_app_for_task = Arc::clone(&backup_app_for_dialog);
                     let db_for_task = db_path_for_dialog.clone();
+                    let user_repo = Arc::clone(&user_repo_for_export);
+                    let crypto = Arc::clone(&crypto_for_export);
+                    let account_key = account_key_for_export.clone();
                     Box::pin(async move {
+                        let Some(account_key) = account_key else {
+                            return Err(heelonvault_core::errors::AppError::Validation(
+                                "session master key unavailable".to_string(),
+                            ));
+                        };
+                        // The phrase was verified by the dialog; the backup must hold a
+                        // recovery envelope it opens.
+                        account_key::ensure_recovery_key(
+                            user_repo.as_ref(),
+                            crypto.as_ref(),
+                            actor_id_for_dialog,
+                            &SecretBox::new(Box::new(account_key)),
+                            &recovery_phrase,
+                        )
+                        .await?;
                         backup_app_for_task
                             .export_backup_secured(
                                 actor_id_for_dialog,
@@ -161,21 +186,14 @@ pub fn setup<TBackup, TBackupApp, TImport, TSecret, TVault>(
 
                         let bundle = backup_service.generate_recovery_key()?;
 
-                        let encrypted = crypto
-                            .encrypt(
-                                &SecretBox::new(Box::new(
-                                    bundle.recovery_phrase.expose_secret().as_bytes().to_vec(),
-                                )),
-                                &master_key,
-                            )
-                            .await?;
+                        let sealed = account_key::seal_with_recovery_phrase(
+                            crypto.as_ref(),
+                            &bundle.recovery_phrase,
+                            &master_key,
+                        )
+                        .await?;
                         user_repo
-                            .set_recovery_phrase_envelope(
-                                user_id_for_verifier,
-                                heelonvault_core::services::crypto_service::encode_envelope(
-                                    &encrypted,
-                                ),
-                            )
+                            .set_recovery_key_envelope(user_id_for_verifier, sealed)
                             .await?;
 
                         let verifier =

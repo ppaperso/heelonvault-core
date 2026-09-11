@@ -8,15 +8,75 @@ use gtk4::prelude::*;
 use gtk4::{Align, Orientation};
 
 use crate::ui::widgets::password_strength_bar::PasswordStrengthBar;
-use heelonvault_core::errors::AppError;
+use heelonvault_core::errors::{AppError, RecoveryFailure};
+use heelonvault_core::i18n::{I18nArg, tr_args};
+use heelonvault_core::services::rekey_service::RekeyReport;
 
 use super::{feedback, window_state};
 
+pub(super) type RestoreHandler =
+    Arc<dyn Fn(PathBuf, String, String) -> Result<RekeyReport, AppError> + Send + Sync>;
+
+const RECOVERY_PHRASE_WORDS: usize = 24;
+
+fn count_arg(value: usize) -> I18nArg<'static> {
+    I18nArg::Num(i64::try_from(value).unwrap_or(i64::MAX))
+}
+
+fn restore_error_message(error: &AppError) -> String {
+    let key = match error {
+        AppError::Recovery(RecoveryFailure::InvalidPhrase) => "login-restore-error-invalid-phrase",
+        AppError::Recovery(RecoveryFailure::WrongPhraseOrAlteredFile) => {
+            "login-restore-error-wrong-phrase"
+        }
+        AppError::Recovery(RecoveryFailure::NotABackup) => "login-restore-error-not-a-backup",
+        AppError::Recovery(RecoveryFailure::UnsupportedBackupVersion(_)) => {
+            "login-restore-error-unsupported-version"
+        }
+        AppError::Recovery(RecoveryFailure::NoAccount) => "login-restore-error-no-account",
+        AppError::Recovery(RecoveryFailure::MultipleAccounts) => {
+            "login-restore-error-multiple-accounts"
+        }
+        AppError::Recovery(RecoveryFailure::InconsistentKeyMaterial) => {
+            "login-restore-error-inconsistent"
+        }
+        AppError::Recovery(RecoveryFailure::RecoveryKeyMissing) => {
+            "login-restore-error-recovery-key-missing"
+        }
+        other => {
+            let details = other.to_string();
+            return tr_args(
+                "login-restore-error-generic",
+                &[("details", I18nArg::Str(details.as_str()))],
+            );
+        }
+    };
+    heelonvault_core::tr!(key)
+}
+
+fn restore_success_message(report: &RekeyReport) -> String {
+    let mut lines = vec![heelonvault_core::tr!("login-restore-success-body")];
+    if report.totp_disabled {
+        lines.push(heelonvault_core::tr!("login-restore-warning-totp"));
+    }
+    if report.secrets_unreadable > 0 {
+        lines.push(tr_args(
+            "login-restore-warning-unreadable",
+            &[("count", count_arg(report.secrets_unreadable))],
+        ));
+    }
+    if report.vaults_without_key > 0 {
+        lines.push(tr_args(
+            "login-restore-warning-vaults-without-key",
+            &[("count", count_arg(report.vaults_without_key))],
+        ));
+    }
+    lines.join("\n\n")
+}
+
 pub(super) fn present_restore_dialog(
     parent: &gtk4::Window,
-    on_restore_requested: Arc<
-        dyn Fn(PathBuf, String, String) -> Result<(), AppError> + Send + Sync,
-    >,
+    on_restore_requested: RestoreHandler,
     on_restore_completed: Rc<dyn Fn()>,
 ) {
     let (restore_width, restore_height) = window_state::resolve_restore_window_size();
@@ -212,16 +272,18 @@ pub(super) fn present_restore_dialog(
     let update_action_for_chooser = Rc::clone(&update_action_state);
     browse_button.connect_clicked(move |_| {
         let chooser = gtk4::FileChooserNative::builder()
-            .title("Choisir un export .hvb")
+            .title(heelonvault_core::tr!("login-restore-choose-title").as_str())
             .transient_for(&parent_for_chooser)
             .action(gtk4::FileChooserAction::Open)
-            .accept_label("Selectionner")
-            .cancel_label("Annuler")
+            .accept_label(heelonvault_core::tr!("login-restore-choose-accept").as_str())
+            .cancel_label(heelonvault_core::tr!("login-restore-cancel").as_str())
             .build();
 
         let filter = gtk4::FileFilter::new();
         filter.add_pattern("*.hvb");
-        filter.set_name(Some("Sauvegardes HeelonVault (*.hvb)"));
+        filter.set_name(Some(
+            heelonvault_core::tr!("login-restore-file-filter").as_str(),
+        ));
         chooser.set_filter(&filter);
 
         let file_entry_for_response = file_entry_for_chooser.clone();
@@ -265,7 +327,7 @@ pub(super) fn present_restore_dialog(
         if file_path.is_empty() {
             feedback::show_feedback(
                 &error_for_submit,
-                "Selectionnez un export .hvb a restaurer.",
+                heelonvault_core::tr!("login-restore-error-file-required").as_str(),
             );
             return;
         }
@@ -273,15 +335,19 @@ pub(super) fn present_restore_dialog(
         if !PathBuf::from(&file_path).exists() {
             feedback::show_feedback(
                 &error_for_submit,
-                "Le fichier .hvb selectionne est introuvable.",
+                heelonvault_core::tr!("login-restore-error-file-missing").as_str(),
             );
             return;
         }
 
-        if recovery_phrase.split_whitespace().count() != 24 {
+        if recovery_phrase.split_whitespace().count() != RECOVERY_PHRASE_WORDS {
             feedback::show_feedback(
                 &error_for_submit,
-                "La phrase de recuperation doit contenir exactement 24 mots.",
+                tr_args(
+                    "login-restore-error-phrase-length",
+                    &[("count", count_arg(RECOVERY_PHRASE_WORDS))],
+                )
+                .as_str(),
             );
             return;
         }
@@ -289,7 +355,7 @@ pub(super) fn present_restore_dialog(
         if new_password != confirmation {
             feedback::show_feedback(
                 &error_for_submit,
-                "La confirmation du nouveau mot de passe ne correspond pas.",
+                heelonvault_core::tr!("login-restore-error-confirm-mismatch").as_str(),
             );
             return;
         }
@@ -297,7 +363,7 @@ pub(super) fn present_restore_dialog(
         if strength_bar.last_score() < 3 {
             feedback::show_feedback(
                 &error_for_submit,
-                "Choisissez un mot de passe principal au moins solide avant de restaurer.",
+                heelonvault_core::tr!("login-restore-error-weak-password").as_str(),
             );
             return;
         }
@@ -324,21 +390,21 @@ pub(super) fn present_restore_dialog(
         let on_restore_completed = Rc::clone(&on_restore_completed);
         let update_action_state = Rc::clone(&update_action_state);
         glib::MainContext::default().spawn_local(async move {
-            match receiver.await {
-                Ok(Ok(())) => {
-                    busy_for_result.set(false);
-                    feedback::set_pending_state(
-                        &restore_button_for_result,
-                        &restore_spinner_for_result,
-                        false,
-                    );
-
+            busy_for_result.set(false);
+            let outcome = receiver.await;
+            feedback::set_pending_state(
+                &restore_button_for_result,
+                &restore_spinner_for_result,
+                false,
+            );
+            match outcome {
+                Ok(Ok(report)) => {
                     let info_dialog = gtk4::MessageDialog::builder()
                         .transient_for(&dialog_for_result)
                         .modal(true)
                         .buttons(gtk4::ButtonsType::Ok)
-                        .text("Restauration terminee")
-                        .secondary_text("La base a ete restauree et l'application va redemarrer.")
+                        .text(heelonvault_core::tr!("login-restore-success-title").as_str())
+                        .secondary_text(restore_success_message(&report).as_str())
                         .build();
                     let dialog_for_close = dialog_for_result.clone();
                     let on_restore_completed = Rc::clone(&on_restore_completed);
@@ -350,27 +416,17 @@ pub(super) fn present_restore_dialog(
                     info_dialog.show();
                 }
                 Ok(Err(error)) => {
-                    busy_for_result.set(false);
-                    feedback::set_pending_state(
-                        &restore_button_for_result,
-                        &restore_spinner_for_result,
-                        false,
-                    );
-                    // Log the error for debugging
                     ::tracing::error!(error = %error, "database restore failed");
-                    feedback::show_feedback(&error_for_result, &error.to_string());
+                    feedback::show_feedback(
+                        &error_for_result,
+                        restore_error_message(&error).as_str(),
+                    );
                     update_action_state();
                 }
                 Err(_) => {
-                    busy_for_result.set(false);
-                    feedback::set_pending_state(
-                        &restore_button_for_result,
-                        &restore_spinner_for_result,
-                        false,
-                    );
                     feedback::show_feedback(
                         &error_for_result,
-                        "La restauration a ete interrompue avant son terme.",
+                        heelonvault_core::tr!("login-restore-error-interrupted").as_str(),
                     );
                     update_action_state();
                 }

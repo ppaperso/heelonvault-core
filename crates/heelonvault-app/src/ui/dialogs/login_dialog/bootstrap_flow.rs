@@ -111,15 +111,15 @@ pub(super) fn handle_init_identity_step(
 pub(super) fn handle_init_oath_step(
     init_clipboard_dirty: Rc<Cell<bool>>,
     init_clipboard_timer: Rc<RefCell<Option<glib::SourceId>>>,
-    init_username: &gtk4::Entry,
-    init_password: &gtk4::PasswordEntry,
-    step_stack: &gtk4::Stack,
-    init_pending_spinner: &gtk4::Spinner,
+    init_username: gtk4::Entry,
+    init_password: gtk4::PasswordEntry,
+    step_stack: gtk4::Stack,
+    init_pending_spinner: gtk4::Spinner,
     do_bootstrap_fn: Option<BootstrapCallback>,
-    dialog: &gtk4::Window,
-    error_label: &gtk4::Label,
-    submit_button: &gtk4::Button,
-    submit_spinner: &gtk4::Spinner,
+    dialog: gtk4::Window,
+    error_label: gtk4::Label,
+    submit_button: gtk4::Button,
+    submit_spinner: gtk4::Spinner,
     authenticated: Rc<Cell<bool>>,
     on_authenticated: Rc<dyn Fn(AuthenticatedSession)>,
 ) {
@@ -186,6 +186,8 @@ pub(super) fn handle_init_oath_step(
                     _ => heelonvault_core::tr!("login-error-unavailable"),
                 };
                 feedback::show_feedback(&error_for_result, message.as_str());
+                // Remettre le focus sur le champ username
+                init_username.grab_focus();
             }
             Err(_) => {
                 spinner_result.stop();
@@ -195,6 +197,8 @@ pub(super) fn handle_init_oath_step(
                     &error_for_result,
                     heelonvault_core::tr!("login-error-interrupted").as_str(),
                 );
+                // Remettre le focus sur le champ username
+                init_username.grab_focus();
             }
         }
     });
@@ -243,6 +247,7 @@ pub(super) fn setup_bootstrap_submit_handler(
     let init_verify_hint_label = widgets.init_verify_hint_label.clone();
     let init_verify_a_label = widgets.init_verify_a_label.clone();
     let init_verify_b_label = widgets.init_verify_b_label.clone();
+    let init_verify_a_entry = widgets.init_verify_a_entry.clone();
     let gen_key_fn_for_handler = gen_key_fn.clone();
     let do_bootstrap_fn_for_handler = do_bootstrap_fn.clone();
     let window_for_handler = window.clone();
@@ -281,21 +286,23 @@ pub(super) fn setup_bootstrap_submit_handler(
                 // Mettre à jour le texte du bouton pour l'étape oath
                 button_label.set_text(heelonvault_core::tr!("init-confirm-button").as_str());
                 submit_button.add_css_class("suggested-action");
+                // Mettre le focus sur le premier champ de vérification
+                init_verify_a_entry.grab_focus();
             }
             "init-oath" => {
                 // Étape 2: Vérifier les mots et exécuter le bootstrap
                 handle_init_oath_step(
                     Rc::clone(&init_clipboard_dirty_for_handler),
                     Rc::clone(&init_clipboard_timer_for_handler),
-                    &init_username_entry,
-                    &init_password_entry,
-                    &step_stack,
-                    &init_pending_spinner,
+                    init_username_entry.clone(),
+                    init_password_entry.clone(),
+                    step_stack.clone(),
+                    init_pending_spinner.clone(),
                     do_bootstrap_fn_for_handler.clone(),
-                    &window_for_handler,
-                    &error_label,
-                    &submit_button,
-                    &submit_spinner,
+                    window_for_handler.clone(),
+                    error_label.clone(),
+                    submit_button.clone(),
+                    submit_spinner.clone(),
                     Rc::clone(&authenticated_for_handler),
                     Rc::clone(&on_authenticated_for_handler),
                 );

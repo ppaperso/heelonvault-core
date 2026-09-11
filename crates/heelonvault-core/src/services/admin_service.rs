@@ -4,8 +4,9 @@ use uuid::Uuid;
 
 use crate::errors::AppError;
 use crate::models::{User, UserRole};
-use crate::repositories::user_repository::UserRepository;
-use crate::services::auth_service::AuthService;
+use crate::repositories::user_repository::{UserKeyMaterialRepository, UserRepository};
+use crate::services::account_key::{generate_account_key, seal_with_recovery_phrase};
+use crate::services::auth_service::{AuthService, encode_password_envelope, wrap_account_key};
 use crate::services::crypto_service::CryptoService;
 
 /// Result of a successful user creation, exposing the derived master key so
@@ -78,10 +79,10 @@ pub trait LocalAdminService {
 /// This is a free function (not a trait method) so it is available in Community
 /// builds where `AdminServiceImpl` is not compiled.
 pub async fn bootstrap_first_admin_with_recovery(
-    user_repo: &impl UserRepository,
+    user_repo: &(impl UserRepository + UserKeyMaterialRepository),
     auth_service: &impl AuthService,
     backup_service: &impl crate::services::backup_service::BackupService,
-    crypto_service: &impl CryptoService,
+    crypto_service: &(impl CryptoService + Sync),
     username: &str,
     password: SecretBox<Vec<u8>>,
     recovery_phrase: SecretString,
@@ -99,18 +100,23 @@ pub async fn bootstrap_first_admin_with_recovery(
             "username must not be empty".to_string(),
         ));
     }
+    let password_text = std::str::from_utf8(password.expose_secret().as_slice())
+        .map(|text| SecretString::new(text.into()))
+        .map_err(|_| AppError::Validation("password must be valid utf-8".to_string()))?;
 
-    let password_bytes = password.expose_secret().clone();
+    // A single account from the start: its vault keys go under a random account key, stored
+    // only encrypted, under the password and under the recovery phrase.
+    let account_key = generate_account_key()?;
+    let envelope = encode_password_envelope(
+        &wrap_account_key(crypto_service, &password_text, &account_key).await?,
+    );
     auth_service
-        .create_user(trimmed, SecretBox::new(Box::new(password_bytes.clone())))
+        .upsert_password_envelope(
+            trimmed,
+            SecretBox::new(Box::new(envelope.expose_secret().clone())),
+        )
         .await?;
 
-    let master_key = auth_service
-        .derive_key_if_valid(trimmed, SecretBox::new(Box::new(password_bytes)))
-        .await?
-        .ok_or(AppError::Internal)?;
-
-    let envelope = auth_service.get_password_envelope(trimmed).await?;
     let user_id = Uuid::new_v4();
     user_repo
         .create_user_db(user_id, trimmed, &UserRole::Admin)
@@ -118,22 +124,10 @@ pub async fn bootstrap_first_admin_with_recovery(
     user_repo
         .update_password_envelope(user_id, envelope)
         .await?;
-
-    // Encrypt and store the recovery phrase
-    let master_key_bytes = master_key.expose_secret().clone();
-    let encrypted_recovery = crypto_service
-        .encrypt(
-            &secrecy::SecretBox::new(Box::new(
-                recovery_phrase.expose_secret().as_bytes().to_vec(),
-            )),
-            &secrecy::SecretBox::new(Box::new(master_key_bytes)),
-        )
-        .await?;
-
     user_repo
-        .set_recovery_phrase_envelope(
+        .set_recovery_key_envelope(
             user_id,
-            crate::services::crypto_service::encode_envelope(&encrypted_recovery),
+            seal_with_recovery_phrase(crypto_service, &recovery_phrase, &account_key).await?,
         )
         .await?;
 
@@ -141,11 +135,11 @@ pub async fn bootstrap_first_admin_with_recovery(
     let verifier = backup_service.build_recovery_verifier(&recovery_phrase)?;
     user_repo.set_recovery_verifier(user_id, verifier).await?;
 
-    info!(user_id = %user_id, username = trimmed, "bootstrap: first admin account created with recovery phrase");
+    info!(user_id = %user_id, username = trimmed, "bootstrap: first admin account created with an account key");
     Ok(BootstrapResult {
         user_id,
         username: trimmed.to_string(),
-        master_key,
+        master_key: account_key,
         recovery_phrase,
     })
 }

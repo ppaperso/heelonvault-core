@@ -18,5 +18,6 @@ pub use self::types::{AuthenticatedSession, BootstrapServicesContext};
 /// Structure principale de la boîte de dialogue de connexion.
 pub struct LoginDialog {
     window: gtk4::Window,
-    // Ajouter ici les champs nécessaires pour l'état partagé
+    in_bootstrap_mode: bool,
+    widgets: crate::ui::dialogs::login_dialog::views::LoginDialogWidgets,
 }

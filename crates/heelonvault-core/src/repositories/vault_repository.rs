@@ -1,5 +1,6 @@
 use crate::errors::AppError;
 use crate::models::{AccessibleVault, Vault, VaultAccessKind, VaultShareRole};
+use crate::services::vault_service::VaultKeyEnvelopeRepository;
 use crate::utils::sqlx_helpers::sqlx_bind_secret;
 use secrecy::SecretBox;
 use sqlx::{Row, SqlitePool};
@@ -20,6 +21,22 @@ pub struct VaultShareEnvelopeUpdate {
     pub key_envelope: SecretBox<Vec<u8>>,
 }
 
+/// New value for a per-user column encrypted under the master key.
+#[derive(Debug, Default)]
+pub enum UserEnvelopeChange {
+    #[default]
+    Keep,
+    Replace(SecretBox<Vec<u8>>),
+    Clear,
+}
+
+#[derive(Debug, Default)]
+pub struct UserKeyMaterialUpdate {
+    pub recovery_phrase_envelope: UserEnvelopeChange,
+    pub totp_secret: UserEnvelopeChange,
+    pub recovery_key_envelope: UserEnvelopeChange,
+}
+
 #[trait_variant::make(MasterKeyRotationRepository: Send)]
 pub trait LocalMasterKeyRotationRepository {
     async fn apply_master_key_rotation_atomically(
@@ -28,6 +45,7 @@ pub trait LocalMasterKeyRotationRepository {
         password_envelope: SecretBox<Vec<u8>>,
         owner_updates: Vec<VaultEnvelopeUpdate>,
         shared_updates: Vec<VaultShareEnvelopeUpdate>,
+        user_key_material: UserKeyMaterialUpdate,
     ) -> Result<(), AppError>;
 }
 
@@ -118,6 +136,32 @@ pub struct SqlxVaultRepository {
 impl SqlxVaultRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
+    }
+
+    async fn apply_user_envelope_change(
+        conn: &mut sqlx::SqliteConnection,
+        replace_sql: &'static str,
+        clear_sql: &'static str,
+        user_id: Uuid,
+        change: UserEnvelopeChange,
+    ) -> Result<(), AppError> {
+        match change {
+            UserEnvelopeChange::Keep => {}
+            UserEnvelopeChange::Replace(envelope) => {
+                sqlx::query(replace_sql)
+                    .bind(sqlx_bind_secret(&envelope))
+                    .bind(user_id.to_string())
+                    .execute(&mut *conn)
+                    .await?;
+            }
+            UserEnvelopeChange::Clear => {
+                sqlx::query(clear_sql)
+                    .bind(user_id.to_string())
+                    .execute(&mut *conn)
+                    .await?;
+            }
+        }
+        Ok(())
     }
 
     fn rows_to_vaults(rows: Vec<sqlx::sqlite::SqliteRow>) -> Result<Vec<Vault>, sqlx::Error> {
@@ -570,6 +614,7 @@ impl MasterKeyRotationRepository for SqlxVaultRepository {
         password_envelope: SecretBox<Vec<u8>>,
         owner_updates: Vec<VaultEnvelopeUpdate>,
         shared_updates: Vec<VaultShareEnvelopeUpdate>,
+        user_key_material: UserKeyMaterialUpdate,
     ) -> Result<(), AppError> {
         let mut tx = self.pool.begin().await?;
 
@@ -590,17 +635,37 @@ impl MasterKeyRotationRepository for SqlxVaultRepository {
             ));
         }
 
+        Self::apply_user_envelope_change(
+            &mut tx,
+            "UPDATE users SET recovery_phrase_envelope = ?1 WHERE id = ?2",
+            "UPDATE users SET recovery_phrase_envelope = NULL WHERE id = ?1",
+            user_id,
+            user_key_material.recovery_phrase_envelope,
+        )
+        .await?;
+        Self::apply_user_envelope_change(
+            &mut tx,
+            "UPDATE users SET totp_secret = ?1 WHERE id = ?2",
+            "UPDATE users SET totp_secret = NULL WHERE id = ?1",
+            user_id,
+            user_key_material.totp_secret,
+        )
+        .await?;
+        Self::apply_user_envelope_change(
+            &mut tx,
+            "UPDATE users SET recovery_key_envelope = ?1 WHERE id = ?2",
+            "UPDATE users SET recovery_key_envelope = NULL WHERE id = ?1",
+            user_id,
+            user_key_material.recovery_key_envelope,
+        )
+        .await?;
+
         for update in owner_updates {
-            let result = sqlx::query(
-                "UPDATE vaults
-                 SET vault_key_envelope = ?1,
-                     modified_at = datetime('now')
-                 WHERE id = ?2",
-            )
-            .bind(sqlx_bind_secret(&update.key_envelope))
-            .bind(update.vault_id.to_string())
-            .execute(&mut *tx)
-            .await?;
+            let result = sqlx::query("UPDATE vaults SET vault_key_envelope = ?1 WHERE id = ?2")
+                .bind(sqlx_bind_secret(&update.key_envelope))
+                .bind(update.vault_id.to_string())
+                .execute(&mut *tx)
+                .await?;
 
             if result.rows_affected() == 0 {
                 return Err(AppError::Storage(
@@ -611,10 +676,7 @@ impl MasterKeyRotationRepository for SqlxVaultRepository {
 
         for update in shared_updates {
             let result = sqlx::query(
-                "UPDATE vault_key_shares
-                 SET key_envelope = ?1,
-                     granted_at = datetime('now')
-                 WHERE vault_id = ?2 AND user_id = ?3",
+                "UPDATE vault_key_shares SET key_envelope = ?1 WHERE vault_id = ?2 AND user_id = ?3",
             )
             .bind(sqlx_bind_secret(&update.key_envelope))
             .bind(update.vault_id.to_string())
@@ -631,6 +693,26 @@ impl MasterKeyRotationRepository for SqlxVaultRepository {
 
         tx.commit().await?;
         Ok(())
+    }
+}
+
+impl VaultKeyEnvelopeRepository for SqlxVaultRepository {
+    async fn get_vault_key_envelope(
+        &self,
+        vault_id: Uuid,
+    ) -> Result<Option<SecretBox<Vec<u8>>>, AppError> {
+        let row_opt = sqlx::query("SELECT vault_key_envelope FROM vaults WHERE id = ?1")
+            .bind(vault_id.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
+
+        match row_opt {
+            Some(row) => {
+                let envelope_bytes: Option<Vec<u8>> = row.try_get("vault_key_envelope")?;
+                Ok(envelope_bytes.map(|bytes| SecretBox::new(Box::new(bytes))))
+            }
+            None => Ok(None),
+        }
     }
 }
 

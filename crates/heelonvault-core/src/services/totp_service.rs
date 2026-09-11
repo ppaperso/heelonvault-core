@@ -16,7 +16,6 @@ const TOTP_DIGITS: usize = 6;
 const TOTP_STEP: u64 = 30;
 const TOTP_SKEW: u8 = 1;
 const TOTP_REPLAY_TTL_SECS: i64 = (TOTP_STEP as i64) * 3;
-const PASSWORD_ENVELOPE_VERSION: u8 = 1;
 const LEGACY_DEV_MASTER_KEY_BYTE: u8 = 0x41;
 const LEGACY_DEV_MASTER_KEY_LEN: usize = 32;
 
@@ -38,10 +37,12 @@ pub trait LocalTotpService {
         base32_secret: &str,
         code: &str,
     ) -> Result<bool, AppError>;
+    /// `account_key` is the session key: the TOTP secret is stored encrypted under it.
     async fn enable_totp(
         &self,
         user_id: Uuid,
         username: &str,
+        account_key: &SecretBox<Vec<u8>>,
         base32_secret: &str,
         code: &str,
     ) -> Result<(), AppError>;
@@ -151,38 +152,6 @@ where
         })
     }
 
-    fn derive_key_from_password_envelope(
-        password_envelope: &SecretBox<Vec<u8>>,
-    ) -> Result<SecretBox<Vec<u8>>, AppError> {
-        let bytes = password_envelope.expose_secret();
-        if bytes.len() < 5 {
-            return Err(AppError::Validation(
-                "invalid password envelope: too short".to_string(),
-            ));
-        }
-
-        if bytes[0] != PASSWORD_ENVELOPE_VERSION {
-            return Err(AppError::Validation(
-                "invalid password envelope: unsupported version".to_string(),
-            ));
-        }
-
-        let salt_len = u16::from_be_bytes([bytes[1], bytes[2]]) as usize;
-        let hash_len = u16::from_be_bytes([bytes[3], bytes[4]]) as usize;
-        let hash_start = 5 + salt_len;
-        let expected_len = hash_start + hash_len;
-
-        if hash_len == 0 || bytes.len() != expected_len {
-            return Err(AppError::Validation(
-                "invalid password envelope: malformed payload".to_string(),
-            ));
-        }
-
-        Ok(SecretBox::new(Box::new(
-            bytes[hash_start..expected_len].to_vec(),
-        )))
-    }
-
     async fn load_totp_secret_by_username(
         &self,
         username: &str,
@@ -290,6 +259,7 @@ where
         &self,
         user_id: Uuid,
         username: &str,
+        account_key: &SecretBox<Vec<u8>>,
         base32_secret: &str,
         code: &str,
     ) -> Result<(), AppError> {
@@ -298,9 +268,6 @@ where
                 "username must not be empty".to_string(),
             ));
         }
-
-        let password_envelope = self.auth_service.get_password_envelope(username).await?;
-        let key = Self::derive_key_from_password_envelope(&password_envelope)?;
 
         let is_code_valid = TotpService::verify_setup_code(self, username, base32_secret, code)?;
         if !is_code_valid {
@@ -311,7 +278,7 @@ where
             .crypto_service
             .encrypt(
                 &SecretBox::new(Box::new(base32_secret.as_bytes().to_vec())),
-                &key,
+                account_key,
             )
             .await?;
         let envelope = Self::serialize_envelope(&encrypted);

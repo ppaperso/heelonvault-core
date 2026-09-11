@@ -120,6 +120,30 @@ pub(super) fn handle_psc_artifact_completion<TFederated>(
     });
 }
 
+/// Single-account vaults still on the legacy password envelope move to an account key at login,
+/// the only moment the password is at hand. On failure the session keeps the legacy key.
+pub(super) async fn upgrade_legacy_credentials<TUser>(
+    user_service: &TUser,
+    username: &str,
+    password: &[u8],
+    legacy_key: SecretBox<Vec<u8>>,
+) -> SecretBox<Vec<u8>>
+where
+    TUser: UserService + Send + Sync,
+{
+    match user_service
+        .upgrade_legacy_credentials(username, SecretBox::new(Box::new(password.to_vec())))
+        .await
+    {
+        Ok(Some(account_key)) => account_key,
+        Ok(None) => legacy_key,
+        Err(error) => {
+            ::tracing::error!(error = %error, "account key migration failed; the session keeps the legacy key");
+            legacy_key
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_totp_submit<TAuth, TPolicy, TUser, TTotp>(
     runtime: Handle,
@@ -226,6 +250,13 @@ pub(super) fn handle_totp_submit<TAuth, TPolicy, TUser, TTotp>(
                     remaining_lock_secs: state.remaining_lock_secs,
                 });
             };
+            let master_key = upgrade_legacy_credentials(
+                user_for_task.as_ref(),
+                canonical_username.as_str(),
+                &password_bytes,
+                master_key,
+            )
+            .await;
 
             let user_profile = user_for_task
                 .get_user_profile_by_username(canonical_username.as_str())

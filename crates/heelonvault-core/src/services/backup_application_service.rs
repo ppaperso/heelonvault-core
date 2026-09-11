@@ -117,6 +117,12 @@ where
         let snapshot_arg = snapshot_path
             .to_str()
             .ok_or_else(|| AppError::Validation("database path is not valid UTF-8".to_string()))?;
+        
+        // Normalize path separators to forward slashes for SQL compatibility.
+        // SQLite accepts forward slashes on all platforms, including Windows.
+        // Backslashes in Windows paths would be interpreted as SQL escape characters.
+        let snapshot_arg = snapshot_arg.replace('\\', "/");
+        
         // SQLite rejects bound parameters in `VACUUM INTO`, so the path must be inlined.
         // Rather than escaping, refuse any path that could break out of the literal.
         if snapshot_arg.contains('\'') || snapshot_arg.contains('\0') {

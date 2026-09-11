@@ -638,6 +638,10 @@ where
     let new_pw_for_rotate = password_section.new_entry.clone();
     let confirm_pw_for_rotate = password_section.confirm_entry.clone();
     let security_status_for_rotate = password_section.status_label.clone();
+    let session_for_rotate = Rc::clone(&session_master_key);
+    let pin_cache_for_rotate = Rc::clone(&pin_cache);
+    let pin_badge_for_rotate = security_section.pin_status_badge.clone();
+    let on_pin_state_for_rotate = Rc::clone(&on_pin_state_changed);
     password_section.rotate_button.connect_clicked(move |_| {
         let current_raw = current_pw_for_rotate.text().trim().to_string();
         let new_raw = new_pw_for_rotate.text().trim().to_string();
@@ -685,15 +689,44 @@ where
         let new_for_result = new_pw_for_rotate.clone();
         let confirm_for_result = confirm_pw_for_rotate.clone();
         let security_status_for_result = security_status_for_rotate.clone();
+        let session_for_result = Rc::clone(&session_for_rotate);
+        let pin_cache_for_result = Rc::clone(&pin_cache_for_rotate);
+        let pin_badge_for_result = pin_badge_for_rotate.clone();
+        let on_pin_state_for_result = Rc::clone(&on_pin_state_for_rotate);
         glib::MainContext::default().spawn_local(async move {
             match receiver.await {
-                Ok(Ok(())) => {
+                Ok(Ok(new_master_key)) => {
+                    let key_changed = {
+                        let mut session_key = session_for_result.borrow_mut();
+                        let new_key = secrecy::ExposeSecret::expose_secret(&new_master_key);
+                        let changed = session_key.as_slice() != new_key.as_slice();
+                        if changed {
+                            zeroize::Zeroize::zeroize(&mut *session_key);
+                            *session_key = new_key.clone();
+                        }
+                        changed
+                    };
+                    // Only a changed key invalidates the PIN cache, which wraps the session key.
+                    let pin_was_active =
+                        key_changed && pin_cache_for_result.borrow_mut().take().is_some();
+                    if pin_was_active {
+                        pin_badge_for_result
+                            .set_text(heelonvault_core::tr!("pin-status-inactive").as_str());
+                        pin_badge_for_result.remove_css_class("status-role-user");
+                        pin_badge_for_result.add_css_class("status-role-disabled");
+                        on_pin_state_for_result(false);
+                    }
                     current_for_result.set_text("");
                     new_for_result.set_text("");
                     confirm_for_result.set_text("");
+                    let status_key = if pin_was_active {
+                        "profile-status-password-updated-pin-reset"
+                    } else {
+                        "profile-status-password-updated"
+                    };
                     MainWindow::set_inline_status(
                         &security_status_for_result,
-                        heelonvault_core::tr!("profile-status-password-updated").as_str(),
+                        heelonvault_core::tr!(status_key).as_str(),
                         "success",
                     );
                 }
@@ -715,6 +748,7 @@ where
             runtime_handle: runtime_handle.clone(),
             totp_service: Arc::clone(&totp_service),
             user_id,
+            session_master_key: Rc::clone(&session_master_key),
         },
     );
 

@@ -576,6 +576,18 @@ impl ManageUsersDialog {
     }
 
     fn show_error(window: Option<&gtk4::Window>, err: AppError) {
+        if matches!(err, AppError::SingleAccountVault) {
+            let dialog = adw::MessageDialog::new(
+                window,
+                Some(heelonvault_core::tr!("manage-users-error-single-account-title").as_str()),
+                Some(heelonvault_core::tr!("manage-users-error-single-account-body").as_str()),
+            );
+            dialog.add_response("ok", heelonvault_core::tr!("common-ok").as_str());
+            dialog.set_default_response(Some("ok"));
+            dialog.set_close_response("ok");
+            dialog.present();
+            return;
+        }
         let title = match err {
             AppError::FeatureNotAvailable(feature) => {
                 use gtk4::gio;

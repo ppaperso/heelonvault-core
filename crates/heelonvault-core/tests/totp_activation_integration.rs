@@ -70,10 +70,15 @@ async fn enable_totp_requires_valid_code_without_password_prompt() {
     auth_service
         .create_user(username, SecretBox::new(Box::new(b"Admin1234!".to_vec())))
         .await
-        .expect("auth user should exist for envelope-based key derivation");
+        .expect("auth user should exist");
+    let account_key = auth_service
+        .derive_key_if_valid(username, SecretBox::new(Box::new(b"Admin1234!".to_vec())))
+        .await
+        .expect("key derivation should run")
+        .expect("the password should open the account");
     let totp_service = SqliteTotpService::new(
         pool.clone(),
-        auth_service,
+        Arc::clone(&auth_service),
         CryptoServiceImpl::with_defaults(),
         "HeelonVault",
     );
@@ -89,6 +94,7 @@ async fn enable_totp_requires_valid_code_without_password_prompt() {
         .enable_totp(
             user_id,
             username,
+            &account_key,
             payload.base32_secret.as_str(),
             wrong_code.as_str(),
         )
@@ -114,6 +120,7 @@ async fn enable_totp_requires_valid_code_without_password_prompt() {
         .enable_totp(
             user_id,
             username,
+            &account_key,
             payload.base32_secret.as_str(),
             valid_code.as_str(),
         )

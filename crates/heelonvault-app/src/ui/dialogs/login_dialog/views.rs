@@ -522,7 +522,10 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
     }
 
     credentials_step_box.append(&credentials_box);
-    credentials_step_box.append(&restore_button);
+    // Le bouton de restauration n'est visible qu'en mode login normal (pas bootstrap)
+    if !in_bootstrap_mode {
+        credentials_step_box.append(&restore_button);
+    }
 
     // STEP 2: TOTP view
     let totp_step_box = gtk4::Box::builder()

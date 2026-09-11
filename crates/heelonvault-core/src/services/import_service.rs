@@ -13,6 +13,7 @@ use crate::errors::AppError;
 use crate::models::SecretType;
 use crate::services::secret_service::SecretService;
 use crate::services::vault_service::VaultService;
+use crate::utils::private_fs;
 
 #[derive(Debug, Clone)]
 pub struct ImportCsvFailure {
@@ -384,7 +385,7 @@ impl ImportServiceImpl {
             return Ok(None);
         }
 
-        fs::create_dir_all(report_dir).map_err(|error| {
+        private_fs::create_private_dir_all(report_dir).map_err(|error| {
             AppError::Storage(format!(
                 "failed to create csv reject report directory {}: {error}",
                 report_dir.display()
@@ -417,12 +418,14 @@ impl ImportServiceImpl {
             lines.push(String::new());
         }
 
-        fs::write(report_path.as_path(), lines.join("\n")).map_err(|error| {
-            AppError::Storage(format!(
-                "failed to write csv reject report {}: {error}",
-                report_path.display()
-            ))
-        })?;
+        private_fs::write_private(report_path.as_path(), lines.join("\n").as_bytes()).map_err(
+            |error| {
+                AppError::Storage(format!(
+                    "failed to write csv reject report {}: {error}",
+                    report_path.display()
+                ))
+            },
+        )?;
 
         Ok(Some(report_path.display().to_string()))
     }

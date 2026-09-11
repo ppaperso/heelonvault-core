@@ -73,8 +73,79 @@ pub trait LocalUserRepository {
     ) -> Result<(), AppError>;
 }
 
+/// Per-user key material beyond the core user record.
+#[trait_variant::make(UserKeyMaterialRepository: Send)]
+pub trait LocalUserKeyMaterialRepository {
+    /// TOTP secret (`nonce || ciphertext`), when two-factor authentication is enabled.
+    async fn get_totp_secret(&self, user_id: Uuid) -> Result<Option<SecretBox<Vec<u8>>>, AppError>;
+    /// Account key sealed with the recovery phrase (`account_key::seal_with_recovery_phrase`).
+    async fn get_recovery_key_envelope(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Option<SecretBox<Vec<u8>>>, AppError>;
+    async fn set_recovery_key_envelope(
+        &self,
+        user_id: Uuid,
+        envelope: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError>;
+}
+
 pub struct SqlxUserRepository {
     pool: SqlitePool,
+}
+
+impl UserKeyMaterialRepository for SqlxUserRepository {
+    async fn get_recovery_key_envelope(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Option<SecretBox<Vec<u8>>>, AppError> {
+        let row_opt = sqlx::query("SELECT recovery_key_envelope FROM users WHERE id = ?1")
+            .bind(user_id.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
+
+        match row_opt {
+            Some(row) => {
+                let bytes: Option<Vec<u8>> = row.try_get("recovery_key_envelope")?;
+                Ok(bytes.map(|value| SecretBox::new(Box::new(value))))
+            }
+            None => Ok(None),
+        }
+    }
+
+    async fn set_recovery_key_envelope(
+        &self,
+        user_id: Uuid,
+        envelope: SecretBox<Vec<u8>>,
+    ) -> Result<(), AppError> {
+        let result = sqlx::query("UPDATE users SET recovery_key_envelope = ?1 WHERE id = ?2")
+            .bind(sqlx_bind_secret(&envelope))
+            .bind(user_id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(
+                "user not found for recovery key".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    async fn get_totp_secret(&self, user_id: Uuid) -> Result<Option<SecretBox<Vec<u8>>>, AppError> {
+        let row_opt = sqlx::query("SELECT totp_secret FROM users WHERE id = ?1")
+            .bind(user_id.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
+
+        match row_opt {
+            Some(row) => {
+                let bytes: Option<Vec<u8>> = row.try_get("totp_secret")?;
+                Ok(bytes.map(|value| SecretBox::new(Box::new(value))))
+            }
+            None => Ok(None),
+        }
+    }
 }
 
 impl SqlxUserRepository {
