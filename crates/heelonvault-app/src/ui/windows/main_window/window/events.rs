@@ -24,7 +24,6 @@ use tokio::runtime::Handle;
 use tracing::{info, warn};
 use uuid::Uuid;
 
-#[allow(unused_imports)]
 use crate::ui::windows::main_window::{AuditFilter, SecretCategoryFilter, SecretSortMode};
 
 /// Setup the window close request handler

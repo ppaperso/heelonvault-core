@@ -1,8 +1,6 @@
 use super::*;
 
 impl MainWindow {
-    #[allow(dead_code)]
-    pub(super) const DEFAULT_AUTO_LOCK_TIMEOUT_SECS: u64 = 5 * 60;
     pub(super) const DEFAULT_WINDOW_WIDTH: i32 = 1180;
     pub(super) const DEFAULT_WINDOW_HEIGHT: i32 = 760;
     pub(super) const MIN_WINDOW_WIDTH: i32 = 980;
@@ -24,13 +22,6 @@ impl MainWindow {
         }
 
         None
-    }
-
-    #[allow(dead_code)]
-    pub(in crate::ui::windows::main_window) fn build_header_license_badge(
-        license_badge_text: &str,
-    ) -> gtk4::Widget {
-        header::build_header_license_badge(license_badge_text)
     }
 
     pub(in crate::ui::windows::main_window) fn initial_window_launch()

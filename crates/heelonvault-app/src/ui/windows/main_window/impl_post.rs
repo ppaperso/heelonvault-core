@@ -1,7 +1,6 @@
 use super::*;
-use heelonvault_core::services::pin_cache_service::{PinCache, PinUnlockError};
+use heelonvault_core::services::pin_cache_service::PinUnlockError;
 
-#[allow(dead_code)]
 impl MainWindow {
     pub fn window(&self) -> &adw::ApplicationWindow {
         &self.window
@@ -19,11 +18,6 @@ impl MainWindow {
 
     /// Store a freshly created `PinCache`, replacing any previous one.
     // Phase 5a: PinSetupDialog result not yet wired to MainWindow. Owner: ppaadmin | Due: Phase 5b
-    #[allow(dead_code)]
-    pub fn set_pin_cache(&self, cache: PinCache) {
-        *self.pin_cache.borrow_mut() = Some(cache);
-    }
-
     /// Remove and zeroize the PIN cache (ZeroizeOnDrop ensures secure wipe).
     pub fn clear_pin_cache(&self) {
         let _ = self.pin_cache.borrow_mut().take();

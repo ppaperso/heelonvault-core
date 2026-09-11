@@ -8,9 +8,6 @@ use gtk4::prelude::*;
 use gtk4::{Align, Orientation};
 use libadwaita as adw;
 
-#[allow(unused_imports)]
-use super::types::MainWindowWidgets;
-
 /// Build the main application window with basic configuration
 pub fn build_main_window(application: &adw::Application) -> adw::ApplicationWindow {
     let initial_launch = super::super::MainWindow::initial_window_launch();
@@ -108,7 +105,7 @@ pub fn build_profile_button(
             "main-connected-label",
             &[(
                 "name",
-                heelonvault_core::i18n::I18nArg::Str(&connected_identity_label),
+                heelonvault_core::i18n::I18nArg::Str(connected_identity_label),
             )],
         )
         .as_str(),

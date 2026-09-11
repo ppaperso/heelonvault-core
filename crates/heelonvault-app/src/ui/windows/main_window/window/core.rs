@@ -19,7 +19,6 @@ use tokio::runtime::Handle;
 use uuid::Uuid;
 
 use heelonvault_core::repositories::user_repository::SqlxUserRepository;
-use heelonvault_core::services::audit_service::AuditService;
 use heelonvault_core::services::crypto_service::CryptoServiceImpl;
 use heelonvault_core::services::pin_cache_service::PinCache;
 use heelonvault_core::services::secret_service::SecretService;
@@ -67,7 +66,6 @@ pub fn build_main_window<
     backup_service: Arc<TBackup>,
     backup_app_service: Arc<TBackupApp>,
     import_service: Arc<TImport>,
-    audit_service: Arc<AuditService>,
     #[cfg(feature = "premium")] license_service: Arc<LicenseService>,
     database_pool: SqlitePool,
     database_path: PathBuf,
@@ -506,7 +504,6 @@ where
         on_logout,
         on_pin_state_cb,
         session_user_id: admin_user_id,
-        audit_service: Rc::new(audit_service),
     }
 }
 

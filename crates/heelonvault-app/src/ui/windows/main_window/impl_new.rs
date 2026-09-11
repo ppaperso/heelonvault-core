@@ -25,7 +25,6 @@ impl MainWindow {
         backup_service: Arc<TBackup>,
         backup_app_service: Arc<TBackupApp>,
         import_service: Arc<TImport>,
-        audit_service: Arc<heelonvault_core::services::audit_service::AuditService>,
         #[cfg(feature = "premium")] license_service: Arc<LicenseService>,
         database_pool: SqlitePool,
         database_path: PathBuf,
@@ -60,7 +59,6 @@ impl MainWindow {
             backup_service,
             backup_app_service,
             import_service,
-            audit_service,
             #[cfg(feature = "premium")]
             license_service,
             database_pool,

@@ -7,18 +7,13 @@ use uuid::Uuid;
 
 use super::{AuditFilter, SecretCategoryFilter, SecretKind, SecretSortMode};
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub(super) struct SecretQuickActions {
-    #[allow(dead_code)]
     pub(super) copy_password: gtk4::Button,
-    #[allow(dead_code)]
     pub(super) copy_login: Option<gtk4::Button>,
-    #[allow(dead_code)]
     pub(super) open_url: Option<gtk4::Button>,
 }
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub(super) struct SecretFilterMeta {
     pub(super) searchable_text: String,
@@ -31,29 +26,20 @@ pub(super) struct SecretFilterMeta {
     pub(super) tags_text: String,
     pub(super) type_text: String,
     pub(super) vault_name_text: String,
-    #[allow(dead_code)]
     pub(super) kind: SecretKind,
-    #[allow(dead_code)]
     pub(super) original_rank: usize,
     pub(super) is_weak: bool,
     pub(super) is_duplicate: bool,
     pub(super) is_health: bool,
 }
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub(super) struct FilterRuntime {
-    #[allow(dead_code)]
     pub(super) meta_by_widget: Rc<RefCell<HashMap<String, SecretFilterMeta>>>,
-    #[allow(dead_code)]
     pub(super) actions_by_widget: Rc<RefCell<HashMap<String, SecretQuickActions>>>,
-    #[allow(dead_code)]
     pub(super) search_text: Rc<RefCell<String>>,
-    #[allow(dead_code)]
     pub(super) selected_category: Rc<Cell<SecretCategoryFilter>>,
-    #[allow(dead_code)]
     pub(super) selected_audit: Rc<Cell<AuditFilter>>,
-    #[allow(dead_code)]
     pub(super) selected_sort: Rc<Cell<SecretSortMode>>,
     pub(super) audit_all_count_label: gtk4::Label,
     pub(super) audit_weak_count_label: gtk4::Label,
@@ -63,7 +49,6 @@ pub(super) struct FilterRuntime {
     pub(super) filtered_status_page: adw::StatusPage,
 }
 
-#[allow(dead_code)]
 pub(super) struct SecretRowView {
     pub(super) secret_id: Uuid,
     pub(super) icon_name: String,

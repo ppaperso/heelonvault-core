@@ -1,7 +1,6 @@
 //! Main application window construction and management.
 //!
 //! Responsibilities are split so that `core.rs` stays an orchestrator:
-//! - `types.rs`: data structures shared by the window modules
 //! - `views.rs`: pure UI construction (no event handlers)
 //! - `events.rs`: event handlers and callbacks
 //! - `editor.rs`: the inline secret editor page
@@ -19,6 +18,5 @@ pub mod i18n_refresh;
 pub mod navigation;
 pub mod pin_badge;
 pub mod refresh;
-pub mod types;
 pub mod vault_list;
 pub mod views;

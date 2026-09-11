@@ -9,7 +9,6 @@ pub(super) struct ContentShell {
     pub(super) search_entry: gtk4::SearchEntry,
     pub(super) multivault_toggle: gtk4::ToggleButton,
     /// Refreshes all i18n strings owned by the shell (search entry, toggle, help labels).
-    #[allow(dead_code)]
     pub(super) refresh_i18n: Rc<dyn Fn()>,
 }
 

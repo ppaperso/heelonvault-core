@@ -14,9 +14,9 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
-use directories::ProjectDirs;
 use anyhow::{Context, Result, anyhow};
 use chrono::Local;
+use directories::ProjectDirs;
 use gtk4::gdk;
 use gtk4::gio;
 use gtk4::glib;
@@ -43,9 +43,8 @@ use crate::ui::dialogs::pin_unlock_dialog::{
 use crate::ui::windows::main_window::MainWindow;
 use heelonvault_core::config::constants::APP_ID;
 use heelonvault_core::errors::AppError;
-use heelonvault_core::models::secret_item::BlobStorage;
 use heelonvault_core::models::UserRole;
-use heelonvault_core::services::crypto_service::{EncryptedPayload, NONCE_LEN};
+use heelonvault_core::models::secret_item::BlobStorage;
 #[cfg(feature = "premium")]
 use heelonvault_core::repositories::audit_log_repository::SqlxAuditLogRepository;
 use heelonvault_core::repositories::secret_repository::SqlxSecretRepository;
@@ -58,13 +57,18 @@ use heelonvault_core::services::admin_service::bootstrap_first_admin_with_recove
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::audit_log_service::NoOpAuditLogService;
 #[cfg(feature = "premium")]
+#[cfg(feature = "premium")]
 use heelonvault_core::services::audit_service::AuditAction;
+#[cfg(feature = "premium")]
 use heelonvault_core::services::audit_service::AuditService;
 use heelonvault_core::services::auth_policy_service::{AuthPolicyService, SqlxAuthPolicyService};
-use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl, UserCredentialRecord};
+use heelonvault_core::services::auth_service::{
+    AuthService, AuthServiceImpl, UserCredentialRecord,
+};
 use heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl;
 use heelonvault_core::services::backup_service::{BackupService, BackupServiceImpl};
 use heelonvault_core::services::crypto_service::{CryptoService, CryptoServiceImpl};
+use heelonvault_core::services::crypto_service::{EncryptedPayload, NONCE_LEN};
 #[cfg(not(feature = "premium"))]
 use heelonvault_core::services::federated_auth_service::CommunityFederatedAuthService;
 use heelonvault_core::services::import_service::ImportServiceImpl;
@@ -184,7 +188,6 @@ struct AppContext {
     totp_service: Arc<TotpServiceHandle>,
     federated_auth_service: Arc<FederatedAuthServiceHandle>,
     _audit_log_service: Arc<AuditLogServiceHandle>,
-    audit_service: Arc<AuditService>,
     admin_service: Arc<AdminServiceHandle>,
     team_service: Arc<TeamServiceHandle>,
     _backup_app_service: Arc<BackupApplicationServiceHandle>,
@@ -218,7 +221,6 @@ struct SecondaryServices {
     backup_app_service: Arc<BackupApplicationServiceHandle>,
     import_service: Arc<ImportServiceImpl>,
     totp_service: Arc<TotpServiceHandle>,
-    audit_service: Arc<AuditService>,
     #[cfg(feature = "premium")]
     license_service: Arc<LicenseService>,
 }
@@ -288,10 +290,10 @@ impl Write for DailyLogFileWriter {
 
 /// Configure les variables d'environnement pour GTK4/libadwaita
 /// en mode "portable" (ressources à côté de l'exécutable).
-/// 
+///
 /// Cette fonction DOIT être appelée avant toute initialisation GTK4,
 /// c'est-à-dire avant `register_resources()` qui appelle `gio::resources_register_include!`.
-/// 
+///
 /// Sur Windows, GTK4 cherche ses ressources (thèmes, icônes, schemas, loaders)
 /// dans des chemins spécifiques. En mode portable, on configure ces chemins
 /// pour pointer vers le dossier d'installation de l'application.
@@ -311,10 +313,16 @@ fn setup_windows_resources() {
             env::set_var("XDG_DATA_DIRS", format!("{}/share", dir));
 
             // Schemas GSettings
-            env::set_var("GSETTINGS_SCHEMA_DIR", format!("{}/share/glib-2.0/schemas", dir));
+            env::set_var(
+                "GSETTINGS_SCHEMA_DIR",
+                format!("{}/share/glib-2.0/schemas", dir),
+            );
 
             // Loaders gdk-pixbuf (scan dynamique du dossier, pas de cache)
-            env::set_var("GDK_PIXBUF_MODULEDIR", format!("{}/lib/gdk-pixbuf-2.0/2.10.0/loaders", dir));
+            env::set_var(
+                "GDK_PIXBUF_MODULEDIR",
+                format!("{}/lib/gdk-pixbuf-2.0/2.10.0/loaders", dir),
+            );
 
             // Thème par défaut
             env::set_var("GTK_THEME", "Adwaita");
@@ -338,11 +346,11 @@ fn main() -> Result<()> {
 
     let _logging_guard = init_logging()?;
     info!("HeelonVault v{} starting", env!("CARGO_PKG_VERSION"));
-    
+
     // Configure Windows-specific environment variables for portable GTK4
     // MUST be called before any GTK4 initialization (before register_resources)
     setup_windows_resources();
-    
+
     register_resources()?;
 
     let runtime = Builder::new_multi_thread()
@@ -671,7 +679,6 @@ fn run_application(
                         Arc::clone(&context_for_success.backup_service),
                         Arc::clone(&context_for_success._backup_app_service),
                         Arc::clone(&context_for_success.import_service),
-                        Arc::clone(&context_for_success.audit_service),
                         #[cfg(feature = "premium")]
                         Arc::clone(&context_for_success._license_service),
                         context_for_success.pool.clone(),
@@ -1111,9 +1118,9 @@ async fn build_secondary_services(
         CryptoServiceImpl::default(),
         "HeelonVault",
     ));
-    let audit_service = Arc::new(AuditService::new(pool.clone()));
     #[cfg(feature = "premium")]
     let license_service = {
+        let audit_service = Arc::new(AuditService::new(pool.clone()));
         let mut ls = LicenseService::new();
         match ls.load_license().await {
             Ok(license) => {
@@ -1146,7 +1153,6 @@ async fn build_secondary_services(
         backup_app_service,
         import_service,
         totp_service,
-        audit_service,
         #[cfg(feature = "premium")]
         license_service,
     }
@@ -1225,7 +1231,6 @@ async fn initialize_app_context() -> Result<AppStartMode> {
         totp_service: secondary.totp_service,
         federated_auth_service: primary.federated_auth_service,
         _audit_log_service: primary.audit_log_service,
-        audit_service: secondary.audit_service,
         admin_service: primary.admin_service,
         team_service: primary.team_service,
         _backup_app_service: secondary.backup_app_service,
@@ -1441,12 +1446,13 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
         .context("failed to read restored username")?;
 
     // 1. Lire l'envelope de mot de passe EXISTANT
-    let existing_envelope_row = sqlx::query("SELECT password_envelope FROM users WHERE username = ?1")
-        .bind(username.as_str())
-        .fetch_optional(&pool)
-        .await
-        .context("failed to read existing password envelope")?
-        .ok_or_else(|| anyhow!("user {} has no password envelope", username))?;
+    let existing_envelope_row =
+        sqlx::query("SELECT password_envelope FROM users WHERE username = ?1")
+            .bind(username.as_str())
+            .fetch_optional(&pool)
+            .await
+            .context("failed to read existing password envelope")?
+            .ok_or_else(|| anyhow!("user {} has no password envelope", username))?;
 
     let existing_envelope_bytes: Vec<u8> = existing_envelope_row
         .try_get("password_envelope")
@@ -1454,8 +1460,10 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
 
     // 2. Décoder l'envelope pour obtenir salt et ancienne master_key
     let existing_envelope = SecretBox::new(Box::new(existing_envelope_bytes));
-    let existing_record = heelonvault_core::services::auth_service::AuthServiceImpl::<CryptoServiceImpl>::decode_password_envelope(&existing_envelope)
-        .map_err(|e| anyhow!("failed to decode existing password envelope: {}", e))?;
+    let existing_record = heelonvault_core::services::auth_service::AuthServiceImpl::<
+        CryptoServiceImpl,
+    >::decode_password_envelope(&existing_envelope)
+    .map_err(|e| anyhow!("failed to decode existing password envelope: {}", e))?;
 
     let existing_salt = existing_record.password_salt;
     let old_master_key = existing_record.password_hash; // C'est l'ancienne master_key
@@ -1467,9 +1475,10 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
         .derive_key(&new_password_secret, &existing_salt)
         .await
         .context("failed to derive new master key")?;
-    
+
     // Cloner la new_master_key pour pouvoir l'utiliser plus tard
-    let new_master_key_for_vaults = SecretBox::new(Box::new(new_master_key.expose_secret().clone()));
+    let new_master_key_for_vaults =
+        SecretBox::new(Box::new(new_master_key.expose_secret().clone()));
 
     // 4. Créer un nouvel envelope de mot de passe
     let new_record = UserCredentialRecord {
@@ -1498,11 +1507,11 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
     .context("failed to query user vaults")?;
 
     for vault_row in &accessible_vaults {
-        let vault_id_str: String = vault_row.try_get("id")
-            .context("failed to read vault id")?;
+        let vault_id_str: String = vault_row.try_get("id").context("failed to read vault id")?;
         let vault_id = Uuid::parse_str(&vault_id_str)
             .map_err(|err| AppError::Storage(format!("parse vault id: {err}")))?;
-        let owner_user_id_str: String = vault_row.try_get("owner_user_id")
+        let owner_user_id_str: String = vault_row
+            .try_get("owner_user_id")
             .context("failed to read owner_user_id")?;
         let _owner_user_id = Uuid::parse_str(&owner_user_id_str)
             .map_err(|err| AppError::Storage(format!("parse owner_user_id: {err}")))?;
@@ -1518,7 +1527,10 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
         let vault_envelope_row = match vault_envelope_row {
             Some(row) => row,
             None => {
-                info!("vault {} has no key envelope, skipping re-encryption", vault_id);
+                info!(
+                    "vault {} has no key envelope, skipping re-encryption",
+                    vault_id
+                );
                 continue;
             }
         };
@@ -1529,8 +1541,10 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
         let vault_envelope = SecretBox::new(Box::new(vault_envelope_bytes));
 
         // Désérialiser et déchiffrer avec l'ancienne master_key
-        let payload = heelonvault_core::services::vault_service::deserialize_vault_key_envelope(&vault_envelope)
-            .context("failed to deserialize vault key envelope")?;
+        let payload = heelonvault_core::services::vault_service::deserialize_vault_key_envelope(
+            &vault_envelope,
+        )
+        .context("failed to deserialize vault key envelope")?;
         let vault_key = crypto_service
             .decrypt(&payload, &old_master_key)
             .await
@@ -1541,7 +1555,10 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
             .encrypt(&vault_key, &new_master_key_for_vaults)
             .await
             .context("failed to re-encrypt vault key with new master key")?;
-        let rewrapped_envelope = heelonvault_core::services::vault_service::serialize_vault_key_envelope(&rewrapped_payload);
+        let rewrapped_envelope =
+            heelonvault_core::services::vault_service::serialize_vault_key_envelope(
+                &rewrapped_payload,
+            );
 
         // Mettre à jour l'envelope du vault
         sqlx::query("UPDATE vaults SET vault_key_envelope = ?1 WHERE id = ?2")
@@ -1556,43 +1573,50 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
     // Collecter toutes les vault_keys accessibles (propriétaire + partagés)
     use std::collections::HashMap;
     let mut vault_key_map: HashMap<Uuid, SecretBox<Vec<u8>>> = HashMap::new();
-    
+
     // Ajouter les vaults de l'utilisateur (propriétaire)
     for vault_row in &accessible_vaults {
-        let vault_id_str: String = vault_row.try_get("id")
+        let vault_id_str: String = vault_row
+            .try_get("id")
             .context("failed to read vault id for secret re-encryption")?;
-        let vault_id = Uuid::parse_str(&vault_id_str)
-            .map_err(|err| AppError::Storage(format!("parse vault id for secret re-encryption: {err}")))?;
-        
+        let vault_id = Uuid::parse_str(&vault_id_str).map_err(|err| {
+            AppError::Storage(format!("parse vault id for secret re-encryption: {err}"))
+        })?;
+
         let vault_envelope_row = sqlx::query("SELECT vault_key_envelope FROM vaults WHERE id = ?1")
             .bind(vault_id)
             .fetch_optional(&pool)
             .await
             .context("failed to read vault key envelope for secret re-encryption")?;
-        
+
         let vault_envelope_row = match vault_envelope_row {
             Some(row) => row,
             None => {
-                info!("vault {} has no key envelope, skipping secret re-encryption", vault_id);
+                info!(
+                    "vault {} has no key envelope, skipping secret re-encryption",
+                    vault_id
+                );
                 continue;
             }
         };
-        
+
         let vault_envelope_bytes: Vec<u8> = vault_envelope_row
             .try_get("vault_key_envelope")
             .context("failed to extract vault key envelope bytes for secret re-encryption")?;
         let vault_envelope = SecretBox::new(Box::new(vault_envelope_bytes));
-        
-        let payload = heelonvault_core::services::vault_service::deserialize_vault_key_envelope(&vault_envelope)
-            .context("failed to deserialize vault key envelope for secret re-encryption")?;
+
+        let payload = heelonvault_core::services::vault_service::deserialize_vault_key_envelope(
+            &vault_envelope,
+        )
+        .context("failed to deserialize vault key envelope for secret re-encryption")?;
         let vault_key = crypto_service
             .decrypt(&payload, &old_master_key)
             .await
             .context("failed to decrypt vault key with old master key for secret re-encryption")?;
-        
+
         vault_key_map.insert(vault_id, vault_key);
     }
-    
+
     // 7b. Rechiffrer aussi les vault_key_shares (pour les vaults partagés) ET collecter leurs vault_keys
     let shared_vaults = sqlx::query(
         "SELECT vault_id, user_id, key_envelope FROM vault_key_shares WHERE user_id = (SELECT id FROM users WHERE username = ?1)",
@@ -1603,11 +1627,13 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
     .context("failed to query shared vault keys")?;
 
     for share_row in shared_vaults.iter() {
-        let vault_id_str: String = share_row.try_get("vault_id")
+        let vault_id_str: String = share_row
+            .try_get("vault_id")
             .context("failed to read vault_id from share")?;
         let vault_id = Uuid::parse_str(&vault_id_str)
             .map_err(|err| AppError::Storage(format!("parse vault_id from share: {err}")))?;
-        let user_id_str: String = share_row.try_get("user_id")
+        let user_id_str: String = share_row
+            .try_get("user_id")
             .context("failed to read user_id from share")?;
         let user_id = Uuid::parse_str(&user_id_str)
             .map_err(|err| AppError::Storage(format!("parse user_id from share: {err}")))?;
@@ -1617,7 +1643,10 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
         let share_envelope = SecretBox::new(Box::new(share_envelope_bytes));
 
         // Désérialiser et déchiffrer avec l'ancienne master_key
-        let share_payload = heelonvault_core::services::vault_service::deserialize_vault_key_envelope(&share_envelope)
+        let share_payload =
+            heelonvault_core::services::vault_service::deserialize_vault_key_envelope(
+                &share_envelope,
+            )
             .context("failed to deserialize share envelope")?;
         let vault_key = crypto_service
             .decrypt(&share_payload, &old_master_key)
@@ -1629,17 +1658,22 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
             .encrypt(&vault_key, &new_master_key_for_vaults)
             .await
             .context("failed to re-encrypt shared vault key with new master key")?;
-        let rewrapped_share_envelope = heelonvault_core::services::vault_service::serialize_vault_key_envelope(&rewrapped_share_payload);
+        let rewrapped_share_envelope =
+            heelonvault_core::services::vault_service::serialize_vault_key_envelope(
+                &rewrapped_share_payload,
+            );
 
         // Mettre à jour l'envelope du share
-        sqlx::query("UPDATE vault_key_shares SET key_envelope = ?1 WHERE vault_id = ?2 AND user_id = ?3")
-            .bind(rewrapped_share_envelope.expose_secret().as_slice())
-            .bind(vault_id)
-            .bind(user_id)
-            .execute(&pool)
-            .await
-            .context("failed to update share key envelope")?;
-        
+        sqlx::query(
+            "UPDATE vault_key_shares SET key_envelope = ?1 WHERE vault_id = ?2 AND user_id = ?3",
+        )
+        .bind(rewrapped_share_envelope.expose_secret().as_slice())
+        .bind(vault_id)
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .context("failed to update share key envelope")?;
+
         // Ajouter à la map pour la ré-encryption des secrets
         vault_key_map.insert(vault_id, vault_key);
     }
@@ -1654,14 +1688,16 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
         .fetch_all(&pool)
         .await
         .context("failed to query secrets for re-encryption")?;
-        
+
         for secret_row in secrets {
-            let secret_id_str: String = secret_row.try_get("id")
+            let secret_id_str: String = secret_row
+                .try_get("id")
                 .context("failed to read secret id")?;
             let secret_id = Uuid::parse_str(&secret_id_str)
                 .map_err(|err| AppError::Storage(format!("parse secret id: {err}")))?;
-            
-            let blob_storage_str: String = secret_row.try_get("blob_storage")
+
+            let blob_storage_str: String = secret_row
+                .try_get("blob_storage")
                 .context("failed to read blob_storage")?;
             let blob_storage = match blob_storage_str.as_str() {
                 "inline" => BlobStorage::Inline,
@@ -1671,15 +1707,15 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
                     continue;
                 }
             };
-            
+
             // Pour simplifier, on ne traite que les secrets inline (les file blobs sont gérés différemment)
             if matches!(blob_storage, BlobStorage::Inline) {
                 let secret_blob_bytes: Vec<u8> = secret_row
                     .try_get("secret_blob")
                     .context("failed to read secret_blob")?;
-                
+
                 let secret_blob = SecretBox::new(Box::new(secret_blob_bytes));
-                
+
                 // Désérialiser le payload du secret
                 // Essayer d'abord le format actuel (nonce || ciphertext)
                 let payload = if secret_blob.expose_secret().len() >= NONCE_LEN {
@@ -1694,12 +1730,16 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
                 } else {
                     // Essayer le format bincode (ancien format des vault_key_envelopes)
                     // Cela peut arriver si le secret a été créé avec une ancienne version
-                    match heelonvault_core::services::vault_service::deserialize_vault_key_envelope(&secret_blob) {
+                    match heelonvault_core::services::vault_service::deserialize_vault_key_envelope(
+                        &secret_blob,
+                    ) {
                         Ok(payload) => Ok(payload),
-                        Err(_) => Err(anyhow!("failed to deserialize secret blob with both formats")),
+                        Err(_) => Err(anyhow!(
+                            "failed to deserialize secret blob with both formats"
+                        )),
                     }
                 };
-                
+
                 match payload {
                     Ok(payload) => {
                         // Déchiffrer le secret avec l'ancienne vault_key
@@ -1707,18 +1747,21 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
                             .decrypt(&payload, vault_key)
                             .await
                             .context("failed to decrypt secret blob with vault key")?;
-                        
+
                         // Rechiffrer avec la même vault_key (nouveau nonce)
                         let new_encrypted = crypto_service
                             .encrypt(&secret_plaintext, vault_key)
                             .await
                             .context("failed to re-encrypt secret blob")?;
-                        
+
                         // Sérialiser dans le format actuel (nonce || ciphertext)
-                        let mut new_blob = Vec::with_capacity(NONCE_LEN + new_encrypted.ciphertext.expose_secret().len());
+                        let mut new_blob = Vec::with_capacity(
+                            NONCE_LEN + new_encrypted.ciphertext.expose_secret().len(),
+                        );
                         new_blob.extend_from_slice(&new_encrypted.nonce);
-                        new_blob.extend_from_slice(new_encrypted.ciphertext.expose_secret().as_slice());
-                        
+                        new_blob
+                            .extend_from_slice(new_encrypted.ciphertext.expose_secret().as_slice());
+
                         // Mettre à jour le secret_blob dans la base
                         sqlx::query("UPDATE secret_items SET secret_blob = ?1 WHERE id = ?2")
                             .bind(new_blob)
@@ -1726,18 +1769,24 @@ async fn apply_restored_login_password(database_path: &Path, new_password: &str)
                             .execute(&pool)
                             .await
                             .context("failed to update secret blob")?;
-                        
+
                         info!("re-encrypted secret {}", secret_id);
                     }
                     Err(e) => {
-                        warn!("failed to deserialize secret {} for re-encryption: {}", secret_id, e);
+                        warn!(
+                            "failed to deserialize secret {} for re-encryption: {}",
+                            secret_id, e
+                        );
                         continue;
                     }
                 }
             } else {
                 // Pour les secrets en mode 'file', on ne fait rien pour l'instant
                 // (ils nécessiteraient une gestion spéciale des fichiers)
-                info!("skipping file-based secret {} (not implemented in restore)", secret_id_str);
+                info!(
+                    "skipping file-based secret {} (not implemented in restore)",
+                    secret_id_str
+                );
             }
         }
     }
@@ -1894,10 +1943,9 @@ fn resolve_migrations_path() -> Result<PathBuf> {
         .join("..")
         .join("..")
         .join("migrations");
-    
+
     // Nouveau candidat : migrations/ dans le dossier de la crate (après restructuration)
-    let crate_migrations_candidate = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("migrations");
+    let crate_migrations_candidate = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
 
     // 2) Installed layout: sibling of executable
     // 3) Dev layout: cwd/migrations (e.g. workspace root)
@@ -1939,7 +1987,7 @@ fn resolve_default_log_dir_for(
 
 fn resolve_platform_runtime_root() -> Option<PathBuf> {
     let proj_dirs = ProjectDirs::from("fr", "Heelonys", "HeelonVault")?;
-    
+
     if cfg!(target_os = "windows") {
         Some(proj_dirs.data_local_dir().join("heelonvault"))
     } else if cfg!(target_os = "macos") {
