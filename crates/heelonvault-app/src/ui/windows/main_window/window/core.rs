@@ -107,6 +107,7 @@ where
     let show_passwords_in_edit = Rc::new(Cell::new(false));
     let vault_selection_sync = Rc::new(Cell::new(false));
     let default_vault_creation = Rc::new(Cell::new(false));
+    let vault_list_refresh_in_progress = Rc::new(Cell::new(false));
 
     // Deferred callbacks: these break construction cycles where a widget needs a callback
     // that can only be built once that same widget exists.
@@ -196,6 +197,7 @@ where
         shared_vaults_list: sidebar_panel.shared_vaults_list.clone(),
         selection_sync: Rc::clone(&vault_selection_sync),
         default_vault_creation: Rc::clone(&default_vault_creation),
+        refresh_in_progress: Rc::clone(&vault_list_refresh_in_progress),
         refresh_secrets: Rc::clone(&refresh_secrets),
         refresh_after_mutation: Rc::clone(&refresh_after_mutation),
     });

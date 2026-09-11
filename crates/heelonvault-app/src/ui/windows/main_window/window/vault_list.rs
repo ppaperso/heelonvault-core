@@ -56,6 +56,8 @@ pub struct VaultListDeps<TSecret, TVault> {
     pub selection_sync: Rc<Cell<bool>>,
     /// Prevents concurrent auto-creation of the implicit first vault.
     pub default_vault_creation: Rc<Cell<bool>>,
+    /// Prevents concurrent refresh operations from overlapping and duplicating vault rows.
+    pub refresh_in_progress: Rc<Cell<bool>>,
     /// Reloads the secret list once the vault sections settle.
     pub refresh_secrets: Rc<dyn Fn()>,
     /// Filled with the full refresh so mutations (delete) can re-run it.
@@ -162,6 +164,12 @@ where
     TVault: VaultService + Send + Sync + 'static,
 {
     Rc::new(move || {
+        // Prevent concurrent refresh operations to avoid duplicating vault rows
+        if deps.refresh_in_progress.get() {
+            return;
+        }
+        deps.refresh_in_progress.set(true);
+
         let delete_vault_action = build_delete_vault_action(
             deps.window.clone(),
             deps.runtime_handle.clone(),
@@ -246,6 +254,7 @@ where
         let selection_sync = Rc::clone(&deps.selection_sync);
         let default_vault_creation = Rc::clone(&deps.default_vault_creation);
         let refresh_secrets = Rc::clone(&deps.refresh_secrets);
+        let refresh_in_progress = Rc::clone(&deps.refresh_in_progress);
         glib::MainContext::default().spawn_local(async move {
             let Ok((result, attempted_default_create)) = receiver.await else {
                 selection_sync.set(false);
@@ -308,6 +317,7 @@ where
 
             selection_sync.set(false);
             refresh_secrets();
+            refresh_in_progress.set(false);
         });
     })
 }
