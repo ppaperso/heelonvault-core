@@ -1,14 +1,11 @@
-//! Core module - Main window orchestration
+//! Main window orchestration.
 //!
-//! This module orchestrates the construction and setup of the main window.
-//! It combines:
-//! - UI construction from views.rs
-//! - Event handlers from events.rs
-//! - State management
-//!
-//! This is the main entry point for building the main window.
+//! This module owns the construction order of the window and nothing else: UI comes from
+//! `views.rs` and the panel builders, behaviour comes from `events.rs` and the feature
+//! modules (`editor`, `refresh`, `vault_list`, `navigation`, `pin_badge`, `i18n_refresh`).
 
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -33,21 +30,18 @@ use heelonvault_premium::services::audit_report_service::AuditReportService;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
 
-use super::events;
-use super::views;
-#[allow(unused_imports)]
-use crate::ui::window_sizing;
+use super::{editor, events, i18n_refresh, navigation, pin_badge, refresh, vault_list, views};
+use crate::ui::dialogs::add_edit_dialog::DialogMode;
+use crate::ui::windows::main_window::types::FilterRuntime;
+use crate::ui::windows::main_window::{
+    AuditFilter, SecretCategoryFilter, SecretKind, SecretSortMode, center, search_filter, shell,
+    sidebar,
+};
 
 /// Default auto-lock timeout in seconds (12 hours)
 const DEFAULT_AUTO_LOCK_TIMEOUT_SECS: u64 = 12 * 3600;
 
 /// Build the main window with all its components and event handlers.
-///
-/// This function orchestrates:
-/// 1. State initialization
-/// 2. UI construction via views.rs
-/// 3. Event handler setup via events.rs
-/// 4. Final assembly and return of MainWindow
 #[allow(clippy::too_many_arguments)]
 pub fn build_main_window<
     TSecret,
@@ -63,20 +57,20 @@ pub fn build_main_window<
 >(
     application: &adw::Application,
     runtime_handle: Handle,
-    _secret_service: Arc<TSecret>,
-    _vault_service: Arc<TVault>,
-    _user_service: Arc<TUser>,
-    _admin_service: Arc<TAdmin>,
-    _team_service: Arc<TTeam>,
-    _totp_service: Arc<TTotp>,
-    _auth_policy_service: Arc<TPolicy>,
-    _backup_service: Arc<TBackup>,
-    _backup_app_service: Arc<TBackupApp>,
-    _import_service: Arc<TImport>,
+    secret_service: Arc<TSecret>,
+    vault_service: Arc<TVault>,
+    user_service: Arc<TUser>,
+    admin_service: Arc<TAdmin>,
+    team_service: Arc<TTeam>,
+    totp_service: Arc<TTotp>,
+    auth_policy_service: Arc<TPolicy>,
+    backup_service: Arc<TBackup>,
+    backup_app_service: Arc<TBackupApp>,
+    import_service: Arc<TImport>,
     audit_service: Arc<AuditService>,
-    #[cfg(feature = "premium")] _license_service: Arc<LicenseService>,
+    #[cfg(feature = "premium")] license_service: Arc<LicenseService>,
     database_pool: SqlitePool,
-    _database_path: PathBuf,
+    database_path: PathBuf,
     admin_user_id: Uuid,
     admin_master_key: Vec<u8>,
     connected_identity_label: String,
@@ -90,85 +84,56 @@ where
     TAdmin: heelonvault_core::services::admin_service::AdminService + Send + Sync + 'static,
     TTeam: heelonvault_core::services::team_service::TeamService + Send + Sync + 'static,
     TTotp: heelonvault_core::services::totp_service::TotpService + Send + Sync + 'static,
-    TPolicy: heelonvault_core::services::auth_policy_service::AuthPolicyService + Send + Sync + 'static,
+    TPolicy:
+        heelonvault_core::services::auth_policy_service::AuthPolicyService + Send + Sync + 'static,
     TBackup: heelonvault_core::services::backup_service::BackupService + Send + Sync + 'static,
-    TBackupApp: heelonvault_core::services::backup_application_service::BackupApplicationService + Send + Sync + 'static,
+    TBackupApp: heelonvault_core::services::backup_application_service::BackupApplicationService
+        + Send
+        + Sync
+        + 'static,
     TImport: heelonvault_core::services::import_service::ImportService + Send + Sync + 'static,
 {
-    // ── 1. Initialize state ───────────────────────────────────────────────────
+    // ── 1. Session and UI state ───────────────────────────────────────────────
     let auto_lock_source: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
     let auto_lock_armed = Rc::new(Cell::new(false));
     let auto_lock_timeout_secs = Rc::new(Cell::new(DEFAULT_AUTO_LOCK_TIMEOUT_SECS));
     let session_master_key = Rc::new(RefCell::new(admin_master_key));
-    let _active_vault_id: Rc<RefCell<Option<Uuid>>> = Rc::new(RefCell::new(None));
-    let _is_global_search = Rc::new(Cell::new(false));
+    let active_vault_id: Rc<RefCell<Option<Uuid>>> = Rc::new(RefCell::new(None));
+    let is_global_search = Rc::new(Cell::new(false));
     let on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
     let on_pin_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
     let on_logout: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
     let on_pin_state_cb: Rc<RefCell<Option<Rc<dyn Fn(bool)>>>> = Rc::new(RefCell::new(None));
     let pin_cache: Rc<RefCell<Option<PinCache>>> = Rc::new(RefCell::new(None));
     let critical_ops_in_flight = Rc::new(Cell::new(0_u32));
-    let refresh_entries: Rc<dyn Fn()> = Rc::new(|| {});
+    let show_passwords_in_edit = Rc::new(Cell::new(false));
+    let vault_selection_sync = Rc::new(Cell::new(false));
+    let default_vault_creation = Rc::new(Cell::new(false));
 
-    #[cfg(feature = "premium")]
-    let audit_report_service = Arc::new(AuditReportService::new(
-        Arc::clone(&license_service),
-        runtime_handle.clone(),
-        database_pool.clone(),
-    ));
-    #[cfg(feature = "premium")]
-    let report_customer_name = super::MainWindow::professional_customer_name(license_badge_text.as_str())
-        .unwrap_or_else(|| "CLIENT".to_string());
-    #[cfg(feature = "premium")]
-    {
-        events::setup_certification_handlers(
-            &sidebar_panel.certification_menu_button,
-            &window,
-            &toast_overlay,
-            Arc::clone(&license_service),
-            Arc::clone(&audit_report_service),
-            report_customer_name.clone(),
-        );
-    }
+    // Deferred callbacks: these break construction cycles where a widget needs a callback
+    // that can only be built once that same widget exists.
+    let editor_launcher: Rc<RefCell<Option<Rc<dyn Fn(DialogMode)>>>> = Rc::new(RefCell::new(None));
+    let refresh_after_mutation: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
+    let i18n_refresh_holder: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
 
-    // Create user_repo and crypto_service for profile view
-    let _user_repo = Arc::new(SqlxUserRepository::new(database_pool.clone()));
-    let _crypto_service = Arc::new(CryptoServiceImpl::default());
+    let user_repo = Arc::new(SqlxUserRepository::new(database_pool.clone()));
+    let crypto_service = Arc::new(CryptoServiceImpl::default());
 
-    // ── 2. Build UI Components ─────────────────────────────────────────────────
-    
-    // Build main window
+    // ── 2. UI construction ────────────────────────────────────────────────────
     let window = views::build_main_window(application);
-    
-    // Build header bar
-    let (header_bar, title_box, _logo, _title_label, _header_plan_badge, _header_license_badge) = 
+    let (header_bar, title_box, _logo, _title_label, _header_plan_badge, _header_license_badge) =
         views::build_header_bar(&license_badge_text);
-    
-    // Build root container
     let (root, toast_overlay) = views::build_root_container();
-    
-    // Build profile button and popover
-    let (profile_button, profile_popover, _profile_title, login_history_list) = 
+    let (profile_button, profile_popover, profile_title, login_history_list) =
         views::build_profile_button(&connected_identity_label);
-    
-    // Build PIN status badge
-    let (header_pin_btn, _header_pin_label) = views::build_pin_status_badge();
-    
-    // Build panic button
-    let (panic_button, _panic_lbl) = views::build_panic_button();
-    
-    // Build user identity box
-    let (user_identity_box, admin_badge, add_button, trash_button) = 
+    let (header_pin_btn, header_pin_label) = views::build_pin_status_badge();
+    let (panic_button, panic_label) = views::build_panic_button();
+    let (user_identity_box, admin_badge, add_button, trash_button) =
         views::build_user_identity_box(&profile_button, is_admin);
-    
-    // Build center and sidebar panels from existing modules
-    let center_panel = crate::ui::windows::main_window::center::build_center_panel();
-    let sidebar_panel = crate::ui::windows::main_window::sidebar::build_sidebar_panel();
-    
-    // Build filter runtime for search and filtering
-    use crate::ui::windows::main_window::types::FilterRuntime;
-    use crate::ui::windows::main_window::{AuditFilter, SecretCategoryFilter, SecretKind, SecretSortMode};
-    use std::collections::HashMap;
+
+    let center_panel = center::build_center_panel();
+    let sidebar_panel = sidebar::build_sidebar_panel();
+
     let filter_runtime = FilterRuntime {
         meta_by_widget: Rc::new(RefCell::new(HashMap::new())),
         actions_by_widget: Rc::new(RefCell::new(HashMap::new())),
@@ -183,27 +148,395 @@ where
         non_compliant_count_label: center_panel.status_non_compliant_badge.clone(),
         filtered_status_page: center_panel.filtered_status_page.clone(),
     };
-    
-    // Set filter and sort functions for secret flow
-    let runtime_for_flow_filter = filter_runtime.clone();
-    center_panel.secret_flow.set_filter_func(move |child| {
+
+    install_flow_filter_and_sort(&center_panel.secret_flow, &filter_runtime);
+
+    let content_shell = shell::build_content_shell(&sidebar_panel.frame, &center_panel.frame);
+    let search_entry = content_shell.search_entry;
+    let multivault_toggle = content_shell.multivault_toggle;
+    let shell_refresh_i18n = content_shell.refresh_i18n;
+
+    let editor_host = editor::build_editor_page(&center_panel.main_stack);
+
+    // ── 3. Refresh chain ──────────────────────────────────────────────────────
+    // A single reload backs both the active-vault and the cross-vault refresh.
+    let secret_reload = refresh::build_secret_reload(refresh::SecretRefreshDeps {
+        application: application.clone(),
+        parent_window: window.clone(),
+        runtime_handle: runtime_handle.clone(),
+        secret_service: Arc::clone(&secret_service),
+        vault_service: Arc::clone(&vault_service),
+        user_id: admin_user_id,
+        session_master_key: Rc::clone(&session_master_key),
+        active_vault_id: Rc::clone(&active_vault_id),
+        secret_flow: center_panel.secret_flow.clone(),
+        stack: center_panel.stack.clone(),
+        empty_title: center_panel.empty_title.clone(),
+        empty_copy: center_panel.empty_copy.clone(),
+        toast_overlay: toast_overlay.clone(),
+        filter_runtime: filter_runtime.clone(),
+        editor_launcher: Rc::clone(&editor_launcher),
+    });
+
+    let refresh_secrets: Rc<dyn Fn()> = {
+        let reload = Rc::clone(&secret_reload);
+        let is_global_search = Rc::clone(&is_global_search);
+        Rc::new(move || reload(is_global_search.get()))
+    };
+
+    // The full refresh reloads the vault sections, which chain into the secret list.
+    let refresh_entries = vault_list::build_refresh_vault_sections(vault_list::VaultListDeps {
+        window: window.clone(),
+        runtime_handle: runtime_handle.clone(),
+        secret_service: Arc::clone(&secret_service),
+        vault_service: Arc::clone(&vault_service),
+        user_id: admin_user_id,
+        session_master_key: Rc::clone(&session_master_key),
+        active_vault_id: Rc::clone(&active_vault_id),
+        my_vaults_list: sidebar_panel.my_vaults_list.clone(),
+        shared_vaults_title: sidebar_panel.shared_vaults_title.clone(),
+        shared_vaults_list: sidebar_panel.shared_vaults_list.clone(),
+        selection_sync: Rc::clone(&vault_selection_sync),
+        default_vault_creation: Rc::clone(&default_vault_creation),
+        refresh_secrets: Rc::clone(&refresh_secrets),
+        refresh_after_mutation: Rc::clone(&refresh_after_mutation),
+    });
+    *refresh_after_mutation.borrow_mut() = Some(Rc::clone(&refresh_entries));
+
+    *editor_launcher.borrow_mut() = Some(editor::build_editor_launcher(editor::EditorDeps {
+        runtime_handle: runtime_handle.clone(),
+        secret_service: Arc::clone(&secret_service),
+        vault_service: Arc::clone(&vault_service),
+        user_id: admin_user_id,
+        session_master_key: Rc::clone(&session_master_key),
+        show_passwords_in_edit: Rc::clone(&show_passwords_in_edit),
+        main_stack: center_panel.main_stack.clone(),
+        editor_host: editor_host.clone(),
+        toast_overlay: toast_overlay.clone(),
+        refresh_entries: Rc::clone(&refresh_entries),
+    }));
+    let open_editor = editor_launcher
+        .borrow()
+        .as_ref()
+        .map(Rc::clone)
+        .unwrap_or_else(|| Rc::new(|_mode| {}));
+
+    // ── 4. Event handlers ─────────────────────────────────────────────────────
+    events::setup_window_close_handler(
+        &window,
+        Rc::clone(&critical_ops_in_flight),
+        Rc::clone(&on_logout),
+    );
+
+    events::setup_profile_popover_handlers(
+        &profile_popover,
+        &profile_button,
+        runtime_handle.clone(),
+        database_pool.clone(),
+        admin_user_id,
+        login_history_list,
+    );
+
+    let on_pin_state_changed = pin_badge::build_pin_state_callback(
+        header_pin_label.clone(),
+        header_pin_btn.clone(),
+        Rc::clone(&pin_cache),
+    );
+    *on_pin_state_cb.borrow_mut() = Some(Rc::clone(&on_pin_state_changed));
+
+    events::setup_pin_badge_handler(
+        &header_pin_btn,
+        window.clone(),
+        Rc::clone(&session_master_key),
+        Rc::clone(&pin_cache),
+        Rc::clone(&on_pin_state_cb),
+        admin_user_id,
+    );
+
+    events::setup_panic_button_handler(&panic_button, window.clone());
+
+    events::setup_add_button_handler(
+        &add_button,
+        window.clone(),
+        Rc::clone(&active_vault_id),
+        runtime_handle.clone(),
+        Arc::clone(&vault_service),
+        Rc::clone(&open_editor),
+        admin_user_id,
+    );
+
+    events::setup_trash_button_handler(
+        &trash_button,
+        application,
+        window.clone(),
+        runtime_handle.clone(),
+        Arc::clone(&secret_service),
+        Arc::clone(&vault_service),
+        admin_user_id,
+        Rc::clone(&session_master_key),
+        Rc::clone(&refresh_entries),
+    );
+
+    events::setup_key_controller(
+        &window,
+        &search_entry,
+        &center_panel.secret_flow,
+        Rc::clone(&filter_runtime.actions_by_widget),
+        Rc::clone(&auto_lock_source),
+        Rc::clone(&auto_lock_armed),
+        Rc::clone(&auto_lock_timeout_secs),
+        Rc::clone(&on_auto_lock),
+        Rc::clone(&session_master_key),
+    );
+
+    events::setup_motion_controller(
+        &window,
+        Rc::clone(&auto_lock_source),
+        Rc::clone(&auto_lock_armed),
+        Rc::clone(&auto_lock_timeout_secs),
+        Rc::clone(&on_auto_lock),
+        Rc::clone(&session_master_key),
+    );
+
+    events::setup_sort_button_handlers(
+        &center_panel.sort_recent_button,
+        &center_panel.sort_title_button,
+        &center_panel.sort_risk_button,
+        center_panel.secret_flow.clone(),
+        filter_runtime.clone(),
+    );
+
+    events::setup_search_entry_handlers(
+        &search_entry,
+        center_panel.secret_flow.clone(),
+        filter_runtime.clone(),
+    );
+
+    events::setup_sidebar_filter_handlers(
+        &sidebar_panel,
+        &center_panel.main_stack,
+        center_panel.secret_flow.clone(),
+        filter_runtime.clone(),
+    );
+
+    events::setup_multivault_toggle_handler(
+        &multivault_toggle,
+        Rc::clone(&is_global_search),
+        filter_runtime.clone(),
+        search_entry.clone(),
+        Rc::clone(&secret_reload),
+    );
+
+    vault_list::setup_vault_selection_handlers(
+        &sidebar_panel,
+        &center_panel.main_stack,
+        Rc::clone(&active_vault_id),
+        Rc::clone(&vault_selection_sync),
+        Rc::clone(&refresh_secrets),
+    );
+
+    vault_list::setup_create_vault_button(
+        &sidebar_panel.create_vault_button,
+        window.clone(),
+        runtime_handle.clone(),
+        Arc::clone(&vault_service),
+        admin_user_id,
+        Rc::clone(&session_master_key),
+        Rc::clone(&refresh_entries),
+    );
+
+    #[cfg(feature = "premium")]
+    {
+        let audit_report_service = Arc::new(AuditReportService::new(
+            Arc::clone(&license_service),
+            runtime_handle.clone(),
+            database_pool.clone(),
+        ));
+        let report_customer_name =
+            super::super::MainWindow::professional_customer_name(license_badge_text.as_str())
+                .unwrap_or_else(|| "CLIENT".to_string());
+        events::setup_certification_handlers(
+            &sidebar_panel.certification_menu_button,
+            &window,
+            &toast_overlay,
+            Arc::clone(&license_service),
+            audit_report_service,
+            report_customer_name,
+        );
+    }
+
+    // ── 5. Secondary navigation pages ─────────────────────────────────────────
+    #[cfg(feature = "premium")]
+    let admin_pages = if is_admin {
+        Some(navigation::setup_admin_pages(
+            application,
+            &window,
+            runtime_handle.clone(),
+            Arc::clone(&admin_service),
+            Arc::clone(&team_service),
+            Arc::clone(&vault_service),
+            admin_user_id,
+            Rc::clone(&session_master_key),
+            Rc::clone(&active_vault_id),
+            Rc::clone(&refresh_entries),
+            &center_panel.main_stack,
+            &sidebar_panel.administration_button,
+            &sidebar_panel.teams_button,
+        ))
+    } else {
+        None
+    };
+
+    // Users and teams management is a premium capability: the entries stay hidden in the
+    // community build, where the services they would drive are unused.
+    sidebar_panel
+        .administration_button
+        .set_visible(is_admin && cfg!(feature = "premium"));
+    sidebar_panel
+        .teams_button
+        .set_visible(is_admin && cfg!(feature = "premium"));
+    #[cfg(not(feature = "premium"))]
+    let _ = (&admin_service, &team_service);
+
+    let on_language_changed: Rc<dyn Fn()> = {
+        let holder = Rc::clone(&i18n_refresh_holder);
+        Rc::new(move || {
+            let callback = holder.borrow().as_ref().map(Rc::clone);
+            if let Some(callback) = callback {
+                callback();
+            }
+        })
+    };
+
+    let profile_container = navigation::setup_profile_page(
+        navigation::ProfilePageDeps {
+            window: window.clone(),
+            runtime_handle: runtime_handle.clone(),
+            user_service: Arc::clone(&user_service),
+            user_repo,
+            crypto_service,
+            totp_service: Arc::clone(&totp_service),
+            auth_policy_service: Arc::clone(&auth_policy_service),
+            backup_service: Arc::clone(&backup_service),
+            backup_app_service: Arc::clone(&backup_app_service),
+            import_service: Arc::clone(&import_service),
+            secret_service: Arc::clone(&secret_service),
+            vault_service: Arc::clone(&vault_service),
+            database_path,
+            user_id: admin_user_id,
+            is_admin,
+            profile_badge: profile_button.clone(),
+            critical_ops_in_flight: Rc::clone(&critical_ops_in_flight),
+            auto_lock_timeout_secs: Rc::clone(&auto_lock_timeout_secs),
+            auto_lock_source: Rc::clone(&auto_lock_source),
+            auto_lock_armed: Rc::clone(&auto_lock_armed),
+            on_auto_lock: Rc::clone(&on_auto_lock),
+            session_master_key: Rc::clone(&session_master_key),
+            pin_cache: Rc::clone(&pin_cache),
+            show_passwords_in_edit: Rc::clone(&show_passwords_in_edit),
+            refresh_entries: Rc::clone(&refresh_entries),
+            on_language_changed,
+            on_pin_state_changed,
+        },
+        &center_panel.main_stack,
+        &sidebar_panel.profile_security_button,
+        build_stack_switch(&center_panel.main_stack, "users_view"),
+        build_stack_switch(&center_panel.main_stack, "teams_view"),
+    );
+
+    // ── 6. Live translation ───────────────────────────────────────────────────
+    let refresh_i18n = i18n_refresh::build_refresh(
+        i18n_refresh::I18nTargets {
+            sidebar_panel: sidebar_panel.clone(),
+            center_panel: center_panel.clone(),
+            shell_refresh: shell_refresh_i18n,
+            profile_button: profile_button.clone(),
+            profile_title,
+            add_button: add_button.clone(),
+            trash_button: trash_button.clone(),
+            panic_button: panic_button.clone(),
+            panic_label,
+            profile_container,
+            editor_host,
+        },
+        #[cfg(feature = "premium")]
+        admin_pages,
+    );
+    *i18n_refresh_holder.borrow_mut() = Some(Rc::clone(&refresh_i18n));
+    refresh_i18n();
+
+    events::update_sort_button_states(
+        &center_panel.sort_recent_button,
+        &center_panel.sort_title_button,
+        &center_panel.sort_risk_button,
+        filter_runtime.selected_sort.get(),
+    );
+
+    // ── 7. Assemble ───────────────────────────────────────────────────────────
+    user_identity_box.append(&header_pin_btn);
+    if is_admin {
+        user_identity_box.append(&admin_badge);
+    }
+
+    header_bar.pack_start(&add_button);
+    header_bar.pack_start(&trash_button);
+    header_bar.pack_end(&user_identity_box);
+    header_bar.pack_end(&panic_button);
+    header_bar.set_title_widget(Some(&title_box));
+
+    root.append(&header_bar);
+    root.append(&content_shell.container);
+    toast_overlay.set_child(Some(&root));
+    window.set_content(Some(&toast_overlay));
+
+    // Populate vaults and secrets for the freshly opened session.
+    refresh_entries();
+
+    super::super::MainWindow {
+        window,
+        secret_flow: center_panel.secret_flow,
+        refresh_entries,
+        auto_lock_timeout_secs,
+        auto_lock_source,
+        auto_lock_armed,
+        session_master_key,
+        pin_cache,
+        on_auto_lock,
+        on_pin_lock,
+        on_logout,
+        on_pin_state_cb,
+        session_user_id: admin_user_id,
+        audit_service: Rc::new(audit_service),
+    }
+}
+
+/// Build a callback that brings a named stack page to the front.
+fn build_stack_switch(main_stack: &gtk4::Stack, page_name: &'static str) -> Rc<dyn Fn()> {
+    let stack = main_stack.clone();
+    Rc::new(move || stack.set_visible_child_name(page_name))
+}
+
+/// Install the filter and sort predicates backing the secret flow box.
+fn install_flow_filter_and_sort(secret_flow: &gtk4::FlowBox, filter_runtime: &FilterRuntime) {
+    let runtime_for_filter = filter_runtime.clone();
+    secret_flow.set_filter_func(move |child| {
         let Some(content) = child.child() else {
             return false;
         };
         let key = content.widget_name().to_string();
-        let store = runtime_for_flow_filter.meta_by_widget.borrow();
+        let store = runtime_for_filter.meta_by_widget.borrow();
         let Some(meta) = store.get(&key) else {
             return true;
         };
 
-        let query = runtime_for_flow_filter.search_text.borrow().to_string();
-        let terms = super::super::MainWindow::parse_search_terms(query.as_str());
+        let query = runtime_for_filter.search_text.borrow().to_string();
+        let terms = search_filter::parse_search_terms(query.as_str());
         let matches_query = terms.is_empty()
             || terms
                 .iter()
-                .all(|term| super::super::MainWindow::matches_search_term(meta, term));
+                .all(|term| search_filter::matches_search_term(meta, term));
 
-        let matches_category = match runtime_for_flow_filter.selected_category.get() {
+        let matches_category = match runtime_for_filter.selected_category.get() {
             SecretCategoryFilter::All => true,
             SecretCategoryFilter::Password => meta.kind == SecretKind::Password,
             SecretCategoryFilter::ApiToken => meta.kind == SecretKind::ApiToken,
@@ -211,7 +544,7 @@ where
             SecretCategoryFilter::SecureDocument => meta.kind == SecretKind::SecureDocument,
         };
 
-        let matches_audit = match runtime_for_flow_filter.selected_audit.get() {
+        let matches_audit = match runtime_for_filter.selected_audit.get() {
             AuditFilter::All => true,
             AuditFilter::Weak => meta.is_weak,
             AuditFilter::Duplicate => meta.is_duplicate,
@@ -219,9 +552,9 @@ where
 
         matches_query && matches_category && matches_audit
     });
-    
-    let runtime_for_flow_sort = filter_runtime.clone();
-    center_panel.secret_flow.set_sort_func(move |left, right| {
+
+    let runtime_for_sort = filter_runtime.clone();
+    secret_flow.set_sort_func(move |left, right| {
         let left_key = left
             .child()
             .map(|child| child.widget_name().to_string())
@@ -231,7 +564,7 @@ where
             .map(|child| child.widget_name().to_string())
             .unwrap_or_default();
 
-        let store = runtime_for_flow_sort.meta_by_widget.borrow();
+        let store = runtime_for_sort.meta_by_widget.borrow();
         let Some(left_meta) = store.get(&left_key) else {
             return left_key.cmp(&right_key).into();
         };
@@ -239,7 +572,7 @@ where
             return left_key.cmp(&right_key).into();
         };
 
-        match runtime_for_flow_sort.selected_sort.get() {
+        match runtime_for_sort.selected_sort.get() {
             SecretSortMode::Recent => left_meta
                 .original_rank
                 .cmp(&right_meta.original_rank)
@@ -262,153 +595,4 @@ where
             }
         }
     });
-    
-    // Build shell content (search entry, multivault toggle, etc.)
-    let content_shell = crate::ui::windows::main_window::shell::build_content_shell(
-        &sidebar_panel.frame,
-        &center_panel.frame,
-    );
-    let search_entry = content_shell.search_entry;
-    let _multivault_toggle = content_shell.multivault_toggle;
-    
-    // ── 3. Setup Event Handlers ───────────────────────────────────────────────
-    
-    // Window close handler
-    events::setup_window_close_handler(
-        &window,
-        Rc::clone(&critical_ops_in_flight),
-        Rc::clone(&on_logout),
-    );
-    
-    // Profile popover handlers
-    events::setup_profile_popover_handlers(
-        &profile_popover,
-        &profile_button,
-        runtime_handle.clone(),
-        database_pool.clone(),
-        admin_user_id,
-        login_history_list,
-    );
-    
-    // PIN badge handler
-    events::setup_pin_badge_handler(
-        &header_pin_btn,
-        window.clone(),
-        Rc::clone(&session_master_key),
-        Rc::clone(&pin_cache),
-        Rc::clone(&on_pin_state_cb),
-        admin_user_id,
-    );
-    
-    // Panic button handler
-    events::setup_panic_button_handler(&panic_button, window.clone());
-    
-    // Add button handler - TODO: extract from new_body.inc
-    // Needs open_editor callback which depends on more extraction
-    
-    // Trash button handler
-    let refresh_entries_clone = Rc::clone(&refresh_entries);
-    events::setup_trash_button_handler(
-        &trash_button,
-        application,
-        window.clone(),
-        runtime_handle.clone(),
-        Arc::clone(&_secret_service),
-        Arc::clone(&_vault_service),
-        admin_user_id,
-        Rc::clone(&session_master_key),
-        refresh_entries_clone,
-    );
-    
-    // Key controller for auto-lock and keyboard shortcuts
-    events::setup_key_controller(
-        &window,
-        &search_entry,
-        &center_panel.secret_flow,
-        Rc::clone(&filter_runtime.actions_by_widget),
-        Rc::clone(&auto_lock_source),
-        Rc::clone(&auto_lock_armed),
-        Rc::clone(&auto_lock_timeout_secs),
-        Rc::clone(&on_auto_lock),
-        Rc::clone(&session_master_key),
-    );
-    
-    // Motion controller for auto-lock reset
-    events::setup_motion_controller(
-        &window,
-        Rc::clone(&auto_lock_source),
-        Rc::clone(&auto_lock_armed),
-        Rc::clone(&auto_lock_timeout_secs),
-        Rc::clone(&on_auto_lock),
-        Rc::clone(&session_master_key),
-    );
-    
-    // Sort button handlers
-    events::setup_sort_button_handlers(
-        &center_panel.sort_recent_button,
-        &center_panel.sort_title_button,
-        &center_panel.sort_risk_button,
-        center_panel.secret_flow.clone(),
-        filter_runtime.clone(),
-    );
-    
-    // Search entry handlers
-    events::setup_search_entry_handlers(
-        &search_entry,
-        center_panel.secret_flow.clone(),
-        filter_runtime.clone(),
-    );
-    
-    // Multivault toggle handler - TODO: needs global_search_reload implementation
-    // events::setup_multivault_toggle_handler(
-    //     &_multivault_toggle,
-    //     Rc::clone(&_is_global_search),
-    //     filter_runtime.clone(),
-    //     search_entry.clone(),
-    //     Rc::new(|_is_global| {}),
-    // );
-
-    // ── 4. Assemble the UI ────────────────────────────────────────────────────
-    
-    // Add header pin button to user identity box
-    user_identity_box.append(&header_pin_btn);
-    
-    // Add admin badge if applicable
-    if is_admin {
-        user_identity_box.append(&admin_badge);
-    }
-    
-    // Add buttons to header bar
-    header_bar.pack_start(&add_button);
-    header_bar.pack_start(&trash_button);
-    header_bar.pack_end(&user_identity_box);
-    header_bar.pack_end(&panic_button);
-    
-    // Add title box to header bar
-    header_bar.set_title_widget(Some(&title_box));
-    
-    // Build final UI hierarchy
-    let content = content_shell.container;
-    root.append(&header_bar);
-    root.append(&content);
-    toast_overlay.set_child(Some(&root));
-    window.set_content(Some(&toast_overlay));
-
-    // ── 5. Return MainWindow ─────────────────────────────────────────────────
-    super::super::MainWindow {
-        window,
-        secret_flow: center_panel.secret_flow,
-        refresh_entries,
-        auto_lock_timeout_secs,
-        auto_lock_source,
-        auto_lock_armed,
-        session_master_key,
-        pin_cache,
-        on_auto_lock,
-        on_pin_lock,
-        on_logout,
-        on_pin_state_cb,
-        session_user_id: admin_user_id,
-        audit_service: Rc::new(audit_service),
-    }
 }

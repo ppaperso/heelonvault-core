@@ -17,11 +17,9 @@ use sqlx::SqlitePool;
 use super::super::auto_lock;
 use crate::ui::windows::main_window::types::SecretQuickActions;
 #[cfg(feature = "premium")]
-use heelonvault_premium::services::audit_report_service::ReportError;
+use heelonvault_premium::services::audit_report_service::AuditReportService;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
-#[cfg(feature = "premium")]
-use heelonvault_premium::services::audit_report_service::AuditReportService;
 use tokio::runtime::Handle;
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -30,7 +28,7 @@ use uuid::Uuid;
 use crate::ui::windows::main_window::{AuditFilter, SecretCategoryFilter, SecretSortMode};
 
 /// Setup the window close request handler
-/// 
+///
 /// This handler checks if there are critical operations in flight and defers
 /// the close request if so, otherwise persists the window state and triggers logout.
 pub fn setup_window_close_handler(
@@ -40,7 +38,7 @@ pub fn setup_window_close_handler(
 ) {
     let critical_ops_for_close = Rc::clone(&critical_ops_in_flight);
     let on_logout_for_close = Rc::clone(&on_logout);
-    
+
     window.connect_close_request(move |win| {
         info!("main window close requested");
         if critical_ops_for_close.get() > 0 {
@@ -74,7 +72,7 @@ pub fn setup_window_close_handler(
 }
 
 /// Setup the profile popover show handler
-/// 
+///
 /// Refreshes the login history when the popover is shown.
 pub fn setup_profile_popover_handlers(
     profile_popover: &gtk4::Popover,
@@ -90,7 +88,7 @@ pub fn setup_profile_popover_handlers(
     let runtime_for_login_history_click = runtime_handle.clone();
     let db_for_login_history_click = database_pool.clone();
     let history_list_for_click = login_history_list.clone();
-    
+
     profile_popover.connect_show(move |_| {
         super::super::MainWindow::refresh_login_history_popover(
             runtime_for_login_history.clone(),
@@ -99,7 +97,7 @@ pub fn setup_profile_popover_handlers(
             history_list_for_show.clone(),
         );
     });
-    
+
     profile_button.connect_notify_local(Some("active"), move |button, _| {
         if !button.property::<bool>("active") {
             return;
@@ -113,24 +111,8 @@ pub fn setup_profile_popover_handlers(
     });
 }
 
-/// Refresh the login history in the profile popover
-/// 
-/// This is called when the popover is shown or when the profile button is clicked.
-#[allow(unused_variables)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-pub fn refresh_login_history_popover(
-    _runtime: Handle,
-    _database_pool: SqlitePool,
-    _user_id: Uuid,
-    _login_history_list: gtk4::Box,
-) {
-    // TODO: Implement the actual login history refresh logic
-    // This would involve calling list_recent_logins and adding entries to the list
-}
-
 /// Setup the PIN status badge clicked handler
-/// 
+///
 /// Opens the PIN setup dialog when the badge is clicked.
 #[allow(clippy::too_many_arguments)]
 pub fn setup_pin_badge_handler(
@@ -145,7 +127,7 @@ pub fn setup_pin_badge_handler(
     let session_for_header_pin = Rc::clone(&session_master_key);
     let pin_cache_for_header_pin = Rc::clone(&pin_cache);
     let on_pin_state_for_header = Rc::clone(&on_pin_state_cb);
-    
+
     header_pin_btn.connect_clicked(move |_| {
         let key_snapshot = {
             let k = session_for_header_pin.borrow();
@@ -159,7 +141,7 @@ pub fn setup_pin_badge_handler(
         let state_for_created = Rc::clone(&on_pin_state_for_header);
         let cache_for_disabled = Rc::clone(&pin_cache_for_header_pin);
         let state_for_disabled = Rc::clone(&on_pin_state_for_header);
-        
+
         let dialog = crate::ui::dialogs::pin_setup_dialog::PinSetupDialog::new(
             &win_for_header_pin,
             key_snapshot,
@@ -183,19 +165,25 @@ pub fn setup_pin_badge_handler(
 }
 
 /// Setup the panic button clicked handler
-/// 
+///
 /// Shows a confirmation dialog and exits the application if confirmed.
 pub fn setup_panic_button_handler(panic_button: &gtk4::Button, window: adw::ApplicationWindow) {
     let window_for_panic = window.clone();
-    
+
     panic_button.connect_clicked(move |_| {
         let dialog = adw::MessageDialog::new(
             Some(&window_for_panic),
             Some(heelonvault_core::tr!("main-panic-title").as_str()),
             Some(heelonvault_core::tr!("main-panic-body").as_str()),
         );
-        dialog.add_response("cancel", heelonvault_core::tr!("main-panic-cancel").as_str());
-        dialog.add_response("wipe_exit", heelonvault_core::tr!("main-panic-confirm").as_str());
+        dialog.add_response(
+            "cancel",
+            heelonvault_core::tr!("main-panic-cancel").as_str(),
+        );
+        dialog.add_response(
+            "wipe_exit",
+            heelonvault_core::tr!("main-panic-confirm").as_str(),
+        );
         dialog.set_response_appearance("wipe_exit", adw::ResponseAppearance::Destructive);
         dialog.set_default_response(Some("cancel"));
         dialog.set_close_response("cancel");
@@ -217,12 +205,11 @@ pub fn setup_panic_button_handler(panic_button: &gtk4::Button, window: adw::Appl
 }
 
 /// Setup the add button clicked handler
-/// 
+///
 /// Opens the editor dialog for creating a new secret.
-/// 
+///
 /// Note: This uses a generic type parameter for VaultService to avoid dyn compatibility issues.
 #[allow(clippy::too_many_arguments)]
-#[allow(dead_code)]
 pub fn setup_add_button_handler<TVault>(
     add_button: &gtk4::Button,
     window: adw::ApplicationWindow,
@@ -239,7 +226,7 @@ pub fn setup_add_button_handler<TVault>(
     let runtime_for_add = runtime_handle.clone();
     let vault_service_for_add = Arc::clone(&vault_service);
     let window_for_add = window.clone();
-    
+
     add_button.connect_clicked(move |_| {
         let maybe_vault_id = *active_vault_for_add.borrow();
         let Some(vault_id) = maybe_vault_id else {
@@ -261,7 +248,9 @@ pub fn setup_add_button_handler<TVault>(
                         )
                     })?;
                 let is_shared = access.vault.owner_user_id != admin_user_id;
-                Ok::<bool, heelonvault_core::errors::AppError>(!is_shared || access.role.can_admin())
+                Ok::<bool, heelonvault_core::errors::AppError>(
+                    !is_shared || access.role.can_admin(),
+                )
             });
             let _ = sender.send(result);
         });
@@ -271,7 +260,9 @@ pub fn setup_add_button_handler<TVault>(
         glib::MainContext::default().spawn_local(async move {
             match receiver.await {
                 Ok(Ok(true)) => {
-                    open_editor_for_result(crate::ui::dialogs::add_edit_dialog::DialogMode::CreateInVault(vault_id));
+                    open_editor_for_result(
+                        crate::ui::dialogs::add_edit_dialog::DialogMode::CreateInVault(vault_id),
+                    );
                 }
                 Ok(Ok(false)) => {
                     crate::ui::windows::main_window::MainWindow::show_feedback_dialog(
@@ -293,12 +284,11 @@ pub fn setup_add_button_handler<TVault>(
 }
 
 /// Setup the trash button clicked handler
-/// 
+///
 /// Opens the trash dialog for managing deleted secrets.
-/// 
+///
 /// Note: This uses generic type parameters to avoid dyn compatibility issues.
 #[allow(clippy::too_many_arguments)]
-#[allow(dead_code)]
 pub fn setup_trash_button_handler<TSecret, TVault>(
     trash_button: &gtk4::Button,
     application: &adw::Application,
@@ -321,9 +311,10 @@ pub fn setup_trash_button_handler<TSecret, TVault>(
     let admin_user_for_trash = admin_user_id;
     let session_master_for_trash = Rc::clone(&session_master_key);
     let refresh_for_trash = Rc::clone(&refresh_after_trash);
-    
+
     trash_button.connect_clicked(move |_| {
-        let Some(master_key) = super::super::MainWindow::snapshot_session_master_key(&session_master_for_trash)
+        let Some(master_key) =
+            super::super::MainWindow::snapshot_session_master_key(&session_master_for_trash)
         else {
             info!("trash access blocked: session is locked");
             return;
@@ -346,9 +337,8 @@ pub fn setup_trash_button_handler<TSecret, TVault>(
 }
 
 /// Setup the sort button handlers
-/// 
+///
 /// Connects click handlers to the sort buttons (recent, title, risk).
-#[allow(dead_code)]
 pub fn setup_sort_button_handlers(
     sort_recent_button: &gtk4::Button,
     sort_title_button: &gtk4::Button,
@@ -398,7 +388,9 @@ pub fn setup_sort_button_handlers(
     let title_button = sort_title_button.clone();
     let risk_button = sort_risk_button.clone();
     sort_risk_button.connect_clicked(move |_| {
-        filter_for_risk_sort.selected_sort.set(crate::ui::windows::main_window::SecretSortMode::Risk);
+        filter_for_risk_sort
+            .selected_sort
+            .set(crate::ui::windows::main_window::SecretSortMode::Risk);
         update_sort_button_states(
             &recent_button,
             &title_button,
@@ -409,8 +401,53 @@ pub fn setup_sort_button_handlers(
     });
 }
 
+/// Wire the category and audit sidebar lists to the flow box filters.
+pub fn setup_sidebar_filter_handlers(
+    sidebar_panel: &crate::ui::windows::main_window::SidebarWidgets,
+    main_stack: &gtk4::Stack,
+    secret_flow: gtk4::FlowBox,
+    filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
+) {
+    let flow_for_category = secret_flow.clone();
+    let filter_for_category = filter_runtime.clone();
+    let stack_for_category = main_stack.clone();
+    sidebar_panel
+        .category_list
+        .connect_row_selected(move |_list, row_opt| {
+            if let Some(row) = row_opt {
+                stack_for_category.set_visible_child_name("entries_view");
+                let category = match row.index() {
+                    1 => SecretCategoryFilter::Password,
+                    2 => SecretCategoryFilter::ApiToken,
+                    3 => SecretCategoryFilter::SshKey,
+                    4 => SecretCategoryFilter::SecureDocument,
+                    _ => SecretCategoryFilter::All,
+                };
+                filter_for_category.selected_category.set(category);
+            }
+            apply_filters(&flow_for_category, &filter_for_category);
+        });
+
+    let flow_for_audit = secret_flow;
+    let filter_for_audit = filter_runtime;
+    let stack_for_audit = main_stack.clone();
+    sidebar_panel
+        .audit_list
+        .connect_row_selected(move |_list, row_opt| {
+            if let Some(row) = row_opt {
+                stack_for_audit.set_visible_child_name("entries_view");
+                let audit = match row.index() {
+                    1 => AuditFilter::Weak,
+                    2 => AuditFilter::Duplicate,
+                    _ => AuditFilter::All,
+                };
+                filter_for_audit.selected_audit.set(audit);
+            }
+            apply_filters(&flow_for_audit, &filter_for_audit);
+        });
+}
+
 /// Update the visual state of sort buttons
-#[allow(dead_code)]
 pub fn update_sort_button_states(
     recent_button: &gtk4::Button,
     title_button: &gtk4::Button,
@@ -418,12 +455,12 @@ pub fn update_sort_button_states(
     selected: SecretSortMode,
 ) {
     use crate::ui::windows::main_window::SecretSortMode;
-    
+
     // Remove active class from all buttons first
     recent_button.remove_css_class("sort-active");
     title_button.remove_css_class("sort-active");
     risk_button.remove_css_class("sort-active");
-    
+
     // Add active class to the selected button
     match selected {
         SecretSortMode::Recent => recent_button.add_css_class("sort-active"),
@@ -433,7 +470,6 @@ pub fn update_sort_button_states(
 }
 
 /// Apply the current filters to the secret flow
-#[allow(dead_code)]
 pub fn apply_filters(
     flow: &gtk4::FlowBox,
     _filter_runtime: &crate::ui::windows::main_window::types::FilterRuntime,
@@ -444,9 +480,8 @@ pub fn apply_filters(
 }
 
 /// Setup the multivault toggle handler
-/// 
+///
 /// Toggles between global search and vault-specific search.
-#[allow(dead_code)]
 pub fn setup_multivault_toggle_handler(
     multivault_toggle: &gtk4::ToggleButton,
     is_global_search: Rc<Cell<bool>>,
@@ -458,21 +493,19 @@ pub fn setup_multivault_toggle_handler(
     let search_entry_for_toggle = search_entry.clone();
     let filter_for_toggle = filter_runtime.clone();
     let global_reload_for_toggle = Rc::clone(&global_search_reload);
-    
+
     multivault_toggle.connect_toggled(move |toggle| {
         let is_global = toggle.is_active();
         is_global_search_for_toggle.set(is_global);
         // Sync current search text so the reload applies it immediately
-        *filter_for_toggle.search_text.borrow_mut() = 
-            search_entry_for_toggle.text().to_string();
+        *filter_for_toggle.search_text.borrow_mut() = search_entry_for_toggle.text().to_string();
         global_reload_for_toggle(is_global);
     });
 }
 
 /// Setup the search entry handlers
-/// 
+///
 /// Handles search text changes and Enter key activation.
-#[allow(dead_code)]
 pub fn setup_search_entry_handlers(
     search_entry: &gtk4::SearchEntry,
     secret_flow: gtk4::FlowBox,
@@ -485,7 +518,7 @@ pub fn setup_search_entry_handlers(
         *filter_for_search.search_text.borrow_mut() = entry.text().to_string();
         apply_filters(&flow_for_search, &filter_for_search);
     });
-    
+
     // Enter key handler - jump to first visible card
     let flow_for_search_activate = secret_flow.clone();
     search_entry.connect_activate(move |_| {
@@ -505,10 +538,9 @@ pub fn setup_search_entry_handlers(
 }
 
 /// Setup the key controller for auto-lock and keyboard shortcuts
-/// 
+///
 /// Handles Ctrl+F (focus search), Ctrl+C/L/U (copy actions), and arrow key navigation.
 #[allow(clippy::too_many_arguments)]
-#[allow(dead_code)]
 pub fn setup_key_controller(
     window: &adw::ApplicationWindow,
     search_entry: &gtk4::SearchEntry,
@@ -520,7 +552,6 @@ pub fn setup_key_controller(
     on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
     session_master_key: Rc<RefCell<Vec<u8>>>,
 ) {
-    
     let key_controller = gtk4::EventControllerKey::new();
     key_controller.set_propagation_phase(gtk4::PropagationPhase::Capture);
     let window_for_key = window.clone();
@@ -532,7 +563,7 @@ pub fn setup_key_controller(
     let timeout_for_key = Rc::clone(&auto_lock_timeout_secs);
     let callback_for_key = Rc::clone(&on_auto_lock);
     let session_for_key = Rc::clone(&session_master_key);
-    
+
     key_controller.connect_key_pressed(move |_controller, key, _keycode, state| {
         auto_lock::reset_auto_lock_timer(
             &window_for_key,
@@ -560,8 +591,7 @@ pub fn setup_key_controller(
                     | gtk4::gdk::Key::L
                     | gtk4::gdk::Key::u
                     | gtk4::gdk::Key::U
-            )
-                && let Some(selected_child) = flow_for_key.selected_children().first().cloned()
+            ) && let Some(selected_child) = flow_for_key.selected_children().first().cloned()
                 && let Some(card_widget) = selected_child.child()
             {
                 let widget_key = card_widget.widget_name().to_string();
@@ -600,8 +630,8 @@ pub fn setup_key_controller(
                 return glib::Propagation::Proceed;
             }
 
-            let focus_is_in_grid = gtk4::prelude::GtkWindowExt::focus(&window_for_key)
-                .is_some_and(|focus| {
+            let focus_is_in_grid =
+                gtk4::prelude::GtkWindowExt::focus(&window_for_key).is_some_and(|focus| {
                     let mut current = Some(focus);
                     while let Some(widget) = current {
                         if widget == flow_for_key.clone().upcast::<gtk4::Widget>() {
@@ -634,9 +664,7 @@ pub fn setup_key_controller(
                     .selected_children()
                     .first()
                     .and_then(|selected| {
-                        visible_children
-                            .iter()
-                            .position(|child| child == selected)
+                        visible_children.iter().position(|child| child == selected)
                     })
                     .unwrap_or(0);
 
@@ -667,9 +695,8 @@ pub fn setup_key_controller(
 }
 
 /// Setup the motion controller for auto-lock reset
-/// 
+///
 /// Resets the auto-lock timer when the mouse moves.
-#[allow(dead_code)]
 pub fn setup_motion_controller(
     window: &adw::ApplicationWindow,
     auto_lock_source: Rc<RefCell<Option<glib::SourceId>>>,
@@ -699,13 +726,12 @@ pub fn setup_motion_controller(
 }
 
 /// Setup the certification popover and handlers (premium feature)
-/// 
+///
 /// Creates the certification menu with report buttons (24h, 7d, 30d) and diagnostics.
 #[cfg(feature = "premium")]
 #[allow(clippy::too_many_arguments)]
-#[allow(dead_code)]
 pub fn setup_certification_handlers(
-    certification_menu_button: &gtk4::Button,
+    certification_menu_button: &gtk4::MenuButton,
     window: &adw::ApplicationWindow,
     toast_overlay: &adw::ToastOverlay,
     license_service: Arc<LicenseService>,
@@ -713,11 +739,11 @@ pub fn setup_certification_handlers(
     report_customer_name: String,
 ) {
     use heelonvault_core::services::audit_report_provider::ReportError;
-    
+
     let certification_popover = gtk4::Popover::new();
     certification_popover.set_has_arrow(true);
     certification_popover.set_autohide(true);
-    
+
     let certification_menu_box = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Vertical)
         .spacing(4)
@@ -727,43 +753,52 @@ pub fn setup_certification_handlers(
         .margin_end(8)
         .build();
     certification_menu_box.add_css_class("profile-login-history-popover");
-    
-    let report_24h_menu_button = crate::ui::windows::main_window::certification::build_certification_menu_item(
-        "document-save-symbolic",
-        "Rapport 24h",
-    );
-    let report_7d_menu_button = crate::ui::windows::main_window::certification::build_certification_menu_item(
-        "document-save-symbolic",
-        "Rapport 7 jours",
-    );
-    let report_30d_menu_button = crate::ui::windows::main_window::certification::build_certification_menu_item(
-        "document-save-symbolic",
-        "Rapport 30 jours",
-    );
-    let diagnostics_menu_button = crate::ui::windows::main_window::certification::build_certification_menu_item(
-        "emblem-system-symbolic",
-        "Vérifier l'état de signature",
-    );
-    
+
+    let report_24h_menu_button =
+        crate::ui::windows::main_window::certification::build_certification_menu_item(
+            "document-save-symbolic",
+            "Rapport 24h",
+        );
+    let report_7d_menu_button =
+        crate::ui::windows::main_window::certification::build_certification_menu_item(
+            "document-save-symbolic",
+            "Rapport 7 jours",
+        );
+    let report_30d_menu_button =
+        crate::ui::windows::main_window::certification::build_certification_menu_item(
+            "document-save-symbolic",
+            "Rapport 30 jours",
+        );
+    let diagnostics_menu_button =
+        crate::ui::windows::main_window::certification::build_certification_menu_item(
+            "emblem-system-symbolic",
+            "Vérifier l'état de signature",
+        );
+
     certification_menu_box.append(&report_24h_menu_button);
     certification_menu_box.append(&report_7d_menu_button);
     certification_menu_box.append(&report_30d_menu_button);
     certification_menu_box.append(&diagnostics_menu_button);
     certification_popover.set_child(Some(&certification_menu_box));
-    
+
     // Check if certification is enabled
     let certification_enabled = license_service
         .get_cached()
-        .map(|license| matches!(license.tier, heelonvault_core::models::LicenseTier::Professional))
+        .map(|license| {
+            matches!(
+                license.tier,
+                heelonvault_core::models::LicenseTier::Professional
+            )
+        })
         .unwrap_or(false);
-    
+
     certification_menu_button.set_sensitive(certification_enabled);
     if !certification_enabled {
         certification_menu_button
             .set_tooltip_text(Some("Certifier & Exporter (licence Pro requise)"));
     }
     certification_menu_button.set_popover(Some(&certification_popover));
-    
+
     // Setup launch_signed_report closure
     let window_for_report = window.clone();
     let toast_overlay_for_report = toast_overlay.clone();
@@ -771,7 +806,7 @@ pub fn setup_certification_handlers(
     let customer_name_for_click = report_customer_name.clone();
     let license_service_for_diag = Arc::clone(&license_service);
     let window_for_diag = window.clone();
-    
+
     let launch_signed_report: Rc<dyn Fn(i64)> = Rc::new({
         let report_service = Arc::clone(&report_service_for_click);
         let customer_name = customer_name_for_click.clone();
@@ -785,8 +820,8 @@ pub fn setup_certification_handlers(
             let report_service_for_task = Arc::clone(&report_service);
             let customer_for_task = customer_name.clone();
             std::thread::spawn(move || {
-                let result = report_service_for_task
-                    .generate_audit_report(customer_for_task.as_str(), days);
+                let result =
+                    report_service_for_task.generate_audit_report(customer_for_task.as_str(), days);
                 let _ = sender.send(result);
             });
 
@@ -833,7 +868,7 @@ pub fn setup_certification_handlers(
             });
         }
     });
-    
+
     // Setup button handlers
     let certification_popover_for_24h = certification_popover.clone();
     let launch_signed_report_for_24h = Rc::clone(&launch_signed_report);
@@ -845,7 +880,7 @@ pub fn setup_certification_handlers(
             launch_signed_report(1)
         }
     });
-    
+
     let certification_popover_for_7d = certification_popover.clone();
     let launch_signed_report_for_7d = Rc::clone(&launch_signed_report);
     report_7d_menu_button.connect_clicked({
@@ -856,7 +891,7 @@ pub fn setup_certification_handlers(
             launch_signed_report(7)
         }
     });
-    
+
     let certification_popover_for_30d = certification_popover.clone();
     let launch_signed_report_for_30d = Rc::clone(&launch_signed_report);
     report_30d_menu_button.connect_clicked({
@@ -867,7 +902,7 @@ pub fn setup_certification_handlers(
             launch_signed_report(30)
         }
     });
-    
+
     let certification_popover_for_diag = certification_popover.clone();
     let license_service_for_handler = Arc::clone(&license_service_for_diag);
     let window_for_handler = window_for_diag.clone();
@@ -880,9 +915,11 @@ pub fn setup_certification_handlers(
             crate::ui::windows::main_window::certification::show_certification_diagnostics_dialog(
                 &report_window,
                 Arc::clone(&license_service),
-                Rc::new(move |window: &adw::ApplicationWindow, title: &str, message: &str| {
-                    super::super::MainWindow::show_feedback_dialog(window, title, message);
-                }),
+                Rc::new(
+                    move |window: &adw::ApplicationWindow, title: &str, message: &str| {
+                        super::super::MainWindow::show_feedback_dialog(window, title, message);
+                    },
+                ),
             );
         }
     });

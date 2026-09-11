@@ -23,11 +23,6 @@ use tracing::{info, warn};
 use uuid::Uuid;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::ui::dialogs::add_edit_dialog::DialogMode;
-#[cfg(feature = "premium")]
-use crate::ui::dialogs::manage_teams_dialog::ManageTeamsDialog;
-#[cfg(feature = "premium")]
-use crate::ui::dialogs::manage_users_dialog::ManageUsersDialog;
 use crate::ui::dialogs::recovery_key_export_dialog;
 use crate::ui::dialogs::recovery_key_export_dialog::{
     ExportRunner, RecoveryKeyExportDialog, RecoveryKeyExportDialogDeps,
@@ -36,17 +31,11 @@ use crate::ui::messages;
 use crate::ui::window_sizing;
 
 #[allow(unused_imports)]
-use std::collections::HashMap;
-#[allow(unused_imports)]
 use crate::ui::dialogs::add_edit_dialog::AddEditDialog;
 #[allow(unused_imports)]
 use crate::ui::dialogs::trash_dialog::TrashDialog;
-#[cfg(feature = "premium")]
-use heelonvault_core::models::LicenseTier;
 use heelonvault_core::repositories::user_repository::UserRepository;
 use heelonvault_core::services::admin_service::AdminService;
-#[cfg(feature = "premium")]
-use heelonvault_core::services::audit_report_provider::ReportError;
 use heelonvault_core::services::auth_policy_service::AuthPolicyService;
 use heelonvault_core::services::backup_application_service::BackupApplicationService;
 use heelonvault_core::services::backup_service::BackupService;
@@ -60,9 +49,9 @@ use heelonvault_core::services::totp_service::TotpService;
 use heelonvault_core::services::user_service::UserService;
 use heelonvault_core::services::vault_service::VaultService;
 #[cfg(feature = "premium")]
-use heelonvault_premium::services::audit_report_service::AuditReportService;
-#[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
+#[allow(unused_imports)]
+use std::collections::HashMap;
 
 mod auto_lock;
 mod center;
@@ -136,6 +125,7 @@ pub struct MainWindow {
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 struct CenterPanelWidgets {
     frame: gtk4::Frame,
     main_stack: gtk4::Stack,
@@ -162,6 +152,7 @@ struct ProfileViewWidgets {
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 struct SidebarWidgets {
     frame: gtk4::Frame,
     my_vaults_title: gtk4::Label,

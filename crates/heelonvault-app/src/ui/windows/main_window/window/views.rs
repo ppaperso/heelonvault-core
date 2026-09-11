@@ -30,7 +30,16 @@ pub fn build_main_window(application: &adw::Application) -> adw::ApplicationWind
 }
 
 /// Build the header bar with title and badges
-pub fn build_header_bar(license_badge_text: &str) -> (adw::HeaderBar, gtk4::Box, gtk4::Image, gtk4::Label, gtk4::Label, gtk4::Widget) {
+pub fn build_header_bar(
+    license_badge_text: &str,
+) -> (
+    adw::HeaderBar,
+    gtk4::Box,
+    gtk4::Image,
+    gtk4::Label,
+    gtk4::Label,
+    gtk4::Widget,
+) {
     let header_bar = adw::HeaderBar::new();
     header_bar.add_css_class("main-headerbar");
     header_bar.set_show_start_title_buttons(false);
@@ -43,7 +52,8 @@ pub fn build_header_bar(license_badge_text: &str) -> (adw::HeaderBar, gtk4::Box,
         .build();
 
     // Logo
-    let logo = gtk4::Image::from_resource("/com/heelonvault/rust/icons/Logo_Heelonys_transparent.png");
+    let logo =
+        gtk4::Image::from_resource("/com/heelonvault/rust/icons/Logo_Heelonys_transparent.png");
     logo.set_pixel_size(22);
     logo.add_css_class("main-title-logo");
 
@@ -67,7 +77,14 @@ pub fn build_header_bar(license_badge_text: &str) -> (adw::HeaderBar, gtk4::Box,
 
     header_bar.set_title_widget(Some(&title_box));
 
-    (header_bar, title_box, logo, title_label, header_plan_badge, header_license_badge)
+    (
+        header_bar,
+        title_box,
+        logo,
+        title_label,
+        header_plan_badge,
+        header_license_badge,
+    )
 }
 
 /// Build the root container with toast overlay
@@ -81,7 +98,9 @@ pub fn build_root_container() -> (gtk4::Box, adw::ToastOverlay) {
 }
 
 /// Build the profile button with login history popover
-pub fn build_profile_button(connected_identity_label: &str) -> (gtk4::MenuButton, gtk4::Popover, gtk4::Label, gtk4::Box) {
+pub fn build_profile_button(
+    connected_identity_label: &str,
+) -> (gtk4::MenuButton, gtk4::Popover, gtk4::Label, gtk4::Box) {
     let profile_button = gtk4::MenuButton::new();
     profile_button.add_css_class("header-badge");
     profile_button.set_label(
@@ -94,12 +113,14 @@ pub fn build_profile_button(connected_identity_label: &str) -> (gtk4::MenuButton
         )
         .as_str(),
     );
-    profile_button.set_tooltip_text(Some(heelonvault_core::tr!("main-last-logins-tooltip").as_str()));
+    profile_button.set_tooltip_text(Some(
+        heelonvault_core::tr!("main-last-logins-tooltip").as_str(),
+    ));
 
     let profile_popover = gtk4::Popover::new();
     profile_popover.set_has_arrow(true);
     profile_popover.set_autohide(true);
-    
+
     let profile_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
         .spacing(6)
@@ -110,7 +131,9 @@ pub fn build_profile_button(connected_identity_label: &str) -> (gtk4::MenuButton
         .build();
     profile_box.add_css_class("profile-login-history-popover");
 
-    let profile_title = gtk4::Label::new(Some(heelonvault_core::tr!("main-last-logins-title").as_str()));
+    let profile_title = gtk4::Label::new(Some(
+        heelonvault_core::tr!("main-last-logins-title").as_str(),
+    ));
     profile_title.set_halign(Align::Start);
     profile_title.add_css_class("profile-login-history-title");
     profile_box.append(&profile_title);
@@ -124,7 +147,12 @@ pub fn build_profile_button(connected_identity_label: &str) -> (gtk4::MenuButton
     profile_popover.set_child(Some(&profile_box));
     profile_button.set_popover(Some(&profile_popover));
 
-    (profile_button, profile_popover, profile_title, login_history_list)
+    (
+        profile_button,
+        profile_popover,
+        profile_title,
+        login_history_list,
+    )
 }
 
 /// Build the user identity box with profile button and admin badge
@@ -160,7 +188,9 @@ pub fn build_user_identity_box(
         admin_badge.add_css_class("header-badge");
         admin_badge.add_css_class("admin-badge");
         admin_badge.add_css_class("warning");
-        admin_badge.set_tooltip_text(Some(heelonvault_core::tr!("main-admin-badge-tooltip").as_str()));
+        admin_badge.set_tooltip_text(Some(
+            heelonvault_core::tr!("main-admin-badge-tooltip").as_str(),
+        ));
         user_identity_box.append(&admin_badge);
     }
 
@@ -169,18 +199,17 @@ pub fn build_user_identity_box(
 
 /// Build the PIN status badge button
 pub fn build_pin_status_badge() -> (gtk4::Button, gtk4::Label) {
-    let header_pin_label = gtk4::Label::new(Some(
-        heelonvault_core::tr!("pin-status-inactive").as_str(),
-    ));
+    let header_pin_label =
+        gtk4::Label::new(Some(heelonvault_core::tr!("pin-status-inactive").as_str()));
     header_pin_label.add_css_class("status-role-pill");
     header_pin_label.add_css_class("header-badge");
     header_pin_label.add_css_class("status-role-disabled");
-    
+
     let header_pin_btn = gtk4::Button::new();
     header_pin_btn.add_css_class("flat");
     header_pin_btn.add_css_class("header-pin-badge");
     header_pin_btn.set_child(Some(&header_pin_label));
-    
+
     (header_pin_btn, header_pin_label)
 }
 
@@ -188,7 +217,7 @@ pub fn build_pin_status_badge() -> (gtk4::Button, gtk4::Label) {
 pub fn build_panic_button() -> (gtk4::Button, gtk4::Label) {
     let panic_lbl = gtk4::Label::new(Some(heelonvault_core::tr!("main-panic-label").as_str()));
     panic_lbl.add_css_class("panic-label");
-    
+
     let panic_button = gtk4::Button::builder()
         .icon_name("media-playback-stop-symbolic")
         .build();
@@ -196,6 +225,6 @@ pub fn build_panic_button() -> (gtk4::Button, gtk4::Label) {
     panic_button.add_css_class("panic-button");
     panic_button.set_child(Some(&panic_lbl));
     panic_button.set_tooltip_text(Some(heelonvault_core::tr!("main-panic-tooltip").as_str()));
-    
+
     (panic_button, panic_lbl)
 }
