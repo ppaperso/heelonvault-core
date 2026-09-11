@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 //! Unit-style checks for critical lifecycle log markers.
 //! These tests protect startup/logout/shutdown markers used by smoke checks.
 
@@ -14,11 +12,9 @@ fn missing_markers(log_content: &str, required_markers: &[&str]) -> Vec<String> 
 #[test]
 fn lifecycle_log_markers_exist_in_source_code() {
     let main_rs = include_str!("../../heelonvault-app/src/main.rs");
-    let main_window_close = include_str!(
-        "../../heelonvault-app/src/ui/windows/main_window/impl_core_parts/new_body.inc"
-    );
-    let login_close =
-        include_str!("../../heelonvault-app/src/ui/dialogs/login_dialog/parts/new_body.inc");
+    let main_window_close =
+        include_str!("../../heelonvault-app/src/ui/windows/main_window/window/events.rs");
+    let login_close = include_str!("../../heelonvault-app/src/ui/dialogs/login_dialog/core.rs");
 
     let startup_markers = [
         "tokio runtime started",

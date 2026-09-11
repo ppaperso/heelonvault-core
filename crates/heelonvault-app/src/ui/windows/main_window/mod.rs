@@ -5,7 +5,6 @@
 )]
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -17,35 +16,20 @@ use gtk4::prelude::*;
 use gtk4::{Align, Orientation};
 use libadwaita as adw;
 use libadwaita::prelude::*;
-use secrecy::{ExposeSecret, SecretBox};
+use secrecy::SecretBox;
 use sqlx::{Row, SqlitePool};
 use tokio::runtime::Handle;
 use tracing::{info, warn};
 use uuid::Uuid;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::ui::dialogs::add_edit_dialog::{AddEditDialog, DialogMode};
-#[cfg(feature = "premium")]
-use crate::ui::dialogs::manage_teams_dialog::ManageTeamsDialog;
-#[cfg(feature = "premium")]
-use crate::ui::dialogs::manage_users_dialog::ManageUsersDialog;
-use crate::ui::dialogs::recovery_key_export_dialog;
-use crate::ui::dialogs::recovery_key_export_dialog::{
-    ExportRunner, RecoveryKeyExportDialog, RecoveryKeyExportDialogDeps,
-};
-use crate::ui::dialogs::trash_dialog::TrashDialog;
 use crate::ui::messages;
 use crate::ui::window_sizing;
-#[cfg(feature = "premium")]
-use heelonvault_core::models::LicenseTier;
-use heelonvault_core::repositories::user_repository::UserRepository;
+
 use heelonvault_core::services::admin_service::AdminService;
-#[cfg(feature = "premium")]
-use heelonvault_core::services::audit_report_provider::ReportError;
 use heelonvault_core::services::auth_policy_service::AuthPolicyService;
 use heelonvault_core::services::backup_application_service::BackupApplicationService;
 use heelonvault_core::services::backup_service::BackupService;
-use heelonvault_core::services::crypto_service::CryptoService;
 use heelonvault_core::services::import_service::ImportService;
 use heelonvault_core::services::login_history_service::list_recent_logins;
 use heelonvault_core::services::pin_cache_service::PinCache;
@@ -54,8 +38,6 @@ use heelonvault_core::services::team_service::TeamService;
 use heelonvault_core::services::totp_service::TotpService;
 use heelonvault_core::services::user_service::UserService;
 use heelonvault_core::services::vault_service::VaultService;
-#[cfg(feature = "premium")]
-use heelonvault_premium::services::audit_report_service::AuditReportService;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
 
@@ -73,6 +55,7 @@ mod secret_flow;
 mod shell;
 mod sidebar;
 mod types;
+mod window;
 
 use self::types::{FilterRuntime, SecretFilterMeta, SecretRowView};
 
@@ -121,10 +104,9 @@ pub struct MainWindow {
     on_logout: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
     on_pin_state_cb: Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>,
     session_user_id: uuid::Uuid,
-    #[allow(dead_code)]
-    audit_service: Rc<Arc<heelonvault_core::services::audit_service::AuditService>>,
 }
 
+#[derive(Clone)]
 struct CenterPanelWidgets {
     frame: gtk4::Frame,
     main_stack: gtk4::Stack,
@@ -149,6 +131,7 @@ struct ProfileViewWidgets {
     back_button: gtk4::Button,
 }
 
+#[derive(Clone)]
 struct SidebarWidgets {
     frame: gtk4::Frame,
     my_vaults_title: gtk4::Label,

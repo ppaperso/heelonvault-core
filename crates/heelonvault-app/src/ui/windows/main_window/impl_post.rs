@@ -1,5 +1,5 @@
 use super::*;
-use heelonvault_core::services::pin_cache_service::{PinCache, PinUnlockError};
+use heelonvault_core::services::pin_cache_service::PinUnlockError;
 
 impl MainWindow {
     pub fn window(&self) -> &adw::ApplicationWindow {
@@ -18,11 +18,6 @@ impl MainWindow {
 
     /// Store a freshly created `PinCache`, replacing any previous one.
     // Phase 5a: PinSetupDialog result not yet wired to MainWindow. Owner: ppaadmin | Due: Phase 5b
-    #[allow(dead_code)]
-    pub fn set_pin_cache(&self, cache: PinCache) {
-        *self.pin_cache.borrow_mut() = Some(cache);
-    }
-
     /// Remove and zeroize the PIN cache (ZeroizeOnDrop ensures secure wipe).
     pub fn clear_pin_cache(&self) {
         let _ = self.pin_cache.borrow_mut().take();
@@ -153,45 +148,6 @@ impl MainWindow {
         }
     }
 
-    pub(in crate::ui::windows::main_window) fn apply_filters(
-        secret_flow: &gtk4::FlowBox,
-        filter_runtime: &FilterRuntime,
-    ) {
-        search_filter::apply_filters(secret_flow, filter_runtime);
-    }
-
-    pub(in crate::ui::windows::main_window) fn update_sort_button_states(
-        recent_button: &gtk4::Button,
-        title_button: &gtk4::Button,
-        risk_button: &gtk4::Button,
-        selected_sort: SecretSortMode,
-    ) {
-        for button in [recent_button, title_button, risk_button] {
-            button.remove_css_class("vault-secret-sort-button-active");
-        }
-
-        match selected_sort {
-            SecretSortMode::Recent => {
-                recent_button.add_css_class("vault-secret-sort-button-active")
-            }
-            SecretSortMode::Title => title_button.add_css_class("vault-secret-sort-button-active"),
-            SecretSortMode::Risk => risk_button.add_css_class("vault-secret-sort-button-active"),
-        }
-    }
-
-    pub(in crate::ui::windows::main_window) fn parse_search_terms(
-        query: &str,
-    ) -> Vec<(Option<String>, String)> {
-        search_filter::parse_search_terms(query)
-    }
-
-    pub(in crate::ui::windows::main_window) fn matches_search_term(
-        meta: &SecretFilterMeta,
-        term: &(Option<String>, String),
-    ) -> bool {
-        search_filter::matches_search_term(meta, term)
-    }
-
     pub(in crate::ui::windows::main_window) fn show_feedback_dialog(
         parent: &adw::ApplicationWindow,
         title: &str,
@@ -205,153 +161,7 @@ impl MainWindow {
     }
 
     // Phase 5a: not yet called from main.rs service error paths. Owner: ppaadmin | Due: Phase 5b
-    #[allow(dead_code)]
-    pub fn show_upgrade_dialog(parent: &adw::ApplicationWindow, feature: &str) {
-        use gtk4::gio;
-        let title = heelonvault_core::tr!("feature-not-available-title");
-        let feature_display = heelonvault_core::tr!(feature);
-        let body = format!(
-            "{}\n\n{}",
-            heelonvault_core::tr!("feature-not-available-body"),
-            feature_display,
-        );
-        let dialog =
-            adw::MessageDialog::new(Some(parent), Some(title.as_str()), Some(body.as_str()));
-        dialog.add_response("cancel", heelonvault_core::tr!("common-cancel").as_str());
-        dialog.add_response(
-            "upgrade",
-            heelonvault_core::tr!("upgrade-to-professional").as_str(),
-        );
-        dialog.set_response_appearance("upgrade", adw::ResponseAppearance::Suggested);
-        dialog.set_default_response(Some("upgrade"));
-        dialog.set_close_response("cancel");
-        let parent_for_url = parent.clone();
-        dialog.connect_response(None, move |d, response| {
-            if response == "upgrade" {
-                let _ = gio::AppInfo::launch_default_for_uri(
-                    "https://heelonys.fr/solutions/heelonvault",
-                    Some(&gtk4::prelude::RootExt::display(&parent_for_url).app_launch_context()),
-                );
-            }
-            d.close();
-        });
-        dialog.present();
-    }
-
     // Phase 5a: not yet called from main.rs service error paths. Owner: ppaadmin | Due: Phase 5b
-    #[allow(dead_code)]
-    pub fn handle_service_error(
-        parent: &adw::ApplicationWindow,
-        error: &heelonvault_core::errors::AppError,
-    ) {
-        use heelonvault_core::errors::AppError;
-        match error {
-            AppError::FeatureNotAvailable(feature) => {
-                Self::show_upgrade_dialog(parent, feature);
-            }
-            AppError::LicenseExpired => {
-                Self::show_feedback_dialog(
-                    parent,
-                    heelonvault_core::tr!("license-expired-title").as_str(),
-                    heelonvault_core::tr!("license-expired-body").as_str(),
-                );
-            }
-            other => {
-                Self::show_feedback_dialog(parent, "Erreur", &other.to_string());
-            }
-        }
-    }
-
-    #[cfg(feature = "premium")]
-    pub(in crate::ui::windows::main_window) fn build_certification_menu_item(
-        icon_name: &str,
-        label: &str,
-    ) -> gtk4::Button {
-        certification::build_certification_menu_item(icon_name, label)
-    }
-
-    #[cfg(feature = "premium")]
-    pub(in crate::ui::windows::main_window) fn show_certification_diagnostics_dialog(
-        parent: &adw::ApplicationWindow,
-        license_service: Arc<LicenseService>,
-    ) {
-        certification::show_certification_diagnostics_dialog(
-            parent,
-            license_service,
-            Rc::new(|dialog_parent, title, body| {
-                Self::show_feedback_dialog(dialog_parent, title, body);
-            }),
-        );
-    }
-
-    pub(in crate::ui::windows::main_window) fn set_inline_status(
-        label: &gtk4::Label,
-        message: &str,
-        kind: &str,
-    ) {
-        label.remove_css_class("inline-status-loading");
-        label.remove_css_class("inline-status-success");
-        label.remove_css_class("inline-status-error");
-        match kind {
-            "loading" => label.add_css_class("inline-status-loading"),
-            "success" => label.add_css_class("inline-status-success"),
-            _ => label.add_css_class("inline-status-error"),
-        }
-        label.set_text(message);
-        label.set_visible(true);
-
-        if kind != "loading" {
-            let label_for_hide = label.clone();
-            glib::timeout_add_local_once(Duration::from_millis(3200), move || {
-                label_for_hide.set_visible(false);
-            });
-        }
-    }
-
-    pub(in crate::ui::windows::main_window) fn set_twofa_badge_state(
-        label: &gtk4::Label,
-        enabled: bool,
-    ) {
-        label.remove_css_class("status-role-admin");
-        label.remove_css_class("status-role-user");
-        if enabled {
-            let text = messages::twofa_badge_enabled();
-            label.set_text(text.as_str());
-            label.add_css_class("status-role-admin");
-        } else {
-            let text = messages::twofa_badge_disabled();
-            label.set_text(text.as_str());
-            label.add_css_class("status-role-user");
-        }
-    }
-
-    pub(in crate::ui::windows::main_window) fn map_twofa_error(
-        error: &heelonvault_core::errors::AppError,
-        fallback: &str,
-    ) -> String {
-        match error {
-            heelonvault_core::errors::AppError::Authorization(_) => {
-                heelonvault_core::tr!("twofa-error-invalid-clock")
-            }
-            heelonvault_core::errors::AppError::Validation(message) => {
-                if message.to_ascii_lowercase().contains("code") {
-                    heelonvault_core::tr!("twofa-error-invalid-clock")
-                } else {
-                    heelonvault_core::tr!("twofa-error-invalid-setup")
-                }
-            }
-            heelonvault_core::errors::AppError::Storage(_)
-            | heelonvault_core::errors::AppError::Database(_)
-            | heelonvault_core::errors::AppError::Io(_) => {
-                heelonvault_core::tr!("twofa-error-storage")
-            }
-            heelonvault_core::errors::AppError::Crypto(_) => {
-                heelonvault_core::tr!("twofa-error-crypto")
-            }
-            _ => fallback.to_string(),
-        }
-    }
-
     pub(in crate::ui::windows::main_window) fn format_login_timestamp_fr(raw: &str) -> String {
         const MONTHS: [&str; 12] = [
             "janvier",
@@ -400,7 +210,7 @@ impl MainWindow {
         }
     }
 
-    pub(in crate::ui::windows::main_window) fn refresh_login_history_popover(
+    pub fn refresh_login_history_popover(
         runtime_handle: Handle,
         database_pool: SqlitePool,
         user_id: Uuid,
@@ -524,182 +334,72 @@ impl MainWindow {
 			}
 		});
     }
-    #[allow(clippy::too_many_arguments)]
-    pub(in crate::ui::windows::main_window) fn build_profile_view<
-        TUser,
-        TTotp,
-        TPolicy,
-        TBackup,
-        TBackupApp,
-        TImport,
-        TSecret,
-        TVault,
-    >(
-        window: adw::ApplicationWindow,
-        runtime_handle: Handle,
-        user_service: Arc<TUser>,
-        user_repo: Arc<heelonvault_core::repositories::user_repository::SqlxUserRepository>,
-        crypto_service: Arc<heelonvault_core::services::crypto_service::CryptoServiceImpl>,
-        totp_service: Arc<TTotp>,
-        auth_policy_service: Arc<TPolicy>,
-        backup_service: Arc<TBackup>,
-        backup_app_service: Arc<TBackupApp>,
-        import_service: Arc<TImport>,
-        secret_service: Arc<TSecret>,
-        vault_service: Arc<TVault>,
-        database_path: PathBuf,
-        user_id: Uuid,
-        is_admin: bool,
-        on_open_users_view: Rc<dyn Fn()>,
-        on_open_teams_view: Rc<dyn Fn()>,
-        profile_badge: gtk4::MenuButton,
-        critical_ops_in_flight: Rc<Cell<u32>>,
-        auto_lock_timeout_secs: Rc<Cell<u64>>,
-        auto_lock_source: Rc<RefCell<Option<glib::SourceId>>>,
-        auto_lock_armed: Rc<Cell<bool>>,
-        on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
-        session_master_key: Rc<RefCell<Vec<u8>>>,
-        pin_cache: Rc<RefCell<Option<heelonvault_core::services::pin_cache_service::PinCache>>>,
-        show_passwords_in_edit_pref: Rc<Cell<bool>>,
-        on_import_completed_refresh: Rc<dyn Fn()>,
-        on_language_changed: Rc<dyn Fn()>,
-        on_pin_state_changed: Rc<dyn Fn(bool)>,
-    ) -> ProfileViewWidgets
-    where
-        TUser: UserService + Send + Sync + 'static,
-        TTotp: TotpService + Send + Sync + 'static,
-        TPolicy: AuthPolicyService + Send + Sync + 'static,
-        TBackup: BackupService + Send + Sync + 'static,
-        TBackupApp: BackupApplicationService + Send + Sync + 'static,
-        TImport: ImportService + Send + Sync + 'static,
-        TSecret: SecretService + Send + Sync + 'static,
-        TVault: VaultService + Send + Sync + 'static,
-    {
-        profile_view::build_profile_view(
-            window,
-            runtime_handle,
-            user_service,
-            user_repo,
-            crypto_service,
-            totp_service,
-            auth_policy_service,
-            backup_service,
-            backup_app_service,
-            import_service,
-            secret_service,
-            vault_service,
-            database_path,
-            user_id,
-            is_admin,
-            on_open_users_view,
-            on_open_teams_view,
-            profile_badge,
-            critical_ops_in_flight,
-            auto_lock_timeout_secs,
-            auto_lock_source,
-            auto_lock_armed,
-            on_auto_lock,
-            session_master_key,
-            pin_cache,
-            show_passwords_in_edit_pref,
-            on_import_completed_refresh,
-            on_language_changed,
-            on_pin_state_changed,
-        )
-    }
 
-    pub(in crate::ui::windows::main_window) fn build_sidebar_panel() -> SidebarWidgets {
-        sidebar::build_sidebar_panel()
-    }
-
-    pub(in crate::ui::windows::main_window) fn build_vault_sidebar_row(
-        title: &str,
-        vault_id: Uuid,
-        can_delete: bool,
-        is_shared_with_others: bool,
-        shared_role: Option<heelonvault_core::models::VaultShareRole>,
-        secret_count: usize,
-        on_delete: Option<Rc<dyn Fn(Uuid, String)>>,
-    ) -> gtk4::ListBoxRow {
-        sidebar::build_vault_sidebar_row(
-            title,
-            vault_id,
-            can_delete,
-            is_shared_with_others,
-            shared_role,
-            secret_count,
-            on_delete,
-        )
-    }
-
-    pub(in crate::ui::windows::main_window) fn vault_id_from_row(
-        row: &gtk4::ListBoxRow,
-    ) -> Option<Uuid> {
-        row.widget_name()
-            .strip_prefix("vault-")
-            .and_then(|raw| Uuid::parse_str(raw).ok())
-    }
-
-    pub(in crate::ui::windows::main_window) fn find_vault_row(
-        list: &gtk4::ListBox,
-        vault_id: Uuid,
-    ) -> Option<gtk4::ListBoxRow> {
-        let mut child_opt = list.first_child();
-        while let Some(child) = child_opt {
-            let next = child.next_sibling();
-            if let Ok(row) = child.clone().downcast::<gtk4::ListBoxRow>()
-                && Self::vault_id_from_row(&row) == Some(vault_id)
-            {
-                return Some(row);
-            }
-            child_opt = next;
+    pub(in crate::ui::windows::main_window) fn set_inline_status(
+        label: &gtk4::Label,
+        message: &str,
+        kind: &str,
+    ) {
+        label.remove_css_class("inline-status-loading");
+        label.remove_css_class("inline-status-success");
+        label.remove_css_class("inline-status-error");
+        match kind {
+            "loading" => label.add_css_class("inline-status-loading"),
+            "success" => label.add_css_class("inline-status-success"),
+            _ => label.add_css_class("inline-status-error"),
         }
-        None
+        label.set_text(message);
+        label.set_visible(true);
+
+        if kind != "loading" {
+            let label_for_hide = label.clone();
+            glib::timeout_add_local_once(Duration::from_millis(3200), move || {
+                label_for_hide.set_visible(false);
+            });
+        }
     }
 
-    pub(in crate::ui::windows::main_window) fn build_center_panel() -> CenterPanelWidgets {
-        center::build_center_panel()
+    pub(in crate::ui::windows::main_window) fn set_twofa_badge_state(
+        label: &gtk4::Label,
+        enabled: bool,
+    ) {
+        label.remove_css_class("status-role-admin");
+        label.remove_css_class("status-role-user");
+        if enabled {
+            let text = messages::twofa_badge_enabled();
+            label.set_text(text.as_str());
+            label.add_css_class("status-role-admin");
+        } else {
+            let text = messages::twofa_badge_disabled();
+            label.set_text(text.as_str());
+            label.add_css_class("status-role-user");
+        }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(in crate::ui::windows::main_window) fn refresh_secret_flow<TSecret, TVault>(
-        application: adw::Application,
-        parent_window: adw::ApplicationWindow,
-        runtime_handle: Handle,
-        secret_service: Arc<TSecret>,
-        vault_service: Arc<TVault>,
-        admin_user_id: Uuid,
-        admin_master_key: Vec<u8>,
-        secret_flow: gtk4::FlowBox,
-        stack: gtk4::Stack,
-        empty_title: gtk4::Label,
-        empty_copy: gtk4::Label,
-        active_vault_id: Rc<RefCell<Option<Uuid>>>,
-        toast_overlay: adw::ToastOverlay,
-        filter_runtime: FilterRuntime,
-        editor_launcher: Rc<RefCell<Option<Rc<dyn Fn(DialogMode)>>>>,
-        search_all_vaults: bool,
-    ) where
-        TSecret: SecretService + Send + Sync + 'static,
-        TVault: VaultService + Send + Sync + 'static,
-    {
-        secret_flow::refresh_secret_flow(
-            application,
-            parent_window,
-            runtime_handle,
-            secret_service,
-            vault_service,
-            admin_user_id,
-            admin_master_key,
-            secret_flow,
-            stack,
-            empty_title,
-            empty_copy,
-            active_vault_id,
-            toast_overlay,
-            filter_runtime,
-            editor_launcher,
-            search_all_vaults,
-        );
+    pub(in crate::ui::windows::main_window) fn map_twofa_error(
+        error: &heelonvault_core::errors::AppError,
+        fallback: &str,
+    ) -> String {
+        match error {
+            heelonvault_core::errors::AppError::Authorization(_) => {
+                heelonvault_core::tr!("twofa-error-invalid-clock")
+            }
+            heelonvault_core::errors::AppError::Validation(message) => {
+                if message.to_ascii_lowercase().contains("code") {
+                    heelonvault_core::tr!("twofa-error-invalid-clock")
+                } else {
+                    heelonvault_core::tr!("twofa-error-invalid-setup")
+                }
+            }
+            heelonvault_core::errors::AppError::Storage(_)
+            | heelonvault_core::errors::AppError::Database(_)
+            | heelonvault_core::errors::AppError::Io(_) => {
+                heelonvault_core::tr!("twofa-error-storage")
+            }
+            heelonvault_core::errors::AppError::Crypto(_) => {
+                heelonvault_core::tr!("twofa-error-crypto")
+            }
+            _ => fallback.to_string(),
+        }
     }
 }

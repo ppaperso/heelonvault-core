@@ -25,7 +25,6 @@ impl MainWindow {
         backup_service: Arc<TBackup>,
         backup_app_service: Arc<TBackupApp>,
         import_service: Arc<TImport>,
-        audit_service: Arc<heelonvault_core::services::audit_service::AuditService>,
         #[cfg(feature = "premium")] license_service: Arc<LicenseService>,
         database_pool: SqlitePool,
         database_path: PathBuf,
@@ -47,6 +46,28 @@ impl MainWindow {
         TBackupApp: BackupApplicationService + Send + Sync + 'static,
         TImport: ImportService + Send + Sync + 'static,
     {
-        include!("impl_core_parts/new_body.inc")
+        window::core::build_main_window(
+            application,
+            runtime_handle,
+            secret_service,
+            vault_service,
+            user_service,
+            admin_service,
+            team_service,
+            totp_service,
+            auth_policy_service,
+            backup_service,
+            backup_app_service,
+            import_service,
+            #[cfg(feature = "premium")]
+            license_service,
+            database_pool,
+            database_path,
+            admin_user_id,
+            admin_master_key,
+            connected_identity_label,
+            license_badge_text,
+            is_admin,
+        )
     }
 }

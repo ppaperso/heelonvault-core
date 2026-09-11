@@ -267,6 +267,67 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     }
 }
 
+/// Re-apply translations to every static label of the sidebar.
+///
+/// Vault rows are excluded on purpose: they carry user data and are rebuilt by the vault
+/// list refresh instead.
+pub(super) fn refresh_i18n(sidebar: &SidebarWidgets) {
+    sidebar
+        .audit_title
+        .set_text(heelonvault_core::tr!("main-audit-title").as_str());
+    sidebar
+        .audit_all_label
+        .set_text(heelonvault_core::tr!("main-audit-all").as_str());
+    sidebar
+        .audit_weak_label
+        .set_text(heelonvault_core::tr!("main-audit-weak").as_str());
+    sidebar
+        .audit_duplicate_label
+        .set_text(heelonvault_core::tr!("main-audit-duplicates").as_str());
+    sidebar
+        .categories_title
+        .set_text(heelonvault_core::tr!("main-categories-title").as_str());
+    sidebar
+        .category_all_label
+        .set_text(heelonvault_core::tr!("main-category-all").as_str());
+    sidebar
+        .category_passwords_label
+        .set_text(heelonvault_core::tr!("main-category-passwords").as_str());
+    sidebar
+        .category_api_tokens_label
+        .set_text(heelonvault_core::tr!("main-category-api-tokens").as_str());
+    sidebar
+        .category_ssh_keys_label
+        .set_text(heelonvault_core::tr!("main-category-ssh-keys").as_str());
+    sidebar
+        .category_documents_label
+        .set_text(heelonvault_core::tr!("main-category-documents").as_str());
+    sidebar
+        .account_title
+        .set_text(heelonvault_core::tr!("main-account-title").as_str());
+    sidebar
+        .profile_security_label
+        .set_text(heelonvault_core::tr!("main-profile-security").as_str());
+    sidebar
+        .my_vaults_title
+        .set_text(heelonvault_core::tr!("main-my-vaults-title").as_str());
+    sidebar
+        .shared_vaults_title
+        .set_text(heelonvault_core::tr!("main-shared-with-me-title").as_str());
+    sidebar.create_vault_button.set_tooltip_text(Some(
+        heelonvault_core::tr!("main-create-vault-button").as_str(),
+    ));
+    sidebar
+        .teams_label
+        .set_text(heelonvault_core::tr!("main-teams-nav").as_str());
+    sidebar
+        .administration_label
+        .set_text(heelonvault_core::tr!("main-user-nav").as_str());
+    sidebar
+        .certification_menu_button
+        .set_tooltip_text(Some("Certifier & Exporter"));
+}
+
 pub(super) fn build_audit_sidebar_row(
     title: &str,
     icon_name: &str,

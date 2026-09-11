@@ -356,6 +356,8 @@ pub(super) fn present_restore_dialog(
                         &restore_spinner_for_result,
                         false,
                     );
+                    // Log the error for debugging
+                    ::tracing::error!(error = %error, "database restore failed");
                     feedback::show_feedback(&error_for_result, &error.to_string());
                     update_action_state();
                 }

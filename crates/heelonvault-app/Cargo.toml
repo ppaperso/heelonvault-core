@@ -37,23 +37,23 @@ sqlx    = { path = "../sqlx-shim" }
 secrecy = "0.10"
 chrono  = { version = "0.4", features = ["std"] }
 uuid    = { version = "1.16", features = ["serde", "v4"] }
-dirs    = "5.0"
+directories   = "6.0"
 
 # --- Dépendances directes de ui/ (ui/ est dans heelonvault-app depuis Phase 5a) ---
-getrandom  = "0.3"
+getrandom  = "0.4"
 hex        = "0.4"
-sha2       = "0.10"
+sha2       = "0.11"
 zeroize    = "1.8"
 serde      = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 time       = { version = "0.3", features = ["serde", "formatting", "parsing"] }
-zxcvbn     = "2.2"
+zxcvbn     = "3.1"
 webbrowser = "1.0"
 
 # --- UI — GTK4 / Libadwaita ---
-gtk4       = "0.9"
-libadwaita = { version = "0.7", features = ["v1_2", "v1_4"] }
-gio        = "0.20"
+gtk4       = "0.11"
+libadwaita = { version = "0.9", features = ["v1_2", "v1_4"] }
+gio        = "0.22"
 
 # --- Glue binaire / point d'entrée ---
 # anyhow : uniquement dans main.rs pour la glue de haut niveau.
@@ -71,5 +71,5 @@ tracing-subscriber  = { version = "0.3", features = ["env-filter", "fmt", "json"
 [build-dependencies]
 # Compilation des ressources GTK GLib (gresources.xml → .gresource)
 # Note Phase 4b : build.rs devra référencer ../../assets/ depuis crates/heelonvault-app/
-glib-build-tools = "0.20"
+glib-build-tools = "0.22"
 

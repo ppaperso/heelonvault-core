@@ -325,7 +325,7 @@ impl PasswordStrengthBar {
         if !username.is_empty() {
             user_inputs.push(username);
         }
-        let entropy = zxcvbn(trimmed, &user_inputs).ok();
+        let entropy = Some(zxcvbn(trimmed, &user_inputs));
         let zxcvbn_score = entropy.as_ref().map(|e| e.score() as i32).unwrap_or(0);
 
         // 3 — Final score: min(ANSSI cap, zxcvbn)

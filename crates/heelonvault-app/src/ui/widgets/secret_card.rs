@@ -3,6 +3,7 @@ use gtk4::prelude::*;
 use gtk4::{Align, Button, Label, Orientation, Separator};
 use uuid::Uuid;
 
+#[allow(dead_code)]
 fn build_action_button(icon_candidates: &[&str], fallback_glyph: &str, tooltip: &str) -> Button {
     let button = Button::new();
     button.add_css_class("flat");
@@ -77,6 +78,7 @@ pub struct SecretCard {
     usage_badge: Label,
 }
 
+#[allow(dead_code)]
 impl SecretCard {
     pub fn new(data: SecretRowData) -> Self {
         let card_box = gtk4::Box::builder()
@@ -282,6 +284,7 @@ impl SecretCard {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_widget(&self) -> gtk4::Box {
         self.card_box.clone()
     }
@@ -291,18 +294,22 @@ impl SecretCard {
         self.secret_id
     }
 
+    #[allow(dead_code)]
     pub fn update_usage_count(&self, new_count: u32) {
         self.usage_badge.set_label(&format!("↗ {}", new_count));
     }
 
+    #[allow(dead_code)]
     pub fn get_copy_button(&self) -> Button {
         self.copy_button.clone()
     }
 
+    #[allow(dead_code)]
     pub fn get_copy_login_button(&self) -> Option<Button> {
         self.copy_login_button.clone()
     }
 
+    #[allow(dead_code)]
     pub fn get_open_url_button(&self) -> Option<Button> {
         self.open_url_button.clone()
     }

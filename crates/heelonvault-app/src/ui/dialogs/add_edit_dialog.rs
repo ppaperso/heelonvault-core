@@ -14,7 +14,7 @@ use time::Duration;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use tokio::runtime::Handle;
-use tracing::warn;
+use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::ui::widgets::password_strength_bar::PasswordStrengthBar;
@@ -23,6 +23,7 @@ use heelonvault_core::services::password_service::{PasswordService, PasswordServ
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
 pub enum DialogMode {
     Create,
@@ -30,12 +31,15 @@ pub enum DialogMode {
     Edit(Uuid),
 }
 
+#[allow(dead_code)]
 pub struct AddEditDialog;
 
+#[allow(dead_code)]
 pub struct AddEditInlineView {
     pub container: gtk4::ScrolledWindow,
 }
 
+#[allow(dead_code)]
 impl AddEditDialog {
     fn stack_name_for_secret_type(secret_type: SecretType) -> &'static str {
         match secret_type {

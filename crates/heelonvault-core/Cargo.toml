@@ -53,9 +53,6 @@ csv         = "1.3"
 encoding_rs = "0.8"
 url         = "2.5"
 
-# --- Système de fichiers ---
-dirs = "5.0"
-
 # --- Internationalisation ---
 fluent-templates = "0.9"
 unic-langid      = "0.9"
@@ -66,8 +63,7 @@ qrcode  = { version = "0.14", default-features = false, features = ["image"] }
 image   = { version = "0.25", default-features = false, features = ["png"] }
 
 # --- Utilitaires ---
-uuid    = { version = "1.16", features = ["serde", "v4"] }
-zxcvbn  = "2.2"
+uuid = { version = "1.16", features = ["serde", "v4"] }
 
 # Instrumentation (macros info!/warn!/error! uniquement — pas d'init subscriber)
 tracing = "0.1"

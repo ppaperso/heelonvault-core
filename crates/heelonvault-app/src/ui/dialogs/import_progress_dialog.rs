@@ -8,6 +8,7 @@ use heelonvault_core::services::import_service::ImportCsvFailure;
 
 #[derive(Clone)]
 pub struct ImportProgressDialog {
+    #[allow(dead_code)]
     window: gtk4::Window,
     phase_label: gtk4::Label,
     stats_label: gtk4::Label,
@@ -15,6 +16,7 @@ pub struct ImportProgressDialog {
     completed: Rc<Cell<bool>>,
 }
 
+#[allow(dead_code)]
 impl ImportProgressDialog {
     pub fn show(parent: &adw::ApplicationWindow, file_name: &str, total_rows: usize) -> Self {
         let window = gtk4::Window::builder()
