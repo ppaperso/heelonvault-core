@@ -16,6 +16,12 @@ use sqlx::SqlitePool;
 
 use super::super::auto_lock;
 use crate::ui::windows::main_window::types::SecretQuickActions;
+#[cfg(feature = "premium")]
+use heelonvault_premium::services::audit_report_service::ReportError;
+#[cfg(feature = "premium")]
+use heelonvault_premium::services::license_service::LicenseService;
+#[cfg(feature = "premium")]
+use heelonvault_premium::services::audit_report_service::AuditReportService;
 use tokio::runtime::Handle;
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -599,4 +605,194 @@ pub fn setup_motion_controller(
         );
     });
     window.add_controller(motion_controller);
+}
+
+/// Setup the certification popover and handlers (premium feature)
+/// 
+/// Creates the certification menu with report buttons (24h, 7d, 30d) and diagnostics.
+#[cfg(feature = "premium")]
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
+pub fn setup_certification_handlers(
+    certification_menu_button: &gtk4::Button,
+    window: &adw::ApplicationWindow,
+    toast_overlay: &adw::ToastOverlay,
+    license_service: Arc<LicenseService>,
+    audit_report_service: Arc<AuditReportService>,
+    report_customer_name: String,
+) {
+    use heelonvault_core::services::audit_report_provider::ReportError;
+    
+    let certification_popover = gtk4::Popover::new();
+    certification_popover.set_has_arrow(true);
+    certification_popover.set_autohide(true);
+    
+    let certification_menu_box = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(4)
+        .margin_top(8)
+        .margin_bottom(8)
+        .margin_start(8)
+        .margin_end(8)
+        .build();
+    certification_menu_box.add_css_class("profile-login-history-popover");
+    
+    let report_24h_menu_button = crate::ui::windows::main_window::certification::build_certification_menu_item(
+        "document-save-symbolic",
+        "Rapport 24h",
+    );
+    let report_7d_menu_button = crate::ui::windows::main_window::certification::build_certification_menu_item(
+        "document-save-symbolic",
+        "Rapport 7 jours",
+    );
+    let report_30d_menu_button = crate::ui::windows::main_window::certification::build_certification_menu_item(
+        "document-save-symbolic",
+        "Rapport 30 jours",
+    );
+    let diagnostics_menu_button = crate::ui::windows::main_window::certification::build_certification_menu_item(
+        "emblem-system-symbolic",
+        "Vérifier l'état de signature",
+    );
+    
+    certification_menu_box.append(&report_24h_menu_button);
+    certification_menu_box.append(&report_7d_menu_button);
+    certification_menu_box.append(&report_30d_menu_button);
+    certification_menu_box.append(&diagnostics_menu_button);
+    certification_popover.set_child(Some(&certification_menu_box));
+    
+    // Check if certification is enabled
+    let certification_enabled = license_service
+        .get_cached()
+        .map(|license| matches!(license.tier, heelonvault_core::models::LicenseTier::Professional))
+        .unwrap_or(false);
+    
+    certification_menu_button.set_sensitive(certification_enabled);
+    if !certification_enabled {
+        certification_menu_button
+            .set_tooltip_text(Some("Certifier & Exporter (licence Pro requise)"));
+    }
+    certification_menu_button.set_popover(Some(&certification_popover));
+    
+    // Setup launch_signed_report closure
+    let window_for_report = window.clone();
+    let toast_overlay_for_report = toast_overlay.clone();
+    let report_service_for_click = Arc::clone(&audit_report_service);
+    let customer_name_for_click = report_customer_name.clone();
+    let license_service_for_diag = Arc::clone(&license_service);
+    let window_for_diag = window.clone();
+    
+    let launch_signed_report: Rc<dyn Fn(i64)> = Rc::new({
+        let report_service = Arc::clone(&report_service_for_click);
+        let customer_name = customer_name_for_click.clone();
+        let report_window = window_for_report.clone();
+        let report_toast_overlay = toast_overlay_for_report.clone();
+        move |days| {
+            report_toast_overlay
+                .add_toast(adw::Toast::new("Génération du rapport signé en cours..."));
+
+            let (sender, receiver) = tokio::sync::oneshot::channel();
+            let report_service_for_task = Arc::clone(&report_service);
+            let customer_for_task = customer_name.clone();
+            std::thread::spawn(move || {
+                let result = report_service_for_task
+                    .generate_audit_report(customer_for_task.as_str(), days);
+                let _ = sender.send(result);
+            });
+
+            let window_for_result = report_window.clone();
+            let toast_overlay_for_result = report_toast_overlay.clone();
+            glib::MainContext::default().spawn_local(async move {
+                match receiver.await {
+                    Ok(Ok(report)) => {
+                        toast_overlay_for_result.add_toast(adw::Toast::new(
+                            format!(
+                                "Rapport certifié généré (SHA-256: {})",
+                                report.hash_prefix()
+                            )
+                            .as_str(),
+                        ));
+                        super::super::MainWindow::show_feedback_dialog(
+                            &window_for_result,
+                            "Rapport signé généré",
+                            format!("Rapport PDF signé généré avec succès:\n{}", report.path)
+                                .as_str(),
+                        );
+                    }
+                    Ok(Err(ReportError::LicenseRequired)) => {
+                        toast_overlay_for_result.add_toast(adw::Toast::new(
+                            "Le rapport signé nécessite une licence Pro.",
+                        ));
+                    }
+                    Ok(Err(ReportError::SigningKeyMissing)) => {
+                        toast_overlay_for_result.add_toast(adw::Toast::new(
+                            "Clé de certification indisponible. Ouvrez la Console de Confiance.",
+                        ));
+                    }
+                    Ok(Err(error)) => super::super::MainWindow::show_feedback_dialog(
+                        &window_for_result,
+                        "Erreur de génération",
+                        format!("Impossible de générer le rapport: {}", error).as_str(),
+                    ),
+                    Err(_) => super::super::MainWindow::show_feedback_dialog(
+                        &window_for_result,
+                        "Erreur de génération",
+                        "La génération du rapport a été interrompue.",
+                    ),
+                }
+            });
+        }
+    });
+    
+    // Setup button handlers
+    let certification_popover_for_24h = certification_popover.clone();
+    let launch_signed_report_for_24h = Rc::clone(&launch_signed_report);
+    report_24h_menu_button.connect_clicked({
+        let launch_signed_report = Rc::clone(&launch_signed_report_for_24h);
+        let certification_popover = certification_popover_for_24h.clone();
+        move |_| {
+            certification_popover.popdown();
+            launch_signed_report(1)
+        }
+    });
+    
+    let certification_popover_for_7d = certification_popover.clone();
+    let launch_signed_report_for_7d = Rc::clone(&launch_signed_report);
+    report_7d_menu_button.connect_clicked({
+        let launch_signed_report = Rc::clone(&launch_signed_report_for_7d);
+        let certification_popover = certification_popover_for_7d.clone();
+        move |_| {
+            certification_popover.popdown();
+            launch_signed_report(7)
+        }
+    });
+    
+    let certification_popover_for_30d = certification_popover.clone();
+    let launch_signed_report_for_30d = Rc::clone(&launch_signed_report);
+    report_30d_menu_button.connect_clicked({
+        let launch_signed_report = Rc::clone(&launch_signed_report_for_30d);
+        let certification_popover = certification_popover_for_30d.clone();
+        move |_| {
+            certification_popover.popdown();
+            launch_signed_report(30)
+        }
+    });
+    
+    let certification_popover_for_diag = certification_popover.clone();
+    let license_service_for_handler = Arc::clone(&license_service_for_diag);
+    let window_for_handler = window_for_diag.clone();
+    diagnostics_menu_button.connect_clicked({
+        let certification_popover = certification_popover_for_diag.clone();
+        let report_window = window_for_handler.clone();
+        let license_service = Arc::clone(&license_service_for_handler);
+        move |_| {
+            certification_popover.popdown();
+            crate::ui::windows::main_window::certification::show_certification_diagnostics_dialog(
+                &report_window,
+                Arc::clone(&license_service),
+                Rc::new(move |window: &adw::ApplicationWindow, title: &str, message: &str| {
+                    super::super::MainWindow::show_feedback_dialog(window, title, message);
+                }),
+            );
+        }
+    });
 }

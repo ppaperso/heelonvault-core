@@ -119,6 +119,17 @@ where
     #[cfg(feature = "premium")]
     let report_customer_name = super::MainWindow::professional_customer_name(license_badge_text.as_str())
         .unwrap_or_else(|| "CLIENT".to_string());
+    #[cfg(feature = "premium")]
+    {
+        events::setup_certification_handlers(
+            &sidebar_panel.certification_menu_button,
+            &window,
+            &toast_overlay,
+            Arc::clone(&license_service),
+            Arc::clone(&audit_report_service),
+            report_customer_name.clone(),
+        );
+    }
 
     // Create user_repo and crypto_service for profile view
     let _user_repo = Arc::new(SqlxUserRepository::new(database_pool.clone()));
