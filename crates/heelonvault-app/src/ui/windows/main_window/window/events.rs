@@ -390,6 +390,7 @@ pub fn apply_filters(
 /// 
 /// Toggles between global search and vault-specific search.
 #[allow(unused_variables)]
+#[allow(dead_code)]
 pub fn setup_multivault_toggle_handler(
     _multivault_toggle: &gtk4::ToggleButton,
     _is_global_search: Rc<Cell<bool>>,

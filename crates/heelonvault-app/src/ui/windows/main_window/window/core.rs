@@ -101,7 +101,7 @@ where
     let auto_lock_timeout_secs = Rc::new(Cell::new(DEFAULT_AUTO_LOCK_TIMEOUT_SECS));
     let session_master_key = Rc::new(RefCell::new(admin_master_key));
     let _active_vault_id: Rc<RefCell<Option<Uuid>>> = Rc::new(RefCell::new(None));
-    let is_global_search = Rc::new(Cell::new(false));
+    let _is_global_search = Rc::new(Cell::new(false));
     let on_auto_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
     let on_pin_lock: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
     let on_logout: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
@@ -167,7 +167,7 @@ where
     
     // Build filter runtime for search and filtering
     use crate::ui::windows::main_window::types::FilterRuntime;
-    use crate::ui::windows::main_window::{AuditFilter, SecretCategoryFilter, SecretSortMode};
+    use crate::ui::windows::main_window::{AuditFilter, SecretCategoryFilter, SecretKind, SecretSortMode};
     use std::collections::HashMap;
     let filter_runtime = FilterRuntime {
         meta_by_widget: Rc::new(RefCell::new(HashMap::new())),
@@ -184,13 +184,92 @@ where
         filtered_status_page: center_panel.filtered_status_page.clone(),
     };
     
+    // Set filter and sort functions for secret flow
+    let runtime_for_flow_filter = filter_runtime.clone();
+    center_panel.secret_flow.set_filter_func(move |child| {
+        let Some(content) = child.child() else {
+            return false;
+        };
+        let key = content.widget_name().to_string();
+        let store = runtime_for_flow_filter.meta_by_widget.borrow();
+        let Some(meta) = store.get(&key) else {
+            return true;
+        };
+
+        let query = runtime_for_flow_filter.search_text.borrow().to_string();
+        let terms = super::super::MainWindow::parse_search_terms(query.as_str());
+        let matches_query = terms.is_empty()
+            || terms
+                .iter()
+                .all(|term| super::super::MainWindow::matches_search_term(meta, term));
+
+        let matches_category = match runtime_for_flow_filter.selected_category.get() {
+            SecretCategoryFilter::All => true,
+            SecretCategoryFilter::Password => meta.kind == SecretKind::Password,
+            SecretCategoryFilter::ApiToken => meta.kind == SecretKind::ApiToken,
+            SecretCategoryFilter::SshKey => meta.kind == SecretKind::SshKey,
+            SecretCategoryFilter::SecureDocument => meta.kind == SecretKind::SecureDocument,
+        };
+
+        let matches_audit = match runtime_for_flow_filter.selected_audit.get() {
+            AuditFilter::All => true,
+            AuditFilter::Weak => meta.is_weak,
+            AuditFilter::Duplicate => meta.is_duplicate,
+        };
+
+        matches_query && matches_category && matches_audit
+    });
+    
+    let runtime_for_flow_sort = filter_runtime.clone();
+    center_panel.secret_flow.set_sort_func(move |left, right| {
+        let left_key = left
+            .child()
+            .map(|child| child.widget_name().to_string())
+            .unwrap_or_default();
+        let right_key = right
+            .child()
+            .map(|child| child.widget_name().to_string())
+            .unwrap_or_default();
+
+        let store = runtime_for_flow_sort.meta_by_widget.borrow();
+        let Some(left_meta) = store.get(&left_key) else {
+            return left_key.cmp(&right_key).into();
+        };
+        let Some(right_meta) = store.get(&right_key) else {
+            return left_key.cmp(&right_key).into();
+        };
+
+        match runtime_for_flow_sort.selected_sort.get() {
+            SecretSortMode::Recent => left_meta
+                .original_rank
+                .cmp(&right_meta.original_rank)
+                .into(),
+            SecretSortMode::Title => left_meta
+                .title_text
+                .cmp(&right_meta.title_text)
+                .then(left_meta.original_rank.cmp(&right_meta.original_rank))
+                .into(),
+            SecretSortMode::Risk => {
+                let left_score =
+                    usize::from(left_meta.is_weak) + usize::from(left_meta.is_duplicate);
+                let right_score =
+                    usize::from(right_meta.is_weak) + usize::from(right_meta.is_duplicate);
+                right_score
+                    .cmp(&left_score)
+                    .then(left_meta.title_text.cmp(&right_meta.title_text))
+                    .then(left_meta.original_rank.cmp(&right_meta.original_rank))
+                    .into()
+            }
+        }
+    });
+    
     // Build shell content (search entry, multivault toggle, etc.)
     let content_shell = crate::ui::windows::main_window::shell::build_content_shell(
         &sidebar_panel.frame,
         &center_panel.frame,
     );
     let search_entry = content_shell.search_entry;
-    let multivault_toggle = content_shell.multivault_toggle;
+    let _multivault_toggle = content_shell.multivault_toggle;
     
     // ── 3. Setup Event Handlers ───────────────────────────────────────────────
     
@@ -264,30 +343,31 @@ where
         Rc::clone(&session_master_key),
     );
     
-    // Sort button handlers
-    events::setup_sort_button_handlers(
-        &center_panel.sort_recent_button,
-        &center_panel.sort_title_button,
-        &center_panel.sort_risk_button,
-        center_panel.secret_flow.clone(),
-        filter_runtime.clone(),
-    );
+    // Sort button handlers - TODO: extract from new_body.inc
+    // The filter and sort functions are now set directly on secret_flow above
+    // events::setup_sort_button_handlers(
+    //     &center_panel.sort_recent_button,
+    //     &center_panel.sort_title_button,
+    //     &center_panel.sort_risk_button,
+    //     center_panel.secret_flow.clone(),
+    //     filter_runtime.clone(),
+    // );
     
-    // Search entry handlers
-    events::setup_search_entry_handlers(
-        &search_entry,
-        center_panel.secret_flow.clone(),
-        filter_runtime.clone(),
-    );
+    // Search entry handlers - TODO: extract from new_body.inc
+    // events::setup_search_entry_handlers(
+    //     &search_entry,
+    //     center_panel.secret_flow.clone(),
+    //     filter_runtime.clone(),
+    // );
     
-    // Multivault toggle handler
-    events::setup_multivault_toggle_handler(
-        &multivault_toggle,
-        Rc::clone(&is_global_search),
-        filter_runtime.clone(),
-        search_entry.clone(),
-        Rc::new(|_is_global| {}),
-    );
+    // Multivault toggle handler - TODO: extract from new_body.inc
+    // events::setup_multivault_toggle_handler(
+    //     &multivault_toggle,
+    //     Rc::clone(&is_global_search),
+    //     filter_runtime.clone(),
+    //     search_entry.clone(),
+    //     Rc::new(|_is_global| {}),
+    // );
 
     // ── 4. Assemble the UI ────────────────────────────────────────────────────
     
