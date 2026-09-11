@@ -348,70 +348,160 @@ pub fn setup_trash_button_handler<TSecret, TVault>(
 /// Setup the sort button handlers
 /// 
 /// Connects click handlers to the sort buttons (recent, title, risk).
-#[allow(unused_variables)]
 #[allow(dead_code)]
 pub fn setup_sort_button_handlers(
-    _sort_recent_button: &gtk4::Button,
-    _sort_title_button: &gtk4::Button,
-    _sort_risk_button: &gtk4::Button,
-    _secret_flow: gtk4::FlowBox,
-    _filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
+    sort_recent_button: &gtk4::Button,
+    sort_title_button: &gtk4::Button,
+    sort_risk_button: &gtk4::Button,
+    secret_flow: gtk4::FlowBox,
+    filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
 ) {
-    // TODO: Implement the actual sort button handlers
+    let flow_for_recent_sort = secret_flow.clone();
+    let filter_for_recent_sort = filter_runtime.clone();
+    let recent_button = sort_recent_button.clone();
+    let title_button = sort_title_button.clone();
+    let risk_button = sort_risk_button.clone();
+    sort_recent_button.connect_clicked(move |_| {
+        filter_for_recent_sort
+            .selected_sort
+            .set(crate::ui::windows::main_window::SecretSortMode::Recent);
+        update_sort_button_states(
+            &recent_button,
+            &title_button,
+            &risk_button,
+            crate::ui::windows::main_window::SecretSortMode::Recent,
+        );
+        apply_filters(&flow_for_recent_sort, &filter_for_recent_sort);
+    });
+
+    let flow_for_title_sort = secret_flow.clone();
+    let filter_for_title_sort = filter_runtime.clone();
+    let recent_button = sort_recent_button.clone();
+    let title_button = sort_title_button.clone();
+    let risk_button = sort_risk_button.clone();
+    sort_title_button.connect_clicked(move |_| {
+        filter_for_title_sort
+            .selected_sort
+            .set(crate::ui::windows::main_window::SecretSortMode::Title);
+        update_sort_button_states(
+            &recent_button,
+            &title_button,
+            &risk_button,
+            crate::ui::windows::main_window::SecretSortMode::Title,
+        );
+        apply_filters(&flow_for_title_sort, &filter_for_title_sort);
+    });
+
+    let flow_for_risk_sort = secret_flow.clone();
+    let filter_for_risk_sort = filter_runtime.clone();
+    let recent_button = sort_recent_button.clone();
+    let title_button = sort_title_button.clone();
+    let risk_button = sort_risk_button.clone();
+    sort_risk_button.connect_clicked(move |_| {
+        filter_for_risk_sort.selected_sort.set(crate::ui::windows::main_window::SecretSortMode::Risk);
+        update_sort_button_states(
+            &recent_button,
+            &title_button,
+            &risk_button,
+            crate::ui::windows::main_window::SecretSortMode::Risk,
+        );
+        apply_filters(&flow_for_risk_sort, &filter_for_risk_sort);
+    });
 }
 
 /// Update the visual state of sort buttons
-#[allow(unused_variables)]
 #[allow(dead_code)]
 pub fn update_sort_button_states(
-    _recent_button: &gtk4::Button,
-    _title_button: &gtk4::Button,
-    _risk_button: &gtk4::Button,
-    _selected: SecretSortMode,
+    recent_button: &gtk4::Button,
+    title_button: &gtk4::Button,
+    risk_button: &gtk4::Button,
+    selected: SecretSortMode,
 ) {
-    // TODO: Implement the actual button state updates
-    // This would involve adding/removing CSS classes based on the selected sort mode
+    use crate::ui::windows::main_window::SecretSortMode;
+    
+    // Remove active class from all buttons first
+    recent_button.remove_css_class("sort-active");
+    title_button.remove_css_class("sort-active");
+    risk_button.remove_css_class("sort-active");
+    
+    // Add active class to the selected button
+    match selected {
+        SecretSortMode::Recent => recent_button.add_css_class("sort-active"),
+        SecretSortMode::Title => title_button.add_css_class("sort-active"),
+        SecretSortMode::Risk => risk_button.add_css_class("sort-active"),
+    }
 }
 
 /// Apply the current filters to the secret flow
-#[allow(unused_variables)]
 #[allow(dead_code)]
 pub fn apply_filters(
-    _flow: &gtk4::FlowBox,
+    flow: &gtk4::FlowBox,
     _filter_runtime: &crate::ui::windows::main_window::types::FilterRuntime,
 ) {
-    // TODO: Implement the actual filter application logic
-    // This would trigger the flow box to re-filter its children
-    // flow.invalidate_filter();
-    // flow.invalidate_sort();
+    // Trigger the flow box to re-filter and re-sort its children
+    flow.invalidate_filter();
+    flow.invalidate_sort();
 }
 
 /// Setup the multivault toggle handler
 /// 
 /// Toggles between global search and vault-specific search.
-#[allow(unused_variables)]
 #[allow(dead_code)]
 pub fn setup_multivault_toggle_handler(
-    _multivault_toggle: &gtk4::ToggleButton,
-    _is_global_search: Rc<Cell<bool>>,
-    _filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
-    _search_entry: gtk4::SearchEntry,
-    _global_search_reload: Rc<dyn Fn(bool)>,
+    multivault_toggle: &gtk4::ToggleButton,
+    is_global_search: Rc<Cell<bool>>,
+    filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
+    search_entry: gtk4::SearchEntry,
+    global_search_reload: Rc<dyn Fn(bool)>,
 ) {
-    // TODO: Implement the actual toggle handler
+    let is_global_search_for_toggle = Rc::clone(&is_global_search);
+    let search_entry_for_toggle = search_entry.clone();
+    let filter_for_toggle = filter_runtime.clone();
+    let global_reload_for_toggle = Rc::clone(&global_search_reload);
+    
+    multivault_toggle.connect_toggled(move |toggle| {
+        let is_global = toggle.is_active();
+        is_global_search_for_toggle.set(is_global);
+        // Sync current search text so the reload applies it immediately
+        *filter_for_toggle.search_text.borrow_mut() = 
+            search_entry_for_toggle.text().to_string();
+        global_reload_for_toggle(is_global);
+    });
 }
 
 /// Setup the search entry handlers
 /// 
 /// Handles search text changes and Enter key activation.
-#[allow(unused_variables)]
 #[allow(dead_code)]
 pub fn setup_search_entry_handlers(
-    _search_entry: &gtk4::SearchEntry,
-    _secret_flow: gtk4::FlowBox,
-    _filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
+    search_entry: &gtk4::SearchEntry,
+    secret_flow: gtk4::FlowBox,
+    filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
 ) {
-    // TODO: Implement the actual search handlers
+    // Search text changed handler
+    let flow_for_search = secret_flow.clone();
+    let filter_for_search = filter_runtime.clone();
+    search_entry.connect_search_changed(move |entry| {
+        *filter_for_search.search_text.borrow_mut() = entry.text().to_string();
+        apply_filters(&flow_for_search, &filter_for_search);
+    });
+    
+    // Enter key handler - jump to first visible card
+    let flow_for_search_activate = secret_flow.clone();
+    search_entry.connect_activate(move |_| {
+        let mut cursor = flow_for_search_activate.first_child();
+        while let Some(widget) = cursor {
+            let next = widget.next_sibling();
+            if let Ok(flow_child) = widget.downcast::<gtk4::FlowBoxChild>()
+                && flow_child.is_visible()
+            {
+                flow_for_search_activate.select_child(&flow_child);
+                flow_child.grab_focus();
+                break;
+            }
+            cursor = next;
+        }
+    });
 }
 
 /// Setup the key controller for auto-lock and keyboard shortcuts

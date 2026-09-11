@@ -343,27 +343,26 @@ where
         Rc::clone(&session_master_key),
     );
     
-    // Sort button handlers - TODO: extract from new_body.inc
-    // The filter and sort functions are now set directly on secret_flow above
-    // events::setup_sort_button_handlers(
-    //     &center_panel.sort_recent_button,
-    //     &center_panel.sort_title_button,
-    //     &center_panel.sort_risk_button,
-    //     center_panel.secret_flow.clone(),
-    //     filter_runtime.clone(),
-    // );
+    // Sort button handlers
+    events::setup_sort_button_handlers(
+        &center_panel.sort_recent_button,
+        &center_panel.sort_title_button,
+        &center_panel.sort_risk_button,
+        center_panel.secret_flow.clone(),
+        filter_runtime.clone(),
+    );
     
-    // Search entry handlers - TODO: extract from new_body.inc
-    // events::setup_search_entry_handlers(
-    //     &search_entry,
-    //     center_panel.secret_flow.clone(),
-    //     filter_runtime.clone(),
-    // );
+    // Search entry handlers
+    events::setup_search_entry_handlers(
+        &search_entry,
+        center_panel.secret_flow.clone(),
+        filter_runtime.clone(),
+    );
     
-    // Multivault toggle handler - TODO: extract from new_body.inc
+    // Multivault toggle handler - TODO: needs global_search_reload implementation
     // events::setup_multivault_toggle_handler(
-    //     &multivault_toggle,
-    //     Rc::clone(&is_global_search),
+    //     &_multivault_toggle,
+    //     Rc::clone(&_is_global_search),
     //     filter_runtime.clone(),
     //     search_entry.clone(),
     //     Rc::new(|_is_global| {}),
