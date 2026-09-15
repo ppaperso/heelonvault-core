@@ -22,7 +22,8 @@ hv_init_common_vars() {
   HV_LOCAL_ICON_PATH="$HV_LOCAL_ICON_DIR/heelonvault.png"
   HV_SCRIPT_DIR="$script_dir"
   HV_ROOT_DIR="$(dirname "$HV_SCRIPT_DIR")"
-  HV_PRIMARY_ICON_SOURCE="$HV_ROOT_DIR/assets/icons/hicolor/256x256/apps/heelonvault.png"
+  # HV_ASSETS_SOURCE / HV_PRIMARY_ICON_SOURCE are resolved in hv_verify_core_files
+  # (root/script-dir/crate-local fallback, same pattern as migrations).
   HV_CHECKSUM_FILE="$HV_SCRIPT_DIR/heelonvault.sha256"
 
   HV_INVOKING_USER="${SUDO_USER:-root}"
@@ -102,17 +103,34 @@ hv_verify_core_files() {
     exit 1
   fi
 
-  # Chercher migrations: d'abord dans ROOT_DIR, puis dans SCRIPT_DIR
+  # Chercher migrations: d'abord dans ROOT_DIR, puis dans SCRIPT_DIR, puis dans
+  # l'emplacement crate-local post-restructuration (crates/heelonvault-app/migrations)
   if [[ -d "$HV_ROOT_DIR/migrations" ]]; then
     migrations_location="$HV_ROOT_DIR/migrations"
   elif [[ -d "$HV_SCRIPT_DIR/migrations" ]]; then
     migrations_location="$HV_SCRIPT_DIR/migrations"
+  elif [[ -d "$HV_ROOT_DIR/crates/heelonvault-app/migrations" ]]; then
+    migrations_location="$HV_ROOT_DIR/crates/heelonvault-app/migrations"
   else
-    echo "[ERROR] Dossier 'migrations' introuvable dans $HV_ROOT_DIR ou $HV_SCRIPT_DIR"
+    echo "[ERROR] Dossier 'migrations' introuvable dans $HV_ROOT_DIR, $HV_SCRIPT_DIR ou $HV_ROOT_DIR/crates/heelonvault-app/migrations"
     exit 1
   fi
 
-  # Vérifier icône
+  # Chercher assets/icônes: d'abord dans ROOT_DIR, puis dans SCRIPT_DIR, puis dans
+  # l'emplacement crate-local post-restructuration (crates/heelonvault-app/assets)
+  local assets_location
+  if [[ -d "$HV_ROOT_DIR/assets" ]]; then
+    assets_location="$HV_ROOT_DIR/assets"
+  elif [[ -d "$HV_SCRIPT_DIR/assets" ]]; then
+    assets_location="$HV_SCRIPT_DIR/assets"
+  elif [[ -d "$HV_ROOT_DIR/crates/heelonvault-app/assets" ]]; then
+    assets_location="$HV_ROOT_DIR/crates/heelonvault-app/assets"
+  else
+    echo "[ERROR] Dossier 'assets' introuvable dans $HV_ROOT_DIR, $HV_SCRIPT_DIR ou $HV_ROOT_DIR/crates/heelonvault-app/assets"
+    exit 1
+  fi
+
+  HV_PRIMARY_ICON_SOURCE="$assets_location/icons/hicolor/256x256/apps/heelonvault.png"
   if [[ ! -f "$HV_PRIMARY_ICON_SOURCE" ]]; then
     echo "[ERROR] Icône principale introuvable : $HV_PRIMARY_ICON_SOURCE"
     exit 1
@@ -122,6 +140,7 @@ hv_verify_core_files() {
   HV_BINARY_SOURCE="$binary_location"
   HV_DESKTOP_SOURCE="$desktop_location"
   HV_MIGRATIONS_SOURCE="$migrations_location"
+  HV_ASSETS_SOURCE="$assets_location"
 }
 
 hv_verify_checksum() {
@@ -486,14 +505,11 @@ hv_install_icons() {
   local size
   local src
   local dst
-  local assets_dir
+  # HV_ASSETS_SOURCE is resolved once in hv_verify_core_files (root/script-dir/
+  # crate-local fallback) — reuse it here instead of re-deriving it.
+  local assets_dir="$HV_ASSETS_SOURCE"
 
-  # Déterminer où sont les assets
-  if [[ -d "$HV_ROOT_DIR/assets" ]]; then
-    assets_dir="$HV_ROOT_DIR/assets"
-  elif [[ -d "$HV_SCRIPT_DIR/assets" ]]; then
-    assets_dir="$HV_SCRIPT_DIR/assets"
-  else
+  if [[ -z "$assets_dir" || ! -d "$assets_dir" ]]; then
     echo "[WARN] Dossier assets introuvable, installation des icônes ignorée"
     return
   fi

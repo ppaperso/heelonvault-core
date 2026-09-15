@@ -15,6 +15,7 @@ use super::bootstrap_flow::setup_bootstrap_submit_handler;
 use super::events;
 use super::feedback;
 use super::lock_state;
+use super::login_flow;
 use super::restore_flow;
 use super::types::{AuthenticatedSession, BootstrapServicesContext, LoginAttemptOutcome};
 use super::views::{
@@ -165,6 +166,18 @@ impl super::LoginDialog {
             window_for_back.close();
         });
 
+        // 4b-bis. Retour depuis l'étape TOTP vers la saisie des identifiants
+        {
+            let step_stack_for_back = widgets.step_stack.clone();
+            let error_label_for_back = widgets.error_label.clone();
+            let password_entry_for_back = widgets.password_entry.clone();
+            widgets.totp_back_button.connect_clicked(move |_| {
+                step_stack_for_back.set_visible_child_name("credentials");
+                feedback::clear_feedback(&error_label_for_back);
+                password_entry_for_back.grab_focus();
+            });
+        }
+
         // 4c. Connexion du bouton Restore pour ouvrir la dialogue de restauration
         // Uniquement en mode NON bootstrap
         if !in_bootstrap_mode {
@@ -287,11 +300,44 @@ impl super::LoginDialog {
         let window_clone = window.clone();
 
         widgets.submit_button.connect_clicked(move |_| {
-            Self::handle_submit(
-                &window_clone,
-                &widgets_clone,
-                Rc::clone(&context_for_handler),
-            );
+            // L'étape TOTP est une page du `step_stack`, pas un bloc masqué : c'est la
+            // page visible du stack qui fait foi. Ne PAS tester `totp_step_box.is_visible()`
+            // — un widget GTK4 est visible par défaut, donc la page "totp" est `visible`
+            // dès la construction alors que le stack affiche encore "credentials", et le
+            // tout premier clic partirait vérifier un code TOTP vide.
+            let in_totp_step = widgets_clone
+                .step_stack
+                .visible_child_name()
+                .is_some_and(|name| name == "totp");
+
+            if in_totp_step {
+                let ctx = context_for_handler.as_ref();
+                login_flow::handle_totp_submit(
+                    ctx.runtime.clone(),
+                    Arc::clone(&ctx.auth_service),
+                    Arc::clone(&ctx.auth_policy_service),
+                    Arc::clone(&ctx.user_service),
+                    Arc::clone(&ctx.totp_service),
+                    &widgets_clone.username_entry,
+                    &widgets_clone.password_entry,
+                    &widgets_clone.totp_entry,
+                    &widgets_clone.submit_button,
+                    &widgets_clone.submit_spinner,
+                    &window_clone,
+                    &widgets_clone.error_label,
+                    Rc::clone(&ctx.authenticated),
+                    Rc::clone(&ctx.on_authenticated),
+                    Rc::clone(&ctx.lock_active),
+                    Rc::clone(&ctx.lock_timer),
+                    1200,
+                );
+            } else {
+                Self::handle_submit(
+                    &window_clone,
+                    &widgets_clone,
+                    Rc::clone(&context_for_handler),
+                );
+            }
         });
     }
 
@@ -348,7 +394,7 @@ impl super::LoginDialog {
         let password_for_task = password.into_bytes();
         let runtime = context.runtime.clone();
         let totp_entry_for_task = widgets.totp_entry.clone();
-        let totp_step_box_for_task = widgets.totp_step_box.clone();
+        let step_stack_for_task = widgets.step_stack.clone();
 
         // Lancer la tâche d'authentification dans un thread
         let (result_sender, result_receiver) = tokio::sync::oneshot::channel();
@@ -486,8 +532,11 @@ impl super::LoginDialog {
                     window_for_result.close();
                 }
                 Ok(Ok(LoginAttemptOutcome::RequiresTotp)) => {
-                    // Afficher le champ TOTP
-                    totp_step_box_for_task.set_visible(true);
+                    // Basculer le stack sur l'étape TOTP. `totp_step_box.set_visible(true)`
+                    // ne suffit pas : la page est déjà `visible`, c'est le stack qui affiche
+                    // encore "credentials".
+                    step_stack_for_task.set_visible_child_name("totp");
+                    totp_entry_for_task.set_text("");
                     totp_entry_for_task.grab_focus();
                     feedback::set_pending_state(
                         &submit_button_for_result,
@@ -524,7 +573,7 @@ impl super::LoginDialog {
                         );
                         feedback::show_feedback(
                             &error_label_for_result,
-                            heelonvault_core::tr!("login-error-credentials").as_str(),
+                            heelonvault_core::tr!("login-error-invalid-credentials").as_str(),
                         );
                     }
                 }
@@ -552,7 +601,7 @@ impl super::LoginDialog {
                     } else {
                         feedback::show_feedback(
                             &error_label_for_result,
-                            heelonvault_core::tr!("login-error-credentials").as_str(),
+                            heelonvault_core::tr!("login-error-invalid-credentials").as_str(),
                         );
                         let button_after_delay = submit_button_for_result.clone();
                         let spinner_after_delay = submit_spinner_for_result.clone();

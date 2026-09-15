@@ -8,7 +8,7 @@ Version documentée: `1.2.0-rc.1`
 
 Ce guide decrit la mise a jour de HeelonVault dans son architecture Rust-only.
 
-**Nouveautés v1.2.0-rc.1** : 5 nouvelles migrations (14 → 19 total) pour le support de la récupération de clé de compte, du cache PIN, du rate limiting par IP et de la gestion de session.
+**Nouveautés v1.2.0-rc.1** : migrations 0016 → 0019 (16 → 19 total) pour le rate limiting par IP et la récupération de clé de compte. Seule la migration 0016 crée une nouvelle table (`login_attempts_ip`) ; les migrations 0017-0019 ajoutent des colonnes nullables à la table `users` existante. Le cache PIN (`PinCache`) est volontairement gardé en mémoire uniquement et n'est jamais persisté en base — il n'y a pas de table associée.
 
 ## Portee
 
@@ -94,25 +94,22 @@ Verifications fonctionnelles recommandees:
 
 ### Vérifications spécifiques v1.2.0-rc.1
 
-**Nouveaux composants de base de données** (5 nouvelles tables) :
+**Nouveaux composants de base de données** :
 
 ```bash
-# Vérifier la table de récupération de clé de compte (Migration 0019)
-sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
-  "SELECT name FROM sqlite_master WHERE type='table' AND name='user_recovery_key_envelopes';"
-
-# Vérifier la table de cache PIN (Migration 0017)
-sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
-  "SELECT name FROM sqlite_master WHERE type='table' AND name='pin_cache';"
-
-# Vérifier la table de rate limiting par IP (Migration 0016)
+# Vérifier la table de rate limiting par IP (Migration 0016, seule nouvelle table)
 sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
   "SELECT name FROM sqlite_master WHERE type='table' AND name='login_attempts_ip';"
 
-# Vérifier la table d'état de session (Migration 0018)
+# Vérifier les colonnes de récupération de clé de compte sur la table users
+# (Migrations 0017-0019 : recovery_phrase_envelope, recovery_verifier, recovery_key_envelope)
 sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
-  "SELECT name FROM sqlite_master WHERE type='table' AND name='session_state';"
+  "PRAGMA table_info(users);" | grep -E "recovery_phrase_envelope|recovery_verifier|recovery_key_envelope"
 ```
+
+Il n'y a pas de table `pin_cache` ni `session_state` à vérifier : le cache PIN est en mémoire
+uniquement (jamais persisté) et il n'existe pas de mécanisme de `session_state` en base dans
+cette version.
 
 **Fonctionnalités à tester** :
 14. Tester la génération et la ré-exportation de la clé de récupération de compte depuis `Profil & Sécurité`.

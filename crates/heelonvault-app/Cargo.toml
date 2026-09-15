@@ -16,10 +16,16 @@ path = "src/main.rs"
 # C'est le SEUL endroit où l'édition compilée est décidée.
 # 
 # Note: Activation premium se fait au RUNTIME via licence, mais le code premium
-# est toujours inclus dans le livrable (default = ["heelonvault-premium"]).
-# La feature 'premium' est conservée pour compatibilité avec les scripts existants.
+# est toujours inclus dans le livrable (default = ["premium"]).
+# IMPORTANT: le default doit lister "premium", pas juste "heelonvault-premium".
+# "heelonvault-premium" est le nom implicite de la dépendance optionnelle : le
+# lister seul fait compiler la crate premium mais n'active PAS le flag "premium"
+# que vérifient tous les #[cfg(feature = "premium")] de main.rs (licence, audit,
+# admin, teams, PSC auth) — ceux-ci restent alors silencieusement exclus du
+# binaire même si heelonvault-premium a bien été compilée. Un `cargo build
+# --release` sans flag doit produire le même binaire que la production.
 [features]
-default = ["heelonvault-premium"]
+default = ["premium"]
 premium = ["heelonvault-premium"]
 licensing = ["premium"]
 

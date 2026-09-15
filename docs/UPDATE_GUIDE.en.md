@@ -8,7 +8,7 @@ Documented version: `1.2.0-rc.1`
 
 This guide explains how to update HeelonVault in its Rust-only architecture.
 
-**What's new in v1.2.0-rc.1**: 5 new migrations (14 → 19 total) for account key recovery, PIN cache, IP-based rate limiting, and session state support.
+**What's new in v1.2.0-rc.1**: migrations 0016 → 0019 (16 → 19 total) for IP-based rate limiting and account key recovery. Only migration 0016 creates a new table (`login_attempts_ip`); migrations 0017-0019 add nullable columns to the existing `users` table. The PIN cache (`PinCache`) is intentionally kept in memory only and is never persisted to disk — there is no associated table.
 
 ## Scope
 
@@ -73,25 +73,21 @@ Recommended functional checks:
 
 ### v1.2.0-rc.1 Specific Checks
 
-**New database components** (5 new tables):
+**New database components**:
 
 ```bash
-# Verify account key recovery table (Migration 0019)
-sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
-  "SELECT name FROM sqlite_master WHERE type='table' AND name='user_recovery_key_envelopes';"
-
-# Verify PIN cache table (Migration 0017)
-sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
-  "SELECT name FROM sqlite_master WHERE type='table' AND name='pin_cache';"
-
-# Verify IP rate limiting table (Migration 0016)
+# Verify IP rate limiting table (Migration 0016, the only new table)
 sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
   "SELECT name FROM sqlite_master WHERE type='table' AND name='login_attempts_ip';"
 
-# Verify session state table (Migration 0018)
+# Verify account key recovery columns on the users table
+# (Migrations 0017-0019: recovery_phrase_envelope, recovery_verifier, recovery_key_envelope)
 sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
-  "SELECT name FROM sqlite_master WHERE type='table' AND name='session_state';"
+  "PRAGMA table_info(users);" | grep -E "recovery_phrase_envelope|recovery_verifier|recovery_key_envelope"
 ```
+
+There is no `pin_cache` or `session_state` table to check: the PIN cache is in-memory only
+(never persisted), and this version has no database-backed session state mechanism.
 
 **Feature tests**:
 14. Test account recovery key generation and re-export from `Profile & Security`.

@@ -509,12 +509,24 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
         .spacing(14)
         .build();
 
+    // PSC (Pro Santé Connect) désactivé côté UI : ni HEELONVAULT_PSC_CLIENT_ID/SECRET
+    // ne sont configurés en usage courant (cf. le WARN "PSC configuration not
+    // available; using non-operational premium placeholder" au démarrage), ni
+    // psc_start_button / psc_complete_button ne sont câblés à un handler
+    // (handle_psc_start / handle_psc_artifact_completion existent dans
+    // login_flow.rs mais ne sont appelés nulle part). Afficher ce bloc n'offre
+    // donc qu'un bouton mort. Les widgets restent construits (litige compile
+    // sous `premium`) mais ne sont plus insérés dans la vue tant que PSC n'est
+    // pas réellement opérationnel.
     #[cfg(feature = "premium")]
     {
-        credentials_step_box.append(&cps_frame);
-        credentials_step_box.append(&psc_start_button);
-        credentials_step_box.append(&psc_artifact_entry);
-        credentials_step_box.append(&psc_complete_button);
+        let _ = (
+            &cps_frame,
+            &psc_start_button,
+            &psc_artifact_entry,
+            &psc_complete_button,
+        );
+        cps_frame.set_visible(false);
     }
     #[cfg(not(feature = "premium"))]
     {

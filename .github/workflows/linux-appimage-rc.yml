@@ -41,11 +41,19 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
 
-      # ── 2. SSH agent pour le repo premium privé ────────────────────────────
-      - name: Setup SSH agent (heelonvault-premium)
-        uses: webfactory/ssh-agent@v0.10.0
+      # ── 2. Checkout heelonvault-premium (sibling checkout) ─────────────────
+      # heelonvault-app/Cargo.toml depends on heelonvault-premium via a plain
+      # PATH dependency (`path = "../../../heelonvault-premium"`, a sibling of
+      # this repo's checkout root) — not a git dependency. `cargo build` just
+      # needs the directory to physically exist; it never fetches it over git.
+      # So we check it out explicitly here with the deploy key, instead of only
+      # exposing an ssh-agent that cargo never actually uses.
+      - name: Checkout heelonvault-premium
+        uses: actions/checkout@v6
         with:
-          ssh-private-key: ${{ secrets.PREMIUM_SSH_KEY }}
+          repository: ppaperso/heelonvault-premium
+          ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
+          path: ../heelonvault-premium
 
       # ── 3. Validation du layout du repo ────────────────────────────────────
       - name: Validate repository layout
@@ -55,23 +63,20 @@ jobs:
           test -f Cargo.lock                  || { echo "[ERROR] Cargo.lock not found";               exit 1; }
           test -f assets/gresources.xml       || { echo "[ERROR] assets/gresources.xml not found";   exit 1; }
           test -d locales                     || { echo "[ERROR] locales/ not found";                 exit 1; }
-          test -d migrations                  || { echo "[ERROR] migrations/ not found";              exit 1; }
+          if [[ -d migrations ]]; then
+            echo "MIGRATIONS_DIR=migrations" >> "$GITHUB_ENV"
+          elif [[ -d crates/heelonvault-app/migrations ]]; then
+            echo "MIGRATIONS_DIR=crates/heelonvault-app/migrations" >> "$GITHUB_ENV"
+          else
+            echo "[ERROR] migrations/ not found (checked ./migrations and crates/heelonvault-app/migrations)"; exit 1
+          fi
           test -d crates/heelonvault-core/locales \
                                               || { echo "[ERROR] crates/heelonvault-core/locales not found"; exit 1; }
           test -f linux/apprun.sh             || { echo "[ERROR] linux/apprun.sh not found";          exit 1; }
           test -f linux/heelonvault.desktop   || { echo "[ERROR] linux/heelonvault.desktop not found"; exit 1; }
           echo "[OK] Repository layout validated"
 
-      # ── 4. Patch .cargo/config.toml pour le CI ─────────────────────────────
-      - name: Patch .cargo/config.toml for CI
-        run: |
-          set -euo pipefail
-          perl -i -0pe 's/\[patch\."ssh:\/\/[^"]+"\][^\[]*//g' .cargo/config.toml
-          grep -q "git-fetch-with-cli" .cargo/config.toml \
-            || printf '\n[net]\ngit-fetch-with-cli = true\n' >> .cargo/config.toml
-          echo "[OK] .cargo/config.toml patched"
-
-      # ── 5. Installation des dépendances système ────────────────────────────
+      # ── 4. Installation des dépendances système ────────────────────────────
       - name: Install system dependencies
         run: |
           set -euo pipefail
@@ -94,7 +99,7 @@ jobs:
             zsync
           echo "[OK] System dependencies installed"
 
-      # ── 6. Toolchain Rust ──────────────────────────────────────────────────
+      # ── 5. Toolchain Rust ──────────────────────────────────────────────────
       - name: Setup Rust toolchain
         run: |
           set -euo pipefail
@@ -103,7 +108,7 @@ jobs:
           rustup show
           cargo --version
 
-      # ── 7. Cache Cargo ──────────────────────────────────────────────────────
+      # ── 6. Cache Cargo ──────────────────────────────────────────────────────
       - name: Cache Cargo registry and build
         uses: actions/cache@v5
         with:
@@ -115,7 +120,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-cargo-
 
-      # ── 8. Build Rust ───────────────────────────────────────────────────────
+      # ── 7. Build Rust ───────────────────────────────────────────────────────
       - name: Build heelonvault-app
         run: |
           set -euo pipefail
@@ -132,7 +137,7 @@ jobs:
           file target/release/heelonvault
           echo "[OK] heelonvault built"
 
-      # ── 9. Résolution du tag et de la version ──────────────────────────────
+      # ── 8. Résolution du tag et de la version ──────────────────────────────
       - name: Resolve release tag and version
         id: release_meta
         run: |
@@ -150,7 +155,7 @@ jobs:
           echo "should_publish=${SHOULD_PUBLISH}"   >> "$GITHUB_OUTPUT"
           echo "[OK] Tag: $TAG_NAME — Version: $VERSION — Publish: $SHOULD_PUBLISH"
 
-      # ── 10. Construction de l'AppDir ────────────────────────────────────────
+      # ── 9. Construction de l'AppDir ────────────────────────────────────────
       - name: Build AppDir
         env:
           APP_VERSION: ${{ steps.release_meta.outputs.version }}
@@ -184,7 +189,7 @@ jobs:
             "$USR/share/icons/hicolor/256x256/apps/heelonvault.png"
 
           # ── Migrations SQL
-          cp -r migrations/. "$USR/share/heelonvault/migrations/"
+          cp -r "$MIGRATIONS_DIR/." "$USR/share/heelonvault/migrations/"
 
           # ── Schemas GLib compilés
           glib-compile-schemas /usr/share/glib-2.0/schemas \
@@ -193,7 +198,7 @@ jobs:
           echo "[OK] AppDir structure created"
           find "$APPDIR" -maxdepth 3 -type f | sort
 
-      # ── 11. Download linuxdeploy ─────────────────────────────────────────────
+      # ── 10. Download linuxdeploy ─────────────────────────────────────────────
       - name: Download linuxdeploy and GTK plugin
         run: |
           set -euo pipefail
@@ -204,7 +209,7 @@ jobs:
           chmod +x linuxdeploy.AppImage linuxdeploy-plugin-gtk.sh
           echo "[OK] linuxdeploy downloaded"
 
-      # ── 12. Bundle des libs système avec linuxdeploy ────────────────────────
+      # ── 11. Bundle des libs système avec linuxdeploy ────────────────────────
       # linuxdeploy copies all shared libraries (.so) needed by the binary into
       # AppDir/usr/lib/ and patches RPATH. The GTK plugin additionally copies
       # GTK4/libadwaita/gdk-pixbuf related files and loaders.
@@ -223,7 +228,7 @@ jobs:
             --plugin gtk
           echo "[OK] Libraries bundled — $(ls HeelonVault.AppDir/usr/lib/ | wc -l) files in usr/lib/"
 
-      # ── 13. Restauration de notre AppRun (linuxdeploy peut l'écraser) ───────
+      # ── 12. Restauration de notre AppRun (linuxdeploy peut l'écraser) ───────
       # linuxdeploy-plugin-gtk may overwrite AppRun — restore ours.
       - name: Restore custom AppRun
         run: |
@@ -233,7 +238,7 @@ jobs:
           echo "[OK] Custom AppRun restored"
           head -5 HeelonVault.AppDir/AppRun
 
-      # ── 14. Download appimagetool et création de l'AppImage ─────────────────
+      # ── 13. Download appimagetool et création de l'AppImage ─────────────────
       - name: Download appimagetool and create AppImage
         env:
           TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
@@ -251,7 +256,7 @@ jobs:
           chmod +x "$APPIMAGE_NAME"
           echo "[OK] AppImage created: $(du -sh "$APPIMAGE_NAME" | cut -f1)"
 
-      # ── 15. Validation de l'AppImage ────────────────────────────────────────
+      # ── 14. Validation de l'AppImage ────────────────────────────────────────
       - name: Validate AppImage structure
         env:
           TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
@@ -287,7 +292,7 @@ jobs:
           echo "[OK] AppImage validated — migrations: $MIGRATION_COUNT, libs: $LIBS_COUNT"
           rm -rf squashfs-root
 
-      # ── 16. SHA256 ──────────────────────────────────────────────────────────
+      # ── 15. SHA256 ──────────────────────────────────────────────────────────
       - name: Generate SHA256
         env:
           TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
@@ -297,7 +302,7 @@ jobs:
           sha256sum "$APPIMAGE_NAME" > "${APPIMAGE_NAME}.sha256"
           echo "[OK] SHA256: $(cat "${APPIMAGE_NAME}.sha256")"
 
-      # ── 17. Upload des artefacts CI ─────────────────────────────────────────
+      # ── 16. Upload des artefacts CI ─────────────────────────────────────────
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -307,7 +312,7 @@ jobs:
             heelonvault-linux-x86_64-${{ steps.release_meta.outputs.tag_name }}.AppImage
             heelonvault-linux-x86_64-${{ steps.release_meta.outputs.tag_name }}.AppImage.sha256
 
-      # ── 18. Validation du format du tag RC ─────────────────────────────────
+      # ── 17. Validation du format du tag RC ─────────────────────────────────
       - name: Validate RC tag format before publish
         if: steps.release_meta.outputs.should_publish == 'true'
         run: |
@@ -320,7 +325,7 @@ jobs:
           }
           echo "[OK] Tag format valid: $TAG"
 
-      # ── 19. Publication de la release GitHub ───────────────────────────────
+      # ── 18. Publication de la release GitHub ───────────────────────────────
       - name: Publish/Update GitHub Release (RC)
         if: steps.release_meta.outputs.should_publish == 'true'
         env:

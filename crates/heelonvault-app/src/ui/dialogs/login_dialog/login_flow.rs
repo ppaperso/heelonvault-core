@@ -371,7 +371,7 @@ pub(super) fn handle_totp_submit<TAuth, TPolicy, TUser, TTotp>(
                     feedback::set_pending_state(&button_for_result, &spinner_for_result, false);
                     feedback::show_feedback(
                         &error_for_result,
-                        heelonvault_core::tr!("login-error-credentials").as_str(),
+                        heelonvault_core::tr!("login-error-invalid-credentials").as_str(),
                     );
                 }
             }
