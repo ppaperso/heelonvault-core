@@ -86,7 +86,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     let (audit_duplicate_row, audit_duplicate_label, audit_duplicate_badge) =
         build_audit_sidebar_row(
             heelonvault_core::tr!("main-audit-duplicates").as_str(),
-            "content-copy-symbolic",
+            "edit-copy-symbolic",
         );
     audit_list.append(&audit_all_row);
     audit_list.append(&audit_weak_row);
@@ -127,7 +127,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
         ),
         (
             heelonvault_core::tr!("main-category-api-tokens"),
-            "dialog-key-symbolic",
+            "application-x-addon-symbolic",
         ),
         (
             heelonvault_core::tr!("main-category-ssh-keys"),

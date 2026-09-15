@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::ui::dialogs::add_edit_dialog::DialogMode;
 use crate::ui::messages;
+use crate::ui::sensitive_clipboard;
 use crate::ui::widgets::secret_card::{SecretCard, SecretRowData};
 use crate::ui::windows::main_window::types::SecretQuickActions;
 use heelonvault_core::models::SecretItem;
@@ -465,11 +466,15 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         let secret_id_for_copy = item.secret_id;
                         let toast_overlay_for_copy = toast_overlay.clone();
                         copy_button.connect_clicked(move |_| {
-                            if let Some(display) = gtk4::gdk::Display::default() {
-                                display.clipboard().set_text(&copy_value);
-                            }
+                            sensitive_clipboard::copy_sensitive(
+                                &copy_value,
+                                sensitive_clipboard::SECRET_CLEAR_DELAY,
+                            );
                             toast_overlay_for_copy.add_toast(adw::Toast::new(
-                                messages::toast_password_copied().as_str(),
+                                messages::toast_password_copied(
+                                    sensitive_clipboard::SECRET_CLEAR_DELAY,
+                                )
+                                .as_str(),
                             ));
 
                             let new_value = usage_for_copy.get().saturating_add(1);
@@ -517,11 +522,15 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         let secret_id_for_login = item.secret_id;
                         let toast_overlay_for_login = toast_overlay.clone();
                         copy_login_btn.connect_clicked(move |_| {
-                            if let Some(display) = gtk4::gdk::Display::default() {
-                                display.clipboard().set_text(&login_value);
-                            }
+                            sensitive_clipboard::copy_sensitive(
+                                &login_value,
+                                sensitive_clipboard::SECRET_CLEAR_DELAY,
+                            );
                             toast_overlay_for_login.add_toast(adw::Toast::new(
-                                messages::toast_login_copied().as_str(),
+                                messages::toast_login_copied(
+                                    sensitive_clipboard::SECRET_CLEAR_DELAY,
+                                )
+                                .as_str(),
                             ));
 
                             let new_value = usage_for_login.get().saturating_add(1);
@@ -571,16 +580,11 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         let toast_overlay_for_url = toast_overlay.clone();
                         let parent_window_for_url = parent_window.clone();
                         open_url_btn.connect_clicked(move |_| {
-                            let copied_login = if !login_value_for_url.trim().is_empty() {
-                                if let Some(display) = gtk4::gdk::Display::default() {
-                                    display.clipboard().set_text(&login_value_for_url);
-                                    true
-                                } else {
-                                    false
-                                }
-                            } else {
-                                false
-                            };
+                            let copied_login = !login_value_for_url.trim().is_empty()
+                                && sensitive_clipboard::copy_sensitive(
+                                    &login_value_for_url,
+                                    sensitive_clipboard::SECRET_CLEAR_DELAY,
+                                );
 
                             gtk4::show_uri(
                                 Some(&parent_window_for_url),
@@ -588,7 +592,9 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                                 gtk4::gdk::CURRENT_TIME,
                             );
                             let toast_message = if copied_login {
-                                messages::toast_url_opened_login_copied()
+                                messages::toast_url_opened_login_copied(
+                                    sensitive_clipboard::SECRET_CLEAR_DELAY,
+                                )
                             } else {
                                 messages::toast_url_opened()
                             };
@@ -763,6 +769,8 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                             is_weak: item.health == heelonvault_core::tr!("main-strength-weak"),
                             is_duplicate,
                             is_health: item.is_health_access,
+                            is_incomplete: item.login.trim().is_empty() || item.url.trim().is_empty(),
+                            is_never_used: item.usage_count == 0,
                         },
                     );
                     secret_flow.insert(&card_widget, -1);

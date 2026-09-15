@@ -5,7 +5,7 @@ use image::ImageFormat;
 use qrcode::QrCode;
 use secrecy::{ExposeSecret, SecretBox};
 use sqlx::{Row, SqlitePool};
-use totp_rs::{Algorithm, Secret, TOTP};
+use totp_rs::{Algorithm, Builder, Secret, Totp};
 use uuid::Uuid;
 
 use crate::errors::{AccessDeniedReason, AppError};
@@ -110,21 +110,20 @@ where
         Ok(true)
     }
 
-    fn build_totp(&self, account_name: &str, base32_secret: &str) -> Result<TOTP, AppError> {
-        let secret_bytes = Secret::Encoded(base32_secret.to_string())
-            .to_bytes()
+    fn build_totp(&self, account_name: &str, base32_secret: &str) -> Result<Totp, AppError> {
+        let secret = Secret::try_from_base32(base32_secret)
             .map_err(|error| AppError::Validation(format!("invalid TOTP secret: {error}")))?;
 
-        TOTP::new(
-            Algorithm::SHA1,
-            TOTP_DIGITS,
-            TOTP_SKEW,
-            TOTP_STEP,
-            secret_bytes,
-            Some(self.issuer.clone()),
-            account_name.to_string(),
-        )
-        .map_err(|error| AppError::Validation(format!("invalid TOTP setup: {error}")))
+        Builder::new()
+            .with_algorithm(Algorithm::SHA1)
+            .with_digits(TOTP_DIGITS as u8)
+            .with_skew(TOTP_SKEW as u16)
+            .with_step_duration(TOTP_STEP)
+            .with_secret(secret)
+            .with_issuer(Some(self.issuer.clone()))
+            .with_account_name(account_name.to_string())
+            .build()
+            .map_err(|error| AppError::Validation(format!("invalid TOTP setup: {error}")))
     }
 
     fn is_valid_totp_code(code: &str) -> bool {
@@ -209,17 +208,11 @@ where
             ));
         }
 
-        let secret = Secret::generate_secret();
-        let base32_secret = match secret.to_encoded() {
-            Secret::Encoded(value) => value,
-            Secret::Raw(_) => {
-                return Err(AppError::Validation(
-                    "failed to encode TOTP secret".to_string(),
-                ));
-            }
-        };
-        let totp = self.build_totp(account_name, base32_secret.as_str())?;
-        let otpauth_url = totp.get_url();
+        let secret = Secret::generate();
+        let base32_secret = secret.to_base32();
+        let totp = self.build_totp(account_name, &base32_secret)?;
+        let otpauth_url = totp.to_url()
+            .map_err(|error| AppError::Validation(format!("failed to generate TOTP URL: {error}")))?;
 
         let qr_code = QrCode::new(otpauth_url.as_bytes())
             .map_err(|error| AppError::Validation(format!("failed to generate QR: {error}")))?;
@@ -251,8 +244,7 @@ where
         }
 
         let totp = self.build_totp(account_name, base32_secret)?;
-        totp.check_current(code)
-            .map_err(|error| AppError::Validation(format!("failed to verify TOTP code: {error}")))
+        Ok(totp.check_current(code).is_some())
     }
 
     async fn enable_totp(
@@ -354,34 +346,40 @@ where
                     .map_err(|_| {
                         AppError::Validation("invalid decrypted TOTP secret".to_string())
                     })?;
-                let legacy_totp = self.build_totp(username, legacy_secret.as_str())?;
-                let is_valid = legacy_totp.check_current(code).map_err(|error| {
-                    AppError::Validation(format!("failed to verify login TOTP code: {error}"))
-                })?;
+                let legacy_totp = self.build_totp(username, &legacy_secret)?;
+                let is_valid = legacy_totp.check_current(code).is_some();
 
-                if is_valid {
-                    let reencrypted = self
-                        .crypto_service
-                        .encrypt(&SecretBox::new(Box::new(legacy_secret.into_bytes())), &key)
-                        .await?;
-                    let envelope = Self::serialize_envelope(&reencrypted);
-                    let _ = sqlx::query("UPDATE users SET totp_secret = ?1 WHERE username = ?2")
-                        .bind(envelope.expose_secret().as_slice())
-                        .bind(username)
-                        .execute(&self.pool)
-                        .await;
+                // Without the guard, the code used here would open a second session right
+                // after the migration below, through the regular path.
+                if !is_valid
+                    || !self.reject_replay_and_record(
+                        username,
+                        code,
+                        chrono::Utc::now().timestamp(),
+                    )?
+                {
+                    return Ok(false);
                 }
 
-                return Ok(is_valid);
+                let reencrypted = self
+                    .crypto_service
+                    .encrypt(&SecretBox::new(Box::new(legacy_secret.into_bytes())), &key)
+                    .await?;
+                let envelope = Self::serialize_envelope(&reencrypted);
+                let _ = sqlx::query("UPDATE users SET totp_secret = ?1 WHERE username = ?2")
+                    .bind(envelope.expose_secret().as_slice())
+                    .bind(username)
+                    .execute(&self.pool)
+                    .await;
+
+                return Ok(true);
             }
         };
         let base32_secret = String::from_utf8(decrypted.expose_secret().clone())
             .map_err(|_| AppError::Validation("invalid decrypted TOTP secret".to_string()))?;
 
-        let totp = self.build_totp(username, base32_secret.as_str())?;
-        let is_valid = totp.check_current(code).map_err(|error| {
-            AppError::Validation(format!("failed to verify login TOTP code: {error}"))
-        })?;
+        let totp = self.build_totp(username, &base32_secret)?;
+        let is_valid = totp.check_current(code).is_some();
 
         if !is_valid {
             return Ok(false);

@@ -11,6 +11,8 @@ pub(super) fn apply_filters(secret_flow: &gtk4::FlowBox, filter_runtime: &Filter
     let audit_all_count = values.len();
     let audit_weak_count = values.values().filter(|meta| meta.is_weak).count();
     let audit_duplicate_count = values.values().filter(|meta| meta.is_duplicate).count();
+    let incomplete_count = values.values().filter(|meta| meta.is_incomplete).count();
+    let never_used_count = values.values().filter(|meta| meta.is_never_used).count();
     let non_compliant_count = values
         .values()
         .filter(|meta| meta.is_weak || meta.is_duplicate)
@@ -27,6 +29,8 @@ pub(super) fn apply_filters(secret_flow: &gtk4::FlowBox, filter_runtime: &Filter
         &filter_runtime.non_compliant_count_label,
         non_compliant_count,
     );
+    update_audit_badge(&filter_runtime.incomplete_count_label, incomplete_count);
+    update_audit_badge(&filter_runtime.never_used_count_label, never_used_count);
 
     secret_flow.invalidate_sort();
     secret_flow.invalidate_filter();
@@ -394,7 +398,9 @@ mod tests {
             is_weak: false,
             is_duplicate: false,
             is_health: false,
-        }
+            is_incomplete: false,
+            is_never_used: false,
+        }        
     }
 
     #[test]

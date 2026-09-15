@@ -109,8 +109,6 @@ pub(super) fn handle_init_identity_step(
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_init_oath_step(
-    init_clipboard_dirty: Rc<Cell<bool>>,
-    init_clipboard_timer: Rc<RefCell<Option<glib::SourceId>>>,
     init_username: gtk4::Entry,
     init_password: gtk4::PasswordEntry,
     step_stack: gtk4::Stack,
@@ -123,15 +121,8 @@ pub(super) fn handle_init_oath_step(
     authenticated: Rc<Cell<bool>>,
     on_authenticated: Rc<dyn Fn(AuthenticatedSession)>,
 ) {
-    if init_clipboard_dirty.get() {
-        if let Some(display) = gtk4::gdk::Display::default() {
-            display.clipboard().set_text("");
-        }
-        if let Some(id) = init_clipboard_timer.borrow_mut().take() {
-            id.remove();
-        }
-        init_clipboard_dirty.set(false);
-    }
+    // The phrase has been written down: it must not wait for its timer in the clipboard.
+    crate::ui::sensitive_clipboard::clear_now();
 
     let username = init_username.text().trim().to_string();
     let password_bytes = init_password.text().as_bytes().to_vec();
@@ -230,10 +221,6 @@ pub(super) fn setup_bootstrap_submit_handler(
     // Indices des mots à vérifier
     let init_verify_indices: Rc<Cell<(usize, usize)>> = Rc::new(Cell::new((0, 1)));
 
-    // État pour suivre si le presse-papier contient la phrase
-    let init_clipboard_dirty: Rc<Cell<bool>> = Rc::new(Cell::new(false));
-    let init_clipboard_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
-
     // Cloner les widgets et états pour le handler
     let step_stack = widgets.step_stack.clone();
     let init_username_entry = widgets.init_username_entry.clone();
@@ -255,8 +242,6 @@ pub(super) fn setup_bootstrap_submit_handler(
     let on_authenticated_for_handler = Rc::clone(&on_authenticated);
     let init_oath_words_for_handler = Rc::clone(&init_oath_words);
     let init_verify_indices_for_handler = Rc::clone(&init_verify_indices);
-    let init_clipboard_dirty_for_handler = Rc::clone(&init_clipboard_dirty);
-    let init_clipboard_timer_for_handler = Rc::clone(&init_clipboard_timer);
 
     widgets.submit_button.connect_clicked(move |_| {
         // Vérifier l'étape courante
@@ -292,8 +277,6 @@ pub(super) fn setup_bootstrap_submit_handler(
             "init-oath" => {
                 // Étape 2: Vérifier les mots et exécuter le bootstrap
                 handle_init_oath_step(
-                    Rc::clone(&init_clipboard_dirty_for_handler),
-                    Rc::clone(&init_clipboard_timer_for_handler),
                     init_username_entry.clone(),
                     init_password_entry.clone(),
                     step_stack.clone(),

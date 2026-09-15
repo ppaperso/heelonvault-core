@@ -1,4 +1,4 @@
-# HeelonVault 1.1.0
+# HeelonVault 1.2.0-rc.1
 
 Language: EN | [FR](README.md)
 
@@ -15,16 +15,16 @@ HeelonVault is a local-first desktop secrets manager built in Rust with GTK4/lib
 | **Encryption** | AES-256-GCM at application level; secrets never leave the machine in plaintext |
 | **Authentication** | Argon2id password hashing + TOTP 2FA (RFC 6238) |
 | **Multi-user** | Isolated accounts and vaults per user |
-| **Bootstrap** | Guided 3-step wizard for first-admin account creation on initial startup |
-| **Recovery Key** | 24-word BIP39-style mnemonic phrase generated at bootstrap; re-exportable from profile; clipboard copy with automatic 60-second auto-clear |
-| **Persistence** | Local SQLite with versioned `sqlx` migrations (14 migrations, zero downtime) |
-| **Import / Export** | CSV import, `.hvb` export with RBAC access control |
-| **Audit Log** | Traceability for sensitive actions (secret create/update/delete, vault sharing) |
+| **Bootstrap** | Guided 3-step wizard for first-admin account creation on initial startup with **refactored flow** (v1.2.0-rc.1) |
+| **Recovery Key** | 24-word BIP39-style mnemonic phrase generated at bootstrap; re-exportable from profile; clipboard copy with automatic 60-second auto-clear; **complete account recovery system** (v1.2.0-rc.1) |
+| **Persistence** | Local SQLite with versioned `sqlx` migrations (19 migrations, zero downtime) |
+| **Import / Export** | **3-step CSV import** (v1.2.0-rc.1) with error tolerance, `.hvb` export with RBAC access control |
+| **Audit Log** | Traceability for sensitive actions (secret create/update/delete, vault sharing) with **IP-based rate limiting** (v1.2.0-rc.1) |
 | **Trash** | Soft-delete with restore and permanent purge |
-| **Auto-lock** | Configurable policy: 1 / 5 / 15 / 30 minutes or never |
+| **Auto-lock** | Configurable policy: 1 / 5 / 15 / 30 minutes or never with **PIN quick-unlock** (v1.2.0-rc.1) |
 | **Dashboard** | Productivity-first cards: usage-based ordering, clear active selection, and contextual badges (strength, incomplete, duplicate, usage, health) |
 | **Strength Meter** | Real-time `zxcvbn` evaluation for each password |
-| **Advanced Search** | Multi-field search (title, login, email, URL, notes, category, tags, type, vault) with Unicode normalization, MultiVault mode, and `#sante` shortcut |
+| **Advanced Search** | Multi-field search (title, login, email, URL, notes, category, tags, type, vault) with Unicode normalization, **MultiVault toggle mode** (v1.2.0-rc.1), and `#sante` shortcut |
 | **Editing Workflow** | Single click selects a card, double click opens the editor; keyboard quick actions on active card (`Ctrl+C`, `Ctrl+L`, `Ctrl+U`) |
 | **Health Marker** | Persistent "Health data access" field in create/edit form plus high-confidence local auto-detection |
 | **License** | Ed25519 signature verification for signed licenses; badge visible before and after login; automatic Community fallback |
@@ -183,4 +183,4 @@ Central index: [docs/README.md](docs/README.md)
 
 ---
 
-> Detailed release notes are in [CHANGELOG.en.md](docs/CHANGELOG.en.md).
+> **Current version**: 1.2.0-rc.1 — Detailed release notes are in [CHANGELOG.en.md](docs/CHANGELOG.en.md).

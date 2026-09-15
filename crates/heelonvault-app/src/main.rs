@@ -842,6 +842,7 @@ fn run_application(
 
     application.connect_shutdown(move |_| {
         info!("application shutdown requested, closing services");
+        ui::sensitive_clipboard::clear_now();
         app_context_for_shutdown.auth_service.signal_shutdown();
 
         let pool = app_context_for_shutdown.pool.clone();

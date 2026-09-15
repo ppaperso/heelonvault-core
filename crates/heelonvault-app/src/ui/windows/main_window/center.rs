@@ -71,8 +71,14 @@ pub(super) fn build_center_panel() -> CenterPanelWidgets {
         build_status_metric_chip("view-grid-symbolic", "0", false);
     let (status_non_compliant_chip, status_non_compliant_badge) =
         build_status_metric_chip("dialog-warning-symbolic", "0", true);
+    let (status_incomplete_chip, status_incomplete_badge) =
+        build_status_metric_chip("dialog-information-symbolic", "0", true);
+    let (status_never_used_chip, status_never_used_badge) =
+        build_status_metric_chip("media-playlist-repeat-symbolic", "0", false);
     metrics_box.append(&status_total_chip);
     metrics_box.append(&status_non_compliant_chip);
+    metrics_box.append(&status_incomplete_chip);
+    metrics_box.append(&status_never_used_chip);
 
     let sort_switch = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
@@ -170,6 +176,10 @@ pub(super) fn build_center_panel() -> CenterPanelWidgets {
         status_total_badge,
         status_non_compliant_chip,
         status_non_compliant_badge,
+        status_incomplete_chip,
+        status_incomplete_badge,
+        status_never_used_chip,
+        status_never_used_badge,
         sort_recent_button,
         sort_title_button,
         sort_risk_button,

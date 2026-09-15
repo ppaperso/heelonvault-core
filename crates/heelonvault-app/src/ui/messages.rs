@@ -47,13 +47,19 @@ pub fn toast_secret_deleted(name: &str) -> String {
 }
 
 #[allow(dead_code)]
-pub fn toast_password_copied() -> String {
-    tr("toast-password-copied")
+pub fn toast_password_copied(clear_after: std::time::Duration) -> String {
+    tr_args(
+        "toast-password-copied",
+        &[("seconds", I18nArg::Num(clear_after.as_secs() as i64))],
+    )
 }
 
 #[allow(dead_code)]
-pub fn toast_login_copied() -> String {
-    tr("toast-login-copied")
+pub fn toast_login_copied(clear_after: std::time::Duration) -> String {
+    tr_args(
+        "toast-login-copied",
+        &[("seconds", I18nArg::Num(clear_after.as_secs() as i64))],
+    )
 }
 
 #[allow(dead_code)]
@@ -62,6 +68,9 @@ pub fn toast_url_opened() -> String {
 }
 
 #[allow(dead_code)]
-pub fn toast_url_opened_login_copied() -> String {
-    tr("toast-url-opened-login-copied")
+pub fn toast_url_opened_login_copied(clear_after: std::time::Duration) -> String {
+    tr_args(
+        "toast-url-opened-login-copied",
+        &[("seconds", I18nArg::Num(clear_after.as_secs() as i64))],
+    )
 }

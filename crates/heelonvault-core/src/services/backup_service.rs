@@ -306,8 +306,11 @@ impl BackupServiceImpl {
 
         // On Windows, fs::rename fails if the destination already exists.
         // Remove it first to ensure cross-platform compatibility.
-        if path.exists() {
-            fs::remove_file(path).map_err(AppError::Io)?;
+        if path.exists()
+            && let Err(err) = fs::remove_file(path)
+        {
+            let _ = fs::remove_file(&temp_path);
+            return Err(AppError::Io(err));
         }
 
         if let Err(err) = fs::rename(&temp_path, path).map_err(AppError::Io) {
@@ -470,6 +473,11 @@ impl BackupService for BackupServiceImpl {
         backup_file_path: &Path,
         recovery_phrase: &SecretString,
     ) -> Result<BackupMetadata, AppError> {
+        // Import refuses anything but a valid BIP39 phrase: a backup sealed with another
+        // string could never be restored.
+        Mnemonic::parse_in_normalized(Language::English, recovery_phrase.expose_secret())
+            .map_err(|_| AppError::Recovery(RecoveryFailure::InvalidPhrase))?;
+
         let sqlite_bytes = Zeroizing::new(fs::read(sqlite_db_path).map_err(AppError::Io)?);
         Self::validate_sqlite_bytes(sqlite_bytes.as_slice())?;
 

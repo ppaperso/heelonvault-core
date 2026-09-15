@@ -31,6 +31,8 @@ pub(super) struct SecretFilterMeta {
     pub(super) is_weak: bool,
     pub(super) is_duplicate: bool,
     pub(super) is_health: bool,
+    pub(super) is_incomplete: bool,
+    pub(super) is_never_used: bool,
 }
 
 #[derive(Clone)]
@@ -46,6 +48,8 @@ pub(super) struct FilterRuntime {
     pub(super) audit_duplicate_count_label: gtk4::Label,
     pub(super) total_count_label: gtk4::Label,
     pub(super) non_compliant_count_label: gtk4::Label,
+    pub(super) incomplete_count_label: gtk4::Label,
+    pub(super) never_used_count_label: gtk4::Label,
     pub(super) filtered_status_page: adw::StatusPage,
 }
 

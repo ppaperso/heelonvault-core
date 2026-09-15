@@ -217,9 +217,9 @@ impl ImportServiceImpl {
                         .position()
                         .and_then(|position| usize::try_from(position.line()).ok())
                         .unwrap_or(fallback_row);
-                    let raw_line = source_lines
+                    let raw_line_chars = source_lines
                         .get(csv_row.saturating_sub(1))
-                        .map(|line| (*line).to_string());
+                        .map(|line| line.chars().count());
                     let reason = format!("parsing invalid: {error}");
                     failures.push(ImportCsvFailure {
                         source_row: csv_row,
@@ -231,7 +231,7 @@ impl ImportServiceImpl {
                         reject_type: CsvRejectType::ParsingInvalid,
                         reason,
                         detected_columns: None,
-                        raw_line,
+                        raw_line_chars,
                     });
                     continue;
                 }
@@ -253,9 +253,9 @@ impl ImportServiceImpl {
                     reject_type: CsvRejectType::WrongColumnCount,
                     reason,
                     detected_columns: Some(record.len()),
-                    raw_line: source_lines
+                    raw_line_chars: source_lines
                         .get(csv_row.saturating_sub(1))
-                        .map(|line| (*line).to_string()),
+                        .map(|line| line.chars().count()),
                 });
                 continue;
             }
@@ -410,8 +410,13 @@ impl ImportServiceImpl {
             if let Some(columns) = reject.detected_columns {
                 lines.push(format!("  Detected columns: {columns}"));
             }
-            if let Some(raw_line) = reject.raw_line.as_deref() {
-                lines.push(format!("  Raw line: {raw_line}"));
+            // A rejected row still holds its password column: only its length is reported, the
+            // report lives in the log directory and must never carry a secret in clear.
+            if let Some(chars) = reject.raw_line_chars {
+                lines.push(format!(
+                    "  Raw line: <redacted, {chars} characters; see row {} of the source file>",
+                    reject.source_row
+                ));
             } else {
                 lines.push("  Raw line: <unavailable>".to_string());
             }
@@ -482,7 +487,7 @@ struct CsvRejectDetail {
     reject_type: CsvRejectType,
     reason: String,
     detected_columns: Option<usize>,
-    raw_line: Option<String>,
+    raw_line_chars: Option<usize>,
 }
 
 #[derive(Clone, Copy)]
@@ -876,12 +881,9 @@ mod tests {
     }
 
     #[test]
-    fn write_reject_report_includes_reject_type_and_raw_line() {
-        let temp = tempfile::tempdir();
-        assert!(temp.is_ok(), "tempdir should be created");
-        let temp = match temp {
-            Ok(value) => value,
-            Err(_) => return,
+    fn write_reject_report_includes_reject_type_and_redacted_raw_line() {
+        let Ok(temp) = tempfile::tempdir() else {
+            panic!("tempdir should be created");
         };
 
         let report_path = ImportServiceImpl::write_reject_report_to_dir(
@@ -892,23 +894,91 @@ mod tests {
                 reject_type: CsvRejectType::WrongColumnCount,
                 reason: "wrong column count: expected 7, got 8".to_string(),
                 detected_columns: Some(8),
-                raw_line: Some("A,B,C,D,E,F,G,H".to_string()),
+                raw_line_chars: Some(15),
             }],
         );
-        assert!(report_path.is_ok(), "report creation should succeed");
-
-        let report_path = match report_path {
-            Ok(Some(value)) => value,
-            _ => return,
+        let Ok(Some(report_path)) = report_path else {
+            panic!("report creation should succeed, got {report_path:?}");
         };
-        let content = fs::read_to_string(report_path);
-        assert!(content.is_ok(), "report should be readable");
-        let content = match content {
-            Ok(value) => value,
-            Err(_) => return,
+        let Ok(content) = fs::read_to_string(report_path) else {
+            panic!("report should be readable");
         };
 
         assert!(content.contains("Type: Wrong column count"));
-        assert!(content.contains("Raw line: A,B,C,D,E,F,G,H"));
+        assert!(
+            content.contains("Raw line: <redacted, 15 characters; see row 3 of the source file>")
+        );
+    }
+
+    /// CWE-532: a malformed row keeps its password column; the reject report is written to the
+    /// log directory and must never contain it, nor any other field of the rejected row.
+    #[test]
+    fn reject_report_never_contains_the_values_of_a_rejected_row() {
+        let Ok(temp) = tempfile::tempdir() else {
+            panic!("tempdir should be created");
+        };
+        let password = "Sup3r-S3cret-Reject-P@ss!";
+        let username = "reject.user@example.org";
+        let path = temp.path().join("leaky.csv");
+        write_csv(
+            path.as_path(),
+            &format!(
+                "name,url,username,password,notes,category,tags\n\
+                 Mail,https://mail.example.org,{username},{password},private note,perso,mail,EXTRA\n\
+                 Bank,https://bank.example.org,\"{username}\",\"{password}\n"
+            ),
+        );
+
+        let Ok(outcome) = ImportServiceImpl::parse_csv_rows(path.as_path()) else {
+            panic!("a malformed row must not abort parsing");
+        };
+        assert!(
+            outcome.rows.is_empty(),
+            "no malformed row may be importable"
+        );
+        assert!(
+            !outcome.rejects.is_empty(),
+            "malformed rows must be reported"
+        );
+
+        let report_dir = temp.path().join("logs");
+        let Ok(Some(report_path)) = ImportServiceImpl::write_reject_report_to_dir(
+            report_dir.as_path(),
+            path.as_path(),
+            &outcome.rejects,
+        ) else {
+            panic!("report creation should succeed");
+        };
+        let Ok(content) = fs::read(&report_path) else {
+            panic!("report should be readable");
+        };
+
+        for needle in [password, username, "private note"] {
+            assert!(
+                !content
+                    .windows(needle.len())
+                    .any(|window| window == needle.as_bytes()),
+                "the reject report must not contain {needle:?}"
+            );
+        }
+        for failure in &outcome.failures {
+            assert!(
+                !failure.reason.contains(password),
+                "a failure reason shown in the UI must not contain the password"
+            );
+        }
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let Ok(metadata) = fs::metadata(&report_path) else {
+                panic!("report metadata should be readable");
+            };
+            assert_eq!(
+                metadata.permissions().mode() & 0o777,
+                0o600,
+                "the reject report must be readable by its owner only"
+            );
+        }
     }
 }

@@ -39,6 +39,9 @@ Pour verifier une licence :
 - Mettre a jour ce guide FR si la politique de licence change.
 - Regenerer l'inventaire EN lors des mises a jour majeures de dependances.
 
+> **Note v1.2.0-rc.1**: Le document EN a ete regenere le 2026-09-15 avec les dernieres versions des dependances.
+> Les mises a jour incluent : sqlx 0.9.0, tokio 1.53, totp-rs 6.0.0, gtk4 0.11, libadwaita 0.10, et corrections de securite.
+
 ## 5. Limite de traduction
 
 Par etat de l'art compliance, les clauses juridiques officielles et libelles SPDX font foi en langue d'origine.

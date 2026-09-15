@@ -22,16 +22,16 @@ sqlx = { version = "0.9", default-features = false, features = [
 ] }
 
 # --- Cryptographie & sécurité mémoire ---
-aes-gcm       = "0.10"
-argon2        = "0.5"
-base64        = "0.22"
-bip39         = "2.1"
-getrandom     = "0.3"
+aes-gcm       = "0.11"
+argon2        = "0.6"
+base64        = "0.23"
+bip39         = "2.2"
+getrandom     = "0.4"
 hex           = "0.4"
 secrecy       = "0.10"
-sha2          = "0.10"
+sha2          = "0.11"
 subtle        = "2.6"
-zeroize       = "1.8"
+zeroize       = "1.9"
 
 # --- Sérialisation ---
 serde      = { version = "1.0", features = ["derive"] }
@@ -41,7 +41,7 @@ serde_json = "1.0"
 thiserror = "2.0"
 
 # --- Async & traits ---
-tokio         = { version = "1.44", features = ["macros", "rt-multi-thread", "sync"] }
+tokio         = { version = "1.53", features = ["macros", "rt-multi-thread", "sync"] }
 trait-variant = "0.1"
 
 # --- Datetime ---
@@ -49,29 +49,29 @@ chrono = { version = "0.4", features = ["std"] }
 time   = { version = "0.3", features = ["serde", "formatting", "parsing"] }
 
 # --- Import CSV / données ---
-csv         = "1.3"
+csv         = "1.4"
 encoding_rs = "0.8"
 url         = "2.5"
 
 # --- Internationalisation ---
-fluent-templates = "0.9"
+fluent-templates = "0.15.1"
 unic-langid      = "0.9"
 
 # --- TOTP & QR Code ---
-totp-rs = { version = "5.6", features = ["gen_secret", "otpauth"] }
+totp-rs = { version = "6.0.0", features = ["gen_secret", "otpauth"] }
 qrcode  = { version = "0.14", default-features = false, features = ["image"] }
 image   = { version = "0.25", default-features = false, features = ["png"] }
 
 # --- Utilitaires ---
-uuid = { version = "1.16", features = ["serde", "v4"] }
+uuid = { version = "1.26", features = ["serde", "v4"] }
 
 # Instrumentation (macros info!/warn!/error! uniquement — pas d'init subscriber)
 tracing = "0.1"
 
 [dev-dependencies]
-criterion  = "0.5"
-proptest   = "1.6"
-rstest     = "0.24"
-tempfile   = "3"
+criterion  = "0.8"
+proptest   = "1.11"
+rstest     = "0.27"
+tempfile   = "3.27"
 # Init subscriber pour les tests uniquement (ne jamais init dans le code de lib)
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

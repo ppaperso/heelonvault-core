@@ -69,12 +69,14 @@ pub fn check_permission(user: &User, action: Action, resource: &Resource) -> Res
             Action::VaultDelete,
             Resource::Vault {
                 is_owner,
-                has_direct_share: _,
-                has_team_share: _,
+                has_direct_share,
+                has_team_share,
                 share_role,
             },
         ) => {
-            if *is_owner || share_role.is_some_and(|role| role.can_admin()) {
+            // Same rule as share/revoke/rotate: a role never counts without an access path.
+            let has_access = *is_owner || *has_direct_share || *has_team_share;
+            if has_access && (*is_owner || share_role.is_some_and(|role| role.can_admin())) {
                 Ok(())
             } else {
                 Err(AppError::Authorization(

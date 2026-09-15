@@ -2,7 +2,9 @@
 
 Langue : FR | [EN](USER_GUIDE.en.md)
 
-Version cible documentée : `1.1.0`
+Version cible documentée : `1.2.0-rc.1`
+
+> Dernière mise à jour : 2026-09-15
 
 ## Objectif
 
@@ -70,14 +72,17 @@ Rôle de l'écran :
 
 1. Choisir un identifiant administrateur.
 2. Définir un mot de passe maître fort.
-3. Enregistrer la clé de récupération générée.
-4. Finaliser l'initialisation pour ouvrir le coffre.
+3. **Générer et vérifier la clé de récupération de compte** (24 mots BIP39).
+4. Enregistrer la clé de récupération générée dans un lieu sûr.
+5. Finaliser l'initialisation pour ouvrir le coffre.
 
 À retenir :
 
+- la **clé de récupération de compte** (24 mots) est essentielle pour retrouver l'accès en cas de perte du mot de passe maître ;
 - la clé de récupération doit être conservée dans un emplacement sûr et séparé de la machine ;
 - le mot de passe maître conditionne directement la sécurité d'accès au coffre ;
-- cette étape ne doit pas être interrompue sans sauvegarder les informations affichées.
+- cette étape ne doit pas être interrompue sans sauvegarder les informations affichées ;
+- une vérification de 2 mots est obligatoire avant de pouvoir finaliser.
 
 Emplacement capture d'écran : Écran 1 - assistant d'initialisation
 
@@ -323,6 +328,31 @@ Points d'attention généraux :
 - après un changement de mot de passe maître, vérifier rapidement l'accès aux coffres principaux ;
 - ne jamais laisser une session ouverte sans surveillance.
 
+### Récupération de clé de compte (NOUVEAU en v1.2.0-rc.1)
+
+HeelonVault permet maintenant de récupérer l'accès à votre compte si vous perdez votre mot de passe maître, grâce à une **clé de récupération de compte** générée lors de l'initialisation.
+
+**Initialisation (durant le bootstrap)** :
+- Une phrase mnémotechnique de 24 mots (format BIP39) est générée automatiquement.
+- Une vérification obligatoire de 2 mots tirés au hasard est requise avant finalisation.
+- La clé est copiée dans le presse-papiers avec effacement automatique après 60 secondes.
+
+**Ré-exportation** :
+- Depuis `Profil & Sécurité`, vous pouvez ré-exporter votre clé de récupération à tout moment.
+- Cette action nécessite une authentification valide et les droits d'administrateur.
+
+**Utilisation pour la récupération** :
+- En cas de perte du mot de passe maître, utilisez la clé de récupération pour :
+  1. Déverrouiller l'accès à votre compte ;
+  2. Réinitialiser votre mot de passe maître ;
+  3. Retrouver l'accès à vos coffres existants.
+
+**Bonnes pratiques** :
+- Conservez la clé de récupération dans un lieu physique sûr (coffre, enveloppe scellée) ;
+- Ne la stockez PAS dans un fichier numérique non chiffré ;
+- Ne la partagez avec personne ;
+- Vérifiez régulièrement que vous pouvez y accéder.
+
 Cet écran correspond à l'espace de gestion de la confiance utilisateur. C'est ici que se concentrent les réglages qui influencent directement le niveau de protection du coffre.
 
 Emplacement capture d'écran : Écran 7 - profil et sécurité
@@ -438,3 +468,4 @@ Capture 09c - Vue d'administration des utilisateurs (création, rôles, réiniti
 - [QUICKSTART.md](QUICKSTART.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [UPDATE_GUIDE.md](UPDATE_GUIDE.md)
+- [CHANGELOG.md](CHANGELOG.md)

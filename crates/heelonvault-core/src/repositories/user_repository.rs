@@ -556,6 +556,15 @@ impl UserRepository for SqlxUserRepository {
             .execute(&mut *tx)
             .await?;
 
+        // auth_policy is keyed by username with no foreign key: without this, the username of
+        // an erased account would survive in the login throttling table (GDPR art. 17).
+        sqlx::query(
+            "DELETE FROM auth_policy WHERE username = (SELECT username FROM users WHERE id = ?1)",
+        )
+        .bind(&user_id_str)
+        .execute(&mut *tx)
+        .await?;
+
         // All other FK references cascade automatically (vaults → secret_items,
         // team_members, vault_key_shares) or are SET NULL (audit_log, teams.created_by,
         // accessible_vaults).

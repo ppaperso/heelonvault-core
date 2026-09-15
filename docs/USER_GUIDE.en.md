@@ -2,7 +2,9 @@
 
 Language: EN | [FR](USER_GUIDE.md)
 
-Documented target version: `1.1.0`
+Documented target version: `1.2.0-rc.1`
+
+> Last updated: 2026-09-15
 
 ## Purpose
 
@@ -70,14 +72,17 @@ General steps:
 
 1. Choose the administrator login.
 2. Define a strong master password.
-3. Save the generated recovery key.
-4. Complete initialization and open the vault.
+3. **Generate and verify the account recovery key** (24-word BIP39 phrase).
+4. Save the generated recovery key in a secure location.
+5. Complete initialization and open the vault.
 
 Important notes:
 
+- the **account recovery key** (24 words) is essential to regain access if the master password is lost;
 - the recovery key should be stored in a secure location outside the workstation;
 - the master password directly affects vault access security;
-- the process should not be interrupted before the displayed recovery material is safely recorded.
+- the process should not be interrupted before the displayed recovery material is safely recorded;
+- mandatory verification of 2 random words is required before completion.
 
 Screenshot placeholder: Screen 1 - bootstrap wizard
 
@@ -323,6 +328,31 @@ General recommendations:
 - after changing the master password, quickly verify access to main vaults;
 - never leave an open session unattended.
 
+### Account Key Recovery (NEW in v1.2.0-rc.1)
+
+HeelonVault now allows you to recover access to your account if you lose your master password, thanks to an **account recovery key** generated during initialization.
+
+**Initialization (during bootstrap)**:
+- A 24-word mnemonic phrase (BIP39 format) is automatically generated.
+- Mandatory verification of 2 randomly selected words is required before completion.
+- The key is copied to clipboard with automatic clearing after 60 seconds.
+
+**Re-export**:
+- From `Profile & Security`, you can re-export your recovery key at any time.
+- This action requires valid authentication and administrator privileges.
+
+**Usage for recovery**:
+- In case of master password loss, use the recovery key to:
+  1. Unlock access to your account;
+  2. Reset your master password;
+  3. Regain access to your existing vaults.
+
+**Best practices**:
+- Store the recovery key in a secure physical location (safe, sealed envelope);
+- Do NOT store it in an unencrypted digital file;
+- Do not share it with anyone;
+- Regularly verify you can access it.
+
 This screen is the core user trust area of the product. It contains the settings that most directly affect protection of the vault and session behavior.
 
 Screenshot placeholder: Screen 7 - profile and security
@@ -438,3 +468,4 @@ Capture 09c - User administration view (create users, roles, reset, delete).
 - [QUICKSTART.md](QUICKSTART.md)
 - [ARCHITECTURE.en.md](ARCHITECTURE.en.md)
 - [UPDATE_GUIDE.en.md](UPDATE_GUIDE.en.md)
+- [CHANGELOG.en.md](CHANGELOG.en.md)

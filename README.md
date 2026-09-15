@@ -1,4 +1,4 @@
-# HeelonVault 1.1.0
+# HeelonVault 1.2.0-rc.1
 
 Langue: FR | [EN](README.en.md)
 
@@ -16,16 +16,16 @@ avec GTK4 / libadwaita et SQLite.
 | **Chiffrement** | AES-256-GCM côté application — les secrets ne quittent jamais la machine en clair |
 | **Authentification** | Hachage Argon2id (résistant aux GPU) + TOTP 2FA (RFC 6238) |
 | **Multi-utilisateur** | Comptes séparés avec coffres isolés par utilisateur |
-| **Bootstrap** | Assistant d'initialisation guidé en 3 étapes pour la création du premier compte administrateur |
-| **Clé de récupération** | Phrase mnémotechnique 24 mots (style BIP39) générée à l'initialisation ; exportable depuis le profil ; copie avec effacement presse-papier automatique (60 s) |
-| **Persistance** | SQLite local, versionné par migrations `sqlx` (14 migrations, sans interruption de service) |
-| **Import / Export** | Import CSV, export `.hvb` avec contrôle d'accès RBAC |
-| **Journal d'audit** | Traçabilité des actions sensibles (création/modification/suppression de secrets, partages) |
+| **Bootstrap** | Assistant d'initialisation guidé en 3 étapes pour la création du premier compte administrateur avec **flux refactoré** (v1.2.0-rc.1) |
+| **Clé de récupération** | Phrase mnémotechnique 24 mots (style BIP39) générée à l'initialisation ; exportable depuis le profil ; copie avec effacement presse-papier automatique (60 s) ; **système de récupération de compte complet** (v1.2.0-rc.1) |
+| **Persistance** | SQLite local, versionné par migrations `sqlx` (19 migrations, sans interruption de service) |
+| **Import / Export** | **Import CSV en 3 étapes** (v1.2.0-rc.1) avec tolérance aux erreurs, export `.hvb` avec contrôle d'accès RBAC |
+| **Journal d'audit** | Traçabilité des actions sensibles (création/modification/suppression de secrets, partages) avec **rate limiting par IP** (v1.2.0-rc.1) |
 | **Corbeille** | Suppression logique avec restauration et purge définitive |
-| **Auto-verrouillage** | Politique configurable : 1 / 5 / 15 / 30 minutes ou jamais |
+| **Auto-verrouillage** | Politique configurable : 1 / 5 / 15 / 30 minutes ou jamais avec **déverrouillage rapide par PIN** (v1.2.0-rc.1) |
 | **Tableau de bord** | Cartes orientées productivité : tri par usage, sélection active claire, badges contextuels (force, incomplet, doublon, usage, santé) |
 | **Indicateur de force** | Évaluation `zxcvbn` en temps réel sur chaque mot de passe |
-| **Recherche avancée** | Multi-champs (titre, login, email, URL, notes, catégorie, tags, type, coffre) avec normalisation Unicode, mode MultiCoffre et raccourci `#sante` |
+| **Recherche avancée** | Multi-champs (titre, login, email, URL, notes, catégorie, tags, type, coffre) avec normalisation Unicode, **mode MultiCoffre via toggle** (v1.2.0-rc.1) et raccourci `#sante` |
 | **Workflow d'édition** | Clic simple = sélection de carte, double-clic = ouverture de l'éditeur ; actions rapides clavier sur la carte active (`Ctrl+C`, `Ctrl+L`, `Ctrl+U`) |
 | **Marqueur santé** | Champ persistant « Accès données de santé » dans le formulaire create/edit + détection locale haute confiance |
 | **Licence** | Vérification Ed25519 de la licence signée ; badge visible avant et après login ; fallback Community automatique |
@@ -214,4 +214,4 @@ cargo test
 
 ---
 
-> Les notes de version détaillées sont dans [CHANGELOG.md](docs/CHANGELOG.md).
+> **Version actuelle**: 1.2.0-rc.1 — Les notes de version détaillées sont dans [CHANGELOG.md](docs/CHANGELOG.md).

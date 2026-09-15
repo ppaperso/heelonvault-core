@@ -8,7 +8,7 @@ use heelonvault_core::services::crypto_service::CryptoServiceImpl;
 use heelonvault_core::services::totp_service::{SqliteTotpService, TotpService};
 use secrecy::SecretBox;
 use sqlx::{Row, SqlitePool};
-use totp_rs::{Algorithm, Secret, TOTP};
+use totp_rs::{Algorithm, Builder, Secret};
 use uuid::Uuid;
 
 fn mutate_totp_code(code: &str) -> String {
@@ -20,24 +20,21 @@ fn mutate_totp_code(code: &str) -> String {
 }
 
 fn build_current_totp_code(username: &str, base32_secret: &str) -> Result<String, AppError> {
-    let secret_bytes = Secret::Encoded(base32_secret.to_string())
-        .to_bytes()
+    let secret = Secret::try_from_base32(base32_secret)
         .map_err(|error| AppError::Validation(format!("invalid TOTP secret in test: {error}")))?;
 
-    let totp = TOTP::new(
-        Algorithm::SHA1,
-        6,
-        1,
-        30,
-        secret_bytes,
-        Some("HeelonVault".to_string()),
-        username.to_string(),
-    )
-    .map_err(|error| AppError::Validation(format!("invalid TOTP config in test: {error}")))?;
+    let totp = Builder::new()
+        .with_algorithm(Algorithm::SHA1)
+        .with_digits(6)
+        .with_skew(1)
+        .with_step_duration(30)
+        .with_secret(secret)
+        .with_issuer(Some("HeelonVault".to_string()))
+        .with_account_name(username.to_string())
+        .build()
+        .map_err(|error| AppError::Validation(format!("invalid TOTP config in test: {error}")))?;
 
-    totp.generate_current().map_err(|error| {
-        AppError::Validation(format!("failed to generate TOTP code in test: {error}"))
-    })
+    Ok(totp.generate_current().to_string())
 }
 
 #[tokio::test]

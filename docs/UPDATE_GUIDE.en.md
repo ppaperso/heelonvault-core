@@ -2,9 +2,13 @@
 
 Language: EN | [FR](UPDATE_GUIDE.md)
 
-Documented version: `1.1.0`
+Documented version: `1.2.0-rc.1`
+
+> Last updated: 2026-09-15
 
 This guide explains how to update HeelonVault in its Rust-only architecture.
+
+**What's new in v1.2.0-rc.1**: 5 new migrations (14 → 19 total) for account key recovery, PIN cache, IP-based rate limiting, and session state support.
 
 ## Scope
 
@@ -66,6 +70,34 @@ Recommended functional checks:
 11. After backup export/restore, verify Linux file permissions with `stat -c "%a %n" /path/to/backup.hvb` and `stat -c "%a %n" /path/to/heelonvault-rust.db` (expected value: `600`).
 12. Change the master password, then verify access to main vaults after re-login (hardened master-key rotation).
 13. Verify the 3-step CSV flow (preview, progress, summary) and, when rows are rejected, record the `csv_import_rejects_*.txt` path shown in the summary.
+
+### v1.2.0-rc.1 Specific Checks
+
+**New database components** (5 new tables):
+
+```bash
+# Verify account key recovery table (Migration 0019)
+sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
+  "SELECT name FROM sqlite_master WHERE type='table' AND name='user_recovery_key_envelopes';"
+
+# Verify PIN cache table (Migration 0017)
+sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
+  "SELECT name FROM sqlite_master WHERE type='table' AND name='pin_cache';"
+
+# Verify IP rate limiting table (Migration 0016)
+sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
+  "SELECT name FROM sqlite_master WHERE type='table' AND name='login_attempts_ip';"
+
+# Verify session state table (Migration 0018)
+sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
+  "SELECT name FROM sqlite_master WHERE type='table' AND name='session_state';"
+```
+
+**Feature tests**:
+14. Test account recovery key generation and re-export from `Profile & Security`.
+15. Verify PIN activation and behavior with badge and countdown timer in the title bar.
+16. Test IP-based rate limiting by triggering multiple authentication failures from different addresses.
+17. Verify session remains active after master password change.
 
 ## Rollback
 

@@ -17,6 +17,8 @@ use heelonvault_core::errors::AppError;
 use heelonvault_core::i18n::I18nArg;
 use heelonvault_core::services::backup_service::{BackupMetadata, RecoveryKeyBundle};
 
+use crate::ui::sensitive_clipboard;
+
 #[allow(dead_code)]
 pub type ExportFuture = Pin<Box<dyn Future<Output = Result<BackupMetadata, AppError>> + 'static>>;
 #[allow(dead_code)]
@@ -492,21 +494,16 @@ impl RecoveryKeyExportDialog {
         let enable_for_copy = Rc::clone(enable_confirm);
         let feedback_for_copy = Rc::clone(&deps.on_feedback);
         copy_button.connect_clicked(move |_| {
-            let Some(display) = gtk4::gdk::Display::default() else {
+            if !sensitive_clipboard::copy_sensitive(
+                phrase_for_copy.as_str(),
+                sensitive_clipboard::RECOVERY_PHRASE_CLEAR_DELAY,
+            ) {
                 feedback_for_copy(
                     heelonvault_core::tr!("profile-export-accept").as_str(),
                     heelonvault_core::tr!("profile-export-clipboard-unavailable").as_str(),
                 );
                 return;
-            };
-
-            let clipboard = display.clipboard();
-            clipboard.set_text(phrase_for_copy.as_str());
-            let clipboard_for_clear = clipboard.clone();
-            glib::timeout_add_seconds_local(60, move || {
-                clipboard_for_clear.set_text("");
-                glib::ControlFlow::Break
-            });
+            }
 
             feedback_for_copy(
                 heelonvault_core::tr!("profile-export-success-title").as_str(),
@@ -758,8 +755,6 @@ impl RecoveryKeyExportDialog {
     }
 
     fn clear_clipboard() {
-        if let Some(display) = gtk4::gdk::Display::default() {
-            display.clipboard().set_text("");
-        }
+        sensitive_clipboard::clear_now();
     }
 }

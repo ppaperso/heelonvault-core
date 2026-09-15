@@ -2,9 +2,13 @@
 
 Langue : FR | [EN](UPDATE_GUIDE.en.md)
 
-Version documentée: `1.1.0`
+Version documentée: `1.2.0-rc.1`
+
+> Dernière mise à jour : 2026-09-15
 
 Ce guide decrit la mise a jour de HeelonVault dans son architecture Rust-only.
+
+**Nouveautés v1.2.0-rc.1** : 5 nouvelles migrations (14 → 19 total) pour le support de la récupération de clé de compte, du cache PIN, du rate limiting par IP et de la gestion de session.
 
 ## Portee
 
@@ -87,6 +91,34 @@ Verifications fonctionnelles recommandees:
 11. Après export backup/restauration, vérifier les permissions Linux avec `stat -c "%a %n" /chemin/backup.hvb` et `stat -c "%a %n" /chemin/heelonvault-rust.db` (valeur attendue: `600`).
 12. Changer le mot de passe maître, puis vérifier l'accès aux coffres principaux après reconnexion (rotation master key durcie).
 13. Vérifier le flux CSV en 3 étapes (prévisualisation, progression, résumé) et, en cas de rejet, noter le chemin `csv_import_rejects_*.txt` indiqué dans le résumé.
+
+### Vérifications spécifiques v1.2.0-rc.1
+
+**Nouveaux composants de base de données** (5 nouvelles tables) :
+
+```bash
+# Vérifier la table de récupération de clé de compte (Migration 0019)
+sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
+  "SELECT name FROM sqlite_master WHERE type='table' AND name='user_recovery_key_envelopes';"
+
+# Vérifier la table de cache PIN (Migration 0017)
+sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
+  "SELECT name FROM sqlite_master WHERE type='table' AND name='pin_cache';"
+
+# Vérifier la table de rate limiting par IP (Migration 0016)
+sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
+  "SELECT name FROM sqlite_master WHERE type='table' AND name='login_attempts_ip';"
+
+# Vérifier la table d'état de session (Migration 0018)
+sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
+  "SELECT name FROM sqlite_master WHERE type='table' AND name='session_state';"
+```
+
+**Fonctionnalités à tester** :
+14. Tester la génération et la ré-exportation de la clé de récupération de compte depuis `Profil & Sécurité`.
+15. Vérifier l'activation et le fonctionnement du PIN avec badge et minuteur dans la barre de titre.
+16. Tester le rate limiting par IP en déclenchant plusieurs échecs d'authentification depuis différentes adresses.
+17. Vérifier que la session reste active après un changement de mot de passe maître.
 
 ## Bonnes pratiques
 

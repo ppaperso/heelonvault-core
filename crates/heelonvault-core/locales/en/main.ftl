@@ -117,10 +117,10 @@ login-totp-code-invalid-error = Invalid TOTP code. Check your authenticator app.
 
 toast-secret-saved = Secret "{ $name }" saved successfully.
 toast-secret-deleted = "{ $name }" was moved to trash.
-toast-password-copied = Password copied.
-toast-login-copied = Login copied.
+toast-password-copied = Password copied (cleared in { $seconds } s).
+toast-login-copied = Login copied (cleared in { $seconds } s).
 toast-url-opened = Opening browser...
-toast-url-opened-login-copied = Browser opened, login copied.
+toast-url-opened-login-copied = Browser opened, login copied (cleared in { $seconds } s).
 
 add-edit-window-title-create = New secret
 add-edit-window-title-edit = Edit secret
@@ -218,6 +218,8 @@ main-profile-security = Profile & Security
 main-search-placeholder = Search a secret
 main-status-total-tooltip = Total number of secrets in this vault
 main-status-noncompliant-tooltip = Non-compliant secrets: weak or duplicated
+main-status-incomplete-tooltip = Number of incomplete secrets (missing login or URL)
+main-status-never-used-tooltip = Number of secrets never used (usage count is 0)
 main-sort-recent-tooltip = Sort by recency
 main-sort-title-tooltip = Sort by title
 main-sort-risk-tooltip = Sort by risk

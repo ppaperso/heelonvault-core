@@ -1324,8 +1324,6 @@ fn parse_index_from_label(label_text: &str) -> Option<usize> {
 /// # Arguments
 /// * `widgets` - Référence vers tous les widgets de la dialogue
 pub fn setup_bootstrap_gates(widgets: &LoginDialogWidgets) {
-    use gtk4::glib;
-    use std::cell::{Cell, RefCell};
     use std::rc::Rc;
 
     // Connecter la strength bar à l'entry password pour qu'elle mette à jour son score
@@ -1454,14 +1452,9 @@ pub fn setup_bootstrap_gates(widgets: &LoginDialogWidgets) {
     }
 
     // ─── Bouton Copy : copier la phrase vers le presse-papier ───────────────────────
-    // État pour suivre si le presse-papier contient la phrase (nettoyage auto après 60s)
-    let init_clipboard_dirty: Rc<Cell<bool>> = Rc::new(Cell::new(false));
-    let init_clipboard_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
-
+    // Effacement automatique après 60 s, et dès la validation de l'étape (bootstrap_flow).
     {
         let word_labels_for_copy = widgets.word_labels.clone();
-        let dirty_for_copy = Rc::clone(&init_clipboard_dirty);
-        let timer_for_copy = Rc::clone(&init_clipboard_timer);
         let copy_button = widgets.init_copy_button.clone();
 
         copy_button.connect_clicked(move |_| {
@@ -1476,25 +1469,10 @@ pub fn setup_bootstrap_gates(widgets: &LoginDialogWidgets) {
                 return;
             }
 
-            if let Some(display) = gtk4::gdk::Display::default() {
-                display.clipboard().set_text(&phrase);
-                dirty_for_copy.set(true);
-
-                // Nettoyer le presse-papier après 60 secondes
-                if let Some(id) = timer_for_copy.borrow_mut().take() {
-                    id.remove();
-                }
-
-                let dirty_for_timer = Rc::clone(&dirty_for_copy);
-                let id = glib::timeout_add_seconds_local(60, move || {
-                    if let Some(disp) = gtk4::gdk::Display::default() {
-                        disp.clipboard().set_text("");
-                    }
-                    dirty_for_timer.set(false);
-                    glib::ControlFlow::Break
-                });
-                *timer_for_copy.borrow_mut() = Some(id);
-            }
+            crate::ui::sensitive_clipboard::copy_sensitive(
+                &phrase,
+                crate::ui::sensitive_clipboard::RECOVERY_PHRASE_CLEAR_DELAY,
+            );
         });
     }
 

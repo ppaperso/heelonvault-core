@@ -145,6 +145,8 @@ where
         audit_duplicate_count_label: sidebar_panel.audit_duplicate_badge.clone(),
         total_count_label: center_panel.status_total_badge.clone(),
         non_compliant_count_label: center_panel.status_non_compliant_badge.clone(),
+        incomplete_count_label: center_panel.status_incomplete_badge.clone(),
+        never_used_count_label: center_panel.status_never_used_badge.clone(),
         filtered_status_page: center_panel.filtered_status_page.clone(),
     };
 

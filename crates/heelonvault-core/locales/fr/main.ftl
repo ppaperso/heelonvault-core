@@ -117,10 +117,10 @@ login-totp-code-invalid-error = Code TOTP invalide. Vérifiez votre application 
 
 toast-secret-saved = Secret "{ $name }" enregistre avec succes.
 toast-secret-deleted = "{ $name }" a ete deplace vers la corbeille.
-toast-password-copied = Mot de passe copie.
-toast-login-copied = Login copie.
+toast-password-copied = Mot de passe copie (effacement dans { $seconds } s).
+toast-login-copied = Login copie (effacement dans { $seconds } s).
 toast-url-opened = Ouverture du navigateur…
-toast-url-opened-login-copied = Navigateur ouvert, login copie.
+toast-url-opened-login-copied = Navigateur ouvert, login copie (effacement dans { $seconds } s).
 
 add-edit-window-title-create = Nouveau secret
 add-edit-window-title-edit = Modifier le secret
@@ -218,6 +218,8 @@ main-profile-security = Profil & Securite
 main-search-placeholder = Rechercher un secret
 main-status-total-tooltip = Nombre total de secrets dans ce coffre
 main-status-noncompliant-tooltip = Secrets non conformes: faibles ou en doublon
+main-status-incomplete-tooltip = Nombre de secrets incomplets (sans login ou URL)
+main-status-never-used-tooltip = Nombre de secrets jamais utilises (compteur a 0)
 main-sort-recent-tooltip = Trier par recence
 main-sort-title-tooltip = Trier par nom
 main-sort-risk-tooltip = Trier par risque

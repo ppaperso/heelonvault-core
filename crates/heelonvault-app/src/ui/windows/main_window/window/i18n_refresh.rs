@@ -60,6 +60,12 @@ pub fn build_refresh(
         center.status_non_compliant_chip.set_tooltip_text(Some(
             heelonvault_core::tr!("main-status-noncompliant-tooltip").as_str(),
         ));
+        center.status_incomplete_chip.set_tooltip_text(Some(
+            heelonvault_core::tr!("main-status-incomplete-tooltip").as_str(),
+        ));
+        center.status_never_used_chip.set_tooltip_text(Some(
+            heelonvault_core::tr!("main-status-never-used-tooltip").as_str(),
+        ));
         center.sort_recent_button.set_tooltip_text(Some(
             heelonvault_core::tr!("main-sort-recent-tooltip").as_str(),
         ));

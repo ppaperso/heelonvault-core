@@ -192,6 +192,7 @@ pub fn setup_panic_button_handler(panic_button: &gtk4::Button, window: adw::Appl
                 // DailyLogFileWriter est synchrone : le message est écrit
                 // sur disque avant que process::exit ne termine le processus.
                 info!("Panic mode activated - wiping memory and exiting");
+                crate::ui::sensitive_clipboard::clear_now();
                 // Les SecretBox allouées dans les closures GTK seront
                 // retirées de la mémoire virtuelle par le noyau lors de la
                 // libération du tas du processus. L'OS zero-fill les pages
