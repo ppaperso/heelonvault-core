@@ -23,6 +23,7 @@ concurrency:
 # linuxdeploy and appimagetool run without FUSE in CI via APPIMAGE_EXTRACT_AND_RUN
 env:
   APPIMAGE_EXTRACT_AND_RUN: "1"
+  GIT_DISCOVERY_ACROSS_FILESYSTEM: 1  # Allow path dependencies outside workspace root
 
 jobs:
   package-linux-appimage:

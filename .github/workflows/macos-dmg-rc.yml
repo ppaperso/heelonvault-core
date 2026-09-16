@@ -25,6 +25,7 @@ env:
   HOMEBREW_NO_INSTALL_CLEANUP: "1"
   HOMEBREW_NO_ANALYTICS: "1"
   HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"  # suppress warning for pre-installed runner taps (aws/tap, azure/bicep)
+  GIT_DISCOVERY_ACROSS_FILESYSTEM: 1  # Allow path dependencies outside workspace root
 
 jobs:
   package-macos-dmg:

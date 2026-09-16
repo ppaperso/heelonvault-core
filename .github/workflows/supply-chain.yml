@@ -28,42 +28,56 @@ jobs:
   cargo-deny:
     name: cargo-deny supply-chain gate
     runs-on: ubuntu-latest
+    
+    # Fix: Allow path dependencies outside the workspace root
+    # heelonvault-premium is checked out as a sibling directory (../heelonvault-premium)
+    # which is outside the workspace root. This environment variable tells Git
+    # (and thus cargo) to allow cross-filesystem operations for path dependencies.
+    env:
+      GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
 
     steps:
       # ── 1. Checkout ────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Required for cargo-deny to access full git history
 
       # ── 2. Checkout heelonvault-premium (sibling checkout) ──────────────────
       # heelonvault-app/Cargo.toml depends on heelonvault-premium via a plain
       # PATH dependency: `path = "../../../heelonvault-premium"` (i.e. a sibling
-      # of this repo's checkout root, not a git dependency). There is no git/ssh
-      # dependency anywhere in this workspace's Cargo.toml/Cargo.lock — the
-      # [patch.'ssh://...'] entries in the root Cargo.toml target a URL nothing
-      # actually depends on, they are inert. `cargo metadata` (which
-      # cargo-deny-action runs under the hood) therefore just needs the
-      # directory to physically exist at checkout time; it does not fetch it
-      # over git itself. So we check it out explicitly here, as a real sibling
-      # directory, using the deploy key for the private repo.
+      # of this repo's checkout root). cargo-deny needs the directory to exist
+      # at the expected path. We check it out explicitly here using the deploy key.
       - name: Checkout heelonvault-premium
         uses: actions/checkout@v6
         with:
           repository: ppaperso/heelonvault-premium
           ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
           path: ../heelonvault-premium
+          fetch-depth: 0
 
-      # ── 3. cargo-deny check ────────────────────────────────────────────────
-      # Checks: advisories (CVE/yanked), licenses, bans, sources
-      # Pinned to exact version — a floating @v2 tag on a security gate
-      # would be ironic. Update intentionally when new versions are available.
-      #
-      # No ssh-key/use-git-cli needed here: heelonvault-premium is already on
-      # disk from step 2 above (plain path dependency), so cargo never needs
-      # network/git access to resolve it.
-      - name: Run cargo deny check
-        uses: EmbarkStudios/cargo-deny-action@v2.0.20
+      # ── 3. Cache cargo-deny data ────────────────────────────────────────────
+      # Cache the cargo-deny database and git dependencies to speed up subsequent runs
+      - name: Cache cargo-deny data
+        uses: actions/cache@v5
         with:
-            command: check
-            arguments: --all-features
-            log-level: warn
-            manifest-path: Cargo.toml
+          path: |
+            ~/.cargo/registry/cache
+            ~/.cargo/registry/index
+            ~/.cargo/git/db
+          key: ${{ runner.os }}-cargo-deny-${{ hashFiles('**/Cargo.lock', '**/deny.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-deny-
+
+      # ── 4. cargo-deny check ────────────────────────────────────────────────
+      # Checks: advisories (CVE/yanked), licenses, bans, sources
+      # Pinned to v2.1.1 for security gate consistency.
+      # No ssh-key/use-git-cli needed: heelonvault-premium is already on disk
+      # from step 2 (plain path dependency), so cargo never needs network access.
+      - name: Run cargo deny check
+        uses: EmbarkStudios/cargo-deny-action@v2.1.1
+        with:
+          command: check
+          arguments: --all-features
+          log-level: warn
+          manifest-path: Cargo.toml
