@@ -1,0 +1,184 @@
+name: sbom-release
+
+on:
+  push:
+    tags:
+      # Couvre les tags RC (vX.Y.Z-rc.N) et finaux (vX.Y.Z), même logique que
+      # les 3 workflows de packaging (linux/macos/windows).
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      rc_tag:
+        description: "Tag to build/release (ex: v1.1.1-rc.1 or v1.1.1). Empty = current ref checkout"
+        required: false
+        type: string
+      publish_release:
+        description: "Publish/Update GitHub Release with SBOM + SHA256 + attestation"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: sbom-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-sbom:
+    name: Generate, attest and publish release SBOM
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write      # requis par attest-build-provenance (jeton OIDC Sigstore)
+      attestations: write  # requis pour enregistrer l'attestation sur le repo
+    defaults:
+      run:
+        working-directory: heelonvault-core
+
+    steps:
+      # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
+      - name: Checkout heelonvault-core
+        uses: actions/checkout@v6
+        with:
+          path: heelonvault-core
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
+
+      # ── 2. Checkout heelonvault-premium (repo privé) ────────────────────────
+      # Requis : le SBOM décrit le binaire réellement livré (core+app+premium
+      # assemblés), pas juste heelonvault-core seul — voir generate-sbom.sh.
+      - name: Checkout heelonvault-premium
+        uses: actions/checkout@v6
+        with:
+          repository: ppaperso/heelonvault-premium
+          ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
+          path: heelonvault-premium
+          fetch-depth: 0
+
+      # ── 3. Cache cargo-cyclonedx (binaire installé, évite une recompilation
+      #      à chaque run) ────────────────────────────────────────────────────
+      - name: Cache cargo-cyclonedx binary
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-cyclonedx
+          key: ${{ runner.os }}-cargo-cyclonedx-0.5.9
+
+      # ── 4. Résolution du tag et de la version ──────────────────────────────
+      - name: Resolve release tag and version
+        id: release_meta
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+            SHOULD_PUBLISH="true"
+          else
+            TAG_NAME="${{ inputs.rc_tag }}"
+            SHOULD_PUBLISH="${{ inputs.publish_release }}"
+          fi
+          if [[ "$TAG_NAME" =~ -rc\.[0-9]+$ ]]; then
+            IS_PRERELEASE="true"
+          else
+            IS_PRERELEASE="false"
+          fi
+          echo "tag_name=${TAG_NAME}"             >> "$GITHUB_OUTPUT"
+          echo "should_publish=${SHOULD_PUBLISH}" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${IS_PRERELEASE}"   >> "$GITHUB_OUTPUT"
+          echo "[OK] Tag: $TAG_NAME — Publish: $SHOULD_PUBLISH — Prerelease: $IS_PRERELEASE"
+
+      # ── 5. Génère le SBOM (identique quelle que soit la plateforme de build
+      #      grâce à --target all dans generate-sbom.sh — pas besoin de le
+      #      régénérer une fois par OS dans chacun des 3 workflows de
+      #      packaging) ──────────────────────────────────────────────────────
+      - name: Generate SBOM
+        run: ./scripts/generate-sbom.sh
+
+      # ── 6. Renomme selon la convention de nommage des releases ─────────────
+      - name: Rename SBOM artifact
+        env:
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          SBOM_NAME="heelonvault-sbom-${TAG_NAME}.cyclonedx.json"
+          cp sbom.cyclonedx.json "$SBOM_NAME"
+          echo "SBOM_NAME=${SBOM_NAME}" >> "$GITHUB_ENV"
+          echo "[OK] sbom.cyclonedx.json -> $SBOM_NAME"
+
+      # ── 7. SHA256 ──────────────────────────────────────────────────────────
+      - name: Generate SHA256
+        run: |
+          set -euo pipefail
+          sha256sum "$SBOM_NAME" > "${SBOM_NAME}.sha256"
+          echo "[OK] SHA256: $(cat "${SBOM_NAME}.sha256")"
+
+      # ── 8. Attestation de provenance GitHub (SLSA/Sigstore) ────────────────
+      # Lie le hash du SBOM publié à cette exécution de workflow précise et au
+      # commit source — vérifiable par quiconque via :
+      #   gh attestation verify heelonvault-sbom-<tag>.cyclonedx.json \
+      #     --owner ppaperso --repo heelonvault-core
+      # N'apparaît PAS comme un asset téléchargeable sur la page de release
+      # (c'est un enregistrement séparé, consultable via l'onglet Attestations
+      # du repo ou la commande ci-dessus) — le fichier lui-même est publié
+      # séparément à l'étape suivante.
+      - name: Attest SBOM build provenance
+        if: steps.release_meta.outputs.should_publish == 'true'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: heelonvault-core/${{ env.SBOM_NAME }}
+
+      # ── 9. Upload des artefacts CI ───────────────────────────────────────────
+      # actions/upload-artifact ignore defaults.run.working-directory (ça ne
+      # s'applique qu'aux steps `run:`) — ses chemins sont résolus depuis
+      # $GITHUB_WORKSPACE, pas heelonvault-core/, d'où le préfixe explicite.
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: heelonvault-sbom
+          if-no-files-found: error
+          path: |
+            heelonvault-core/${{ env.SBOM_NAME }}
+            heelonvault-core/${{ env.SBOM_NAME }}.sha256
+
+      # ── 10. Validation du format du tag ─────────────────────────────────────
+      - name: Validate tag format before publish
+        if: steps.release_meta.outputs.should_publish == 'true'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.release_meta.outputs.tag_name }}"
+          [[ -n "$TAG" ]] || { echo "[ERROR] publish_release=true requires a tag"; exit 1; }
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]] || {
+            echo "[ERROR] Invalid tag format: $TAG — Expected: vX.Y.Z or vX.Y.Z-rc.N"
+            exit 1
+          }
+          echo "[OK] Tag format valid: $TAG"
+
+      # ── 11. Publication de la release GitHub ────────────────────────────────
+      # RC (vX.Y.Z-rc.N) → prerelease ; tag final (vX.Y.Z) → release stable.
+      - name: Publish/Update GitHub Release
+        if: steps.release_meta.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+          IS_PRERELEASE: ${{ steps.release_meta.outputs.is_prerelease }}
+        run: |
+          set -euo pipefail
+
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            PRERELEASE_FLAG=()
+            NOTES="Automated SBOM (CycloneDX 1.4) packaging artifact."
+            if [[ "$IS_PRERELEASE" == "true" ]]; then
+              PRERELEASE_FLAG=(--prerelease)
+              NOTES="Automated SBOM (CycloneDX 1.4) RC packaging artifact."
+            fi
+            gh release create "$TAG_NAME" \
+              --title "$TAG_NAME" \
+              "${PRERELEASE_FLAG[@]}" \
+              --notes "$NOTES"
+            echo "[OK] Release created: $TAG_NAME (prerelease: $IS_PRERELEASE)"
+          else
+            echo "[OK] Release already exists: $TAG_NAME — uploading artifacts"
+          fi
+
+          gh release upload "$TAG_NAME" \
+            "$SBOM_NAME" \
+            "${SBOM_NAME}.sha256" \
+            --clobber
+          echo "[OK] Artifacts uploaded to release $TAG_NAME"
