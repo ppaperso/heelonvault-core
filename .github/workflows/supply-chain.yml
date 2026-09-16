@@ -69,3 +69,58 @@ jobs:
           arguments: --all-features
           log-level: warn
           manifest-path: heelonvault-core/Cargo.toml
+
+  check-sbom:
+    name: SBOM freshness gate
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
+      - name: Checkout heelonvault-core
+        uses: actions/checkout@v6
+        with:
+          path: heelonvault-core
+          fetch-depth: 0
+
+      # ── 2. Checkout heelonvault-premium (repo privé) ────────────────────────
+      # Requis : le SBOM décrit le binaire réellement livré (core+app+premium
+      # assemblés), pas juste heelonvault-core seul — voir generate-sbom.sh.
+      - name: Checkout heelonvault-premium
+        uses: actions/checkout@v6
+        with:
+          repository: ppaperso/heelonvault-premium
+          ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
+          path: heelonvault-premium
+          fetch-depth: 0
+
+      # ── 3. Cache cargo-cyclonedx (binaire installé, évite une recompilation
+      #      à chaque run) ────────────────────────────────────────────────────
+      - name: Cache cargo-cyclonedx binary
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-cyclonedx
+          key: ${{ runner.os }}-cargo-cyclonedx-0.5.9
+
+      # ── 4. Régénère le SBOM et le compare au fichier commité ────────────────
+      # cargo-cyclonedx n'analyse que Cargo.toml/Cargo.lock (cargo metadata),
+      # aucune compilation réelle — pas besoin des dépendances système GTK4.
+      - name: Generate current SBOM
+        working-directory: heelonvault-core
+        run: ./scripts/generate-sbom.sh
+
+      - name: Compare against committed SBOM
+        working-directory: heelonvault-core
+        run: |
+          set -euo pipefail
+          # serialNumber et metadata.timestamp changent à chaque génération
+          # même à dépendances strictement identiques — on les exclut avant
+          # de comparer, sinon ce check échouerait à tous les runs.
+          jq 'del(.serialNumber, .metadata.timestamp)' sbom.cyclonedx.json > /tmp/generated.json
+          git show HEAD:sbom.cyclonedx.json | jq 'del(.serialNumber, .metadata.timestamp)' > /tmp/committed.json
+          if ! diff -u /tmp/committed.json /tmp/generated.json; then
+            echo ""
+            echo "[ERROR] sbom.cyclonedx.json is stale — dependencies changed since it was last generated."
+            echo "[ERROR] Run ./scripts/generate-sbom.sh and commit the result."
+            exit 1
+          fi
+          echo "[OK] sbom.cyclonedx.json is up to date"
