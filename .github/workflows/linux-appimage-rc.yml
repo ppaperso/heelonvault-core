@@ -23,7 +23,6 @@ concurrency:
 # linuxdeploy and appimagetool run without FUSE in CI via APPIMAGE_EXTRACT_AND_RUN
 env:
   APPIMAGE_EXTRACT_AND_RUN: "1"
-  GIT_DISCOVERY_ACROSS_FILESYSTEM: 1  # Allow path dependencies outside workspace root
 
 jobs:
   package-linux-appimage:
@@ -33,28 +32,27 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+    defaults:
+      run:
+        working-directory: heelonvault-core
 
     steps:
-      # ── 1. Checkout ────────────────────────────────────────────────────────
-      - name: Checkout
+      # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
+      - name: Checkout heelonvault-core
         uses: actions/checkout@v6
         with:
+          path: heelonvault-core
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
 
-      # ── 2. Checkout heelonvault-premium (sibling checkout) ─────────────────
-      # heelonvault-app/Cargo.toml depends on heelonvault-premium via a plain
-      # PATH dependency (`path = "../../../heelonvault-premium"`, a sibling of
-      # this repo's checkout root) — not a git dependency. `cargo build` just
-      # needs the directory to physically exist; it never fetches it over git.
-      # So we check it out explicitly here with the deploy key, instead of only
-      # exposing an ssh-agent that cargo never actually uses.
+      # ── 2. Checkout heelonvault-premium (repo privé) ────────────────────────
       - name: Checkout heelonvault-premium
         uses: actions/checkout@v6
         with:
           repository: ppaperso/heelonvault-premium
           ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
-          path: ../heelonvault-premium
+          path: heelonvault-premium
+          fetch-depth: 0
 
       # ── 3. Validation du layout du repo ────────────────────────────────────
       - name: Validate repository layout

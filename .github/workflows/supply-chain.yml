@@ -28,32 +28,22 @@ jobs:
   cargo-deny:
     name: cargo-deny supply-chain gate
     runs-on: ubuntu-latest
-    
-    # Fix: Allow path dependencies outside the workspace root
-    # heelonvault-premium is checked out as a sibling directory (../heelonvault-premium)
-    # which is outside the workspace root. This environment variable tells Git
-    # (and thus cargo) to allow cross-filesystem operations for path dependencies.
-    env:
-      GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
 
     steps:
-      # ── 1. Checkout ────────────────────────────────────────────────────────
-      - name: Checkout
+      # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
+      - name: Checkout heelonvault-core
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Required for cargo-deny to access full git history
+          path: heelonvault-core
+          fetch-depth: 0
 
-      # ── 2. Checkout heelonvault-premium (sibling checkout) ──────────────────
-      # heelonvault-app/Cargo.toml depends on heelonvault-premium via a plain
-      # PATH dependency: `path = "../../../heelonvault-premium"` (i.e. a sibling
-      # of this repo's checkout root). cargo-deny needs the directory to exist
-      # at the expected path. We check it out explicitly here using the deploy key.
+      # ── 2. Checkout heelonvault-premium (repo privé) ────────────────────────
       - name: Checkout heelonvault-premium
         uses: actions/checkout@v6
         with:
           repository: ppaperso/heelonvault-premium
           ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
-          path: ../heelonvault-premium
+          path: heelonvault-premium
           fetch-depth: 0
 
       # ── 3. Cache cargo-deny data ────────────────────────────────────────────
@@ -65,19 +55,17 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/registry/index
             ~/.cargo/git/db
-          key: ${{ runner.os }}-cargo-deny-${{ hashFiles('**/Cargo.lock', '**/deny.toml') }}
+          key: ${{ runner.os }}-cargo-deny-${{ hashFiles('heelonvault-core/**/Cargo.lock', 'heelonvault-core/**/deny.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-deny-
 
-      # ── 4. cargo-deny check ────────────────────────────────────────────────
-      # Checks: advisories (CVE/yanked), licenses, bans, sources
-      # Pinned to v2.1.1 for security gate consistency.
-      # No ssh-key/use-git-cli needed: heelonvault-premium is already on disk
-      # from step 2 (plain path dependency), so cargo never needs network access.
+      # ── 4. Exécuter cargo-deny depuis $GITHUB_WORKSPACE ─────────────────────
+      # Le path ../../../heelonvault-premium depuis heelonvault-core/crates/heelonvault-app/
+      # pointe vers $GITHUB_WORKSPACE/heelonvault-premium/ qui est sous le workspace root
       - name: Run cargo deny check
         uses: EmbarkStudios/cargo-deny-action@v2.1.1
         with:
           command: check
-          arguments: --all-features
+          arguments: --all-features --manifest-path heelonvault-core/Cargo.toml
           log-level: warn
-          manifest-path: Cargo.toml
+          working-directory: .
