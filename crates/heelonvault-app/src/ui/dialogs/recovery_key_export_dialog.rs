@@ -481,6 +481,15 @@ impl RecoveryKeyExportDialog {
             "edit-copy-symbolic",
             heelonvault_core::tr!("profile-export-copy").as_str(),
         );
+        // GTK's print backends are loaded as GIOModule plugins (dlopen'd at runtime, not
+        // linked through the PE import table), so build-msi.ps1's transitive-DLL-closure
+        // walk never discovers or bundles them. Calling PrintOperation::run() with zero
+        // available backends hits a fatal GLib module-loading invariant deep in native code
+        // — STATUS_FATAL_APP_EXIT in libglib-2.0-0.dll, confirmed via Windows Event Viewer,
+        // bypassing Rust's error handling entirely (the Err(_) arm below never runs). Copy
+        // and Save already satisfy the same "prove you saved the phrase" gate, so Print is
+        // simply not offered on Windows rather than trying to bundle an immature backend.
+        #[cfg(not(windows))]
         let print_button = make_action_button(
             "printer-symbolic",
             heelonvault_core::tr!("profile-export-print").as_str(),
@@ -512,10 +521,15 @@ impl RecoveryKeyExportDialog {
             enable_for_copy();
         });
 
+        #[cfg(not(windows))]
         let words_for_print = recovery_words.to_vec();
+        #[cfg(not(windows))]
         let window_for_print = deps.parent_window.clone();
+        #[cfg(not(windows))]
         let enable_for_print = Rc::clone(enable_confirm);
+        #[cfg(not(windows))]
         let feedback_for_print = Rc::clone(&deps.on_feedback);
+        #[cfg(not(windows))]
         print_button.connect_clicked(move |_| {
             let print_operation = gtk4::PrintOperation::new();
             print_operation.connect_begin_print(|operation, _| {
@@ -657,6 +671,7 @@ impl RecoveryKeyExportDialog {
         });
 
         actions_box.append(&copy_button);
+        #[cfg(not(windows))]
         actions_box.append(&print_button);
         actions_box.append(&save_button);
         actions_box

@@ -390,13 +390,26 @@ where
     };
 
     // Users and teams management is a premium capability: the entries stay hidden in the
-    // community build, where the services they would drive are unused.
+    // community build, where the services they would drive are unused — and, even in a
+    // premium-compiled binary, hidden without an active Professional license. is_admin is a
+    // per-user account role, not a license tier: an admin-role user on an unlicensed
+    // Community install must not see these (was previously gated on cfg!(feature =
+    // "premium") alone, a compile-time constant that is always true in the shipped binary
+    // regardless of license state — reported showing Teams/Users on a Community-tier login).
+    #[cfg(feature = "premium")]
+    let is_professional_license = license_service
+        .get_cached()
+        .map(|license| license.tier == heelonvault_core::models::LicenseTier::Professional)
+        .unwrap_or(false);
+    #[cfg(not(feature = "premium"))]
+    let is_professional_license = false;
+
     sidebar_panel
         .administration_button
-        .set_visible(is_admin && cfg!(feature = "premium"));
+        .set_visible(is_admin && is_professional_license);
     sidebar_panel
         .teams_button
-        .set_visible(is_admin && cfg!(feature = "premium"));
+        .set_visible(is_admin && is_professional_license);
     #[cfg(not(feature = "premium"))]
     let _ = (&admin_service, &team_service);
 
