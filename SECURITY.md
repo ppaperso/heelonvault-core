@@ -280,3 +280,29 @@ Reference standards:
 - ANSSI password and authentication recommendations
 - OWASP Password Storage Cheat Sheet
 - NIST SP 800-63B
+
+## 13. Supply Chain Security and SBOM
+
+Automated gates in CI (`.github/workflows/supply-chain.yml`, on every push to
+main, every pull request, and daily):
+
+- **`cargo-deny`**: zero-tolerance on known vulnerabilities (RUSTSEC
+  advisories), license allow-listing (permissive licenses only), and a
+  duplicate-dependency-version ban (with explicitly documented, reviewed
+  exceptions in `deny.toml` for genuine upstream ecosystem splits).
+- **SBOM (Software Bill of Materials)**: a CycloneDX 1.4 JSON inventory of
+  every dependency actually shipped in the `heelonvault` binary — including
+  platform-specific ones (e.g. Windows-only crates) and the private
+  `heelonvault-premium` component, not just the public `heelonvault-core`
+  crate. Regenerated via `scripts/generate-sbom.sh` and committed as
+  `sbom.cyclonedx.json` at the repository root; the `check-sbom` CI job
+  regenerates it on every relevant push and fails the build if the committed
+  file has drifted from the actual dependency graph.
+
+Regulatory context: the EU **Cyber Resilience Act (CRA)** introduces SBOM and
+vulnerability-handling obligations for manufacturers of products with digital
+elements, phased in through 2026–2027. This tooling is a technical practice
+that supports that posture (an accurate, CI-enforced, always-current
+component inventory) — it is not itself a legal compliance determination or
+certification. Confirm applicability and specific obligations with legal
+counsel.

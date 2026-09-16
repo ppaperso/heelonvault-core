@@ -174,3 +174,31 @@ Priorites court terme :
 - documenter les profils de durcissement (standard, admin, haute assurance).
 
 References : ANSSI, OWASP Password Storage Cheat Sheet, NIST SP 800-63B.
+
+## 14. Securite de la chaine d'approvisionnement et SBOM
+
+Verifications automatisees en CI (`.github/workflows/supply-chain.yml`, a
+chaque push sur main, chaque pull request, et quotidiennement) :
+
+- **`cargo-deny`** : tolerance zero sur les vulnerabilites connues (advisories
+  RUSTSEC), liste blanche de licences (licences permissives uniquement), et
+  interdiction des versions dupliquees d'une meme dependance (avec des
+  exceptions explicitement documentees et revues dans `deny.toml` pour les
+  cas reels de divergence de version dans l'ecosysteme amont).
+- **SBOM (Software Bill of Materials)** : un inventaire CycloneDX 1.4 JSON de
+  chaque dependance reellement livree dans le binaire `heelonvault` — y
+  compris les dependances propres a une plateforme (ex : crates Windows
+  uniquement) et le composant prive `heelonvault-premium`, pas seulement la
+  crate publique `heelonvault-core`. Regenere via `scripts/generate-sbom.sh`
+  et commite sous `sbom.cyclonedx.json` a la racine du depot ; le job CI
+  `check-sbom` le regenere a chaque push pertinent et fait echouer le build
+  si le fichier commite a divergé du graphe de dependances reel.
+
+Contexte reglementaire : le **Cyber Resilience Act (CRA)** de l'UE introduit
+des obligations de SBOM et de gestion des vulnerabilites pour les fabricants
+de produits comportant des elements numeriques, avec une entree en
+application progressive jusqu'en 2026-2027. Cet outillage est une pratique
+technique qui soutient cette posture (un inventaire des composants precis,
+verifie en continu par la CI) — ce n'est pas en soi une determination de
+conformite legale ni une certification. Confirmer l'applicabilite et les
+obligations precises aupres d'un conseil juridique.

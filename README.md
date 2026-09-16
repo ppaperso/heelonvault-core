@@ -2,6 +2,8 @@
 
 Langue: FR | [EN](README.en.md)
 
+[![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.4-blue)](sbom.cyclonedx.json) [![Supply chain](https://img.shields.io/badge/supply--chain-cargo--deny-green)](.github/workflows/supply-chain.yml)
+
 HeelonVault est un gestionnaire de secrets desktop **local-first**, écrit en Rust et construit
 avec GTK4 / libadwaita et SQLite.
 

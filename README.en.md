@@ -2,6 +2,8 @@
 
 Language: EN | [FR](README.md)
 
+[![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.4-blue)](sbom.cyclonedx.json) [![Supply chain](https://img.shields.io/badge/supply--chain-cargo--deny-green)](.github/workflows/supply-chain.yml)
+
 HeelonVault is a local-first desktop secrets manager built in Rust with GTK4/libadwaita and SQLite.
 
 > Distributed under the Apache 2.0 License. See [LICENSE](LICENSE) for software terms and [LEGAL.md](docs/LEGAL.md) for trademark and Authenticity Seal terms.
