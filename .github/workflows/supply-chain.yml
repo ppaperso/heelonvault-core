@@ -63,9 +63,9 @@ jobs:
       # Le path ../../../heelonvault-premium depuis heelonvault-core/crates/heelonvault-app/
       # pointe vers $GITHUB_WORKSPACE/heelonvault-premium/ qui est sous le workspace root
       - name: Run cargo deny check
+        working-directory: .
         uses: EmbarkStudios/cargo-deny-action@v2.1.1
         with:
           command: check
           arguments: --all-features --manifest-path heelonvault-core/Cargo.toml
           log-level: warn
-          working-directory: .
