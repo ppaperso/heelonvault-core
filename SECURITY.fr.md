@@ -2,7 +2,7 @@
 
 Langue : FR | [EN](SECURITY.md)
 
-Derniere mise a jour : 27 mars 2026
+Derniere mise a jour : 16 septembre 2026
 Perimetre : runtime actif dans `src/`
 
 Ce document reflete le code Rust actuel.

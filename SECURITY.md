@@ -2,7 +2,7 @@
 
 Language: EN | [FR](SECURITY.fr.md)
 
-Last update: 27 March 2026
+Last update: 16 September 2026
 Scope: active runtime in src/
 
 This document replaces legacy Python-era notes and reflects the current Rust codebase.
