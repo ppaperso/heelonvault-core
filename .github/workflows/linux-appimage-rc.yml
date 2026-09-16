@@ -93,7 +93,7 @@ jobs:
             libgraphene-1.0-dev \
             libharfbuzz-dev \
             pkg-config \
-            glib-compile-schemas \
+            libglib2.0-bin \
             libsqlite3-dev \
             file \
             patchelf \
