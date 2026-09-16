@@ -20,15 +20,22 @@
 //! All functions run on the GTK main thread.
 
 use std::cell::RefCell;
+#[cfg(not(windows))]
 use std::future::Future;
+#[cfg(not(windows))]
 use std::pin::Pin;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(not(windows))]
+use std::time::Instant;
 
 use gtk4::gdk;
+#[cfg(not(windows))]
 use gtk4::gdk::subclass::prelude::*;
+#[cfg(not(windows))]
 use gtk4::gio;
 use gtk4::glib;
 use gtk4::prelude::*;
+#[cfg(not(windows))]
 use zeroize::{Zeroize, Zeroizing};
 
 /// Password or login copied from a vault entry.
@@ -36,12 +43,15 @@ pub const SECRET_CLEAR_DELAY: Duration = Duration::from_secs(20);
 /// Recovery phrase: the user needs time to paste it into a password manager or a document.
 pub const RECOVERY_PHRASE_CLEAR_DELAY: Duration = Duration::from_secs(60);
 /// Reads this soon after a copy come from the compositor or a history tool, not from a paste.
+/// Only meaningful for the on-demand-serving provider used on non-Windows — see module docs.
+#[cfg(any(test, not(windows)))]
 const SNAPSHOT_WINDOW: Duration = Duration::from_millis(150);
 
 const PASSWORD_MANAGER_HINT_MIME: &str = "x-kde-passwordManagerHint";
 const TEXT_MIME_TYPES: [&str; 2] = ["text/plain;charset=utf-8", "text/plain"];
 
 /// Whether a read arriving `since_copy` after the copy may receive the secret.
+#[cfg(any(test, not(windows)))]
 fn serves_secret(since_copy: Duration, expired: bool) -> bool {
     !expired && since_copy >= SNAPSHOT_WINDOW
 }
@@ -78,6 +88,7 @@ impl Ledger {
     }
 }
 
+#[cfg(not(windows))]
 mod imp {
     use super::*;
 
@@ -164,12 +175,14 @@ mod imp {
     }
 }
 
+#[cfg(not(windows))]
 glib::wrapper! {
     /// Clipboard content that serves a secret until it expires, then an empty text.
     pub struct SecretContent(ObjectSubclass<imp::SecretContent>)
         @extends gdk::ContentProvider;
 }
 
+#[cfg(not(windows))]
 impl SecretContent {
     fn new(text: &str) -> Self {
         let content: Self = glib::Object::new();
@@ -202,7 +215,12 @@ fn make_content(text: &str) -> gdk::ContentProvider {
 fn make_content(text: &str) -> gdk::ContentProvider {
     let mut providers: Vec<gdk::ContentProvider> = TEXT_MIME_TYPES
         .iter()
-        .map(|mime| gdk::ContentProvider::for_bytes(mime, &glib::Bytes::from(text.as_bytes())))
+        .map(|mime| {
+            gdk::ContentProvider::for_bytes(
+                mime,
+                &glib::Bytes::from_owned(text.as_bytes().to_vec()),
+            )
+        })
         .collect();
     providers.push(gdk::ContentProvider::for_value(&text.to_value()));
     providers.push(gdk::ContentProvider::for_bytes(
