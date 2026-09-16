@@ -400,7 +400,7 @@ mod tests {
             is_health: false,
             is_incomplete: false,
             is_never_used: false,
-        }        
+        }
     }
 
     #[test]

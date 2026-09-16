@@ -59,8 +59,8 @@ jobs:
           set -euo pipefail
           test -f Cargo.toml                  || { echo "[ERROR] Cargo.toml not found";              exit 1; }
           test -f Cargo.lock                  || { echo "[ERROR] Cargo.lock not found";               exit 1; }
-          test -f assets/gresources.xml       || { echo "[ERROR] assets/gresources.xml not found";   exit 1; }
-          test -d locales                     || { echo "[ERROR] locales/ not found";                 exit 1; }
+          test -f crates/heelonvault-app/assets/gresources.xml \
+                                              || { echo "[ERROR] crates/heelonvault-app/assets/gresources.xml not found"; exit 1; }
           if [[ -d migrations ]]; then
             echo "MIGRATIONS_DIR=migrations" >> "$GITHUB_ENV"
           elif [[ -d crates/heelonvault-app/migrations ]]; then
@@ -93,11 +93,10 @@ jobs:
             create-dmg
           echo "[OK] Homebrew dependencies installed"
 
-      # ── 5. Toolchain Rust Apple Silicon ────────────────────────────────────
+      # ── 5. Toolchain Rust Apple Silicon — honore le pin rust-toolchain.toml (1.98.0) ─
       - name: Setup Rust toolchain (aarch64-apple-darwin)
         run: |
           set -euo pipefail
-          rustup toolchain install stable
           rustup target add aarch64-apple-darwin
           rustup show
           cargo --version
@@ -188,7 +187,7 @@ jobs:
           ICONSET_TMP="$(mktemp -d)"
           ICONSET="$ICONSET_TMP/heelonvault.iconset"
           mkdir "$ICONSET"
-          ICON_SRC="assets/icons/hicolor/256x256/apps/heelonvault.png"
+          ICON_SRC="crates/heelonvault-app/assets/icons/hicolor/256x256/apps/heelonvault.png"
           for SIZE in 16 32 64 128 256; do
             magick "$ICON_SRC" -resize "${SIZE}x${SIZE}"       "$ICONSET/icon_${SIZE}x${SIZE}.png"
             magick "$ICON_SRC" -resize "$((SIZE*2))x$((SIZE*2))" "$ICONSET/icon_${SIZE}x${SIZE}@2x.png"
@@ -293,30 +292,34 @@ jobs:
           test -f "$DMG_NAME" || { echo "[ERROR] DMG not produced"; exit 1; }
           echo "[OK] DMG created: $(du -sh "$DMG_NAME" | cut -f1)"
 
-      # ── 13. Debug — inspect DMG contents [TEMPORARY] ───────────────────────
-      - name: Debug — inspect DMG contents
+      # ── 13. Validation du DMG monté ─────────────────────────────────────────
+      # Vérifie l'artefact réellement livré (post create-dmg), pas seulement le
+      # .app bundle source — create-dmg pourrait en théorie altérer le contenu.
+      - name: Validate mounted DMG contents
         env:
           TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
         run: |
           set -euo pipefail
           DMG_NAME="heelonvault-macos-aarch64-${TAG_NAME}.dmg"
-          hdiutil attach "$DMG_NAME" -mountpoint /tmp/dmg_check -readonly
-          find /tmp/dmg_check -type f | head -40
-          echo "--- launcher type ---"
-          file /tmp/dmg_check/HeelonVault.app/Contents/MacOS/heelonvault
-          echo "--- binary type ---"
-          file /tmp/dmg_check/HeelonVault.app/Contents/MacOS/heelonvault-bin
-          echo "--- migrations count ---"
-          find /tmp/dmg_check/HeelonVault.app/Contents/Resources/migrations -name "*.sql" | wc -l
-          echo "--- frameworks count ---"
-          ls /tmp/dmg_check/HeelonVault.app/Contents/Frameworks/ | wc -l
-          echo "--- Info.plist CFBundleVersion ---"
-          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" \
-            /tmp/dmg_check/HeelonVault.app/Contents/Info.plist
-          echo "--- Info.plist CFBundleIdentifier ---"
-          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" \
-            /tmp/dmg_check/HeelonVault.app/Contents/Info.plist
-          hdiutil detach /tmp/dmg_check
+          APP_VERSION="${{ steps.release_meta.outputs.version }}"
+          MOUNT_DIR="/tmp/dmg_check"
+          APP="$MOUNT_DIR/HeelonVault.app"
+
+          hdiutil attach "$DMG_NAME" -mountpoint "$MOUNT_DIR" -readonly
+          trap 'hdiutil detach "$MOUNT_DIR" >/dev/null 2>&1 || true' EXIT
+
+          file "$APP/Contents/MacOS/heelonvault" | grep -q "shell script" \
+            || { echo "[ERROR] launcher in DMG is not a shell script"; exit 1; }
+          file "$APP/Contents/MacOS/heelonvault-bin" | grep -q "Mach-O" \
+            || { echo "[ERROR] binary in DMG is not Mach-O"; exit 1; }
+          MIGRATION_COUNT=$(find "$APP/Contents/Resources/migrations" -name "*.sql" | wc -l | tr -d ' ')
+          [[ "$MIGRATION_COUNT" -ge 16 ]] \
+            || { echo "[ERROR] DMG migrations incomplete: $MIGRATION_COUNT files"; exit 1; }
+          PLIST_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Contents/Info.plist")
+          [[ "$PLIST_VERSION" == "$APP_VERSION" ]] \
+            || { echo "[ERROR] Info.plist CFBundleVersion mismatch: $PLIST_VERSION != $APP_VERSION"; exit 1; }
+
+          echo "[OK] DMG validated — migrations: $MIGRATION_COUNT, version: $PLIST_VERSION"
 
       # ── 14. README Gatekeeper embarqué ─────────────────────────────────────
       - name: Generate Gatekeeper README

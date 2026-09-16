@@ -769,7 +769,8 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                             is_weak: item.health == heelonvault_core::tr!("main-strength-weak"),
                             is_duplicate,
                             is_health: item.is_health_access,
-                            is_incomplete: item.login.trim().is_empty() || item.url.trim().is_empty(),
+                            is_incomplete: item.login.trim().is_empty()
+                                || item.url.trim().is_empty(),
                             is_never_used: item.usage_count == 0,
                         },
                     );

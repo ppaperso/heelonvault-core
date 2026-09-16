@@ -186,7 +186,7 @@ async fn the_totp_secret_is_encrypted_at_rest() {
     let raw_secret = Secret::try_from_base32(&base32).expect("raw secret");
     let raw = raw_secret.as_bytes();
     assert!(
-        !db_files_contain(&account.db_path, &raw),
+        !db_files_contain(&account.db_path, raw),
         "the raw TOTP key must never be written in clear"
     );
 }

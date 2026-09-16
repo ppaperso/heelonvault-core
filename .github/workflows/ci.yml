@@ -1,0 +1,94 @@
+name: ci
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check, clippy, fmt, test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: heelonvault-core
+
+    steps:
+      # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
+      - name: Checkout heelonvault-core
+        uses: actions/checkout@v6
+        with:
+          path: heelonvault-core
+          fetch-depth: 0
+
+      # ── 2. Checkout heelonvault-premium (repo privé) ────────────────────────
+      # default = ["premium"] dans heelonvault-app : même la build "communautaire"
+      # compile le code premium (licence vérifiée au runtime), donc requis ici aussi.
+      - name: Checkout heelonvault-premium
+        uses: actions/checkout@v6
+        with:
+          repository: ppaperso/heelonvault-premium
+          ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
+          path: heelonvault-premium
+          fetch-depth: 0
+
+      # ── 3. Installation des dépendances système ────────────────────────────
+      - name: Install system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            libglib2.0-dev \
+            libgdk-pixbuf-2.0-dev \
+            libpango1.0-dev \
+            libcairo2-dev \
+            libgraphene-1.0-dev \
+            libharfbuzz-dev \
+            pkg-config \
+            libsqlite3-dev
+          echo "[OK] System dependencies installed"
+
+      # ── 4. Toolchain Rust — honore le pin rust-toolchain.toml (1.98.0) ──────
+      - name: Setup Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup show
+          cargo --version
+
+      # ── 5. Cache Cargo ──────────────────────────────────────────────────────
+      - name: Cache Cargo registry and build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-ci-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-ci-
+
+      # ── 6. Formatting — scope explicite aux crates du workspace : `--all`
+      #      formaterait aussi heelonvault-premium (dépendance locale patchée),
+      #      un repo privé distinct que ce workflow ne doit pas juger.
+      - name: cargo fmt --check
+        run: cargo fmt -p heelonvault-core -p heelonvault-app -p sqlx -- --check
+
+      # ── 7. Clippy (zéro warning, -D warnings vient aussi de .cargo/config.toml) ─
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      # ── 8. Build check (workspace complet, toutes features) ────────────────
+      - name: cargo check --workspace
+        run: cargo check --workspace --all-features --locked
+
+      # ── 9. Tests ─────────────────────────────────────────────────────────────
+      - name: cargo test --workspace
+        run: cargo test --workspace --locked

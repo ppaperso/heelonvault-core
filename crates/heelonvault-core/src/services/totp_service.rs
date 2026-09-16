@@ -211,8 +211,9 @@ where
         let secret = Secret::generate();
         let base32_secret = secret.to_base32();
         let totp = self.build_totp(account_name, &base32_secret)?;
-        let otpauth_url = totp.to_url()
-            .map_err(|error| AppError::Validation(format!("failed to generate TOTP URL: {error}")))?;
+        let otpauth_url = totp.to_url().map_err(|error| {
+            AppError::Validation(format!("failed to generate TOTP URL: {error}"))
+        })?;
 
         let qr_code = QrCode::new(otpauth_url.as_bytes())
             .map_err(|error| AppError::Validation(format!("failed to generate QR: {error}")))?;

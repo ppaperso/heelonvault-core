@@ -60,8 +60,8 @@ jobs:
           set -euo pipefail
           test -f Cargo.toml                  || { echo "[ERROR] Cargo.toml not found";              exit 1; }
           test -f Cargo.lock                  || { echo "[ERROR] Cargo.lock not found";               exit 1; }
-          test -f assets/gresources.xml       || { echo "[ERROR] assets/gresources.xml not found";   exit 1; }
-          test -d locales                     || { echo "[ERROR] locales/ not found";                 exit 1; }
+          test -f crates/heelonvault-app/assets/gresources.xml \
+                                              || { echo "[ERROR] crates/heelonvault-app/assets/gresources.xml not found"; exit 1; }
           if [[ -d migrations ]]; then
             echo "MIGRATIONS_DIR=migrations" >> "$GITHUB_ENV"
           elif [[ -d crates/heelonvault-app/migrations ]]; then
@@ -98,12 +98,10 @@ jobs:
             zsync
           echo "[OK] System dependencies installed"
 
-      # ── 5. Toolchain Rust ──────────────────────────────────────────────────
+      # ── 5. Toolchain Rust — honore le pin rust-toolchain.toml (1.98.0) ──────
       - name: Setup Rust toolchain
         run: |
           set -euo pipefail
-          rustup toolchain install stable
-          rustup default stable
           rustup show
           cargo --version
 
@@ -183,8 +181,8 @@ jobs:
           cp linux/heelonvault.desktop "$USR/share/applications/heelonvault.desktop"
 
           # ── Icône PNG (AppImage utilise directement le PNG)
-          cp assets/icons/hicolor/256x256/apps/heelonvault.png "$APPDIR/heelonvault.png"
-          cp assets/icons/hicolor/256x256/apps/heelonvault.png \
+          cp crates/heelonvault-app/assets/icons/hicolor/256x256/apps/heelonvault.png "$APPDIR/heelonvault.png"
+          cp crates/heelonvault-app/assets/icons/hicolor/256x256/apps/heelonvault.png \
             "$USR/share/icons/hicolor/256x256/apps/heelonvault.png"
 
           # ── Migrations SQL
