@@ -1,0 +1,6 @@
+// Embeds Heelonys.ico as the default PE resource icon for heelonvault.exe
+// (Explorer, taskbar, Start Menu, Alt-Tab). Compiled via embed-resource in
+// build.rs — see the CARGO_CFG_TARGET_OS == "windows" branch there.
+// Resource id 1 is the lowest / first icon, which Windows uses as the
+// executable's default icon.
+1 ICON "../assets/icons/Heelonys.ico"

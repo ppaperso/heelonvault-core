@@ -1,0 +1,259 @@
+name: windows-msi-rc
+
+on:
+  push:
+    tags:
+      # Couvre les tags RC (vX.Y.Z-rc.N) et finaux (vX.Y.Z) — le statut
+      # prerelease de la Release GitHub est déterminé par le format exact,
+      # voir l'étape "Validate tag format before publish".
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      rc_tag:
+        description: "Tag to build/release (ex: v1.1.1-rc.1 or v1.1.1). Empty = current ref checkout"
+        required: false
+        type: string
+      publish_release:
+        description: "Publish/Update GitHub Release with MSI + SHA256"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: windows-msi-rc-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package-windows-msi:
+    # windows-2022 is the build machine only — unlike the AppImage's glibc
+    # dynamic-linking concern, the MSI bundles its own MinGW GTK4/libadwaita
+    # runtime DLLs (see build-msi.ps1's dependency-closure staging step), so
+    # the installer's Windows compatibility floor is not tied to the runner's
+    # OS version. Pinned (not -latest) for build reproducibility.
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: heelonvault-core
+        shell: pwsh
+
+    steps:
+      # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
+      - name: Checkout heelonvault-core
+        uses: actions/checkout@v6
+        with:
+          path: heelonvault-core
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.rc_tag != '' && inputs.rc_tag || github.ref }}
+
+      # ── 2. Checkout heelonvault-premium (repo privé) ────────────────────────
+      - name: Checkout heelonvault-premium
+        uses: actions/checkout@v6
+        with:
+          repository: ppaperso/heelonvault-premium
+          ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
+          path: heelonvault-premium
+          fetch-depth: 0
+
+      # ── 3. Validation du layout du repo ────────────────────────────────────
+      - name: Validate repository layout
+        run: |
+          $ErrorActionPreference = "Stop"
+          function Check-Path($path, $label) {
+            if (-not (Test-Path $path)) {
+              Write-Host "[ERROR] $label not found: $path"
+              exit 1
+            }
+          }
+          Check-Path "Cargo.toml"                                  "Cargo.toml"
+          Check-Path "Cargo.lock"                                  "Cargo.lock"
+          Check-Path "scripts\build-msi.ps1"                       "scripts/build-msi.ps1"
+          Check-Path "crates\heelonvault-app\wix\main.wxs"         "crates/heelonvault-app/wix/main.wxs"
+          Check-Path "crates\heelonvault-app\assets\icons\Heelonys.ico" "Heelonys.ico"
+          Check-Path "crates\heelonvault-app\migrations"           "crates/heelonvault-app/migrations"
+          Check-Path "crates\heelonvault-core\locales"             "crates/heelonvault-core/locales"
+          Write-Host "[OK] Repository layout validated"
+
+      # ── 4. MSYS2 / MinGW64 — GTK4, libadwaita, toolchain (gcc + windres) ────
+      - name: Setup MSYS2 (MinGW64 GTK4/libadwaita)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-gtk4
+            mingw-w64-x86_64-libadwaita
+            mingw-w64-x86_64-pkgconf
+
+      # ── 5. Toolchain Rust — hôte GNU (requis pour lier les DLL MinGW GTK4),
+      #      honore le pin rust-toolchain.toml (1.98.0) ─────────────────────
+      - name: Setup Rust toolchain (x86_64-pc-windows-gnu)
+        run: |
+          rustup set default-host x86_64-pc-windows-gnu
+          rustup show
+          cargo --version
+
+      # ── 6. Cache Cargo ──────────────────────────────────────────────────────
+      - name: Cache Cargo registry and build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-msi-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-msi-
+
+      # ── 7. WiX Toolset v3.14 (candle/light/heat — build-msi.ps1 requiert
+      #      exactement cette série ; WiX v4/v5 ont une CLI différente) ───────
+      - name: Install WiX Toolset v3.14
+        run: |
+          $ErrorActionPreference = "Stop"
+          $wixZip = Join-Path $env:RUNNER_TEMP "wix314-binaries.zip"
+          $wixDir = Join-Path $env:RUNNER_TEMP "wix314"
+          Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip" -OutFile $wixZip
+          Expand-Archive -Path $wixZip -DestinationPath $wixDir -Force
+          if (-not (Test-Path (Join-Path $wixDir "candle.exe"))) {
+            Write-Host "[ERROR] candle.exe not found after extracting WiX"
+            exit 1
+          }
+          "WIX_BIN_DIR=$wixDir" >> $env:GITHUB_ENV
+          Write-Host "[OK] WiX Toolset v3.14 installed at $wixDir"
+
+      # ── 8. Résolution du tag et de la version ──────────────────────────────
+      - name: Resolve release tag and version
+        id: release_meta
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($env:GITHUB_EVENT_NAME -eq "push") {
+            $TagName = $env:GITHUB_REF_NAME
+            $ShouldPublish = "true"
+          } else {
+            $TagName = "${{ inputs.rc_tag }}"
+            $ShouldPublish = "${{ inputs.publish_release }}"
+          }
+          # FullVersion garde le suffixe -rc.N (build-msi.ps1 le parse lui-même
+          # pour construire le 4e segment de version WiX) ; Version non.
+          $FullVersion = $TagName -replace '^v', ''
+          $Version = $FullVersion -replace '-rc\.[0-9]*$', ''
+          if ($TagName -match '-rc\.[0-9]+$') { $IsPrerelease = "true" } else { $IsPrerelease = "false" }
+          "tag_name=$TagName"              >> $env:GITHUB_OUTPUT
+          "version=$Version"               >> $env:GITHUB_OUTPUT
+          "full_version=$FullVersion"      >> $env:GITHUB_OUTPUT
+          "should_publish=$ShouldPublish"  >> $env:GITHUB_OUTPUT
+          "is_prerelease=$IsPrerelease"    >> $env:GITHUB_OUTPUT
+          Write-Host "[OK] Tag: $TagName — Version: $Version — Publish: $ShouldPublish — Prerelease: $IsPrerelease"
+
+      # ── 9. Build MSI (cargo build + staging + heat + candle/light) ─────────
+      - name: Build MSI
+        env:
+          FULL_VERSION: ${{ steps.release_meta.outputs.full_version }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          .\scripts\build-msi.ps1 -WixBin "$env:WIX_BIN_DIR" -Version "$env:FULL_VERSION"
+          if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] build-msi.ps1 failed"; exit 1 }
+
+      # ── 10. Renommage vers la convention de nommage des releases ───────────
+      - name: Rename MSI artifact
+        env:
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+          FULL_VERSION: ${{ steps.release_meta.outputs.full_version }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $builtMsi = "crates\heelonvault-app\wix\output\HeelonVault-$env:FULL_VERSION.msi"
+          if (-not (Test-Path $builtMsi)) {
+            Write-Host "[ERROR] MSI not found at $builtMsi"
+            exit 1
+          }
+          $msiName = "heelonvault-windows-x86_64-$env:TAG_NAME.msi"
+          Copy-Item $builtMsi $msiName
+          "MSI_NAME=$msiName" >> $env:GITHUB_ENV
+          Write-Host "[OK] $builtMsi -> $msiName"
+
+      # ── 11. Validation structurelle du MSI ──────────────────────────────────
+      - name: Validate MSI structure
+        run: |
+          $ErrorActionPreference = "Stop"
+          $bytes = [System.IO.File]::ReadAllBytes($env:MSI_NAME)[0..7]
+          $magic = ($bytes | ForEach-Object { $_.ToString("X2") }) -join ""
+          if ($magic -ne "D0CF11E0A1B11AE1") {
+            Write-Host "[ERROR] Not a valid MSI/OLE compound file (magic: $magic)"
+            exit 1
+          }
+          $sizeMB = [math]::Round((Get-Item $env:MSI_NAME).Length / 1MB, 2)
+          if ($sizeMB -lt 5) {
+            Write-Host "[ERROR] MSI suspiciously small: $sizeMB MB"
+            exit 1
+          }
+          Write-Host "[OK] MSI validated — size: $sizeMB MB"
+
+      # ── 12. SHA256 ──────────────────────────────────────────────────────────
+      - name: Generate SHA256
+        run: |
+          $ErrorActionPreference = "Stop"
+          $hash = (Get-FileHash -Algorithm SHA256 $env:MSI_NAME).Hash.ToLower()
+          "$hash  $env:MSI_NAME" | Out-File -Encoding ascii -NoNewline "$env:MSI_NAME.sha256"
+          Write-Host "[OK] SHA256: $hash"
+
+      # ── 13. Upload des artefacts CI ─────────────────────────────────────────
+      # actions/upload-artifact ignore defaults.run.working-directory (ça ne
+      # s'applique qu'aux steps `run:`) — ses chemins sont résolus depuis
+      # $GITHUB_WORKSPACE, pas heelonvault-core/, d'où le préfixe explicite.
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: heelonvault-windows-msi
+          if-no-files-found: error
+          path: |
+            heelonvault-core/heelonvault-windows-x86_64-${{ steps.release_meta.outputs.tag_name }}.msi
+            heelonvault-core/heelonvault-windows-x86_64-${{ steps.release_meta.outputs.tag_name }}.msi.sha256
+
+      # ── 14. Validation du format du tag ─────────────────────────────────────
+      - name: Validate tag format before publish
+        if: steps.release_meta.outputs.should_publish == 'true'
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = "${{ steps.release_meta.outputs.tag_name }}"
+          if ([string]::IsNullOrEmpty($tag)) {
+            Write-Host "[ERROR] publish_release=true requires a tag"
+            exit 1
+          }
+          if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$') {
+            Write-Host "[ERROR] Invalid tag format: $tag — Expected: vX.Y.Z or vX.Y.Z-rc.N"
+            exit 1
+          }
+          Write-Host "[OK] Tag format valid: $tag"
+
+      # ── 15. Publication de la release GitHub ───────────────────────────────
+      # RC (vX.Y.Z-rc.N) → prerelease ; tag final (vX.Y.Z) → release stable.
+      - name: Publish/Update GitHub Release
+        if: steps.release_meta.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+          IS_PRERELEASE: ${{ steps.release_meta.outputs.is_prerelease }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $exists = $true
+          gh release view $env:TAG_NAME *> $null
+          if ($LASTEXITCODE -ne 0) { $exists = $false }
+
+          if (-not $exists) {
+            $notes = "Automated Windows packaging artifact."
+            $prereleaseArgs = @()
+            if ($env:IS_PRERELEASE -eq "true") {
+              $prereleaseArgs = @("--prerelease")
+              $notes = "Automated Windows RC packaging artifact."
+            }
+            gh release create $env:TAG_NAME --title $env:TAG_NAME @prereleaseArgs --notes $notes
+            Write-Host "[OK] Release created: $env:TAG_NAME (prerelease: $env:IS_PRERELEASE)"
+          } else {
+            Write-Host "[OK] Release already exists: $env:TAG_NAME — uploading artifacts"
+          }
+
+          gh release upload $env:TAG_NAME "$env:MSI_NAME" "$env:MSI_NAME.sha256" --clobber
+          Write-Host "[OK] Artifacts uploaded to release $env:TAG_NAME"

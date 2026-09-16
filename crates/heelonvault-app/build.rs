@@ -20,4 +20,26 @@ fn main() {
     } else {
         println!("cargo:rustc-env=HEELONVAULT_EDITION=community");
     }
+
+    // Icône de heelonvault.exe (Explorer, barre des tâches, raccourci Start
+    // Menu) — embarquée en ressource PE.
+    embed_windows_icon(&manifest_dir);
 }
+
+// #[cfg(target_os = "windows")], not a runtime check: embed-resource is only
+// a build-dependency under target."cfg(windows)" in Cargo.toml (see there),
+// so referencing the crate unconditionally would fail to compile elsewhere.
+#[cfg(target_os = "windows")]
+fn embed_windows_icon(manifest_dir: &str) {
+    println!("cargo:rerun-if-changed=windows/heelonvault.rc");
+    println!("cargo:rerun-if-changed=assets/icons/Heelonys.ico");
+    embed_resource::compile(
+        format!("{manifest_dir}/windows/heelonvault.rc"),
+        embed_resource::NONE,
+    )
+    .manifest_optional()
+    .unwrap_or_else(|error| panic!("failed to embed Windows icon resource: {error}"));
+}
+
+#[cfg(not(target_os = "windows"))]
+fn embed_windows_icon(_manifest_dir: &str) {}
