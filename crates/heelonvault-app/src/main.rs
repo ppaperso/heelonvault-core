@@ -272,34 +272,61 @@ impl Write for DailyLogFileWriter {
 fn setup_windows_resources() {
     if cfg!(target_os = "windows")
         && let Ok(exe) = env::current_exe()
-        && let Some(install_dir) = exe.parent()
+        && let Some(exe_dir) = exe.parent()
     {
-        let dir = install_dir.to_string_lossy();
+        // L'installeur MSI place l'exécutable dans INSTALLFOLDER\bin\ alors que share\ et lib\
+        // sont ses *frères*, pas ses enfants (voir crates/heelonvault-app/wix/main.wxs et le
+        // staging de scripts/build-msi.ps1). Les ressources GTK/GLib doivent donc être résolues
+        // depuis la racine d'installation, pas depuis le dossier de l'exécutable.
+        //
+        // Pointer XDG_DATA_DIRS / GSETTINGS_SCHEMA_DIR sur bin\share (inexistant) faisait
+        // échouer la recherche du schéma org.gtk.gtk4.Settings.FileChooser : GLib abandonne
+        // alors le processus via g_error() dès l'ouverture d'un sélecteur de fichiers (export
+        // DB, import CSV, restauration au login), et le thème d'icônes sur disque devenait
+        // introuvable — seules les icônes embarquées dans GTK s'affichaient.
+        //
+        // Renseigner XDG_DATA_DIRS désactive de surcroît le repli natif de GLib sous Windows
+        // (g_win32_get_system_data_dirs, qui déduit le préfixe du dossier de la DLL chargée et
+        // aurait trouvé le bon chemin) : une valeur erronée est donc pire que pas de valeur.
+        //
+        // En mode portable (ressources à côté de l'exécutable) il n'y a pas de dossier bin :
+        // la racine des ressources reste alors le dossier de l'exécutable.
+        let resource_root = match exe_dir.file_name() {
+            Some(name) if name.eq_ignore_ascii_case("bin") => exe_dir.parent().unwrap_or(exe_dir),
+            _ => exe_dir,
+        };
+        let root = resource_root.to_string_lossy();
+        // Les migrations, elles, restent à côté de l'exécutable (build-msi.ps1 les stage dans
+        // bin\migrations) : ces deux racines diffèrent volontairement, ne pas les réunifier.
+        let exe_dir = exe_dir.to_string_lossy();
 
         // Racine des données GTK
         // SAFETY: These are called once at startup, single-threaded, before any GTK initialization
         unsafe {
-            env::set_var("GTK_DATA_PREFIX", &*dir);
-            env::set_var("GTK_EXE_PREFIX", &*dir);
-            env::set_var("XDG_DATA_DIRS", format!("{}/share", dir));
+            env::set_var("GTK_DATA_PREFIX", &*root);
+            env::set_var("GTK_EXE_PREFIX", &*root);
+            env::set_var("XDG_DATA_DIRS", format!("{}/share", root));
 
             // Schemas GSettings
             env::set_var(
                 "GSETTINGS_SCHEMA_DIR",
-                format!("{}/share/glib-2.0/schemas", dir),
+                format!("{}/share/glib-2.0/schemas", root),
             );
 
             // Loaders gdk-pixbuf (scan dynamique du dossier, pas de cache)
             env::set_var(
                 "GDK_PIXBUF_MODULEDIR",
-                format!("{}/lib/gdk-pixbuf-2.0/2.10.0/loaders", dir),
+                format!("{}/lib/gdk-pixbuf-2.0/2.10.0/loaders", root),
             );
 
             // Thème par défaut
             env::set_var("GTK_THEME", "Adwaita");
 
             // Migrations : permet à l'application de trouver le dossier migrations
-            env::set_var("HEELONVAULT_MIGRATIONS_DIR", format!("{}/migrations", dir));
+            env::set_var(
+                "HEELONVAULT_MIGRATIONS_DIR",
+                format!("{}/migrations", exe_dir),
+            );
         }
     }
 }
