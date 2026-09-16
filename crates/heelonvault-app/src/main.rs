@@ -1030,6 +1030,21 @@ fn init_logging() -> Result<WorkerGuard> {
             .or_else(|| info.payload().downcast_ref::<String>().cloned())
             .unwrap_or_else(|| "unknown panic".into());
         tracing::error!(%location, %message, "application panicked");
+
+        // Le layer fichier passe par tracing_appender::non_blocking : son tampon est vidé par
+        // un thread de fond, et il est perdu si le processus meurt immédiatement — c'est
+        // typiquement le cas d'un panic Rust traversant une frontière FFI GTK, qui se termine
+        // en abort(). Un panic pouvait donc ne laisser AUCUNE trace, et l'absence de log ne
+        // prouvait pas l'absence de panic.
+        //
+        // stderr est donc écrit ici, synchronement. Invisible au double-clic sous Windows
+        // (sous-système GUI, aucune console attachée), mais capturable en lançant
+        // l'exécutable avec `2> fichier.log` : souvent le seul moyen de voir un panic sur un
+        // build Windows packagé.
+        use std::io::Write as _;
+        let mut stderr = std::io::stderr().lock();
+        let _ = writeln!(stderr, "application panicked at {location}: {message}");
+        let _ = stderr.flush();
     }));
 
     harden_log_dir(&log_dir_path);

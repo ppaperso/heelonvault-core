@@ -1,477 +1,179 @@
 # Runbook — Packaging Windows MSI HeelonVault
 
-> **Cible :** MSYS2 MINGW64 shell sur Windows x86_64, target Rust `x86_64-pc-windows-gnu`  
-> **WiX :** v7 (`wix.exe`)  
-> **Scripts d'automatisation :** `scripts/windows/setup_win_env.ps1` (PowerShell) et `scripts/windows/setup_msys2.sh` (Bash)
-> **Validé avec :** Nouveau workflow (staging.wxs + collect-staging.sh + setup_windows_resources)
+> **Cible :** Windows x86_64, target Rust `x86_64-pc-windows-gnu` (ABI MinGW, imposée par les DLL GTK4 de MSYS2)
+> **WiX :** v3.14 (`candle.exe` / `light.exe` / `heat.exe`)
+> **Source de vérité :** `.github/workflows/windows-msi-rc.yml` + `scripts/build-msi.ps1`
+
+La référence fiable est le workflow CI : il est exécuté à chaque build et donc toujours à jour.
+Ce document le décrit et complète ce qui ne s'y lit pas directement. En cas de divergence,
+**le workflow a raison**.
 
 ---
 
-## 0. Pré-requis — Configuration Automatique via Scripts
+## 1. Ce que produit le build
 
-> **✅ NOUVEAU :** Utilisez les scripts dédiés pour configurer l'environnement **automatiquement**.
+`scripts/build-msi.ps1` enchaîne quatre étapes :
 
-### 0.1 Configuration Windows (PowerShell - Admin)
+1. `cargo build --release -p heelonvault-app`
+2. Staging : l'exe, la fermeture transitive de ses DLL (via `objdump -p`), les loaders
+   gdk-pixbuf, `share\{glib-2.0,gtk-4.0,icons,fonts}`, les migrations SQL et les ressources
+   applicatives.
+3. `heat.exe` → `staging.wxs`
+4. `candle.exe` + `light.exe` → `crates\heelonvault-app\wix\output\HeelonVault-<version>.msi`
 
-**Script :** `scripts/windows/setup_win_env.ps1`
+Le MSI installe sous `C:\Program Files\HeelonVault\` :
 
-> **À exécuter EN PREMIER dans PowerShell (admin)** :
-> Ce script installe et configure **tous les outils Windows** :
-> - Git
-> - .NET SDK 8+ (requis pour WiX v7)
-> - MSYS2 MINGW64
-> - WiX v7 (outil global .NET)
-> - Acceptation de la licence WiX
-> - Configuration du PATH pour MSYS2
+```
+bin\      heelonvault.exe, toutes les DLL, migrations\
+share\    glib-2.0\schemas\ (dont gschemas.compiled), gtk-4.0\, icons\, fonts\
+lib\      gdk-pixbuf-2.0\
+```
+
+> **Attention :** `share\` et `lib\` sont **frères** de `bin\`, pas ses enfants. Les migrations,
+> elles, sont **dans** `bin\`. `setup_windows_resources()` (`crates/heelonvault-app/src/main.rs`)
+> tient compte de cette asymétrie — voir §5.
+
+Versionnage : `-Version` est déduit de `crates/heelonvault-app/Cargo.toml`, sauf si passé
+explicitement (le CI passe le tag). Un suffixe `-rc.N` devient le 4e segment de version WiX
+(`1.2.0-rc.1` → `1.2.0.1`). `Product Id="*"` : **le ProductCode change à chaque build**, donc
+ne jamais réutiliser un GUID de désinstallation mémorisé (cf. §4).
+
+---
+
+## 2. Environnement de build
+
+Reproduit l'environnement CI (`windows-msi-rc.yml`) :
+
+| Composant | Détail |
+| --- | --- |
+| MSYS2 | installé, puis `pacman -S mingw-w64-x86_64-{toolchain,gtk4,libadwaita,pkgconf}` |
+| pkg-config | copier `pkgconf.exe` → `pkg-config.exe` dans `mingw64\bin` — la crate Rust `pkg-config` ne cherche que ce nom |
+| Rust | `rustup set default-host x86_64-pc-windows-gnu` ; la version est épinglée à 1.98.0 par `rust-toolchain.toml` |
+| WiX | v3.14 — zip `wix314-binaries.zip` de la release `wix3141rtm` du dépôt `wixtoolset/wix3`, extrait puis passé via `-WixBin` |
+| heelonvault-premium | checkout **en dossier frère** du repo (le workspace le résout en `../heelonvault-premium`), sinon builder avec `--no-default-features` |
+
+Build local :
 
 ```powershell
-# Depuis la racine du repo (ou n'importe où)
-# EXÉCUTER EN TANT QU'ADMINISTRATEUR
-Set-Location C:\dev\heelonvault-core
-.\scripts\windows\setup_win_env.ps1
+# mingw64\bin doit être dans le PATH de ce shell
+.\scripts\build-msi.ps1 -WixBin "C:\chemin\vers\wix314" -Version "1.2.0-rc.1"
 ```
 
-> **✅ Résultat attendu :** Toutes les commandes Windows de base sont disponibles.
-> **⚠️ IMPORTANT :** Après exécution, **redémarrez MSYS2 MINGW64** pour appliquer les changements de PATH.
-
-### 0.2 Configuration MSYS2 MINGW64 (Bash)
-
-**Script :** `scripts/windows/setup_msys2.sh`
-
-> **À exécuter DEUXIÈMEMENT dans MSYS2 MINGW64** :
-> Ce script configure **tout l'environnement de build** :
-> - Mise à jour MSYS2
-> - Installation des paquets de compilation (git, ntldd, imagemagick, glib2, gtk4, etc.)
-> - Installation de Rustup/cargo dans MSYS2
-> - Configuration permanente du PATH
-> - Vérification complète de tous les outils
-
-```bash
-# Lancer MSYS2 MINGW64 (via menu Démarrer ou C:\msys64\mingw64.exe)
-# Puis depuis la racine du repo :
-cd /c/dev/heelonvault-core
-bash scripts/windows/setup_msys2.sh
-```
-
-> **✅ Résultat attendu :** Toutes les commandes de build sont disponibles dans MSYS2.
-> **⚠️ IMPORTANT :** Ce script **doit** être exécuté **après** `setup_win_env.ps1`.
-
-### 0.3 Vérification finale de la stack
-
-> **Dans 2 terminaux distincts** :
-
-**PowerShell (outils Windows)** :
-```powershell
-echo "=== Git ==="; git --version
-echo "=== Rustup ==="; rustup --version
-echo "=== dotnet ==="; dotnet --version
-echo "=== WiX ===" wix --version
-echo "=== WiX path ==="; (Get-Command wix).Source
-```
-
-**MSYS2 MINGW64 (outils build)** :
-```bash
-echo "=== Rust ===" && rustc --version && cargo --version
-echo "=== ntldd ===" && ntldd --version
-echo "=== ImageMagick ===" && convert --version | head -1
-echo "=== glib-compile-schemas ===" && glib-compile-schemas --version
-echo "=== gdk-pixbuf-query-loaders ===" && command -v gdk-pixbuf-query-loaders
-echo "=== python3 ===" && python3 --version
-echo "=== ls ===" && ls --version 2>&1 | head -1
-```
-
-> **✅ Toutes les commandes doivent retourner une version sans erreur.**
-> **Si une commande échoue, relancez les scripts correspondants.**
-
-## 1. Build du binaire
-
-> **Ce runbook couvre le build MSI avec Premium intégré**.
-> Pour un build Community (sans code premium), utiliser `--no-default-features` et omettre `--features premium`.
-
-
-### 1.1 Prérequis Premium — Configuration SSH pour MSYS2
-
-> **Pour inclure le code premium dans le MSI** (nécessaire pour ce runbook) :
-> Le crate `heelonvault-premium` est référencé dans `Cargo.toml` comme dépendance git :
-> ```toml
-> heelonvault-premium = { git = "ssh://git@github.com/ppaperso/heelonvault-premium.git", branch = "main", optional = true }
-> ```
-> **C'est donc `cargo` qui récupère le code via SSH**, et **MSYS2 MINGW64** exécute cargo.
-
-#### Votre Configuration SSH Actuelle (Validée)
-
-Vous avez configuré MSYS2 avec :
-- **Clé privée :** `~/.ssh/premium_deploy_key`
-- **Clé publique :** `~/.ssh/premium_deploy_key.pub`
-- **Fichier config :** `~/.ssh/config` avec un host dédié
-
-**Votre configuration `~/.ssh/config` :**
-```
-Host github.com-heelonvault-premium
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/premium_deploy_key
-    IdentitiesOnly yes
-    StrictHostKeyChecking accept-new
-```
-
-**✅ Vérification que tout est en place :**
-```bash
-# Dans MSYS2 MINGW64 :
-echo "=== Vérification SSH ==="
-echo "Clé privée : $(test -f ~/.ssh/premium_deploy_key && echo '✅ PRÉSENTE' || echo '❌ ABSENTE')"
-echo "Clé publique : $(test -f ~/.ssh/premium_deploy_key.pub && echo '✅ PRÉSENTE' || echo '❌ ABSENTE')"
-echo "Config : $(test -f ~/.ssh/config && echo '✅ PRÉSENT' || echo '❌ ABSENT')"
-
-# Test d'accès au repo premium
-git ls-remote git@github.com-heelonvault-premium:ppaperso/heelonvault-premium.git
-```
-
-> **✅ Résultat attendu :**
-> - Les 3 fichiers sont présents
-> - `git ls-remote` retourne une liste de refs **sans erreur**
-
-> **Si `Permission denied (publickey)`** :
-> 1. Vérifiez les permissions : `chmod 600 ~/.ssh/premium_deploy_key`
-> 2. Vérifiez que la clé publique est sur GitHub : [https://github.com/settings/keys](https://github.com/settings/keys)
-> 3. Vérifiez le contenu du config : `cat ~/.ssh/config`
-> 4. Testez l'authentification générale : `ssh -T git@github.com-heelonvault-premium`
-
-> **✅ Lorsque `git ls-remote` fonctionne, vous pouvez passer à l'étape 1.2 (Build avec Premium).**
-
-### 1.2 Build avec Premium (pour le MSI)
-
-```bash
-# Depuis la racine du repo, dans MSYS2 MINGW64
-# --features premium active le téléchargement et la compilation du code premium
-cargo build --release --locked --target x86_64-pc-windows-gnu \
-  -p heelonvault-app \
-  --features premium
-```
-
-> `--target x86_64-pc-windows-gnu` est explicite et obligatoire : c'est ce chemin (`target/x86_64-pc-windows-gnu/release/`) que `wix/main.wxs` attend, indépendamment du host/toolchain par défaut.
-
-**Vérification** :
-
-```bash
-ls -lh target/x86_64-pc-windows-gnu/release/heelonvault.exe
-file target/x86_64-pc-windows-gnu/release/heelonvault.exe
-# Attendu : PE32+ executable (GUI) x86-64
-```
-
-> **Important** : Le binaire doit être de type **GUI** (subsystem "windows") et non **CUI** (console).
->
-> **Note sur le licensing** : Le code premium est **inclus** dans le binaire. L'affichage des fonctionnalités premium dépend de la **présence d'une licence valide** (`LicenseService::load_license()`). Sans licence, l'application fonctionne en mode Community avec les menus premium masqués.
-
-### 1.3 Build Community (optionnel - sans code premium)
-
-> **Si vous ne voulez PAS inclure le code premium** (build open-source uniquement) :
-
-```bash
-cargo build --release --locked --target x86_64-pc-windows-gnu \
-  -p heelonvault-app \
-  --no-default-features
-```
-
-> **⚠️ Attention** : Ce build **n'inclut pas** le code premium et ne peut pas afficher les fonctionnalités premium même avec une licence valide.
+`-GtkRoot` et `-WixBin` sont auto-détectés (`C:\msys64\mingw64`, `C:\Program Files (x86)\WiX
+Toolset v3.14\bin`) ; les passer explicitement si l'installation est ailleurs.
 
 ---
 
-## 2. Staging — copie des fichiers pour le MSI
-
-**⚠️ NOUVEAU WORKFLOW (remplace collect-dlls.sh) :**
-
-Le script `collect-staging.sh` **ne génère PAS de XML WiX**. Il copie uniquement les fichiers nécessaires dans `wix/staging/`.
-Le fragment WiX `staging.wxs` utilise `<Files Include="wix\staging\**\*">` pour inclure automatiquement tous les fichiers.
+## 3. Build via CI (recommandé)
 
 ```bash
-bash scripts/collect-staging.sh \
-  --binary   target/x86_64-pc-windows-gnu/release/heelonvault.exe \
-  --msys2    /mingw64 \
-  --staging  wix/staging
+# build seul, sans publier
+gh workflow run windows-msi-rc.yml -f publish_release=false
+
+# build + publication sur une release existante
+gh workflow run windows-msi-rc.yml -f rc_tag=v1.2.0-rc.1 -f publish_release=true
 ```
 
-**Note importante :** Le paramètre `--out` a été supprimé car aucun fichier .wxs n'est généré.
+Un push de tag `v*.*.*` déclenche automatiquement build + publication (prerelease si le tag
+porte un suffixe `-rc.N`).
 
-### Sorties attendues
-
-| Chemin | Contenu |
-| -------- | --------- |
-| `wix/staging/heelonvault.exe` | Binaire principal |
-| `wix/staging/*.dll` | DLLs mingw64 transitives (30-80 fichiers) |
-| `wix/staging/share/glib-2.0/schemas/gschemas.compiled` | Schémas GLib compilés |
-| `wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.dll` | Loaders pixbuf (DLLs uniquement) |
-| `wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache` | **❌ NON PRÉSENT** — Exclu intentionnellement |
-| `wix/staging/share/themes/Adwaita/**` | Thème GTK4 Adwaita (filtré : CSS, PNG, SVG, index.theme) |
-| `wix/staging/share/icons/Adwaita/**` | Icônes Adwaita (filtré : tailles standard uniquement) |
-| `wix/staging/migrations/*.sql` | Migrations SQL copiées depuis `migrations/` |
-| `wix/staging/heelonvault.ico` | Icône multi-résolution |
-
-**✅ Améliorations clés :**
-- **loaders.cache n'est PAS copié** — GDK_PIXBUF_MODULEDIR est configuré dans le code Rust pour un scan dynamique
-- **Filtrage agressif** : uniquement les fichiers essentiels (tailles d'icônes standard, fichiers thème nécessaires)
-- **Taille réduite** : ~80-120 Mo au lieu de ~500 Mo
-
-### Vérifications post-script
+Récupérer l'artefact d'un run :
 
 ```bash
-# Nombre de DLLs stagés (doit être > 0, typiquement 30-80)
-ls wix/staging/*.dll | wc -l
-
-# gschemas.compiled présent
-ls -lh wix/staging/share/glib-2.0/schemas/gschemas.compiled
-
-# loaders.cache DOIT être ABSENT (exclu intentionnellement)
-! test -f wix/staging/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache && echo "OK: loaders.cache absent"
-
-# Vérification alternative : zero fichier .cache dans staging
-find wix/staging -name "*.cache" -type f | wc -l  # Doit afficher 0
-
-# Thème et icônes Adwaita staged (doit être > 0)
-find wix/staging/share/themes/Adwaita -type f | wc -l
-find wix/staging/share/icons/Adwaita -type f | wc -l
-
-# Migrations staged — doit matcher le nombre de fichiers dans migrations/
-ls wix/staging/migrations/*.sql | wc -l
-ls migrations/*.sql | wc -l
-
-# Icône présente
-ls -lh wix/staging/heelonvault.ico
+gh run download <run-id> -n heelonvault-windows-msi -D .
 ```
-
-### Point d'attention : chemin de l'icône
-
-`collect-staging.sh` cherche l'icône source ici :
-
-```text
-assets/icons/hicolor/256x256/apps/heelonvault.png
-```
-
-Ce chemin est **relatif au répertoire de travail** au moment de l'appel du script.  
-Lance le script **depuis la racine du repo**, pas depuis `crates/heelonvault-core/`.
-
-Si l'icône est manquante, le script continue avec un warning — mais le build WiX échouera car `main.wxs` référence `wix\staging\heelonvault.ico`.
 
 ---
 
-## 3. Build MSI
-
-**⚠️ NOUVEAU : Plus que 2 fichiers .wxs au lieu de 3**
-
-```bash
-# Depuis la racine du repo, dans un terminal avec wix.exe dans le PATH
-# (PowerShell ou MSYS2 si wix.exe est accessible)
-wix build \
-  wix/main.wxs \
-  wix/staging.wxs \
-  -d ProductVersion=1.1.0 \
-  -d BinaryPath=target\x86_64-pc-windows-gnu\release\heelonvault.exe \
-  -o heelonvault-windows-x86_64.msi
-```
-
-> **Nouvelles variables obligatoires :**
-> - `ProductVersion=X.Y.Z` — comme avant (X.Y.Z sans suffixe `-rc.N`)
-> - `BinaryPath=...` — **NOUVEAU** : chemin vers le binaire (remplace le chemin en dur dans main.wxs)
-
-> `main.wxs` déclare `Version="$(var.ProductVersion)"` et `Source="$(var.BinaryPath)"` — des variables de préprocesseur. Les flags `-d` sont **obligatoires**.
-
-### Erreurs fréquentes et résolutions
-
-| Erreur | Cause probable | Fix |
-| -------- | ---------------- | ----- |
-| `Undefined preprocessor variable: ProductVersion` | `-d ProductVersion=...` manquant | Ajouter le flag `-d ProductVersion=X.Y.Z` à `wix build` |
-| `Undefined preprocessor variable: BinaryPath` | `-d BinaryPath=...` manquant | Ajouter le flag `-d BinaryPath=target\x86_64-pc-windows-gnu\release\heelonvault.exe` |
-| `Cannot find source file: wix\staging\heelonvault.ico` | Chemin relatif dans `main.wxs` | Lancer `wix build` depuis la racine du repo |
-| `bind.FileVersion` vide | EXE sans version resource | Normal pour un build Rust non signé, WiX utilise `0.0.0.0` |
-
-**✅ Les erreurs liées à dlls.wxs ont disparu :**
-- `Duplicate symbol 'DllComponents'` — plus applicable
-- `Unresolved reference to symbol 'GDKPIXBUF_LOADERS_DIR'` — résolu par staging.wxs
-
-Vérification :
-
-```bash
-ls -lh heelonvault-windows-x86_64.msi
-# Attendu : fichier > 10 MB (binaire + DLLs + thème + icônes + migrations embarqués)
-```
-
-### Vérifier la version réellement embarquée
+## 4. Installer / désinstaller pour tester
 
 ```powershell
-# PowerShell — lit la propriété ProductVersion directement depuis le MSI
-$installer = New-Object -ComObject WindowsInstaller.Installer
-$database = $installer.GetType().InvokeMember("OpenDatabase", "InvokeMethod", $null, $installer, @("heelonvault-windows-x86_64.msi", 0))
-$view = $database.GetType().InvokeMember("OpenView", "InvokeMethod", $null, $database, @("SELECT Value FROM Property WHERE Property='ProductVersion'"))
-$view.GetType().InvokeMember("Execute", "InvokeMethod", $null, $view, $null)
-$record = $view.GetType().InvokeMember("Fetch", "InvokeMethod", $null, $view, $null)
-$record.GetType().InvokeMember("StringData", "GetProperty", $null, $record, 1)
+# Le ProductCode change à chaque build : toujours le relire, jamais le coder en dur
+$code = (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* |
+         Where-Object { $_.DisplayName -like '*HeelonVault*' }).PSChildName
+Start-Process msiexec.exe -ArgumentList "/x $code /qn" -Wait
+
+Start-Process msiexec.exe -ArgumentList '/i C:\chemin\heelonvault.msi /qn' -Wait
 ```
+
+Ajouter `/l*v install.log` pour un journal d'installation détaillé.
 
 ---
 
-## 4. Génération du checksum
+## 5. Ce que l'application résout au runtime
 
-```bash
-# PowerShell
-Get-FileHash heelonvault-windows-x86_64.msi -Algorithm SHA256 |
-  Select-Object -ExpandProperty Hash |
-  ForEach-Object { "$_ heelonvault-windows-x86_64.msi" } |
-  Out-File -Encoding ASCII heelonvault-windows-x86_64.msi.sha256
+`setup_windows_resources()` (`crates/heelonvault-app/src/main.rs`) est appelée **avant toute
+initialisation GTK** et fixe :
 
-# Ou dans MSYS2
-sha256sum heelonvault-windows-x86_64.msi > heelonvault-windows-x86_64.msi.sha256
-```
+- `GTK_DATA_PREFIX`, `GTK_EXE_PREFIX`, `XDG_DATA_DIRS`, `GSETTINGS_SCHEMA_DIR`,
+  `GDK_PIXBUF_MODULEDIR` → depuis la **racine d'installation** (on remonte d'un cran si
+  l'exécutable est dans `bin\`), donc `INSTALLFOLDER\share` et `INSTALLFOLDER\lib` ;
+- `HEELONVAULT_MIGRATIONS_DIR` → depuis le **dossier de l'exécutable** (`bin\migrations`).
 
----
+Ces deux racines diffèrent volontairement : ne pas les réunifier sans changer aussi le staging.
 
-## 5. Smoke test local
+> Renseigner `XDG_DATA_DIRS` **désactive** le repli natif de GLib sous Windows
+> (`g_win32_get_system_data_dirs`, qui déduit le préfixe du dossier de la DLL chargée). Une
+> valeur erronée est donc pire que pas de valeur : elle a provoqué un `g_error()` → `abort()`
+> à l'ouverture de tout sélecteur de fichiers, et rendu le thème d'icônes introuvable.
 
-### 5.1 Installation
+Assets et traductions sont embarqués dans le binaire (GResource, via `build.rs`). Base de
+données et journaux vont dans `%LOCALAPPDATA%\Heelonys\HeelonVault\data\heelonvault\{data,logs}`.
 
-```text
-msiexec /i heelonvault-windows-x86_64.msi /l*v install.log
-```
+### Lancer le binaire de dev sans MSI
 
-Vérifie `install.log` si le code retour est non-zéro.
-
-### 5.2 Lancement
-
-- Ouvrir le menu Démarrer → HeelonVault
-- Ou `"C:\Program Files\HeelonVault\heelonvault.exe"`
-- **L'application se lance comme une application GUI native** (sans fenêtre console visible)
-- L'application doit démarrer sans crash ni dialog d'erreur GLib/GTK
-
-> **Note** : Depuis cette version, HeelonVault s'exécute comme une **application GUI native** sur Windows (subsystem "windows"). La fenêtre console ne s'affiche plus. Les logs sont écrits dans `%LOCALAPPDATA%\heelonvault\logs\`.
-
-> Pour activer les logs console lors du développement, utilisez : `set HEELONVAULT_CONSOLE=1` avant de lancer l'application.
-
-### 5.3 Désinstallation
-
-```text
-msiexec /x heelonvault-windows-x86_64.msi /l*v uninstall.log
-```
-
-Vérifier que `C:\Program Files\HeelonVault\` est supprimé.
-
-### 5.4 Logs et Debug
-
-**Emplacement des logs** :
-```text
-%LOCALAPPDATA%\heelonvault\logs\heelonvault-YYYY-MM-DD.log
-```
-
-**Format** : JSON structuré (un objet par ligne)
-
-**Sur Windows, il n'y a pas de console de debug activable** : le binaire est compilé en mode GUI (`windows_subsystem = "windows"`), donc `stdout` n'est jamais visible, quelle que soit la valeur de `HEELONVAULT_CONSOLE`. Le seul moyen de debug est de consulter les fichiers de logs ci-dessus (`type` ou un éditeur de texte).
-
-> `HEELONVAULT_CONSOLE=1` n'a d'effet que sur Linux/macOS, où il ajoute un `console_layer` en plus du `file_layer` déjà toujours actif. Ne pas s'attendre à un comportement équivalent sur Windows.
-
-### 5.5 Checklist QA minimale
-
-- [ ] Installation silencieuse sans erreur
-- [ ] Raccourci Start Menu présent et fonctionnel
-- [ ] Application se lance
-- [ ] Icônes de l'UI visibles (pas d'icônes blanches/manquantes — signe d'un thème Adwaita non embarqué)
-- [ ] Pas de DLL manquante au démarrage (pas de popup "msvcrt.dll not found" etc.)
-- [ ] Désinstallation propre (dossier supprimé, raccourci supprimé)
-- [ ] Checksum SHA256 vérifié : `certutil -hashfile heelonvault-windows-x86_64.msi SHA256`
+`target\release\heelonvault.exe` n'est pas dans un dossier `bin\`, donc les ressources sont
+cherchées **à côté de lui**. Il faut y recopier `share\`, `lib\` et `migrations\` (et avoir
+`mingw64\bin` dans le PATH pour les DLL), sinon l'application s'arrête sur une recherche de
+schéma GSettings.
 
 ---
 
-## 6. Artefacts à livrer à QA
+## 6. Diagnostiquer un crash Windows
 
-```text
-heelonvault-windows-x86_64.msi         ← installeur
-heelonvault-windows-x86_64.msi.sha256  ← checksum
-```
+Le binaire est en sous-système GUI : **aucune console n'est attachée**, stdout/stderr sont
+invisibles au double-clic. Trois sources, dans cet ordre :
 
-Ces deux fichiers constituent la GitHub Release pour chaque tag RC.
+1. **Rediriger stderr** — fonctionne malgré le sous-système GUI si la redirection vient du
+   shell appelant. Les messages GLib (`g_error`, assertions) et les panics Rust y passent :
 
----
+   ```powershell
+   & "C:\Program Files\HeelonVault\bin\heelonvault.exe" 2> "$env:USERPROFILE\Desktop\hv-stderr.log"
+   ```
 
-## 7. Versioning, tags et release GitHub
+   Ajouter `$env:G_MESSAGES_DEBUG='all'` pour plus de détail, ou `$env:G_DEBUG='fatal-warnings'`
+   pour faire échouer au **premier** avertissement GLib plutôt qu'au symptôme final.
 
-### 7.1 Convention de version
+2. **Observateur d'événements** — donne module fautif, code d'exception et offset :
 
-- RC test: `vX.Y.Z-rc.N` (exemple: `v1.1.1-rc.1`)
-- Stable: `vX.Y.Z`
+   ```powershell
+   Get-WinEvent -FilterHashtable @{LogName='Application'; Id=1000} -MaxEvents 5 |
+     Where-Object { $_.Message -match 'heelonvault' } | Format-List TimeCreated, Message
+   ```
 
-### 7.2 Pourquoi tag + release
+   Lecture des codes : `0xc0000005` = access violation (faute mémoire native) ;
+   `0x40000015` = `STATUS_FATAL_APP_EXIT`, c'est-à-dire `abort()` — typiquement un
+   `g_error()`/assertion GLib, ou un panic Rust traversant une frontière FFI.
 
-- Le tag fige la version et le commit de build.
-- La release sert de point unique de distribution QA (MSI + SHA256).
-
-### 7.3 Procédure recommandée
-
-1. Valider localement ce runbook (build + smoke test).
-2. Créer et pousser un tag RC.
-3. Publier la release GitHub associée au tag RC avec les 2 artefacts.
-4. Après validation QA, promouvoir en tag stable.
-
-### 7.4 Commandes Git (exemple RC)
-
-```bash
-git tag -a v1.1.1-rc.1 -m "Windows RC 1.1.1"
-git push origin v1.1.1-rc.1
-```
+3. **Journaux applicatifs** — `%LOCALAPPDATA%\Heelonys\HeelonVault\data\heelonvault\logs\`.
+   Le layer fichier est bufferisé (`tracing_appender::non_blocking`) : en cas d'`abort()` les
+   dernières lignes peuvent manquer. **L'absence de trace n'est donc pas une preuve d'absence
+   de panic** — d'où la redirection stderr du point 1, écrite synchronement par le hook de panic.
 
 ---
 
-## Annexe — Séquence complète en une fois
+## 7. Limites connues
 
-> **Pour un MSI avec Premium intégré** (recommandé) :
-
-```bash
-# 1. Build binaire (avec features premium)
-cargo build --release --locked --target x86_64-pc-windows-gnu \
-  -p heelonvault-app \
-  --features premium
-
-# 2. Staging — copie des fichiers (remplace collect-dlls.sh, AUCUN XML généré)
-bash scripts/collect-staging.sh \
-  --binary   target/x86_64-pc-windows-gnu/release/heelonvault.exe \
-  --msys2    /mingw64 \
-  --staging  wix/staging
-
-# 3. Build MSI (depuis racine repo, wix.exe dans PATH)
-#    NOUVEAU : staging.wxs au lieu de dlls.wxs, + variable BinaryPath
-wix build \
-  wix/main.wxs \
-  wix/staging.wxs \
-  -d ProductVersion=1.2.0-rc.1 \
-  -d BinaryPath=target\x86_64-pc-windows-gnu\release\heelonvault.exe \
-  -o heelonvault-windows-x86_64.msi
-
-# 4. Checksum
-sha256sum heelonvault-windows-x86_64.msi > heelonvault-windows-x86_64.msi.sha256
-```
-
-> **Pour un build Community (sans Premium)** : Remplacer l'étape 1 par :
-> ```bash
-> cargo build --release --locked --target x86_64-pc-windows-gnu -p heelonvault-app --no-default-features
-> ```
-> 
-> **Note sur le runtime Windows :** Le code Rust dans `main.rs` configure automatiquement `GDK_PIXBUF_MODULEDIR` et autres variables d'environnement via `setup_windows_resources()`. Cela permet à GTK4 de trouver les loaders dynamiquement sans besoin de `loaders.cache`.
-
----
-
-
----
-
-## Annexe — Référence pour automatisation future (HORS SCOPE)
-
-> **⚠️ CE RUNBOOK EST 100% MANUEL** — Aucune CI/CD n'est configurée.
-> Cette section est conservée à titre de **référence technique uniquement**.
-
-**Rappel des changements clés vs ancien workflow :**
-- `collect-dlls.sh` → `collect-staging.sh` (pas de génération XML)
-- `dlls.wxs` → `staging.wxs` (fragment statique avec `<Files Include>`)
-- `--out wix/dlls.wxs` → **supprimé** (aucune sortie XML)
-- `loaders.cache` → **exclu** (GDK_PIXBUF_MODULEDIR configuré dans le code Rust)
-
-**Si automatisation future :**
-- Remplacer `collect-dlls.sh` par `collect-staging.sh` dans les scripts CI
-- Remplacer `wix/dlls.wxs` par `wix/staging.wxs` dans la commande `wix build`
-- Ajouter le flag `-d BinaryPath=...` à la commande `wix build`
-- **Important :** La note sur `loaders.cache` et chemins Windows **n'est plus applicable** car loaders.cache n'est plus inclus
-
+- **Backends d'impression GTK non embarqués.** Ils sont chargés dynamiquement
+  (`g_module_open`) et échappent donc au scan des imports PE de `build-msi.ps1`. Le bouton
+  « Imprimer » de l'export de clé de récupération est retiré sous Windows pour cette raison.
+- **`GIO_MODULE_DIR` non renseigné** et `lib\gio\modules` non stagé — même classe de trou,
+  sans impact constaté à ce jour.
+- **Pas de signature de code.** Au premier lancement, Windows Defender / SmartScreen analyse
+  le binaire non signé : cela explique quelques secondes de latence au tout premier démarrage.
+- **Validation MSI minimale en CI** : le workflow vérifie la signature OLE et la taille du
+  fichier, pas le contenu du staging.
+- **Ne pas installer MSYS2 sur une VM de test.** Avec `mingw64\bin` dans le PATH, une DLL
+  manquante du paquet serait silencieusement chargée depuis MSYS2 : le test validerait un
+  packaging incomplet. Garder une VM de test vierge (ou un snapshot propre) pour la
+  validation finale.
