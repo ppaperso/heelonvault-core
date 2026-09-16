@@ -201,15 +201,20 @@ jobs:
           FULL_VERSION: ${{ steps.release_meta.outputs.full_version }}
         run: |
           $ErrorActionPreference = "Stop"
-          $builtMsi = "crates\heelonvault-app\wix\output\HeelonVault-$env:FULL_VERSION.msi"
-          if (-not (Test-Path $builtMsi)) {
-            Write-Host "[ERROR] MSI not found at $builtMsi"
+          # Glob rather than predict the exact filename: build-msi.ps1 falls
+          # back to the version in Cargo.toml whenever -Version is empty
+          # (e.g. a workflow_dispatch dry run with no rc_tag), which would
+          # not match $env:FULL_VERSION.
+          $built = Get-ChildItem "crates\heelonvault-app\wix\output\HeelonVault-*.msi" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if (-not $built) {
+            Write-Host "[ERROR] No MSI found in crates\heelonvault-app\wix\output\"
             exit 1
           }
           $msiName = "heelonvault-windows-x86_64-$env:TAG_NAME.msi"
-          Copy-Item $builtMsi $msiName
+          Copy-Item $built.FullName $msiName
           "MSI_NAME=$msiName" >> $env:GITHUB_ENV
-          Write-Host "[OK] $builtMsi -> $msiName"
+          Write-Host "[OK] $($built.Name) -> $msiName"
 
       # ── 11. Validation structurelle du MSI ──────────────────────────────────
       - name: Validate MSI structure
