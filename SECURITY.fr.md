@@ -114,6 +114,7 @@ Proprietes de securite de la cle de recuperation :
 - generee par un RNG cryptographique (`getrandom`) ;
 - la phrase n'est jamais persistee en base de donnees ; l'utilisateur en est l'unique gardien ;
 - la copie presse-papier declenche un effacement automatique apres 60 secondes ; le presse-papier est aussi vide a la fermeture du dialogue ;
+- sur Linux/macOS, le contenu du presse-papier est servi a la demande via un fournisseur personnalise qui se met lui-meme a renvoyer un texte vide une fois expire, sans copie non effacee du secret persistant en memoire au-dela de l'expiration. Sur **Windows**, le backend presse-papier de GDK (OLE/`IDataObject`) plante avec ce meme fournisseur (`STATUS_ACCESS_VIOLATION` dans `libgtk-4-1.dll`, reproduit systematiquement) ; Windows utilise a la place le fournisseur de contenu "eager" natif de GDK : le secret est copie en memoire geree par GDK des la copie, puis efface en ecrasant directement le presse-papier a l'expiration plutot que par auto-effacement du fournisseur a la lecture. Voir `crates/heelonvault-app/src/ui/sensitive_clipboard.rs`.
 - apres le bootstrap, la cle peut etre re-exportee depuis `Profil & Securite` (admin uniquement) ;
 - les exports/imports `.hvb` sont soumis au `BackupApplicationService` qui applique un controle RBAC : seuls les comptes de role admin peuvent effectuer ces operations.
 

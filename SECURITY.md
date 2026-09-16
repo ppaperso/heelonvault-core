@@ -163,6 +163,7 @@ Recovery key security properties:
 - generated from a cryptographically secure RNG (`getrandom`);
 - the phrase is never persisted in the database; it is the user's sole responsibility to store it safely;
 - clipboard copy sets a 60-second auto-clear timer; the clipboard is also wiped when the dialog closes;
+- on Linux/macOS, the clipboard content is served on demand through a custom provider that itself starts returning empty text once expired, so no unzeroized copy of the secret persists in memory beyond expiry. On **Windows**, GDK's clipboard backend (OLE/`IDataObject`) crashes with that same provider (`STATUS_ACCESS_VIOLATION` inside `libgtk-4-1.dll`, reproduced consistently); Windows instead uses GDK's built-in eager content provider, so the secret is copied into GDK-owned memory at copy time and cleared by overwriting the clipboard outright at expiry, rather than by the provider self-clearing on read. See `crates/heelonvault-app/src/ui/sensitive_clipboard.rs`.
 - after bootstrap, the recovery key can be re-exported at any time from `Profile & Security` (admin only), generating a new phrase wrapped in the same secure export dialog;
 - backup export/import (`.hvb` files) is gated behind `BackupApplicationService` which enforces RBAC: only admin-role users may perform these operations.
 

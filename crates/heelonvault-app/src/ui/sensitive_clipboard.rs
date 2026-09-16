@@ -184,11 +184,49 @@ impl SecretContent {
     }
 }
 
+// GDK's Windows clipboard backend (OLE/IDataObject, not X11 selection ownership) faults with
+// STATUS_ACCESS_VIOLATION inside libgtk-4-1.dll when content is served through this module's
+// custom async ContentProvider (write_mime_type_future) — reproduced consistently on Windows 11,
+// same fault offset every time. See SECURITY.md/SECURITY.fr.md. Windows falls back to GDK's
+// built-in eager providers (for_bytes/for_value/new_union) instead: well-tested, boring, but
+// unlike SecretContent they cannot self-clear on a later read — the whole secret is copied into
+// GDK-owned memory up front. expire_provider is a no-op there; wipe_owned_clipboard compensates
+// by unconditionally overwriting the clipboard content at expiry instead.
+
+#[cfg(not(windows))]
+fn make_content(text: &str) -> gdk::ContentProvider {
+    SecretContent::new(text).upcast()
+}
+
+#[cfg(windows)]
+fn make_content(text: &str) -> gdk::ContentProvider {
+    let mut providers: Vec<gdk::ContentProvider> = TEXT_MIME_TYPES
+        .iter()
+        .map(|mime| gdk::ContentProvider::for_bytes(mime, &glib::Bytes::from(text.as_bytes())))
+        .collect();
+    providers.push(gdk::ContentProvider::for_value(&text.to_value()));
+    providers.push(gdk::ContentProvider::for_bytes(
+        PASSWORD_MANAGER_HINT_MIME,
+        &glib::Bytes::from_static(b"secret"),
+    ));
+    gdk::ContentProvider::new_union(&providers)
+}
+
+#[cfg(not(windows))]
+fn expire_provider(provider: &gdk::ContentProvider) {
+    if let Some(secret) = provider.downcast_ref::<SecretContent>() {
+        secret.expire();
+    }
+}
+
+#[cfg(windows)]
+fn expire_provider(_provider: &gdk::ContentProvider) {}
+
 #[derive(Default)]
 struct State {
     ledger: Ledger,
     timer: Option<glib::SourceId>,
-    content: Option<SecretContent>,
+    content: Option<gdk::ContentProvider>,
 }
 
 thread_local! {
@@ -207,11 +245,12 @@ fn cancel_timer(state: &mut State) {
 
 fn expire_content(state: &mut State) {
     if let Some(content) = state.content.take() {
-        content.expire();
+        expire_provider(&content);
     }
 }
 
 /// Mutter only accepts a clipboard change from the focused window.
+#[cfg(not(windows))]
 fn application_has_focus() -> bool {
     gtk4::Window::list_toplevels()
         .into_iter()
@@ -219,11 +258,20 @@ fn application_has_focus() -> bool {
         .any(|window| window.is_active())
 }
 
-fn empty_if_focused(clipboard: &gdk::Clipboard) {
+#[cfg(not(windows))]
+fn wipe_owned_clipboard(clipboard: &gdk::Clipboard) {
     if application_has_focus() {
         clipboard.set_text("");
         clipboard.display().flush();
     }
+}
+
+/// Windows clipboard writes aren't gated on window focus the way Mutter's are (see module doc)
+/// — always wipe, compensating for the eager provider's inability to self-clear on read.
+#[cfg(windows)]
+fn wipe_owned_clipboard(clipboard: &gdk::Clipboard) {
+    clipboard.set_text("");
+    clipboard.display().flush();
 }
 
 /// Puts `text` in the clipboard and schedules its expiry. Returns `false` when nothing was
@@ -232,9 +280,9 @@ pub fn copy_sensitive(text: &str, clear_after: Duration) -> bool {
     let Some(clipboard) = system_clipboard() else {
         return false;
     };
-    let content = SecretContent::new(text);
+    let content = make_content(text);
     if clipboard.set_content(Some(&content)).is_err() {
-        content.expire();
+        expire_provider(&content);
         return false;
     }
 
@@ -254,7 +302,7 @@ pub fn copy_sensitive(text: &str, clear_after: Duration) -> bool {
                 if let Some(clipboard) = system_clipboard()
                     && state.ledger.expire(generation, clipboard.is_local())
                 {
-                    empty_if_focused(&clipboard);
+                    wipe_owned_clipboard(&clipboard);
                 }
             });
         }));
@@ -272,7 +320,7 @@ pub fn clear_now() {
         if let Some(clipboard) = system_clipboard()
             && state.ledger.take_pending(clipboard.is_local())
         {
-            empty_if_focused(&clipboard);
+            wipe_owned_clipboard(&clipboard);
         }
     });
 }
