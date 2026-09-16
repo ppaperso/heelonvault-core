@@ -87,6 +87,24 @@ jobs:
             mingw-w64-x86_64-libadwaita
             mingw-w64-x86_64-pkgconf
 
+      # ── 4b. MSYS2 ships pkgconf.exe, but the Rust `pkg-config` crate (used
+      #       by glib-sys/gtk4-sys/etc.) specifically looks for a binary
+      #       named pkg-config[.exe] — bridge the naming gap.
+      - name: Ensure pkg-config.exe exists
+        run: |
+          $ErrorActionPreference = "Stop"
+          $pkgconf = "C:\msys64\mingw64\bin\pkgconf.exe"
+          $pkgconfig = "C:\msys64\mingw64\bin\pkg-config.exe"
+          if (Test-Path $pkgconfig) {
+            Write-Host "[OK] pkg-config.exe already present"
+          } elseif (Test-Path $pkgconf) {
+            Copy-Item $pkgconf $pkgconfig
+            Write-Host "[OK] pkg-config.exe created as a copy of pkgconf.exe"
+          } else {
+            Write-Host "[ERROR] Neither pkgconf.exe nor pkg-config.exe found in C:\msys64\mingw64\bin"
+            exit 1
+          }
+
       # ── 5. Toolchain Rust — hôte GNU (requis pour lier les DLL MinGW GTK4),
       #      honore le pin rust-toolchain.toml (1.98.0) ─────────────────────
       - name: Setup Rust toolchain (x86_64-pc-windows-gnu)
