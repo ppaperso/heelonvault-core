@@ -3,11 +3,14 @@ name: linux-appimage-rc
 on:
   push:
     tags:
-      - "v*.*.*-rc.*"
+      # Couvre les tags RC (vX.Y.Z-rc.N) et finaux (vX.Y.Z) — le statut
+      # prerelease de la Release GitHub est déterminé par le format exact,
+      # voir l'étape "Validate tag format before publish".
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
       rc_tag:
-        description: "RC tag to build/release (ex: v1.1.1-rc.1). Empty = current ref checkout"
+        description: "Tag to build/release (ex: v1.1.1-rc.1 or v1.1.1). Empty = current ref checkout"
         required: false
         type: string
       publish_release:
@@ -147,10 +150,16 @@ jobs:
             SHOULD_PUBLISH="${{ inputs.publish_release }}"
           fi
           VERSION=$(echo "$TAG_NAME" | sed 's/^v//; s/-rc\.[0-9]*//')
+          if [[ "$TAG_NAME" =~ -rc\.[0-9]+$ ]]; then
+            IS_PRERELEASE="true"
+          else
+            IS_PRERELEASE="false"
+          fi
           echo "tag_name=${TAG_NAME}"               >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}"                 >> "$GITHUB_OUTPUT"
           echo "should_publish=${SHOULD_PUBLISH}"   >> "$GITHUB_OUTPUT"
-          echo "[OK] Tag: $TAG_NAME — Version: $VERSION — Publish: $SHOULD_PUBLISH"
+          echo "is_prerelease=${IS_PRERELEASE}"     >> "$GITHUB_OUTPUT"
+          echo "[OK] Tag: $TAG_NAME — Version: $VERSION — Publish: $SHOULD_PUBLISH — Prerelease: $IS_PRERELEASE"
 
       # ── 9. Construction de l'AppDir ────────────────────────────────────────
       - name: Build AppDir
@@ -309,35 +318,43 @@ jobs:
             heelonvault-linux-x86_64-${{ steps.release_meta.outputs.tag_name }}.AppImage
             heelonvault-linux-x86_64-${{ steps.release_meta.outputs.tag_name }}.AppImage.sha256
 
-      # ── 17. Validation du format du tag RC ─────────────────────────────────
-      - name: Validate RC tag format before publish
+      # ── 17. Validation du format du tag ─────────────────────────────────────
+      - name: Validate tag format before publish
         if: steps.release_meta.outputs.should_publish == 'true'
         run: |
           set -euo pipefail
           TAG="${{ steps.release_meta.outputs.tag_name }}"
           [[ -n "$TAG" ]] || { echo "[ERROR] publish_release=true requires a tag"; exit 1; }
-          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]] || {
-            echo "[ERROR] Invalid RC tag format: $TAG — Expected: vX.Y.Z-rc.N"
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]] || {
+            echo "[ERROR] Invalid tag format: $TAG — Expected: vX.Y.Z or vX.Y.Z-rc.N"
             exit 1
           }
           echo "[OK] Tag format valid: $TAG"
 
       # ── 18. Publication de la release GitHub ───────────────────────────────
-      - name: Publish/Update GitHub Release (RC)
+      # RC (vX.Y.Z-rc.N) → prerelease ; tag final (vX.Y.Z) → release stable.
+      - name: Publish/Update GitHub Release
         if: steps.release_meta.outputs.should_publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+          IS_PRERELEASE: ${{ steps.release_meta.outputs.is_prerelease }}
         run: |
           set -euo pipefail
           APPIMAGE_NAME="heelonvault-linux-x86_64-${TAG_NAME}.AppImage"
 
           if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            PRERELEASE_FLAG=()
+            NOTES="Automated Linux packaging artifact."
+            if [[ "$IS_PRERELEASE" == "true" ]]; then
+              PRERELEASE_FLAG=(--prerelease)
+              NOTES="Automated Linux RC packaging artifact."
+            fi
             gh release create "$TAG_NAME" \
               --title "$TAG_NAME" \
-              --prerelease \
-              --notes "Automated Linux RC packaging artifact."
-            echo "[OK] Release created: $TAG_NAME"
+              "${PRERELEASE_FLAG[@]}" \
+              --notes "$NOTES"
+            echo "[OK] Release created: $TAG_NAME (prerelease: $IS_PRERELEASE)"
           else
             echo "[OK] Release already exists: $TAG_NAME — uploading artifacts"
           fi
