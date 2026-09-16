@@ -36,37 +36,31 @@ allow = [
 # lorsque les crates upstream alignent leurs séries de versions.
 multiple-versions = "deny"
 skip = [
+  # reqwest/sqlx-core (base64 0.22) vs heelonvault-core/reqwest (base64 0.23)
+  { name = "base64",            reason = "sqlx-core 0.9 → base64 0.22 ; reqwest/heelonvault-core → base64 0.23" },
+  # sqlx-core → sha2 0.10 → digest 0.10 ; argon2/ed25519-dalek/totp-rs → sha2 0.11 → digest 0.11
+  { name = "block-buffer",      reason = "pairé avec le split digest 0.10/0.11" },
+  { name = "crypto-common",     reason = "pairé avec le split digest 0.10/0.11" },
+  { name = "digest",            reason = "sqlx-core → sha2 0.10 → digest 0.10 ; argon2/ed25519-dalek/totp-rs → sha2 0.11 → digest 0.11" },
+  { name = "sha2",              reason = "sqlx-core → sha2 0.10 ; argon2/ed25519-dalek/totp-rs → sha2 0.11" },
+  # même split que digest, côté détection CPU (sha2/aes-gcm/argon2/curve25519-dalek)
+  { name = "cpufeatures",       reason = "pairé avec le split sha2 0.10/0.11 (sqlx-core vs argon2/ed25519-dalek/totp-rs)" },
   # fluent-templates 0.9 est encore sur flume 0.11 ; sqlx 0.9 est sur 0.12
   { name = "flume",             reason = "fluent-templates 0.9 → 0.11, sqlx 0.9 → 0.12 ; migration upstream en attente" },
   # trois séries semver-incompatibles coexistent : ring/argon2 → 0.2, rand → 0.3, uuid/tempfile → 0.4
   { name = "getrandom",         reason = "ring/argon2 sur 0.2 ; rand sur 0.3 ; uuid/tempfile sur 0.4 — séries incompatibles" },
   # hashbrown : split de version dans l'écosystème indexmap/hashbrown
   { name = "hashbrown",         reason = "split de version dans l'écosystème indexmap/hashbrown" },
-  # r-efi : support cible Windows UEFI, split dans l'écosystème winapi
-  { name = "r-efi",             reason = "split de version dans l'écosystème winapi/Windows cibles" },
-  # rand 0.8 utilise rand_core 0.6 ; rand 0.9 utilise rand_core 0.9
-  { name = "rand_core",         reason = "rand 0.8 → rand_core 0.6 ; rand 0.9 → rand_core 0.9 — migration en cours" },
-  # lié au split hashbrown
-  { name = "rustc-hash",        reason = "split lié à hashbrown dans l'écosystème" },
+  # image/png → miniz_oxide 0.8 (direct) ; png → flate2 → miniz_oxide 0.9
+  { name = "miniz_oxide",       reason = "png → miniz_oxide 0.8 (direct) ; png → flate2 → miniz_oxide 0.9" },
   # heelonvault-app et heelonvault-core déclarent des feature sets différents → deux entrées lock
   { name = "sqlx",              reason = "deux crates workspace utilisent des features sqlx 0.9 différentes → deux entrées lock" },
   # proc-macros fluent-templates encore sur syn 1.x ; sqlx/autres sur syn 2.x
   { name = "syn",               reason = "fluent-templates proc-macros → syn 1.x ; sqlx/autres → syn 2.x" },
-  # sqlx 0.9 dépend encore de thiserror 1.x ; crates plus récentes sur 2.x
-  { name = "thiserror",         reason = "sqlx 0.9 → thiserror 1.x ; autres crates → 2.x" },
-  { name = "thiserror-impl",    reason = "pairé avec le split thiserror 1.x/2.x" },
-  # windows-sys + sous-crates : split des bindings Windows SDK entre ring/rustls et les autres
+  # gtk4-rs 0.11 (gdk4-sys) → system-deps 7 ; cairo/gio/glib/pango-sys 0.22 → system-deps 9
+  { name = "system-deps",       reason = "gdk4-sys 0.11 → system-deps 7 ; cairo/gio/glib/pango-sys 0.22 → system-deps 9" },
+  # windows-sys : split des bindings Windows SDK entre ring/rustls et les autres
   { name = "windows-sys",              reason = "ring/rustls sur une version Windows SDK ; reste de l'écosystème sur une autre" },
-  { name = "windows-targets",          reason = "pairé avec le split windows-sys" },
-  { name = "windows_aarch64_gnullvm",  reason = "pairé avec le split windows-sys" },
-  { name = "windows_aarch64_msvc",     reason = "pairé avec le split windows-sys" },
-  { name = "windows_i686_gnu",         reason = "pairé avec le split windows-sys" },
-  { name = "windows_i686_msvc",        reason = "pairé avec le split windows-sys" },
-  { name = "windows_x86_64_gnu",       reason = "pairé avec le split windows-sys" },
-  { name = "windows_x86_64_gnullvm",   reason = "pairé avec le split windows-sys" },
-  { name = "windows_x86_64_msvc",      reason = "pairé avec le split windows-sys" },
-  # getrandom 0.3 → wasip2 ; getrandom 0.4 → wasip3 (deux séries WASI actives)
-  { name = "wit-bindgen",       reason = "getrandom 0.3 → wit-bindgen wasip2 ; 0.4 → wasip3" },
 ]
 
 [sources]
