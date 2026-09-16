@@ -382,15 +382,18 @@ jobs:
           echo "[OK] SHA256: $(cat "${DMG_NAME}.sha256")"
 
       # ── 16. Upload des artefacts CI ─────────────────────────────────────────
+      # actions/upload-artifact ignore defaults.run.working-directory (ça ne
+      # s'applique qu'aux steps `run:`) — ses chemins sont résolus depuis
+      # $GITHUB_WORKSPACE, pas heelonvault-core/, d'où le préfixe explicite.
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: heelonvault-macos-dmg
           if-no-files-found: error
           path: |
-            heelonvault-macos-aarch64-${{ steps.release_meta.outputs.tag_name }}.dmg
-            heelonvault-macos-aarch64-${{ steps.release_meta.outputs.tag_name }}.dmg.sha256
-            README-macos-installation.md
+            heelonvault-core/heelonvault-macos-aarch64-${{ steps.release_meta.outputs.tag_name }}.dmg
+            heelonvault-core/heelonvault-macos-aarch64-${{ steps.release_meta.outputs.tag_name }}.dmg.sha256
+            heelonvault-core/README-macos-installation.md
 
       # ── 17. Validation du format du tag ─────────────────────────────────────
       - name: Validate tag format before publish
