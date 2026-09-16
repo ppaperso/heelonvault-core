@@ -280,8 +280,7 @@ jobs:
           APPIMAGE_NAME="heelonvault-linux-x86_64-${TAG_NAME}.AppImage"
 
           # Extract AppImage for inspection (no FUSE required)
-          ./appimagetool.AppImage --appimage-extract-and-run HeelonVault.AppDir /tmp/appimage-validate.AppImage 2>/dev/null || true
-          "$APPIMAGE_NAME" --appimage-extract
+          "./${APPIMAGE_NAME}" --appimage-extract
 
           APP="squashfs-root"
           test -f "$APP/AppRun"                                         || { echo "[ERROR] AppRun missing";           exit 1; }
