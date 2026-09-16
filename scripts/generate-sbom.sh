@@ -67,6 +67,27 @@ fi
 
 mv "$GENERATED" sbom.cyclonedx.json
 
+# Normalise les file:// absolus (path+file:// des path-dependencies du
+# workspace, download_url= des purl) vers un préfixe fixe : ils encodent le
+# répertoire de checkout de la machine qui a généré le fichier
+# (/home/you/heelonvault-core en local, /home/runner/work/... en CI), ce qui
+# rendrait le SBOM commité différent à chaque environnement même à
+# dépendances strictement identiques — cassant le check-sbom de
+# supply-chain.yml de façon permanente. Seuls heelonvault-premium (patché,
+# donc chemin canonicalisé) et heelonvault-core/crates/* sont concernés :
+# les autres path-dependencies (sqlx-shim, heelonvault-app) restent déjà
+# relatives telles que déclarées dans Cargo.toml.
+NORMALIZE_JQ='
+walk(
+  if type == "string" then
+    gsub("file:///[^\"#]*/(?<tail>heelonvault-core/crates/[a-zA-Z0-9_-]+|heelonvault-premium)(?<frag>#[^\"]*)?";
+         "file:///NORMALIZED/\(.tail)\(.frag // "")")
+  else . end
+)
+'
+jq "$NORMALIZE_JQ" sbom.cyclonedx.json > sbom.cyclonedx.json.tmp
+mv sbom.cyclonedx.json.tmp sbom.cyclonedx.json
+
 COMPONENT_COUNT=$(jq '.components | length' sbom.cyclonedx.json)
 echo "[SBOM] Done — ${COMPONENT_COUNT} components inventoried."
 echo "[SBOM] Next step: commit sbom.cyclonedx.json if dependencies changed."
