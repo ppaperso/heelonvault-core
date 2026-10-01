@@ -21,6 +21,7 @@ login-language-fr = Francais
 login-language-en = Anglais
 login-greeting-empty = Connexion securisee
 login-greeting-hello = Bonjour, { $username }
+login-account-created = Compte créé, connectez-vous.
 login-error-username-required = Saisissez votre identifiant (username, nom affiche ou email) pour continuer.
 login-error-password-required = Saisissez votre mot de passe avant de vous connecter.
 login-error-invalid-credentials = Identifiants invalides. Merci de patienter avant une nouvelle tentative.

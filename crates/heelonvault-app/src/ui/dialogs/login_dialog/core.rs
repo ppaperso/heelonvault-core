@@ -81,6 +81,7 @@ impl super::LoginDialog {
         + 'static,
         on_restore_completed: impl Fn() + 'static,
         on_authenticated: impl Fn(AuthenticatedSession) + 'static,
+        on_bootstrap_completed: impl Fn(String) + 'static,
         on_cancelled: impl Fn() + 'static,
     ) -> Self
     where
@@ -117,7 +118,14 @@ impl super::LoginDialog {
         // 2c. Convertir on_authenticated en Rc avant de l'utiliser
         let on_authenticated_rc: Rc<dyn Fn(AuthenticatedSession)> = Rc::new(on_authenticated);
 
-        // 2d. Configuration des gates bootstrap si mode initialisation
+        // 3. Initialisation de l'état partagé — avant le bootstrap : le handler
+        // close_request doit lire le même drapeau que celui positionné par le flux
+        // d'initialisation, sinon la fermeture post-bootstrap quitte l'application.
+        let authenticated = Rc::new(Cell::new(false));
+        let lock_active = Rc::new(Cell::new(false));
+        let lock_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
+
+        // 3b. Configuration des gates bootstrap si mode initialisation
         if in_bootstrap_mode {
             setup_bootstrap_gates(&widgets);
 
@@ -138,15 +146,10 @@ impl super::LoginDialog {
                 gen_key_fn,
                 do_bootstrap_fn,
                 &window,
-                Rc::new(Cell::new(false)), // authenticated - sera géré par le handler
-                Rc::clone(&on_authenticated_rc),
+                Rc::clone(&authenticated),
+                Rc::new(on_bootstrap_completed),
             );
         }
-
-        // 3. Initialisation de l'état partagé
-        let authenticated = Rc::new(Cell::new(false));
-        let lock_active = Rc::new(Cell::new(false));
-        let lock_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
 
         // Convertir les impl Fn en dyn Fn pour le stockage
         let on_restore_requested_arc: restore_flow::RestoreHandler = Arc::new(on_restore_requested);
@@ -240,12 +243,10 @@ impl super::LoginDialog {
                 );
 
                 if !authenticated_for_close.get() {
-                    warn!("login window closed before authentication, requesting application quit");
+                    warn!("bootstrap window closed before completion, requesting application quit");
                     on_cancelled_for_close();
                 } else {
-                    info!(
-                        "login window closed after authentication, returning to application flow"
-                    );
+                    info!("bootstrap window closed after completion, returning to login screen");
                 }
                 glib::Propagation::Proceed
             });
@@ -680,6 +681,19 @@ impl super::LoginDialog {
         &self.window
     }
 
+    /// Écran de connexion affiché juste après l'initialisation : pré-remplit l'identifiant
+    /// du compte créé et confirme la création. À appeler avant `present()`.
+    pub fn show_account_created(&self, username: &str) {
+        if self.in_bootstrap_mode {
+            return;
+        }
+        self.widgets.username_entry.set_text(username);
+        feedback::show_success(
+            &self.widgets.error_label,
+            heelonvault_core::tr!("login-account-created").as_str(),
+        );
+    }
+
     /// Présente la fenêtre de dialogue et met le focus sur le champ approprié
     pub fn present(&self) {
         self.window.present();
@@ -688,9 +702,12 @@ impl super::LoginDialog {
         if self.in_bootstrap_mode {
             // Mode bootstrap : focus sur le champ init_username_entry
             self.widgets.init_username_entry.grab_focus();
-        } else {
+        } else if self.widgets.username_entry.text().is_empty() {
             // Mode login normal : focus sur le champ username_entry
             self.widgets.username_entry.grab_focus();
+        } else {
+            // Identifiant déjà connu (ex. compte tout juste créé) : aller au mot de passe
+            self.widgets.password_entry.grab_focus();
         }
     }
 }

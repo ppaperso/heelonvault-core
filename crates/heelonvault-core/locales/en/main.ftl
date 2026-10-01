@@ -21,6 +21,7 @@ login-language-fr = French
 login-language-en = English
 login-greeting-empty = Secure sign in
 login-greeting-hello = Hello, { $username }
+login-account-created = Account created, please sign in.
 login-error-username-required = Enter your identifier (username, display name or email) to continue.
 login-error-password-required = Enter your password before signing in.
 login-error-invalid-credentials = Invalid credentials. Please wait before trying again.

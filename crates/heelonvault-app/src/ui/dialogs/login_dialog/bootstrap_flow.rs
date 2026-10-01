@@ -9,8 +9,8 @@ use heelonvault_core::errors::AppError;
 use heelonvault_core::i18n::I18nArg;
 use heelonvault_core::services::admin_service::BootstrapResult;
 
+use super::feedback;
 use super::views::LoginDialogWidgets;
-use super::{AuthenticatedSession, feedback};
 
 type BootstrapCallback =
     Arc<dyn Fn(String, Vec<u8>) -> Result<BootstrapResult, AppError> + Send + Sync>;
@@ -118,8 +118,8 @@ pub(super) fn handle_init_oath_step(
     error_label: gtk4::Label,
     submit_button: gtk4::Button,
     submit_spinner: gtk4::Spinner,
-    authenticated: Rc<Cell<bool>>,
-    on_authenticated: Rc<dyn Fn(AuthenticatedSession)>,
+    completed: Rc<Cell<bool>>,
+    on_completed: Rc<dyn Fn(String)>,
 ) {
     // The phrase has been written down: it must not wait for its timer in the clipboard.
     crate::ui::sensitive_clipboard::clear_now();
@@ -149,22 +149,21 @@ pub(super) fn handle_init_oath_step(
     let spinner_result = init_pending_spinner.clone();
     let button_for_result = submit_button.clone();
     let spinner_for_result = submit_spinner.clone();
-    let authenticated_for_result = Rc::clone(&authenticated);
-    let on_authenticated_for_result = Rc::clone(&on_authenticated);
+    let completed_for_result = Rc::clone(&completed);
+    let on_completed_for_result = Rc::clone(&on_completed);
 
     glib::MainContext::default().spawn_local(async move {
         match result_receiver.await {
             Ok(Ok(bootstrap_result)) => {
                 spinner_result.stop();
-                authenticated_for_result.set(true);
-                let identity_label = bootstrap_result.username.clone();
-                on_authenticated_for_result(AuthenticatedSession {
-                    user_id: bootstrap_result.user_id,
-                    username: bootstrap_result.username,
-                    identity_label,
-                    master_key: bootstrap_result.master_key,
-                });
+                // No implicit session after the first-run setup: the user signs in through
+                // the regular login screen. Dropping the result zeroizes the account key.
+                let username = bootstrap_result.username.clone();
+                drop(bootstrap_result);
+                // Set before close() so close_request does not treat it as a cancellation.
+                completed_for_result.set(true);
                 dialog_for_result.close();
+                on_completed_for_result(username);
             }
             Ok(Err(error)) => {
                 spinner_result.stop();
@@ -205,15 +204,15 @@ pub(super) fn handle_init_oath_step(
 /// * `gen_key_fn` - Fonction pour générer la clé de récupération (optionnelle)
 /// * `do_bootstrap_fn` - Fonction pour exécuter le bootstrap
 /// * `window` - Fenêtre de la dialogue
-/// * `authenticated` - Cellule indiquant si l'authentification a réussi
-/// * `on_authenticated` - Callback appelé après authentification réussie
+/// * `completed` - Cellule partagée avec `close_request`, positionnée quand le bootstrap a réussi
+/// * `on_completed` - Callback appelé après création du compte (retour à l'écran de connexion, nom d'utilisateur créé en argument)
 pub(super) fn setup_bootstrap_submit_handler(
     widgets: &LoginDialogWidgets,
     gen_key_fn: Option<Arc<dyn Fn() -> Result<String, AppError> + Send + Sync>>,
     do_bootstrap_fn: Option<BootstrapCallback>,
     window: &gtk4::Window,
-    authenticated: Rc<Cell<bool>>,
-    on_authenticated: Rc<dyn Fn(AuthenticatedSession)>,
+    completed: Rc<Cell<bool>>,
+    on_completed: Rc<dyn Fn(String)>,
 ) {
     // État partagé pour les mots de la phrase de récupération
     let init_oath_words: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
@@ -238,8 +237,8 @@ pub(super) fn setup_bootstrap_submit_handler(
     let gen_key_fn_for_handler = gen_key_fn.clone();
     let do_bootstrap_fn_for_handler = do_bootstrap_fn.clone();
     let window_for_handler = window.clone();
-    let authenticated_for_handler = Rc::clone(&authenticated);
-    let on_authenticated_for_handler = Rc::clone(&on_authenticated);
+    let completed_for_handler = Rc::clone(&completed);
+    let on_completed_for_handler = Rc::clone(&on_completed);
     let init_oath_words_for_handler = Rc::clone(&init_oath_words);
     let init_verify_indices_for_handler = Rc::clone(&init_verify_indices);
 
@@ -286,8 +285,8 @@ pub(super) fn setup_bootstrap_submit_handler(
                     error_label.clone(),
                     submit_button.clone(),
                     submit_spinner.clone(),
-                    Rc::clone(&authenticated_for_handler),
-                    Rc::clone(&on_authenticated_for_handler),
+                    Rc::clone(&completed_for_handler),
+                    Rc::clone(&on_completed_for_handler),
                 );
             }
             "init-pending" => {
