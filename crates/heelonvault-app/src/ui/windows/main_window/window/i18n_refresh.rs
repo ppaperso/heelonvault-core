@@ -79,6 +79,12 @@ pub fn build_refresh(
         center.sort_risk_button.set_tooltip_text(Some(
             heelonvault_core::tr!("main-sort-risk-tooltip").as_str(),
         ));
+        center.view_grid_button.set_tooltip_text(Some(
+            heelonvault_core::tr!("main-view-grid-tooltip").as_str(),
+        ));
+        center.view_list_button.set_tooltip_text(Some(
+            heelonvault_core::tr!("main-view-list-tooltip").as_str(),
+        ));
         center
             .filtered_status_page
             .set_title(heelonvault_core::tr!("main-filtered-empty-title").as_str());

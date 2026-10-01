@@ -24,7 +24,11 @@ use tokio::runtime::Handle;
 use tracing::{info, warn};
 use uuid::Uuid;
 
+use crate::ui::view_preferences::SecretViewMode;
 use crate::ui::windows::main_window::{AuditFilter, SecretCategoryFilter, SecretSortMode};
+
+/// Highlight class of the active status-row toggle (sort and layout buttons).
+const SORT_BUTTON_ACTIVE_CLASS: &str = "vault-secret-sort-button-active";
 
 /// Setup the window close request handler
 ///
@@ -457,15 +461,58 @@ pub fn update_sort_button_states(
     use crate::ui::windows::main_window::SecretSortMode;
 
     // Remove active class from all buttons first
-    recent_button.remove_css_class("sort-active");
-    title_button.remove_css_class("sort-active");
-    risk_button.remove_css_class("sort-active");
+    recent_button.remove_css_class(SORT_BUTTON_ACTIVE_CLASS);
+    title_button.remove_css_class(SORT_BUTTON_ACTIVE_CLASS);
+    risk_button.remove_css_class(SORT_BUTTON_ACTIVE_CLASS);
 
     // Add active class to the selected button
     match selected {
-        SecretSortMode::Recent => recent_button.add_css_class("sort-active"),
-        SecretSortMode::Title => title_button.add_css_class("sort-active"),
-        SecretSortMode::Risk => risk_button.add_css_class("sort-active"),
+        SecretSortMode::Recent => recent_button.add_css_class(SORT_BUTTON_ACTIVE_CLASS),
+        SecretSortMode::Title => title_button.add_css_class(SORT_BUTTON_ACTIVE_CLASS),
+        SecretSortMode::Risk => risk_button.add_css_class(SORT_BUTTON_ACTIVE_CLASS),
+    }
+}
+
+/// Wire the grid / list toggle: switch the flow layout, remember the choice, and rebuild
+/// the secret widgets in the new layout through the regular list refresh.
+pub fn setup_view_mode_handlers(
+    view_grid_button: &gtk4::Button,
+    view_list_button: &gtk4::Button,
+    secret_flow: gtk4::FlowBox,
+    filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
+    refresh_secrets: Rc<dyn Fn()>,
+) {
+    let switch_to: Rc<dyn Fn(SecretViewMode)> = {
+        let grid_button = view_grid_button.clone();
+        let list_button = view_list_button.clone();
+        Rc::new(move |mode: SecretViewMode| {
+            if filter_runtime.view_mode.get() == mode {
+                return;
+            }
+            filter_runtime.view_mode.set(mode);
+            update_view_button_states(&grid_button, &list_button, mode);
+            crate::ui::windows::main_window::center::apply_view_mode_to_flow(&secret_flow, mode);
+            crate::ui::view_preferences::persist_secret_view_mode(mode);
+            refresh_secrets();
+        })
+    };
+
+    let switch_for_grid = Rc::clone(&switch_to);
+    view_grid_button.connect_clicked(move |_| switch_for_grid(SecretViewMode::Grid));
+    view_list_button.connect_clicked(move |_| switch_to(SecretViewMode::List));
+}
+
+/// Highlight the button of the active secret layout.
+pub fn update_view_button_states(
+    grid_button: &gtk4::Button,
+    list_button: &gtk4::Button,
+    selected: SecretViewMode,
+) {
+    grid_button.remove_css_class(SORT_BUTTON_ACTIVE_CLASS);
+    list_button.remove_css_class(SORT_BUTTON_ACTIVE_CLASS);
+    match selected {
+        SecretViewMode::Grid => grid_button.add_css_class(SORT_BUTTON_ACTIVE_CLASS),
+        SecretViewMode::List => list_button.add_css_class(SORT_BUTTON_ACTIVE_CLASS),
     }
 }
 

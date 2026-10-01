@@ -138,7 +138,8 @@ where
     let (user_identity_box, admin_badge, add_button, trash_button) =
         views::build_user_identity_box(&profile_button, is_admin);
 
-    let center_panel = center::build_center_panel();
+    let view_mode = crate::ui::view_preferences::load_secret_view_mode();
+    let center_panel = center::build_center_panel(view_mode);
     let sidebar_panel = sidebar::build_sidebar_panel();
 
     let filter_runtime = FilterRuntime {
@@ -148,6 +149,7 @@ where
         selected_category: Rc::new(Cell::new(SecretCategoryFilter::All)),
         selected_audit: Rc::new(Cell::new(AuditFilter::All)),
         selected_sort: Rc::new(Cell::new(SecretSortMode::Recent)),
+        view_mode: Rc::new(Cell::new(view_mode)),
         audit_all_count_label: sidebar_panel.audit_all_badge.clone(),
         audit_weak_count_label: sidebar_panel.audit_weak_badge.clone(),
         audit_duplicate_count_label: sidebar_panel.audit_duplicate_badge.clone(),
@@ -314,6 +316,14 @@ where
         &center_panel.sort_risk_button,
         center_panel.secret_flow.clone(),
         filter_runtime.clone(),
+    );
+
+    events::setup_view_mode_handlers(
+        &center_panel.view_grid_button,
+        &center_panel.view_list_button,
+        center_panel.secret_flow.clone(),
+        filter_runtime.clone(),
+        Rc::clone(&refresh_secrets),
     );
 
     events::setup_search_entry_handlers(
@@ -489,6 +499,11 @@ where
     *i18n_refresh_holder.borrow_mut() = Some(Rc::clone(&refresh_i18n));
     refresh_i18n();
 
+    events::update_view_button_states(
+        &center_panel.view_grid_button,
+        &center_panel.view_list_button,
+        view_mode,
+    );
     events::update_sort_button_states(
         &center_panel.sort_recent_button,
         &center_panel.sort_title_button,

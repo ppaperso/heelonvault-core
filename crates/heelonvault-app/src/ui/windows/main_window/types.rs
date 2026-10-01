@@ -6,6 +6,7 @@ use libadwaita as adw;
 use uuid::Uuid;
 
 use super::{AuditFilter, SecretCategoryFilter, SecretKind, SecretSortMode};
+use crate::ui::view_preferences::SecretViewMode;
 
 #[derive(Clone)]
 pub(super) struct SecretQuickActions {
@@ -43,6 +44,8 @@ pub(super) struct FilterRuntime {
     pub(super) selected_category: Rc<Cell<SecretCategoryFilter>>,
     pub(super) selected_audit: Rc<Cell<AuditFilter>>,
     pub(super) selected_sort: Rc<Cell<SecretSortMode>>,
+    /// Card grid or compact list; read when the secret widgets are (re)built.
+    pub(super) view_mode: Rc<Cell<SecretViewMode>>,
     pub(super) audit_all_count_label: gtk4::Label,
     pub(super) audit_weak_count_label: gtk4::Label,
     pub(super) audit_duplicate_count_label: gtk4::Label,

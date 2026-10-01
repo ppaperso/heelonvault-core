@@ -446,7 +446,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         vault_name: item.vault_name.clone(),
                     };
 
-                    let card = Rc::new(SecretCard::new(card_data));
+                    let card = Rc::new(SecretCard::new(card_data, filter_runtime.view_mode.get()));
                     let copy_button = card.get_copy_button();
                     let copy_login_button = card.get_copy_login_button();
                     let open_url_button = card.get_open_url_button();
