@@ -492,6 +492,8 @@ where
             return;
         };
         let master_key = SecretBox::new(Box::new(master_key));
+        // Shown by the header indicator until the value is in the clipboard (or the copy fails).
+        let decrypting = sensitive_clipboard::begin_decrypting();
 
         let secret_service = Arc::clone(&self.secret_service);
         let vault_service = Arc::clone(&self.vault_service);
@@ -517,11 +519,13 @@ where
                     .is_ok_and(|text| {
                         sensitive_clipboard::copy_sensitive(
                             text,
+                            sensitive_clipboard::SensitiveKind::Password,
                             sensitive_clipboard::SECRET_CLEAR_DELAY,
                         )
                     }),
                 Ok(Err(_)) | Err(_) => false,
             };
+            drop(decrypting);
             let message = if copied {
                 messages::toast_password_copied(sensitive_clipboard::SECRET_CLEAR_DELAY)
             } else {
@@ -765,6 +769,7 @@ fn render_secret_rows<TSecret, TVault>(
             copy_login_btn.connect_clicked(move |_| {
                 sensitive_clipboard::copy_sensitive(
                     &login_value,
+                    sensitive_clipboard::SensitiveKind::Login,
                     sensitive_clipboard::SECRET_CLEAR_DELAY,
                 );
                 toast_overlay_for_login.add_toast(adw::Toast::new(
@@ -821,6 +826,7 @@ fn render_secret_rows<TSecret, TVault>(
                 let copied_login = !login_value_for_url.trim().is_empty()
                     && sensitive_clipboard::copy_sensitive(
                         &login_value_for_url,
+                        sensitive_clipboard::SensitiveKind::Login,
                         sensitive_clipboard::SECRET_CLEAR_DELAY,
                     );
 

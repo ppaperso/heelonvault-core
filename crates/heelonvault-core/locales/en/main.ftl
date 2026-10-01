@@ -454,6 +454,12 @@ main-list-unavailable-description = Unable to load secrets right now. Please try
 main-panic-tooltip = Emergency shutdown - Wipes sensitive data and closes the application
 main-panic-label = Emergency
 main-help-tooltip = Online documentation
+clipboard-indicator-idle = No secret exposed by HeelonVault
+clipboard-indicator-decrypting = Decrypting a secret for copy…
+clipboard-indicator-password = Password in the clipboard — cleared in { $seconds } s
+clipboard-indicator-login = Login in the clipboard — cleared in { $seconds } s
+clipboard-indicator-recovery = Recovery phrase in the clipboard — cleared in { $seconds } s
+clipboard-indicator-clear-hint = Click to clear it now.
 main-panic-title = Emergency shutdown
 main-panic-body = Sensitive structures (keys, SecretBox) will be released by the operating system when the process terminates.
 

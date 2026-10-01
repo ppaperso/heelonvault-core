@@ -454,6 +454,12 @@ main-list-unavailable-description = Impossible de charger les secrets pour le mo
 main-panic-tooltip = Fermeture d'urgence - Efface les donnees sensibles et ferme l'application
 main-panic-label = Urgence
 main-help-tooltip = Documentation en ligne
+clipboard-indicator-idle = Aucun secret exposé par HeelonVault
+clipboard-indicator-decrypting = Déchiffrement d'un secret pour la copie…
+clipboard-indicator-password = Mot de passe dans le presse-papiers — effacé dans { $seconds } s
+clipboard-indicator-login = Identifiant dans le presse-papiers — effacé dans { $seconds } s
+clipboard-indicator-recovery = Phrase de récupération dans le presse-papiers — effacée dans { $seconds } s
+clipboard-indicator-clear-hint = Cliquer pour l'effacer maintenant.
 main-panic-title = Fermeture d'urgence
 main-panic-body = Les structures sensibles (cles, SecretBox) seront liberees par le systeme d'exploitation lors de la terminaison du processus.
 

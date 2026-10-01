@@ -1483,6 +1483,7 @@ pub fn setup_bootstrap_gates(widgets: &LoginDialogWidgets) {
 
             crate::ui::sensitive_clipboard::copy_sensitive(
                 &phrase,
+                crate::ui::sensitive_clipboard::SensitiveKind::RecoveryPhrase,
                 crate::ui::sensitive_clipboard::RECOVERY_PHRASE_CLEAR_DELAY,
             );
         });

@@ -32,6 +32,7 @@ use heelonvault_premium::services::license_service::LicenseService;
 use super::{editor, events, i18n_refresh, navigation, pin_badge, refresh, vault_list, views};
 use crate::constants::DOCS_URL;
 use crate::ui::dialogs::add_edit_dialog::DialogMode;
+use crate::ui::widgets::clipboard_indicator::ClipboardIndicator;
 use crate::ui::windows::main_window::types::FilterRuntime;
 use crate::ui::windows::main_window::{
     AuditFilter, SecretCategoryFilter, SecretKind, SecretSortMode, center, search_filter, shell,
@@ -131,6 +132,7 @@ where
         help_button,
     ) = views::build_header_bar(&license_badge_text);
     let (root, toast_overlay) = views::build_root_container();
+    let clipboard_indicator = ClipboardIndicator::new();
     let (profile_button, profile_popover, profile_title, login_history_list) =
         views::build_profile_button(&connected_identity_label);
     let (header_pin_btn, header_pin_label) = views::build_pin_status_badge();
@@ -501,6 +503,7 @@ where
             panic_button: panic_button.clone(),
             panic_label,
             help_button: help_button.clone(),
+            clipboard_indicator: clipboard_indicator.clone(),
             profile_container,
             editor_host,
         },
@@ -533,6 +536,7 @@ where
     header_bar.pack_end(&user_identity_box);
     header_bar.pack_end(&panic_button);
     header_bar.pack_end(&help_button);
+    header_bar.pack_end(clipboard_indicator.widget());
     header_bar.set_title_widget(Some(&title_box));
 
     // Connect help button to open documentation URL

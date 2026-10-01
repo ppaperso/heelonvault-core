@@ -17,6 +17,11 @@
 //!   for history managers that honour either.
 //! - When a HeelonVault window has focus, the clipboard is also emptied for good.
 //!
+//! Whatever HeelonVault exposes this way is published as an [`Exposure`] to subscribers (the
+//! header indicator): a copy being decrypted, then the sensitive value served by the clipboard
+//! until it expires, is cleared, or is replaced by another application's copy. Nothing else is
+//! claimed — the master key of an open session or OS clipboard history are out of its reach.
+//!
 //! All functions run on the GTK main thread.
 
 use std::cell::RefCell;
@@ -25,7 +30,6 @@ use std::future::Future;
 #[cfg(not(windows))]
 use std::pin::Pin;
 use std::time::Duration;
-#[cfg(not(windows))]
 use std::time::Instant;
 
 use gtk4::gdk;
@@ -54,6 +58,50 @@ const TEXT_MIME_TYPES: [&str; 2] = ["text/plain;charset=utf-8", "text/plain"];
 #[cfg(any(test, not(windows)))]
 fn serves_secret(since_copy: Duration, expired: bool) -> bool {
     !expired && since_copy >= SNAPSHOT_WINDOW
+}
+
+/// What kind of value a sensitive copy holds (shown by the header indicator).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SensitiveKind {
+    Password,
+    Login,
+    RecoveryPhrase,
+}
+
+/// What HeelonVault itself currently exposes through the clipboard.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Exposure {
+    /// No sensitive value is being decrypted for a copy nor served by the clipboard.
+    Idle,
+    /// A secret is being decrypted on demand for a copy (a few milliseconds).
+    Decrypting,
+    /// A sensitive value is served by the clipboard until `expires_at`.
+    InClipboard {
+        kind: SensitiveKind,
+        copied_at: Instant,
+        expires_at: Instant,
+    },
+}
+
+/// A copy currently served by the clipboard.
+#[derive(Clone, Copy, Debug)]
+struct ActiveCopy {
+    kind: SensitiveKind,
+    copied_at: Instant,
+    expires_at: Instant,
+}
+
+/// The clipboard copy wins over a decryption in flight: it is the longer-lived exposure.
+fn exposure_of(active: Option<ActiveCopy>, decrypting: u32) -> Exposure {
+    match active {
+        Some(copy) => Exposure::InClipboard {
+            kind: copy.kind,
+            copied_at: copy.copied_at,
+            expires_at: copy.expires_at,
+        },
+        None if decrypting > 0 => Exposure::Decrypting,
+        None => Exposure::Idle,
+    }
 }
 
 /// Which copy the clipboard may still hold. Kept free of GTK so the policy is unit-tested.
@@ -245,10 +293,107 @@ struct State {
     ledger: Ledger,
     timer: Option<glib::SourceId>,
     content: Option<gdk::ContentProvider>,
+    active: Option<ActiveCopy>,
+    decrypting: u32,
+    /// `changed` handler on the display clipboard, connected once on first copy.
+    watching_clipboard: bool,
 }
+
+/// Called with every new [`Exposure`]; returning `Break` unsubscribes.
+type ExposureListener = Box<dyn Fn(Exposure) -> glib::ControlFlow>;
 
 thread_local! {
     static STATE: RefCell<State> = RefCell::new(State::default());
+    static LISTENERS: RefCell<Vec<ExposureListener>> = const { RefCell::new(Vec::new()) };
+}
+
+/// What HeelonVault exposes right now.
+pub fn current_exposure() -> Exposure {
+    STATE.with(|cell| {
+        let state = cell.borrow();
+        exposure_of(state.active, state.decrypting)
+    })
+}
+
+/// Subscribe to exposure changes. `listener` is called at once with the current exposure,
+/// then on every change, until it returns `Break` (e.g. its widget is gone).
+pub fn subscribe(listener: impl Fn(Exposure) -> glib::ControlFlow + 'static) {
+    if listener(current_exposure()).is_break() {
+        return;
+    }
+    LISTENERS.with(|cell| cell.borrow_mut().push(Box::new(listener)));
+}
+
+/// Publish the current exposure. Must be called with `STATE` released: listeners may call back
+/// into this module (e.g. `clear_now`), and may subscribe while being notified.
+fn notify() {
+    let exposure = current_exposure();
+    let mut listeners = LISTENERS.with(|cell| std::mem::take(&mut *cell.borrow_mut()));
+    listeners.retain(|listener| listener(exposure).is_continue());
+    LISTENERS.with(|cell| {
+        let mut current = cell.borrow_mut();
+        // Keep subscriptions made during the notification, after the existing ones.
+        listeners.append(&mut current);
+        *current = listeners;
+    });
+}
+
+/// Marks a secret as being decrypted for a copy until dropped (see [`begin_decrypting`]).
+#[must_use = "the decryption is reported as running until the guard is dropped"]
+pub struct DecryptingGuard {
+    _private: (),
+}
+
+/// Report that a secret is being decrypted on demand for a copy.
+pub fn begin_decrypting() -> DecryptingGuard {
+    STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        state.decrypting = state.decrypting.saturating_add(1);
+    });
+    notify();
+    DecryptingGuard { _private: () }
+}
+
+impl Drop for DecryptingGuard {
+    fn drop(&mut self) {
+        STATE.with(|cell| {
+            let mut state = cell.borrow_mut();
+            state.decrypting = state.decrypting.saturating_sub(1);
+        });
+        notify();
+    }
+}
+
+/// Another application replaced the clipboard: our value cannot be pasted anymore, so wipe it
+/// now instead of at expiry, and leave the new content alone.
+fn watch_clipboard(clipboard: &gdk::Clipboard) {
+    let already_watching = STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        std::mem::replace(&mut state.watching_clipboard, true)
+    });
+    if already_watching {
+        return;
+    }
+    clipboard.connect_changed(|clipboard| {
+        if clipboard.is_local() {
+            return;
+        }
+        let released = STATE.with(|cell| {
+            let mut state = cell.borrow_mut();
+            if state.active.is_none() {
+                return false;
+            }
+            cancel_timer(&mut state);
+            expire_content(&mut state);
+            state.active = None;
+            // Not ours anymore: never wipe it (lock, logout and exit included).
+            state.ledger.take_pending(false);
+            true
+        });
+        if released {
+            notify();
+        }
+    });
 }
 
 fn system_clipboard() -> Option<gdk::Clipboard> {
@@ -294,7 +439,7 @@ fn wipe_owned_clipboard(clipboard: &gdk::Clipboard) {
 
 /// Puts `text` in the clipboard and schedules its expiry. Returns `false` when nothing was
 /// copied.
-pub fn copy_sensitive(text: &str, clear_after: Duration) -> bool {
+pub fn copy_sensitive(text: &str, kind: SensitiveKind, clear_after: Duration) -> bool {
     let Some(clipboard) = system_clipboard() else {
         return false;
     };
@@ -303,12 +448,19 @@ pub fn copy_sensitive(text: &str, clear_after: Duration) -> bool {
         expire_provider(&content);
         return false;
     }
+    watch_clipboard(&clipboard);
 
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
         cancel_timer(&mut state);
         expire_content(&mut state);
         state.content = Some(content);
+        let copied_at = Instant::now();
+        state.active = Some(ActiveCopy {
+            kind,
+            copied_at,
+            expires_at: copied_at + clear_after,
+        });
         let generation = state.ledger.record_copy();
         state.timer = Some(glib::timeout_add_local_once(clear_after, move || {
             STATE.with(|cell| {
@@ -317,14 +469,17 @@ pub fn copy_sensitive(text: &str, clear_after: Duration) -> bool {
                 // never removed a second time.
                 state.timer = None;
                 expire_content(&mut state);
+                state.active = None;
                 if let Some(clipboard) = system_clipboard()
                     && state.ledger.expire(generation, clipboard.is_local())
                 {
                     wipe_owned_clipboard(&clipboard);
                 }
             });
+            notify();
         }));
     });
+    notify();
     true
 }
 
@@ -335,19 +490,47 @@ pub fn clear_now() {
         let mut state = cell.borrow_mut();
         cancel_timer(&mut state);
         expire_content(&mut state);
+        state.active = None;
         if let Some(clipboard) = system_clipboard()
             && state.ledger.take_pending(clipboard.is_local())
         {
             wipe_owned_clipboard(&clipboard);
         }
     });
+    notify();
 }
 
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
 
-    use super::{Ledger, SNAPSHOT_WINDOW, serves_secret};
+    use std::time::Instant;
+
+    use super::{
+        ActiveCopy, Exposure, Ledger, SNAPSHOT_WINDOW, SensitiveKind, exposure_of, serves_secret,
+    };
+
+    #[test]
+    fn exposure_reports_the_clipboard_copy_first() {
+        let copied_at = Instant::now();
+        let expires_at = copied_at + Duration::from_secs(20);
+        let copy = ActiveCopy {
+            kind: SensitiveKind::Login,
+            copied_at,
+            expires_at,
+        };
+
+        assert_eq!(exposure_of(None, 0), Exposure::Idle);
+        assert_eq!(exposure_of(None, 1), Exposure::Decrypting);
+        assert_eq!(
+            exposure_of(Some(copy), 1),
+            Exposure::InClipboard {
+                kind: SensitiveKind::Login,
+                copied_at,
+                expires_at,
+            }
+        );
+    }
 
     #[test]
     fn the_compositor_snapshot_never_receives_the_secret() {
