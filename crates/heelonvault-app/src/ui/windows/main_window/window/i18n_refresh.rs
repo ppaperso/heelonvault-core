@@ -21,6 +21,7 @@ pub struct I18nTargets {
     pub trash_button: gtk4::Button,
     pub panic_button: gtk4::Button,
     pub panic_label: gtk4::Label,
+    pub help_button: gtk4::Button,
     pub profile_container: gtk4::ScrolledWindow,
     pub editor_host: gtk4::Box,
 }
@@ -52,6 +53,9 @@ pub fn build_refresh(
         targets
             .panic_label
             .set_text(heelonvault_core::tr!("main-panic-label").as_str());
+        targets
+            .help_button
+            .set_tooltip_text(Some(heelonvault_core::tr!("main-help-tooltip").as_str()));
 
         let center = &targets.center_panel;
         center.status_total_chip.set_tooltip_text(Some(

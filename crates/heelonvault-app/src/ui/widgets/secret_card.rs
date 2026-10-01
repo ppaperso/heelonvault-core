@@ -32,6 +32,32 @@ fn build_action_button(icon_candidates: &[&str], fallback_glyph: &str, tooltip: 
     button
 }
 
+/// One "icon + text" line of the card info box (login or domain).
+fn build_info_row(icon_name: &str, text: &str, label_class: &str) -> gtk4::Box {
+    let row = gtk4::Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(8)
+        .build();
+
+    let icon = gtk4::Image::from_icon_name(icon_name);
+    icon.add_css_class("secret-card-info-icon");
+    icon.set_pixel_size(16);
+    icon.set_valign(Align::Center);
+    row.append(&icon);
+
+    let label = Label::new(Some(text));
+    label.set_halign(Align::Start);
+    label.set_hexpand(true);
+    label.set_ellipsize(EllipsizeMode::End);
+    label.set_single_line_mode(true);
+    label.set_valign(Align::Center);
+    label.add_css_class("secret-card-info-label");
+    label.add_css_class(label_class);
+    row.append(&label);
+
+    row
+}
+
 /// Represents a secret for display purposes
 // Phase 5a migration: several fields are written but not yet read (UI wiring incomplete).
 // Owner: ppaadmin | Due: Phase 5b | Tracked: Open Core Phase 5b milestone
@@ -127,67 +153,25 @@ impl SecretCard {
             stripped.split('/').next().unwrap_or("").to_string()
         };
 
-        // Create a vertical box for login and domain on separate lines
         let info_box = gtk4::Box::builder()
             .orientation(Orientation::Vertical)
             .spacing(2)
             .build();
         info_box.add_css_class("secret-card-info-box");
 
-        // Login line with user icon
         if !data.login.is_empty() {
-            let login_row = gtk4::Box::builder()
-                .orientation(Orientation::Horizontal)
-                .spacing(8)
-                .build();
-
-            // User icon for login with proper sizing and alignment
-            let login_icon = gtk4::Image::from_icon_name("avatar-default-symbolic");
-            login_icon.add_css_class("secret-card-info-icon");
-            login_icon.set_pixel_size(16);
-            login_icon.set_valign(Align::Center);
-            login_icon.set_halign(Align::Start);
-            login_row.append(&login_icon);
-
-            let login_label = Label::new(Some(&data.login));
-            login_label.set_halign(Align::Start);
-            login_label.set_hexpand(true);
-            login_label.set_ellipsize(EllipsizeMode::End);
-            login_label.set_single_line_mode(true);
-            login_label.set_valign(Align::Center);
-            login_label.add_css_class("secret-card-info-strip");
-            login_label.add_css_class("secret-card-login");
-            login_row.append(&login_label);
-
-            info_box.append(&login_row);
+            info_box.append(&build_info_row(
+                "avatar-default-symbolic",
+                &data.login,
+                "secret-card-login",
+            ));
         }
-
-        // Domain line with globe icon
         if !domain.is_empty() {
-            let domain_row = gtk4::Box::builder()
-                .orientation(Orientation::Horizontal)
-                .spacing(8)
-                .build();
-
-            // Globe icon for domain with proper sizing and alignment
-            let domain_icon = gtk4::Image::from_icon_name("applications-internet-symbolic");
-            domain_icon.add_css_class("secret-card-info-icon");
-            domain_icon.set_pixel_size(16);
-            domain_icon.set_valign(Align::Center);
-            domain_icon.set_halign(Align::Start);
-            domain_row.append(&domain_icon);
-
-            let domain_label = Label::new(Some(&domain));
-            domain_label.set_halign(Align::Start);
-            domain_label.set_hexpand(true);
-            domain_label.set_ellipsize(EllipsizeMode::End);
-            domain_label.set_single_line_mode(true);
-            domain_label.set_valign(Align::Center);
-            domain_label.add_css_class("secret-card-info-strip");
-            domain_label.add_css_class("secret-card-domain");
-            domain_row.append(&domain_label);
-
-            info_box.append(&domain_row);
+            info_box.append(&build_info_row(
+                "applications-internet-symbolic",
+                &domain,
+                "secret-card-domain",
+            ));
         }
 
         info_box.set_visible(!data.login.is_empty() || !domain.is_empty());

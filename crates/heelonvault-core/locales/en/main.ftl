@@ -449,6 +449,7 @@ main-list-unavailable-title = List unavailable
 main-list-unavailable-description = Unable to load secrets right now. Please try again shortly.
 main-panic-tooltip = Emergency shutdown - Wipes sensitive data and closes the application
 main-panic-label = Emergency
+main-help-tooltip = Online documentation
 main-panic-title = Emergency shutdown
 main-panic-body = Sensitive structures (keys, SecretBox) will be released by the operating system when the process terminates.
 

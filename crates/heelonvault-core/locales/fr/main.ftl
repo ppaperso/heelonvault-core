@@ -449,6 +449,7 @@ main-list-unavailable-title = Liste indisponible
 main-list-unavailable-description = Impossible de charger les secrets pour le moment. Reessayez dans un instant.
 main-panic-tooltip = Fermeture d'urgence - Efface les donnees sensibles et ferme l'application
 main-panic-label = Urgence
+main-help-tooltip = Documentation en ligne
 main-panic-title = Fermeture d'urgence
 main-panic-body = Les structures sensibles (cles, SecretBox) seront liberees par le systeme d'exploitation lors de la terminaison du processus.
 

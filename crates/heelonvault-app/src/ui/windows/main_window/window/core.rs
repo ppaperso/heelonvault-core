@@ -479,6 +479,7 @@ where
             trash_button: trash_button.clone(),
             panic_button: panic_button.clone(),
             panic_label,
+            help_button: help_button.clone(),
             profile_container,
             editor_host,
         },
@@ -509,8 +510,9 @@ where
     header_bar.set_title_widget(Some(&title_box));
 
     // Connect help button to open documentation URL
-    help_button.connect_clicked(|_| {
-        gtk4::show_uri(None::<&gtk4::Window>, DOCS_URL, gtk4::gdk::CURRENT_TIME);
+    let window_for_help = window.clone();
+    help_button.connect_clicked(move |_| {
+        gtk4::show_uri(Some(&window_for_help), DOCS_URL, gtk4::gdk::CURRENT_TIME);
     });
 
     root.append(&header_bar);
