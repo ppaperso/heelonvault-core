@@ -135,6 +135,23 @@ Layered flow: `UI (gtk4/libadwaita) -> Services -> Repositories (SQLx) -> SQLite
 ### Session/runtime notes worth knowing before touching auth or window flows
 
 - Closing the main window and auto-lock both trigger a clean logout back to the login screen.
+- A successful first-run bootstrap does not open a session: the wizard closes and a regular
+  login dialog is presented (username pre-filled via `LoginDialog::show_account_created`).
+  The bootstrap and `close_request` must share the same completion flag, or closing the
+  wizard is treated as a cancellation and quits the app.
+- The secret list has two layouts (`SecretViewMode::Grid` / `List`, `ui/view_preferences.rs`)
+  on the *same* `secret_flow` FlowBox; `SecretCard::new(data, mode)` builds either variant.
+  Keep filter/sort/shortcut logic layout-agnostic — switching modes re-renders from the last
+  load (`SecretListCallbacks::rerender`), without database access.
+- Security invariant of the secret list: `SecretRowView` / `SecretRowData` never hold a secret
+  value. The loader derives only `has_secret` / `is_weak` / `is_duplicate` (fingerprints stay in
+  the loader thread); copying a password decrypts it on demand (`PasswordCopier` in
+  `secret_flow.rs`), re-opening the vault so access is re-checked. Don't reintroduce plaintext
+  into display data or closures.
+- Every clipboard copy of sensitive data goes through `sensitive_clipboard::copy_sensitive(text,
+  SensitiveKind, delay)`, which feeds the header exposure indicator; any new on-demand decryption
+  for a copy should hold a `begin_decrypting()` guard. Indicator wording must only claim what the
+  app controls (never "no secret in memory").
 - Master password rotation (`rotate_master_key_hardened`) rewraps owner/shared vault key
   envelopes and applies critical mutations atomically, with pre/post validation.
 - The main window uses a root `GtkStack` (not modal dialogs) to switch between

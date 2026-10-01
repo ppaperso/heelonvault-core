@@ -11,6 +11,30 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 > Note release: `v1.1.0` (et `v1.1.0-rc.1`) est figée. Les changements ci-dessous appartiennent au périmètre de `v1.2.0`.
 
+### Sécurité — plus aucun secret en clair conservé par l'interface
+
+- La liste des secrets ne garde plus les mots de passe déchiffrés en mémoire. Auparavant, chaque rafraîchissement déchiffrait tout le coffre et conservait les valeurs en clair (`String` jamais effacées) dans les données d'affichage et dans le handler de copie de chaque carte, pendant toute la session.
+- Au chargement, chaque valeur n'est déchiffrée que le temps de calculer la robustesse et une empreinte SHA-256 pour la détection des doublons, dans le thread de chargement ; le clair reste dans un `SecretBox` (effacé à la libération) et les empreintes ne quittent jamais ce thread. Seuls des booléens (`has_secret`, `is_weak`, `is_duplicate`) parviennent à l'interface.
+- **Copie à la demande** : copier un mot de passe (bouton ou `Ctrl+C`) rouvre le coffre (`open_vault_for_user`, donc revérification des droits : un partage révoqué n'est plus copiable), déchiffre ce seul secret, le copie puis l'efface. Le bouton est désactivé pendant l'opération (anti double-clic, y compris au clavier) ; un message s'affiche si la session est verrouillée ou si la copie échoue.
+- La copie de la clé maître transmise au chargement est désormais effacée (`Zeroizing`).
+- **Indicateur d'exposition du presse-papiers** dans la barre d'en-tête : icône de presse-papiers entourée d'un anneau ambré qui se consume pendant le délai d'effacement réel (20 s pour un mot de passe ou un login, 60 s pour la phrase de récupération). L'infobulle indique ce qui est exposé (mot de passe, identifiant, phrase de récupération) et le compte à rebours ; au repos : « Aucun secret exposé par HeelonVault ». Un clic efface le presse-papiers immédiatement. L'indicateur ne prétend jamais qu'aucun secret n'est en mémoire.
+- Si une autre application remplace le presse-papiers, la valeur sensible détenue par HeelonVault est effacée aussitôt au lieu d'attendre la fin du délai.
+- La bascule cartes/liste reconstruit les widgets depuis le dernier chargement (métadonnées uniquement) : plus de requête ni de déchiffrement, plus d'écran « Chargement ». Les compteurs d'utilisation incrémentés depuis le chargement sont conservés.
+
+### UX — affichage liste, premier lancement et aide en ligne
+
+- **Affichage en cartes ou en liste** : deux boutons dans la barre d'état de la liste basculent entre la grille de cartes et une liste compacte à colonnes alignées (type, titre, login, domaine, badges essentiels, actions rapides). Filtre, tri, recherche, compteurs et raccourcis clavier inchangés ; la bascule est instantanée (pas de rechargement). Le choix est persisté dans `ui_view_preferences.json` (préférence d'installation).
+- **Premier lancement** : après l'assistant d'initialisation, l'application revient à l'écran de connexion au lieu de se fermer ; l'identifiant créé y est pré-rempli et le message « Compte créé, connectez-vous. » s'affiche. Aucune session n'est ouverte implicitement : la clé de compte issue du bootstrap est effacée de la mémoire.
+- **Aide en ligne** : bouton « ? » dans la barre d'en-tête ouvrant https://doc.heelonvault.heelonys.fr (infobulle traduite FR/EN).
+- **Cartes de secrets** : login et domaine sur deux lignes avec icônes.
+
+### Correctifs
+
+- Bootstrap : la fermeture de l'assistant après une initialisation réussie était interprétée comme une annulation et quittait l'application (drapeau d'état non partagé avec le handler `close_request`).
+- Le bouton de tri actif est de nouveau mis en évidence (classe CSS `vault-secret-sort-button-active` jamais appliquée).
+- Cartes : le texte login/domaine n'est plus décalé de 4 px par rapport à son icône.
+- Cartes : en anglais, un mot de passe faible s'affichait avec le badge vert « robuste » (couleur déduite du libellé français). La robustesse est désormais un booléen, traduit uniquement à l'affichage ; badges « Santé », « Incomplet », « Partagé » et infobulles des actions rapides traduits FR/EN.
+
 ### Infrastructure — MSRV Rust 1.96 → 1.98
 
 - `rust-version` aligné à `1.98` sur les 4 membres du workspace (`heelonvault-core`, `heelonvault-app`, `sqlx-shim`, `heelonvault-premium`).

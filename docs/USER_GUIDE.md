@@ -74,7 +74,7 @@ Rôle de l'écran :
 2. Définir un mot de passe maître fort.
 3. **Générer et vérifier la clé de récupération de compte** (24 mots BIP39).
 4. Enregistrer la clé de récupération générée dans un lieu sûr.
-5. Finaliser l'initialisation pour ouvrir le coffre.
+5. Finaliser l'initialisation : l'assistant se ferme et l'écran de connexion s'affiche.
 
 À retenir :
 
@@ -97,6 +97,8 @@ Capture 01b - Assistant d'initialisation, étape 2 (clé de secours 24 mots).
 ## 3. Écran 2 - Connexion
 
 Après initialisation, l'écran de connexion permet de saisir les identifiants du compte et, si activé, le code TOTP à usage unique.
+
+Juste après la création du compte, l'écran de connexion affiche le message « Compte créé, connectez-vous. », l'identifiant est déjà renseigné et le curseur est placé dans le champ mot de passe : il suffit de saisir le mot de passe maître choisi à l'étape précédente.
 
 Rôle de l'écran :
 
@@ -123,7 +125,17 @@ Une fois connecté, l'utilisateur accède à la vue principale du coffre avec :
 - la liste des secrets ;
 - les fonctions de recherche et filtrage ;
 - les actions de création, modification, suppression et partage ;
-- l'accès au profil et à la sécurité.
+- l'accès au profil et à la sécurité ;
+- un bouton d'aide (icône « ? » dans la barre d'en-tête) qui ouvre la documentation en ligne dans le navigateur.
+
+### Affichage en cartes ou en liste
+
+Deux boutons, à droite des boutons de tri au-dessus de la liste, permettent de choisir la présentation des secrets :
+
+- **Affichage en cartes** (par défaut) : une grille de cartes détaillées, avec login, domaine, badges (robustesse, utilisation, doublon, incomplet, partagé, coffre) et actions rapides ;
+- **Affichage en liste** : une ligne compacte par secret, en colonnes alignées — type, titre, login, domaine, badges essentiels (robustesse, doublon, coffre d'origine en recherche multi-coffres) et actions rapides. Pratique pour parcourir rapidement un coffre volumineux.
+
+La recherche, les filtres, le tri, les raccourcis clavier et le double-clic pour modifier fonctionnent de la même façon dans les deux modes, et le changement de mode est instantané. Le choix est mémorisé pour les prochains lancements (préférence de l'installation, commune à tous les comptes du poste).
 
 Rôle de l'écran :
 
@@ -250,11 +262,25 @@ Le bouton `?` à droite de la barre affiche ce récapitulatif directement dans l
 
 ### Raccourcis clavier sur la carte active
 
-Quand une carte est sélectionnée, les actions rapides suivantes sont disponibles :
+Quand une carte (ou une ligne, en affichage liste) est sélectionnée, les actions rapides suivantes sont disponibles :
 
 - `Ctrl+C` : copier le mot de passe ;
 - `Ctrl+L` : copier le login (si présent) ;
 - `Ctrl+U` : ouvrir l'URL (si présente).
+
+### Indicateur du presse-papiers
+
+Dans la barre d'en-tête, une icône de presse-papiers indique ce que HeelonVault expose via le presse-papiers :
+
+- **au repos** (icône discrète) : « Aucun secret exposé par HeelonVault » ;
+- **après une copie** (icône ambrée) : un anneau se consume pendant le délai d'effacement — 20 s pour un mot de passe ou un identifiant, 60 s pour la phrase de récupération. L'infobulle précise ce qui est copié et le temps restant ;
+- **un clic** sur l'icône efface immédiatement le presse-papiers, par exemple juste après avoir collé votre mot de passe.
+
+Si vous copiez autre chose entre-temps, HeelonVault efface aussitôt sa copie et l'indicateur revient au repos.
+
+Ce que l'indicateur ne couvre pas : la clé du coffre ouvert reste en mémoire tant que la session est déverrouillée, et certains outils du système peuvent conserver un historique du presse-papiers (par exemple l'historique Windows, `Win+V`, s'il est activé). Désactivez cet historique sur un poste sensible.
+
+Pour votre sécurité, les mots de passe ne restent pas déchiffrés en mémoire pendant l'affichage de la liste : chaque copie déchiffre le mot de passe au moment du clic, après avoir revérifié vos droits sur le coffre, puis l'efface. Si un partage vous a été retiré entre-temps, ou si la session est verrouillée, un message l'indique et rien n'est copié.
 
 ### Bonnes pratiques
 

@@ -90,6 +90,8 @@ Le nouveau système permet :
 - La restauration de compte via la clé de récupération avec validation en deux étapes
 - La gestion des clés utilisateur avec rotation sécurisée
 
+Fin du bootstrap : une initialisation réussie n'ouvre **pas** de session. `bootstrap_flow.rs` efface la clé de compte (drop du `BootstrapResult`), positionne le drapeau partagé avec le handler `close_request` (sinon la fermeture serait traitée comme une annulation et quitterait l'application), ferme l'assistant puis appelle `on_bootstrap_completed(username)`. `main.rs` repasse alors en mode connexion et présente un `LoginDialog` normal, sur lequel `show_account_created()` pré-remplit l'identifiant et affiche la confirmation.
+
 ### Système de Récupération de Clé de Compte (Account Key Recovery)
 
 Le commit `7cc2556` introduit un système complet de récupération :
@@ -115,6 +117,36 @@ Conséquences:
 - la sidebar reste visible pendant les opérations de profil;
 - la création et l'édition de secrets se font dans le panneau central;
 - le badge profil n'ouvre plus un écran d'édition, mais un popover read-only avec l'historique récent des connexions.
+
+### Affichage des secrets : cartes ou liste
+
+`entries_view` repose sur un unique `GtkFlowBox` (`secret_flow`), quel que soit le mode d'affichage (`SecretViewMode::Grid` / `List`, défini dans `ui/view_preferences.rs`) :
+
+- `center::apply_view_mode_to_flow` règle le conteneur (grille multi-colonnes, ou une colonne pleine largeur + classe CSS `main-secret-list`) ;
+- `SecretCard::new(data, mode)` construit une carte ou une ligne compacte à partir des mêmes briques (titre, badges, actions), en conservant les mêmes boutons d'action ;
+- le mode courant vit dans `FilterRuntime::view_mode` ; la bascule (`events::setup_view_mode_handlers`) persiste le choix puis reconstruit les widgets depuis le dernier chargement (`SecretListCallbacks::rerender`), sans requête ni déchiffrement. Un rechargement complet n'a lieu que si rien n'a encore été chargé.
+
+Filtre, tri, recherche, compteurs et raccourcis clavier ne dépendent donc pas du mode. Le choix est persisté par installation dans `ui_view_preferences.json` (même répertoire que `ui_main_window_state.json`).
+
+### Liste des secrets : aucune valeur en clair dans l'interface
+
+`window/refresh.rs` construit un unique `SecretFlowContext` partagé par deux callbacks (`SecretListCallbacks`) : `reload` (base de données) et `rerender` (widgets seuls). `secret_flow.rs` est découpé en trois temps :
+
+1. **Chargement** (`refresh_secret_flow`, thread dédié) : pour chaque secret, `get_secret()` déchiffre la valeur, dont on ne dérive que `has_secret`, `is_weak` et une empreinte SHA-256 ; le clair reste dans le `SecretBox` du service (effacé au drop). `finalize_rows` marque les doublons puis abandonne les empreintes **dans le thread de chargement**. La copie de la clé maître transmise est un `Zeroizing<Vec<u8>>`.
+2. **Rendu** (`render_secret_rows`) : construit cartes ou lignes à partir de `LoadedSecrets` (métadonnées + compteurs d'utilisation vivants, `Rc<Cell<u32>>`), conservé dans le contexte pour `rerender`.
+3. **Copie à la demande** (`PasswordCopier::copy`) : instantané de la clé de session (refus si verrouillée), `open_vault_for_user` (revérifie les droits — un partage révoqué n'est plus copiable), `get_secret`, copie via `sensitive_clipboard`, puis effacement. Le bouton est désactivé et un drapeau `in_flight` bloque les ré-entrées (`Ctrl+C` émet `clicked` même sur un bouton insensible).
+
+Invariant : `SecretRowView` / `SecretRowData` ne contiennent **jamais** de valeur secrète. Le login et l'URL ne sont pas chiffrés (`metadata_json`) et restent donc copiables directement. Le surcoût par copie (quelques requêtes SQLite + un déchiffrement AES) est imperceptible.
+
+### Indicateur d'exposition du presse-papiers
+
+`ui/sensitive_clipboard.rs` publie un `Exposure` (`Idle`, `Decrypting`, `InClipboard { kind, copied_at, expires_at }`) à chaque changement : copie (`copy_sensitive(text, SensitiveKind, délai)`), expiration, `clear_now()`, remplacement du presse-papiers par une autre application (signal `changed` avec `is_local() == false` : la valeur est effacée tout de suite, sans toucher au nouveau contenu), et déchiffrement en cours (`begin_decrypting()` renvoie un garde RAII tenu par `PasswordCopier`).
+
+- `subscribe()` appelle l'abonné immédiatement puis à chaque changement, jusqu'à ce qu'il renvoie `ControlFlow::Break`. Les notifications sont émises **après** libération de l'état interne (un abonné peut rappeler `clear_now()`), et les abonnements créés pendant une notification sont conservés.
+- `ui/widgets/clipboard_indicator.rs` : bouton de la barre d'en-tête (icône + anneau dessiné en cairo dans un `DrawingArea`). Il ne détient que des références faibles, si bien que l'abonnement s'éteint avec la fenêtre principale recréée à chaque connexion. L'anneau n'est animé (tick callback) que pendant une exposition ; au repos il ne coûte rien. Un clic appelle `clear_now()`.
+- Les libellés ne revendiquent que ce que l'application maîtrise : jamais « aucun secret en mémoire ».
+
+Limite connue : `get_secret()` relit chaque secret en base alors que `list_by_vault()` vient de le charger (N+1 requêtes). La corriger demande une nouvelle méthode sur le trait public `SecretService` de `heelonvault-core` : reportée à un lot dédié.
 
 ## Session et sécurité runtime
 

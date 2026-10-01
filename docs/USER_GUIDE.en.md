@@ -74,7 +74,7 @@ General steps:
 2. Define a strong master password.
 3. **Generate and verify the account recovery key** (24-word BIP39 phrase).
 4. Save the generated recovery key in a secure location.
-5. Complete initialization and open the vault.
+5. Complete initialization: the wizard closes and the sign-in screen is displayed.
 
 Important notes:
 
@@ -97,6 +97,8 @@ Capture 01b - Bootstrap wizard, step 2 (24-word recovery key).
 ## 3. Screen 2 - Sign-in
 
 After initialization, the sign-in screen accepts account credentials and, when enabled, the one-time TOTP code.
+
+Right after the account is created, the sign-in screen shows "Account created, please sign in.", the username is already filled in and the cursor is placed in the password field: just type the master password chosen in the previous step.
 
 Screen role:
 
@@ -123,7 +125,17 @@ Once signed in, the user reaches the main vault view with:
 - the secrets list;
 - search and filtering functions;
 - create, edit, delete, and share actions;
-- profile and security access.
+- profile and security access;
+- a help button ("?" icon in the header bar) that opens the online documentation in the browser.
+
+### Card or list view
+
+Two buttons, to the right of the sort buttons above the list, choose how secrets are displayed:
+
+- **Card view** (default): a grid of detailed cards, with login, domain, badges (strength, usage, duplicate, incomplete, shared, vault) and quick actions;
+- **List view**: one compact row per secret, in aligned columns — type, title, login, domain, key badges (strength, duplicate, origin vault during cross-vault search) and quick actions. Handy for scanning a large vault quickly.
+
+Search, filters, sorting, keyboard shortcuts and double-click to edit work the same in both views, and switching is instant. The choice is remembered for future launches (installation-wide preference, shared by every account on the machine).
 
 Screen role:
 
@@ -250,11 +262,25 @@ The `?` button to the right of the search bar shows this reference directly in t
 
 ### Keyboard shortcuts on the active card
 
-When a card is selected, the following quick actions are available:
+When a card (or a row, in list view) is selected, the following quick actions are available:
 
 - `Ctrl+C`: copy password;
 - `Ctrl+L`: copy login (when present);
 - `Ctrl+U`: open URL (when present).
+
+### Clipboard indicator
+
+In the header bar, a clipboard icon shows what HeelonVault exposes through the clipboard:
+
+- **idle** (muted icon): "No secret exposed by HeelonVault";
+- **after a copy** (amber icon): a ring burns down over the clearing delay — 20 s for a password or login, 60 s for the recovery phrase. The tooltip says what was copied and the time left;
+- **clicking** the icon clears the clipboard at once, for instance right after pasting your password.
+
+If you copy something else in the meantime, HeelonVault wipes its copy at once and the indicator goes back to idle.
+
+What the indicator does not cover: the key of the open vault stays in memory while the session is unlocked, and some system tools may keep a clipboard history (for instance Windows clipboard history, `Win+V`, when enabled). Disable such history on a sensitive workstation.
+
+For your security, passwords are not kept decrypted in memory while the list is displayed: each copy decrypts the password at click time, after re-checking your access to the vault, then wipes it. If a share has been revoked in the meantime, or if the session is locked, a message says so and nothing is copied.
 
 ### Best practices
 
