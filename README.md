@@ -189,6 +189,13 @@ cargo test
 
 ---
 
+## 🌐 Documentation en ligne
+
+| Type | URL | Description |
+| ---- | --- | ----------- |
+| **Documentation officielle** | [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr) | Documentation complète (guides, API, tutoriels) |
+| **SBOM signés** | [sbom.heelonvault.heelonys.fr](https://sbom.heelonvault.heelonys.fr) | Inventaires CycloneDX vérifiés |
+
 ## Documentation
 
 | Fichier | Contenu |

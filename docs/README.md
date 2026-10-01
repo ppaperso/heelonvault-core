@@ -2,6 +2,13 @@
 
 Language: EN | FR
 
+## 🌐 Online Documentation
+
+| Resource | URL |
+|----------|-----|
+| **Official Documentation** | [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr) |
+| **CycloneDX SBOM** | [sbom.heelonvault.heelonys.fr](https://sbom.heelonvault.heelonys.fr) |
+
 This folder contains bilingual technical documentation for HeelonVault.
 
 ## Core Docs

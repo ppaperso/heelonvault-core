@@ -36,6 +36,7 @@ pub fn build_header_bar(
     gtk4::Label,
     gtk4::Label,
     gtk4::Widget,
+    gtk4::Button,
 ) {
     let header_bar = adw::HeaderBar::new();
     header_bar.add_css_class("main-headerbar");
@@ -74,6 +75,14 @@ pub fn build_header_bar(
 
     header_bar.set_title_widget(Some(&title_box));
 
+    // Help button for online documentation
+    let help_button = gtk4::Button::builder()
+        .icon_name("help-about-symbolic")
+        .tooltip_text("Documentation en ligne")
+        .build();
+    help_button.add_css_class("flat");
+    help_button.add_css_class("header-help-button");
+
     (
         header_bar,
         title_box,
@@ -81,6 +90,7 @@ pub fn build_header_bar(
         title_label,
         header_plan_badge,
         header_license_badge,
+        help_button,
     )
 }
 

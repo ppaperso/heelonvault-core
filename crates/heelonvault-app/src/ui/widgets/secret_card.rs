@@ -64,7 +64,7 @@ pub struct SecretRowData {
 ///
 /// Layout (top → bottom):
 ///   header_row : [title]
-///   info_strip : "login · domain"  (hidden when both are empty)
+///   info_box : [login] [domain] (each on its own line, hidden when both empty)
 ///   badges_box : health · usage · duplicate? · shared? · vault?
 ///   separator
 ///   actions_box: [🔑 copy_password] [👤 copy_login?] [🌐 open_url?]
@@ -115,7 +115,7 @@ impl SecretCard {
 
         header_row.append(&title_label);
 
-        // --- INFO STRIP : "login · domain" ---
+        // --- INFO BOX : login (line 1) + domain (line 2) ---
         // Extract domain from URL without an external crate: strip scheme, take up to first '/'.
         let domain: String = if data.url.is_empty() {
             String::new()
@@ -126,22 +126,71 @@ impl SecretCard {
                 .trim_start_matches("http://");
             stripped.split('/').next().unwrap_or("").to_string()
         };
-        let strip_text = match (data.login.is_empty(), domain.is_empty()) {
-            (false, false) => format!("{} · {}", data.login, domain),
-            (false, true) => data.login.clone(),
-            (true, false) => domain.clone(),
-            (true, true) => String::new(),
-        };
-        let info_strip = Label::new(Some(&strip_text));
-        info_strip.set_halign(Align::Start);
-        info_strip.set_hexpand(true);
-        info_strip.set_wrap(false);
-        info_strip.set_ellipsize(EllipsizeMode::End);
-        info_strip.set_single_line_mode(true);
-        // Reserve height even when hidden so layout stays stable across card sizes.
-        info_strip.set_size_request(-1, 20);
-        info_strip.set_visible(!strip_text.is_empty());
-        info_strip.add_css_class("secret-card-info-strip");
+
+        // Create a vertical box for login and domain on separate lines
+        let info_box = gtk4::Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(2)
+            .build();
+        info_box.add_css_class("secret-card-info-box");
+
+        // Login line with user icon
+        if !data.login.is_empty() {
+            let login_row = gtk4::Box::builder()
+                .orientation(Orientation::Horizontal)
+                .spacing(8)
+                .build();
+
+            // User icon for login with proper sizing and alignment
+            let login_icon = gtk4::Image::from_icon_name("avatar-default-symbolic");
+            login_icon.add_css_class("secret-card-info-icon");
+            login_icon.set_pixel_size(16);
+            login_icon.set_valign(Align::Center);
+            login_icon.set_halign(Align::Start);
+            login_row.append(&login_icon);
+
+            let login_label = Label::new(Some(&data.login));
+            login_label.set_halign(Align::Start);
+            login_label.set_hexpand(true);
+            login_label.set_ellipsize(EllipsizeMode::End);
+            login_label.set_single_line_mode(true);
+            login_label.set_valign(Align::Center);
+            login_label.add_css_class("secret-card-info-strip");
+            login_label.add_css_class("secret-card-login");
+            login_row.append(&login_label);
+
+            info_box.append(&login_row);
+        }
+
+        // Domain line with globe icon
+        if !domain.is_empty() {
+            let domain_row = gtk4::Box::builder()
+                .orientation(Orientation::Horizontal)
+                .spacing(8)
+                .build();
+
+            // Globe icon for domain with proper sizing and alignment
+            let domain_icon = gtk4::Image::from_icon_name("applications-internet-symbolic");
+            domain_icon.add_css_class("secret-card-info-icon");
+            domain_icon.set_pixel_size(16);
+            domain_icon.set_valign(Align::Center);
+            domain_icon.set_halign(Align::Start);
+            domain_row.append(&domain_icon);
+
+            let domain_label = Label::new(Some(&domain));
+            domain_label.set_halign(Align::Start);
+            domain_label.set_hexpand(true);
+            domain_label.set_ellipsize(EllipsizeMode::End);
+            domain_label.set_single_line_mode(true);
+            domain_label.set_valign(Align::Center);
+            domain_label.add_css_class("secret-card-info-strip");
+            domain_label.add_css_class("secret-card-domain");
+            domain_row.append(&domain_label);
+
+            info_box.append(&domain_row);
+        }
+
+        info_box.set_visible(!data.login.is_empty() || !domain.is_empty());
 
         // --- BADGES ROW ---
         let badges_box = gtk4::Box::builder()
@@ -269,7 +318,7 @@ impl SecretCard {
 
         // --- ASSEMBLE CARD ---
         card_box.append(&header_row);
-        card_box.append(&info_strip);
+        card_box.append(&info_box);
         card_box.append(&badges_box);
         card_box.append(&separator);
         card_box.append(&actions_box);
