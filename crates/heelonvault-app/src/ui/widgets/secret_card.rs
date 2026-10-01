@@ -88,6 +88,15 @@ fn extract_domain(url: &str) -> String {
         .to_string()
 }
 
+/// Translated label of the password strength badge (also indexed by the search).
+pub fn strength_label(is_weak: bool) -> String {
+    if is_weak {
+        heelonvault_core::tr!("main-strength-weak")
+    } else {
+        heelonvault_core::tr!("main-strength-strong")
+    }
+}
+
 /// Width, in characters, of the title / login / domain columns of the list layout.
 const LIST_TITLE_CHARS: i32 = 24;
 const LIST_INFO_CHARS: i32 = 22;
@@ -110,7 +119,8 @@ pub struct SecretRowData {
     pub secret_value: String,
     pub color_class: String,
     // Mock fields for badges (will be linked to DB later)
-    pub health: String, // "Robuste" or "Faible"
+    /// Password strength verdict; the badge label is translated at display time.
+    pub is_weak: bool,
     pub is_health_access: bool,
     pub usage_count: u32,   // Number of times copied
     pub is_duplicate: bool, // Whether password is reused
@@ -332,18 +342,20 @@ impl SecretCard {
         badges_box.add_css_class("secret-card-badges");
 
         // Health badge
-        let health_badge = Label::new(Some(&data.health));
+        let health_badge = Label::new(Some(strength_label(data.is_weak).as_str()));
         health_badge.set_single_line_mode(true);
         health_badge.add_css_class("secret-badge");
-        if data.health.to_lowercase().contains("faible") {
-            health_badge.add_css_class("badge-weak");
+        health_badge.add_css_class(if data.is_weak {
+            "badge-weak"
         } else {
-            health_badge.add_css_class("badge-strong");
-        }
+            "badge-strong"
+        });
         badges_box.append(&health_badge);
 
         if data.is_health_access && !compact {
-            let access_badge = Label::new(Some("Sante"));
+            let access_badge = Label::new(Some(
+                heelonvault_core::tr!("secret-card-health-badge").as_str(),
+            ));
             access_badge.set_single_line_mode(true);
             access_badge.add_css_class("secret-badge");
             access_badge.add_css_class("badge-health");
@@ -372,7 +384,9 @@ impl SecretCard {
 
         // Incomplete badge: guide users to fill both login and URL metadata.
         if data.is_incomplete && !compact {
-            let incomplete_badge = Label::new(Some("Incomplet"));
+            let incomplete_badge = Label::new(Some(
+                heelonvault_core::tr!("secret-card-incomplete-badge").as_str(),
+            ));
             incomplete_badge.set_single_line_mode(true);
             incomplete_badge.add_css_class("secret-badge");
             incomplete_badge.add_css_class("badge-incomplete");
@@ -380,7 +394,9 @@ impl SecretCard {
         }
 
         if data.is_shared_vault && !compact {
-            let shared_badge = Label::new(Some("Partagé"));
+            let shared_badge = Label::new(Some(
+                heelonvault_core::tr!("secret-card-shared-badge").as_str(),
+            ));
             shared_badge.set_single_line_mode(true);
             shared_badge.add_css_class("secret-badge");
             shared_badge.add_css_class("badge-usage");
@@ -417,7 +433,7 @@ impl SecretCard {
         let copy_button = build_action_button(
             &["edit-copy-symbolic", "document-duplicate-symbolic"],
             "⧉",
-            "Copier le mot de passe",
+            heelonvault_core::tr!("secret-card-copy-password-tooltip").as_str(),
         );
         copy_button.set_sensitive(!data.secret_value.is_empty());
         actions_box.append(&copy_button);
@@ -427,7 +443,7 @@ impl SecretCard {
             let btn = build_action_button(
                 &["avatar-default-symbolic", "system-users-symbolic"],
                 "@",
-                "Copier le login",
+                heelonvault_core::tr!("secret-card-copy-login-tooltip").as_str(),
             );
             actions_box.append(&btn);
             Some(btn)
@@ -444,7 +460,7 @@ impl SecretCard {
                     "edit-find-symbolic",
                 ],
                 "↗",
-                "Ouvrir dans le navigateur",
+                heelonvault_core::tr!("secret-card-open-url-tooltip").as_str(),
             );
             actions_box.append(&btn);
             Some(btn)

@@ -459,6 +459,12 @@ main-panic-body = Sensitive structures (keys, SecretBox) will be released by the
 main-panic-cancel = Cancel
 main-panic-confirm = Wipe and quit
 secret-card-duplicate-badge = Duplicate
+secret-card-health-badge = Health
+secret-card-incomplete-badge = Incomplete
+secret-card-shared-badge = Shared
+secret-card-copy-password-tooltip = Copy password
+secret-card-copy-login-tooltip = Copy login
+secret-card-open-url-tooltip = Open in browser
 
 profile-window-title = My profile
 profile-section-security = Security

@@ -459,6 +459,12 @@ main-panic-body = Les structures sensibles (cles, SecretBox) seront liberees par
 main-panic-cancel = Annuler
 main-panic-confirm = Effacer et quitter
 secret-card-duplicate-badge = DOUBLON
+secret-card-health-badge = Santé
+secret-card-incomplete-badge = Incomplet
+secret-card-shared-badge = Partagé
+secret-card-copy-password-tooltip = Copier le mot de passe
+secret-card-copy-login-tooltip = Copier le login
+secret-card-open-url-tooltip = Ouvrir dans le navigateur
 
 profile-window-title = Mon profil
 profile-section-security = Securite

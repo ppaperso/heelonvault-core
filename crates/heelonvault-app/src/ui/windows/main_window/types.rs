@@ -71,7 +71,7 @@ pub(super) struct SecretRowView {
     pub(super) secret_value: String,
     pub(super) kind: SecretKind,
     pub(super) color_class: String,
-    pub(super) health: String,
+    pub(super) is_weak: bool,
     pub(super) is_health_access: bool,
     pub(super) usage_count: u32,
     pub(super) vault_name: String,

@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::ui::dialogs::add_edit_dialog::DialogMode;
 use crate::ui::messages;
 use crate::ui::sensitive_clipboard;
-use crate::ui::widgets::secret_card::{SecretCard, SecretRowData};
+use crate::ui::widgets::secret_card::{SecretCard, SecretRowData, strength_label};
 use crate::ui::windows::main_window::types::SecretQuickActions;
 use heelonvault_core::models::SecretItem;
 use heelonvault_core::services::secret_service::SecretService;
@@ -22,7 +22,8 @@ use heelonvault_core::services::vault_service::VaultService;
 
 use super::{FilterRuntime, SecretFilterMeta, SecretKind, SecretRowView, search_filter};
 
-pub(super) fn evaluate_password_strength_label(secret_value: &str) -> String {
+/// Strength verdict, language-independent: the label is only translated for display.
+pub(super) fn is_weak_password(secret_value: &str) -> bool {
     if secret_value.len() >= 12 {
         let has_uppercase = secret_value.chars().any(|c| c.is_uppercase());
         let has_lowercase = secret_value.chars().any(|c| c.is_lowercase());
@@ -33,10 +34,10 @@ pub(super) fn evaluate_password_strength_label(secret_value: &str) -> String {
             .filter(|&&v| v)
             .count();
         if complexity >= 3 {
-            return heelonvault_core::tr!("main-strength-strong");
+            return false;
         }
     }
-    heelonvault_core::tr!("main-strength-weak")
+    true
 }
 
 /// Decode a single `SecretItem` into a `SecretRowView`.
@@ -153,7 +154,7 @@ where
     let created_at = item
         .created_at
         .unwrap_or_else(|| heelonvault_core::tr!("login-history-unavailable"));
-    let health = evaluate_password_strength_label(secret_value.as_str());
+    let is_weak = is_weak_password(secret_value.as_str());
     let tags = item.tags.clone().unwrap_or_default();
     let is_health_access = has_health_access_marker
         || search_filter::classify_health_access(
@@ -181,7 +182,7 @@ where
         secret_value,
         kind,
         color_class: color_class.to_string(),
-        health,
+        is_weak,
         is_health_access,
         usage_count: item.usage_count,
         vault_name,
@@ -435,7 +436,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         url: item.url.clone(),
                         secret_value: item.secret_value.clone(),
                         color_class: item.color_class.clone(),
-                        health: item.health.clone(),
+                        is_weak: item.is_weak,
                         is_health_access: item.is_health_access,
                         usage_count: item.usage_count,
                         is_duplicate,
@@ -729,7 +730,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                                     item.category.clone(),
                                     item.tags.clone(),
                                     item.created_at.clone(),
-                                    item.health.clone(),
+                                    strength_label(item.is_weak),
                                     item.vault_name.clone(),
                                 ]
                                 .join(" ")
@@ -766,7 +767,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                             ),
                             kind,
                             original_rank,
-                            is_weak: item.health == heelonvault_core::tr!("main-strength-weak"),
+                            is_weak: item.is_weak,
                             is_duplicate,
                             is_health: item.is_health_access,
                             is_incomplete: item.login.trim().is_empty()
