@@ -474,13 +474,13 @@ pub fn update_sort_button_states(
 }
 
 /// Wire the grid / list toggle: switch the flow layout, remember the choice, and rebuild
-/// the secret widgets in the new layout through the regular list refresh.
+/// the secret widgets in the new layout (`rebuild_secrets`, from the last load).
 pub fn setup_view_mode_handlers(
     view_grid_button: &gtk4::Button,
     view_list_button: &gtk4::Button,
     secret_flow: gtk4::FlowBox,
     filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
-    refresh_secrets: Rc<dyn Fn()>,
+    rebuild_secrets: Rc<dyn Fn()>,
 ) {
     let switch_to: Rc<dyn Fn(SecretViewMode)> = {
         let grid_button = view_grid_button.clone();
@@ -493,7 +493,7 @@ pub fn setup_view_mode_handlers(
             update_view_button_states(&grid_button, &list_button, mode);
             crate::ui::windows::main_window::center::apply_view_mode_to_flow(&secret_flow, mode);
             crate::ui::view_preferences::persist_secret_view_mode(mode);
-            refresh_secrets();
+            rebuild_secrets();
         })
     };
 

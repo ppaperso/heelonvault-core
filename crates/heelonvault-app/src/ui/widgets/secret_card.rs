@@ -116,7 +116,8 @@ pub struct SecretRowData {
     pub created_at: String,
     pub login: String,
     pub url: String,
-    pub secret_value: String,
+    /// The secret has a value to copy. The value itself is never handed to the widget.
+    pub has_secret: bool,
     pub color_class: String,
     // Mock fields for badges (will be linked to DB later)
     /// Password strength verdict; the badge label is translated at display time.
@@ -435,7 +436,7 @@ impl SecretCard {
             "⧉",
             heelonvault_core::tr!("secret-card-copy-password-tooltip").as_str(),
         );
-        copy_button.set_sensitive(!data.secret_value.is_empty());
+        copy_button.set_sensitive(data.has_secret);
         actions_box.append(&copy_button);
 
         // 👤 Copy login — visible only when a login is stored.

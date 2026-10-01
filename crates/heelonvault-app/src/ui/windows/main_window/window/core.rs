@@ -171,8 +171,7 @@ where
 
     // ── 3. Refresh chain ──────────────────────────────────────────────────────
     // A single reload backs both the active-vault and the cross-vault refresh.
-    let secret_reload = refresh::build_secret_reload(refresh::SecretRefreshDeps {
-        application: application.clone(),
+    let secret_list = refresh::build_secret_reload(refresh::SecretRefreshDeps {
         parent_window: window.clone(),
         runtime_handle: runtime_handle.clone(),
         secret_service: Arc::clone(&secret_service),
@@ -188,6 +187,7 @@ where
         filter_runtime: filter_runtime.clone(),
         editor_launcher: Rc::clone(&editor_launcher),
     });
+    let secret_reload = Rc::clone(&secret_list.reload);
 
     let refresh_secrets: Rc<dyn Fn()> = {
         let reload = Rc::clone(&secret_reload);
@@ -318,12 +318,23 @@ where
         filter_runtime.clone(),
     );
 
+    // A layout switch only rebuilds the widgets from the last load; it reloads (and so
+    // decrypts) only if nothing has been loaded yet.
+    let rerender_secrets: Rc<dyn Fn()> = {
+        let rerender = Rc::clone(&secret_list.rerender);
+        let refresh = Rc::clone(&refresh_secrets);
+        Rc::new(move || {
+            if !rerender() {
+                refresh();
+            }
+        })
+    };
     events::setup_view_mode_handlers(
         &center_panel.view_grid_button,
         &center_panel.view_list_button,
         center_panel.secret_flow.clone(),
         filter_runtime.clone(),
-        Rc::clone(&refresh_secrets),
+        rerender_secrets,
     );
 
     events::setup_search_entry_handlers(
