@@ -463,6 +463,25 @@ where
     }
 }
 
+/// What to do with the outcome of an on-demand decryption.
+#[derive(Debug, PartialEq, Eq)]
+enum CopyDecision {
+    Copy,
+    /// The session was locked or closed while the secret was being decrypted: its clipboard was
+    /// already cleared, so the value must not land there afterwards.
+    SessionLocked,
+    Failed,
+}
+
+/// `session_open` is read on the GTK thread once the decryption is over, not when it started.
+fn copy_decision(decrypted: bool, session_open: bool) -> CopyDecision {
+    match (session_open, decrypted) {
+        (false, _) => CopyDecision::SessionLocked,
+        (true, true) => CopyDecision::Copy,
+        (true, false) => CopyDecision::Failed,
+    }
+}
+
 /// Decrypts one password on demand for the clipboard; never keeps it.
 struct PasswordCopier<TSecret, TVault> {
     secret_service: Arc<TSecret>,
@@ -513,21 +532,28 @@ where
         });
 
         let toast_overlay = self.toast_overlay.clone();
+        let session_master_key = Rc::clone(&self.session_master_key);
         glib::MainContext::default().spawn_local(async move {
-            let copied = match receiver.await {
-                Ok(Ok(secret_value)) => std::str::from_utf8(secret_value.expose_secret())
-                    .is_ok_and(|text| {
+            // The secret is zeroed when dropped, whatever the decision.
+            let secret_value = receiver.await.ok().and_then(Result::ok);
+            let session_open = !session_master_key.borrow().is_empty();
+            let decision = copy_decision(secret_value.is_some(), session_open);
+            let copied = decision == CopyDecision::Copy
+                && secret_value.as_ref().is_some_and(|secret_value| {
+                    std::str::from_utf8(secret_value.expose_secret()).is_ok_and(|text| {
                         sensitive_clipboard::copy_sensitive(
                             text,
                             sensitive_clipboard::SensitiveKind::Password,
                             sensitive_clipboard::SECRET_CLEAR_DELAY,
                         )
-                    }),
-                Ok(Err(_)) | Err(_) => false,
-            };
+                    })
+                });
+            drop(secret_value);
             drop(decrypting);
             let message = if copied {
                 messages::toast_password_copied(sensitive_clipboard::SECRET_CLEAR_DELAY)
+            } else if decision == CopyDecision::SessionLocked {
+                heelonvault_core::tr!("main-copy-session-locked")
             } else {
                 heelonvault_core::tr!("main-copy-failed")
             };
@@ -1057,5 +1083,18 @@ mod tests {
     #[test]
     fn duplicate_flags_on_empty_batch() {
         assert!(duplicate_flags(&[]).is_empty());
+    }
+
+    #[test]
+    fn a_secret_decrypted_after_the_session_locked_is_never_copied() {
+        // Lock, auto-lock or logout cleared the clipboard while the decryption was running.
+        assert_eq!(copy_decision(true, false), CopyDecision::SessionLocked);
+        assert_eq!(copy_decision(false, false), CopyDecision::SessionLocked);
+    }
+
+    #[test]
+    fn an_open_session_copies_only_a_decrypted_secret() {
+        assert_eq!(copy_decision(true, true), CopyDecision::Copy);
+        assert_eq!(copy_decision(false, true), CopyDecision::Failed);
     }
 }
