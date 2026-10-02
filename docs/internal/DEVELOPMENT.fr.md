@@ -83,8 +83,9 @@ Quand les dépendances changent, régénérer le SBOM et le commiter (sinon le j
 
 ```bash
 cargo build --release -p heelonvault-app
-cp target/release/heelonvault .
 sudo ./scripts/install.sh            # voir docs/UPDATE_GUIDE.md
+# avec CARGO_TARGET_DIR défini :
+sudo env HEELONVAULT_BINARY="$CARGO_TARGET_DIR/release/heelonvault" ./scripts/install.sh
 ```
 
 Les paquets officiels (AppImage, DMG, MSI, SBOM) sont construits par la CI à chaque tag

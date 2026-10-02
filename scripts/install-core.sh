@@ -8,8 +8,13 @@ hv_init_common_vars() {
   HV_APP_NAME="HeelonVault"
   HV_APP_ID="com.heelonvault.rust"
   HV_INSTALL_DIR="/opt/heelonvault"
+  # Mise à jour transactionnelle : la nouvelle version est préparée dans
+  # HV_STAGE_DIR, puis échangée avec l'installation courante, conservée dans
+  # HV_PREVIOUS_DIR jusqu'au succès complet (restaurée en cas d'échec).
+  HV_STAGE_DIR="$HV_INSTALL_DIR.new"
+  HV_PREVIOUS_DIR="$HV_INSTALL_DIR.previous"
+  HV_VERSION_FILE="VERSION"
   HV_DATA_DIR="$HV_INSTALL_DIR/data"
-  HV_LOGS_DIR="$HV_INSTALL_DIR/logs"
   HV_DB_FILE="$HV_DATA_DIR/heelonvault-rust-dev.db"
   HV_BACKUP_DIR="/var/backups/heelonvault"
   HV_SYSTEM_APPS_DIR="/usr/share/applications"
@@ -38,6 +43,12 @@ hv_init_common_vars() {
   HV_ENTERPRISE_LOG_DIR="/var/log/heelonvault"
 
   HV_DEPLOY_MODE="personal"
+  HV_PREVIOUS_DEPLOY_MODE=""
+  HV_PREVIOUS_VERSION=""
+  HV_NEW_VERSION=""
+  HV_SWAPPED=false
+  HV_TRANSACTION_OPEN=false
+  HV_ALLOW_STALE_BINARY="${HEELONVAULT_ALLOW_STALE_BINARY:-0}"
   HV_NON_INTERACTIVE="${HEELONVAULT_NON_INTERACTIVE:-0}"
   HV_BACKUP_KEEP="${HEELONVAULT_BACKUP_KEEP:-20}"
   HV_DRY_RUN="${HEELONVAULT_DRY_RUN:-0}"
@@ -83,13 +94,29 @@ hv_verify_core_files() {
   local desktop_location
   local migrations_location
 
-  # Chercher le binaire: d'abord dans ROOT_DIR, puis dans SCRIPT_DIR
-  if [[ -f "$HV_ROOT_DIR/heelonvault" ]]; then
-    binary_location="$HV_ROOT_DIR/heelonvault"
-  elif [[ -f "$HV_SCRIPT_DIR/heelonvault" ]]; then
-    binary_location="$HV_SCRIPT_DIR/heelonvault"
-  else
-    echo "[ERROR] Binaire 'heelonvault' introuvable dans $HV_ROOT_DIR ou $HV_SCRIPT_DIR"
+  # Binaire : le plus récent parmi target/release (build cargo), la racine du
+  # dépôt et le dossier des scripts (archive). Un binaire oublié à la racine ne
+  # doit pas masquer un build plus récent.
+  # HEELONVAULT_BINARY impose un binaire précis (build hors du dépôt, par
+  # exemple avec CARGO_TARGET_DIR, que sudo ne transmet pas).
+  local candidate
+  binary_location=""
+  if [[ -n "${HEELONVAULT_BINARY:-}" ]]; then
+    if [[ ! -f "$HEELONVAULT_BINARY" ]]; then
+      echo "[ERROR] HEELONVAULT_BINARY=$HEELONVAULT_BINARY : fichier introuvable"
+      exit 1
+    fi
+    binary_location="$HEELONVAULT_BINARY"
+  fi
+  for candidate in "$HV_ROOT_DIR/target/release/heelonvault" "$HV_ROOT_DIR/heelonvault" "$HV_SCRIPT_DIR/heelonvault"; do
+    [[ -z "${HEELONVAULT_BINARY:-}" ]] || break
+    if [[ -f "$candidate" ]] && { [[ -z "$binary_location" ]] || [[ "$candidate" -nt "$binary_location" ]]; }; then
+      binary_location="$candidate"
+    fi
+  done
+  if [[ -z "$binary_location" ]]; then
+    echo "[ERROR] Binaire 'heelonvault' introuvable (target/release, $HV_ROOT_DIR, $HV_SCRIPT_DIR)"
+    echo "[ERROR] Construisez-le d'abord : cargo build --release -p heelonvault-app"
     exit 1
   fi
 
@@ -143,6 +170,154 @@ hv_verify_core_files() {
   HV_ASSETS_SOURCE="$assets_location"
 }
 
+# Version déclarée par les sources (crates/heelonvault-app/Cargo.toml), si présentes.
+hv_source_version() {
+  local manifest="$HV_ROOT_DIR/crates/heelonvault-app/Cargo.toml"
+  [[ -f "$manifest" ]] || return 0
+  sed -n 's/^version = "\(.*\)"/\1/p' "$manifest" | head -1
+}
+
+# Version annoncée par le binaire (`heelonvault --version`). Exécuté dans un
+# bac à sable (HOME, dossier courant, base et logs temporaires, sans affichage)
+# avec un délai : un binaire antérieur à `--version` démarrerait sinon
+# l'application, et ne doit rien toucher sur le système.
+hv_binary_version() {
+  local binary="$1"
+  local sandbox
+  local output
+  sandbox="$(mktemp -d)"
+  output="$(
+    cd "$sandbox" &&
+      env -i PATH="/usr/bin:/bin" HOME="$sandbox" \
+        HEELONVAULT_DB_PATH="$sandbox/probe.db" HEELONVAULT_LOG_DIR="$sandbox/logs" \
+        timeout 10 "$binary" --version 2>/dev/null
+  )" || true
+  rm -rf "$sandbox"
+  sed -n 's/^HeelonVault \([0-9][0-9A-Za-z.+-]*\)$/\1/p' <<< "$output" | head -1
+}
+
+# Refuse un binaire plus ancien que le dernier commit du dépôt ou dont la
+# version diffère des sources : sinon une « mise à jour » réinstallerait
+# silencieusement un ancien build.
+hv_check_binary_freshness() {
+  local source_version
+  local stale_reason=""
+
+  source_version="$(hv_source_version)"
+  HV_NEW_VERSION="$(hv_binary_version "$HV_BINARY_SOURCE")"
+
+  echo "[INFO] Binaire à installer : $HV_BINARY_SOURCE"
+  echo "[INFO] Version du binaire  : ${HV_NEW_VERSION:-inconnue (binaire sans --version)}"
+
+  if [[ -n "$source_version" ]]; then
+    echo "[INFO] Version des sources : $source_version"
+    if [[ "$HV_NEW_VERSION" != "$source_version" ]]; then
+      stale_reason="la version du binaire (${HV_NEW_VERSION:-inconnue}) diffère de celle des sources ($source_version)"
+    fi
+  fi
+
+  if [[ -z "$stale_reason" ]]; then
+    # Même critère que cargo : un fichier compilé dans le binaire (sources,
+    # manifestes, build.rs, assets et traductions embarqués, lockfile, sources
+    # premium voisines) modifié après le build. Un `git pull` met à jour ces
+    # fichiers ; un simple commit ou un changement de documentation, non.
+    local newer_source=""
+    local candidates=()
+    local path
+    for path in "$HV_ROOT_DIR"/crates/*/src "$HV_ROOT_DIR"/crates/*/Cargo.toml "$HV_ROOT_DIR"/crates/*/build.rs \
+      "$HV_ROOT_DIR/crates/heelonvault-app/assets" "$HV_ROOT_DIR/crates/heelonvault-core/locales" \
+      "$HV_ROOT_DIR/Cargo.toml" "$HV_ROOT_DIR/Cargo.lock" \
+      "$HV_ROOT_DIR/../heelonvault-premium/src" "$HV_ROOT_DIR/../heelonvault-premium/Cargo.toml"; do
+      [[ -e "$path" ]] && candidates+=("$path")
+    done
+    if [[ "${#candidates[@]}" -gt 0 ]]; then
+      newer_source="$(find "${candidates[@]}" -type f -newer "$HV_BINARY_SOURCE" -print -quit 2>/dev/null || true)"
+    fi
+    if [[ -n "$newer_source" ]]; then
+      stale_reason="des sources ont été modifiées après le build (ex. ${newer_source#"$HV_ROOT_DIR"/})"
+    fi
+  fi
+
+  if [[ -n "$stale_reason" ]]; then
+    if [[ "$HV_ALLOW_STALE_BINARY" == "1" ]]; then
+      echo "[WARN] Binaire potentiellement périmé : $stale_reason (HEELONVAULT_ALLOW_STALE_BINARY=1)."
+      return
+    fi
+    echo "[ERROR] Binaire périmé : $stale_reason."
+    echo "[ERROR] Reconstruisez-le (en tant qu'utilisateur, pas en root) :"
+    echo "[ERROR]   cargo build --release -p heelonvault-app"
+    echo "[ERROR] Si CARGO_TARGET_DIR est défini, indiquez le binaire produit :"
+    echo "[ERROR]   sudo env HEELONVAULT_BINARY=\"\$CARGO_TARGET_DIR/release/heelonvault\" ./scripts/install.sh"
+    echo "[ERROR] Pour forcer malgré tout : HEELONVAULT_ALLOW_STALE_BINARY=1"
+    exit 1
+  fi
+}
+
+# Version et profil de l'installation existante (pour la mise à jour).
+hv_detect_previous_install() {
+  if [[ -f "$HV_INSTALL_DIR/$HV_VERSION_FILE" ]]; then
+    HV_PREVIOUS_VERSION="$(head -1 "$HV_INSTALL_DIR/$HV_VERSION_FILE")"
+  elif [[ -x "$HV_INSTALL_DIR/heelonvault" ]]; then
+    HV_PREVIOUS_VERSION="$(hv_binary_version "$HV_INSTALL_DIR/heelonvault")"
+  fi
+
+  if [[ -f "$HV_INSTALL_DIR/run.sh" ]]; then
+    if grep -q "$HV_ENTERPRISE_DB_FILE" "$HV_INSTALL_DIR/run.sh"; then
+      HV_PREVIOUS_DEPLOY_MODE="enterprise"
+    else
+      HV_PREVIOUS_DEPLOY_MODE="personal"
+    fi
+  fi
+
+  if [[ -d "$HV_INSTALL_DIR" ]]; then
+    echo "[INFO] Installation existante : version ${HV_PREVIOUS_VERSION:-inconnue}, profil ${HV_PREVIOUS_DEPLOY_MODE:-inconnu}"
+  fi
+}
+
+# Une instance en cours d'exécution verrait son binaire remplacé et sa base
+# copiée en pleine écriture : on demande de la fermer.
+hv_ensure_app_not_running() {
+  local pids
+  pids="$(pgrep -x heelonvault 2>/dev/null || true)"
+  if [[ -n "$pids" ]]; then
+    echo "[ERROR] HeelonVault est en cours d'exécution (PID : $(tr '\n' ' ' <<< "$pids"))."
+    echo "[ERROR] Fermez l'application puis relancez l'installation."
+    exit 1
+  fi
+}
+
+# Sauvegarde cohérente d'une base SQLite : `.backup` (verrou de lecture, copie
+# page par page) puis contrôle d'intégrité de la copie. Repli sur une copie
+# brute (base + journal éventuel) si le client sqlite3 est absent.
+hv_backup_database() {
+  local source="$1"
+  local destination="$2"
+  local check
+  local suffix
+
+  mkdir -p "$HV_BACKUP_DIR"
+  chmod 700 "$HV_BACKUP_DIR"
+
+  if command -v sqlite3 >/dev/null 2>&1; then
+    sqlite3 "file:$source?mode=ro" ".backup '$destination'"
+    check="$(sqlite3 "$destination" "PRAGMA integrity_check;" 2>&1 || true)"
+    if [[ "$check" != "ok" ]]; then
+      echo "[ERROR] Sauvegarde invalide ($destination) : $check"
+      echo "[ERROR] Mise à jour interrompue, rien n'a été modifié."
+      exit 1
+    fi
+  else
+    echo "[WARN] Client sqlite3 absent : copie brute de la base."
+    cp "$source" "$destination"
+    for suffix in -wal -journal; do
+      if [[ -f "$source$suffix" ]]; then
+        cp "$source$suffix" "$destination$suffix"
+      fi
+    done
+  fi
+  chmod 600 "$destination"*
+}
+
 hv_verify_checksum() {
   if [[ -f "$HV_CHECKSUM_FILE" ]]; then
     if ! command -v sha256sum >/dev/null 2>&1; then
@@ -151,7 +326,7 @@ hv_verify_checksum() {
     fi
     echo "[INFO] Vérification d'intégrité du binaire..."
     (
-      cd "$HV_SCRIPT_DIR"
+      cd "$HV_SCRIPT_DIR" || exit 1
       sha256sum -c "$(basename "$HV_CHECKSUM_FILE")"
     )
   else
@@ -164,7 +339,7 @@ hv_select_deploy_mode() {
 
   echo ""
   if [[ "$HV_NON_INTERACTIVE" == "1" ]]; then
-    case "${HEELONVAULT_DEPLOY_MODE:-personal}" in
+    case "${HEELONVAULT_DEPLOY_MODE:-${HV_PREVIOUS_DEPLOY_MODE:-personal}}" in
       enterprise)
         HV_DEPLOY_MODE="enterprise"
         ;;
@@ -178,12 +353,21 @@ hv_select_deploy_mode() {
     echo "╔══════════════════════════════════════════════════════╗"
     echo "║           Profil de déploiement HeelonVault         ║"
     echo "╚══════════════════════════════════════════════════════╝"
-    echo "  [1] Personnel (poste local) [défaut]"
-    echo "  [2] Entreprise (serveur / multi-utilisateur)"
+    local default_choice=1
+    if [[ "$HV_PREVIOUS_DEPLOY_MODE" == "enterprise" ]]; then
+      default_choice=2
+    fi
+    if [[ "$default_choice" == 1 ]]; then
+      echo "  [1] Personnel (poste local) [défaut${HV_PREVIOUS_DEPLOY_MODE:+, profil actuel}]"
+      echo "  [2] Entreprise (serveur / multi-utilisateur)"
+    else
+      echo "  [1] Personnel (poste local)"
+      echo "  [2] Entreprise (serveur / multi-utilisateur) [défaut, profil actuel]"
+    fi
     echo ""
     read -rp "  Votre choix [1/2] : " deploy_choice
 
-    case "${deploy_choice:-1}" in
+    case "${deploy_choice:-$default_choice}" in
       2)
         HV_DEPLOY_MODE="enterprise"
         echo "[INFO] Mode sélectionné : Entreprise"
@@ -194,6 +378,11 @@ hv_select_deploy_mode() {
         echo "[INFO] Mode sélectionné : Personnel"
         ;;
     esac
+  fi
+
+  if [[ -n "$HV_PREVIOUS_DEPLOY_MODE" && "$HV_DEPLOY_MODE" != "$HV_PREVIOUS_DEPLOY_MODE" ]]; then
+    echo "[WARN] Changement de profil : $HV_PREVIOUS_DEPLOY_MODE → $HV_DEPLOY_MODE."
+    echo "[WARN] L'application utilisera une autre base ; l'ancienne n'est ni déplacée ni supprimée."
   fi
 
   if [[ "$HV_DEPLOY_MODE" == "enterprise" ]]; then
@@ -298,7 +487,8 @@ hv_display_target_paths() {
   echo ""
 
   if [[ "$HV_FRESH_INSTALL" == false ]]; then
-    echo "  ⚠  MISE À JOUR DÉTECTÉE:"
+    echo "  ⚠  MISE À JOUR DÉTECTÉE : ${HV_PREVIOUS_VERSION:-version inconnue} → ${HV_NEW_VERSION:-version inconnue}"
+    echo "  • En cas d'échec, la version actuelle est restaurée automatiquement"
     if [[ "$HV_HAS_ACTIVE_DB" == true ]]; then
       echo "  • Base existante sera CONSERVÉE"
     fi
@@ -328,9 +518,7 @@ hv_manage_backups() {
   if [[ "$HV_HAS_LEGACY_DB" == true ]]; then
     timestamp="$(date +%Y%m%d_%H%M%S)"
     backup_file="$HV_BACKUP_DIR/heelonvault_legacy_backup_${timestamp}.db"
-    mkdir -p "$HV_BACKUP_DIR"
-    chmod 700 "$HV_BACKUP_DIR"
-    cp "$HV_DB_FILE" "$backup_file"
+    hv_backup_database "$HV_DB_FILE" "$backup_file"
     echo "[INFO] Backup base legacy → $backup_file"
     hv_rotate_backups "$HV_BACKUP_DIR/heelonvault_legacy_backup_*.db" "$HV_BACKUP_KEEP"
   fi
@@ -342,10 +530,8 @@ hv_manage_backups() {
     else
       backup_file="$HV_BACKUP_DIR/heelonvault_user_${HV_INVOKING_USER}_backup_${timestamp}.db"
     fi
-    mkdir -p "$HV_BACKUP_DIR"
-    chmod 700 "$HV_BACKUP_DIR"
-    cp "$HV_ACTIVE_DB_FILE" "$backup_file"
-    echo "[INFO] Backup base $HV_ACTIVE_DB_LABEL → $backup_file"
+    hv_backup_database "$HV_ACTIVE_DB_FILE" "$backup_file"
+    echo "[INFO] Backup base $HV_ACTIVE_DB_LABEL → $backup_file (intégrité vérifiée)"
 
     if [[ "$HV_DEPLOY_MODE" == "enterprise" ]]; then
       hv_rotate_backups "$HV_BACKUP_DIR/heelonvault_enterprise_backup_*.db" "$HV_BACKUP_KEEP"
@@ -355,56 +541,98 @@ hv_manage_backups() {
   fi
 }
 
-hv_cleanup_install_dir() {
-  if [[ "$HV_FRESH_INSTALL" == false ]]; then
-    if [[ "$HV_KEEP_DATA" == true ]]; then
-      echo "[INFO] Mise à jour : conservation de data/"
-      find "$HV_INSTALL_DIR" -mindepth 1 -maxdepth 1 \
-        ! -name 'data' \
-        -exec rm -rf {} +
-    else
-      echo "[INFO] Suppression complète de $HV_INSTALL_DIR"
-      rm -rf "$HV_INSTALL_DIR"
-    fi
+# Prépare la nouvelle version dans HV_STAGE_DIR, sans toucher à l'installation
+# courante. La base legacy /opt/heelonvault/data est recopiée si conservée.
+hv_stage_files() {
+  local stage="$HV_STAGE_DIR"
+  echo "[INFO] Préparation de la nouvelle version dans $stage"
+  rm -rf "$stage"
+  mkdir -p "$stage/icons"
+
+  if [[ "$HV_KEEP_DATA" == true && -d "$HV_DATA_DIR" ]]; then
+    cp -a "$HV_DATA_DIR" "$stage/data"
+  else
+    mkdir -p "$stage/data"
+  fi
+  mkdir -p "$stage/logs"
+
+  cp "$HV_BINARY_SOURCE" "$stage/heelonvault"
+  cp "$HV_DESKTOP_SOURCE" "$stage/"
+  cp -r "$HV_MIGRATIONS_SOURCE" "$stage/migrations"
+  if [[ -n "$HV_NEW_VERSION" ]]; then
+    echo "$HV_NEW_VERSION" > "$stage/$HV_VERSION_FILE"
+  fi
+  if [[ -f "$HV_ROOT_DIR/README.md" ]]; then
+    cp "$HV_ROOT_DIR/README.md" "$stage/"
+  fi
+  if [[ -f "$HV_PRIMARY_ICON_SOURCE" ]]; then
+    install -m 644 "$HV_PRIMARY_ICON_SOURCE" "$stage/icons/heelonvault.png"
+  fi
+
+  chown -R root:root "$stage"
+  chmod 755 "$stage"
+  chmod 700 "$stage/data" "$stage/logs"
+}
+
+# Échange atomique (rename sur le même système de fichiers) : l'installation
+# courante devient HV_PREVIOUS_DIR, la version préparée prend sa place.
+hv_swap_install() {
+  rm -rf "$HV_PREVIOUS_DIR"
+  if [[ -d "$HV_INSTALL_DIR" ]]; then
+    mv "$HV_INSTALL_DIR" "$HV_PREVIOUS_DIR"
+  fi
+  HV_SWAPPED=true
+  mv "$HV_STAGE_DIR" "$HV_INSTALL_DIR"
+  echo "[INFO] Nouvelle version en place : $HV_INSTALL_DIR"
+}
+
+# Piège EXIT : tant que la transaction est ouverte, toute sortie (erreur sous
+# `set -e`, y compris dans une fonction, ou interruption) restaure l'état
+# précédent. Un piège ERR ne suffirait pas : sans `set -E`, il n'est pas
+# hérité par les fonctions.
+hv_on_exit() {
+  local status=$?
+  if [[ "$HV_TRANSACTION_OPEN" == true ]]; then
+    hv_rollback "$status"
   fi
 }
 
-hv_deploy_files() {
-  echo "[INFO] Déploiement vers $HV_INSTALL_DIR"
-  mkdir -p "$HV_INSTALL_DIR"
-  mkdir -p "$HV_DATA_DIR"
-  mkdir -p "$HV_LOGS_DIR"
-  mkdir -p "$HV_LOCAL_ICON_DIR"
-
-  if [[ "$HV_DEPLOY_MODE" == "enterprise" ]]; then
-    mkdir -p "$HV_ENTERPRISE_DATA_DIR" "$HV_ENTERPRISE_LOG_DIR"
-    chown "$HV_INVOKING_USER":"$HV_INVOKING_USER" "$HV_ENTERPRISE_DATA_DIR" "$HV_ENTERPRISE_LOG_DIR"
-    chmod 750 "$HV_ENTERPRISE_DATA_DIR" "$HV_ENTERPRISE_LOG_DIR"
-  fi
-
-  cp "$HV_BINARY_SOURCE" "$HV_INSTALL_DIR/"
-  cp "$HV_DESKTOP_SOURCE" "$HV_INSTALL_DIR/"
-  cp -r "$HV_MIGRATIONS_SOURCE" "$HV_INSTALL_DIR/"
-
-  for f in README.md QUICKSTART.md; do
-    if [[ -f "$HV_ROOT_DIR/$f" ]]; then
-      cp "$HV_ROOT_DIR/$f" "$HV_INSTALL_DIR/"
-    elif [[ -f "$HV_SCRIPT_DIR/$f" ]]; then
-      cp "$HV_SCRIPT_DIR/$f" "$HV_INSTALL_DIR/"
+hv_rollback() {
+  local status="$1"
+  HV_TRANSACTION_OPEN=false
+  [[ "$status" -ne 0 ]] || status=1
+  echo ""
+  echo "[ERROR] Échec de l'installation (code $status) : restauration de l'état précédent."
+  rm -rf "$HV_STAGE_DIR"
+  if [[ "$HV_SWAPPED" == true ]]; then
+    rm -rf "$HV_INSTALL_DIR"
+    if [[ -d "$HV_PREVIOUS_DIR" ]]; then
+      mv "$HV_PREVIOUS_DIR" "$HV_INSTALL_DIR"
+      echo "[INFO] Version précédente restaurée dans $HV_INSTALL_DIR"
     fi
-  done
+  fi
+  echo "[INFO] Les bases de données n'ont pas été modifiées ; sauvegardes dans $HV_BACKUP_DIR."
+  exit "$status"
+}
 
+hv_fix_user_data_owner() {
   # Corriger le propriétaire du répertoire de données utilisateur si hérité d'un autre UID
   local user_data_dir="$HV_INVOKING_HOME/.local/share/heelonvault"
   if [[ -d "$user_data_dir" ]] && [[ "$(stat -c '%u' "$user_data_dir")" != "$(id -u "$HV_INVOKING_USER" 2>/dev/null || echo 0)" ]]; then
     echo "[WARN] Répertoire données utilisateur ($user_data_dir) appartient à un autre UID — chown appliqué"
     chown "$HV_INVOKING_USER":"$HV_INVOKING_USER" "$user_data_dir"
   fi
+
+  if [[ "$HV_DEPLOY_MODE" == "enterprise" ]]; then
+    mkdir -p "$HV_ENTERPRISE_DATA_DIR" "$HV_ENTERPRISE_LOG_DIR"
+    chown "$HV_INVOKING_USER":"$HV_INVOKING_USER" "$HV_ENTERPRISE_DATA_DIR" "$HV_ENTERPRISE_LOG_DIR"
+    chmod 750 "$HV_ENTERPRISE_DATA_DIR" "$HV_ENTERPRISE_LOG_DIR"
+  fi
 }
 
 hv_validate_migrations_payload() {
   local src_dir="$HV_MIGRATIONS_SOURCE"
-  local dst_dir="$HV_INSTALL_DIR/migrations"
+  local dst_dir="$HV_STAGE_DIR/migrations"
   local src_list
   local dst_list
   local sql_file
@@ -442,7 +670,7 @@ hv_validate_migrations_payload() {
 
 hv_generate_run_script() {
   if [[ "$HV_DEPLOY_MODE" == "enterprise" ]]; then
-cat > "$HV_INSTALL_DIR/run.sh" <<EOF
+cat > "$HV_STAGE_DIR/run.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -464,7 +692,7 @@ fi
 exec /opt/heelonvault/heelonvault "\$@"
 EOF
   else
-cat > "$HV_INSTALL_DIR/run.sh" <<'EOF'
+cat > "$HV_STAGE_DIR/run.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -496,9 +724,9 @@ exec /opt/heelonvault/heelonvault "$@"
 EOF
   fi
 
-  chmod +x "$HV_INSTALL_DIR/heelonvault"
+  chmod 755 "$HV_STAGE_DIR/heelonvault"
   # run.sh doit rester exécutable par l'utilisateur final (lancement desktop).
-  chmod 755 "$HV_INSTALL_DIR/run.sh"
+  chmod 755 "$HV_STAGE_DIR/run.sh"
 }
 
 hv_install_icons() {
@@ -515,11 +743,6 @@ hv_install_icons() {
   fi
 
   echo "[INFO] Installation des icônes..."
-  local primary_icon="$assets_dir/icons/hicolor/256x256/apps/heelonvault.png"
-  if [[ -f "$primary_icon" ]]; then
-    install -m 644 "$primary_icon" "$HV_LOCAL_ICON_PATH"
-  fi
-
   for size in 48x48 128x128 256x256; do
     src="$assets_dir/icons/hicolor/$size/apps/heelonvault.png"
     dst="$HV_ICON_THEME_DIR/$size/apps"
@@ -533,14 +756,6 @@ hv_install_icons() {
   if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     gtk-update-icon-cache -f -t "$HV_ICON_THEME_DIR" 2>/dev/null || true
   fi
-}
-
-hv_apply_permissions() {
-  chown -R root:root "$HV_INSTALL_DIR"
-  chmod 755 "$HV_INSTALL_DIR"
-  chmod 700 "$HV_DATA_DIR"
-  chmod 700 "$HV_LOGS_DIR"
-  chown -R root:root "$HV_BACKUP_DIR" 2>/dev/null || true
 }
 
 hv_install_desktop_integration() {
@@ -681,6 +896,8 @@ hv_print_dry_run_plan() {
 hv_run_common_install_flow() {
   hv_verify_core_files
   hv_verify_checksum
+  hv_check_binary_freshness
+  hv_detect_previous_install
   hv_select_deploy_mode
   hv_detect_existing_installation
   hv_display_target_paths
@@ -690,27 +907,37 @@ hv_run_common_install_flow() {
     return
   fi
 
-  hv_manage_backups
-  hv_cleanup_install_dir
-  hv_deploy_files
-  hv_validate_migrations_payload
-  hv_generate_run_script
-  hv_install_icons
-  hv_apply_permissions
-
   if ! declare -F hv_install_runtime_dependencies >/dev/null 2>&1; then
     echo "[ERROR] Fonction hv_install_runtime_dependencies manquante dans le wrapper OS."
     exit 1
   fi
-  hv_install_runtime_dependencies
 
+  # 1. Contrôles et préparatifs sans effet sur l'installation courante : un
+  #    échec ici laisse le système tel quel.
+  hv_ensure_app_not_running
+  hv_install_runtime_dependencies
+  hv_manage_backups
+  hv_stage_files
+  hv_validate_migrations_payload
+  hv_generate_run_script
+
+  # 2. Bascule puis intégration système : toute erreur restaure la version
+  #    précédente.
+  trap hv_on_exit EXIT
+  trap 'exit 130' INT TERM
+  HV_TRANSACTION_OPEN=true
+  hv_swap_install
+  hv_fix_user_data_owner
+  hv_install_icons
   hv_install_desktop_integration
   hv_validate_artifacts
-
   if declare -F hv_post_install_os_specific >/dev/null 2>&1; then
     hv_post_install_os_specific
   fi
+  HV_TRANSACTION_OPEN=false
+  trap - EXIT INT TERM
 
+  rm -rf "$HV_PREVIOUS_DIR"
   hv_print_summary
   hv_print_enterprise_tips
 }
