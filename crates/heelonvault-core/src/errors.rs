@@ -5,6 +5,7 @@ use thiserror::Error;
 /// Used as the payload of [`AppError::Authorization`] so the UI can
 /// display a localized message without parsing an English string.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum AccessDeniedReason {
     /// The action requires admin role.
     AdminRequired,
@@ -60,6 +61,7 @@ impl fmt::Display for AccessDeniedReason {
 
 /// Why a backup restore or an account re-key failed, so the UI can localize it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum RecoveryFailure {
     InvalidPhrase,
     WrongPhraseOrAlteredFile,
@@ -101,6 +103,7 @@ impl fmt::Display for RecoveryFailure {
 }
 
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum AppError {
     #[error("initialization required: {0}")]
     InitializationRequired(String),
