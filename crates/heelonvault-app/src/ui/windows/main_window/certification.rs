@@ -13,9 +13,15 @@ use libadwaita as adw;
 use sha2::{Digest, Sha256};
 
 #[cfg(feature = "premium")]
+use heelonvault_core::i18n::{I18nArg, tr, tr_args};
+#[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
 
-pub(super) fn build_certification_menu_item(icon_name: &str, label: &str) -> gtk4::Button {
+/// Menu entry of the certification popover; the label is returned for live re-translation.
+pub(super) fn build_certification_menu_item(
+    icon_name: &str,
+    label: &str,
+) -> (gtk4::Button, gtk4::Label) {
     let button = gtk4::Button::new();
     button.add_css_class("flat");
     button.add_css_class("main-inline-back-button");
@@ -32,7 +38,7 @@ pub(super) fn build_certification_menu_item(icon_name: &str, label: &str) -> gtk
     row_label.set_hexpand(true);
     row.append(&row_label);
     button.set_child(Some(&row));
-    button
+    (button, row_label)
 }
 
 #[cfg(feature = "premium")]
@@ -46,7 +52,7 @@ pub(super) fn show_certification_diagnostics_dialog(
         .transient_for(parent)
         .modal(true)
         .use_header_bar(1)
-        .title("Console de Confiance")
+        .title(tr("trust-console-title").as_str())
         .default_width(780)
         .default_height(620)
         .resizable(false)
@@ -91,12 +97,15 @@ pub(super) fn show_certification_diagnostics_dialog(
         status_page.add_css_class("trust-console-pending");
     }
     status_page.set_icon_name(None);
-    status_page.set_title("Moteur de Confiance Heelonys");
-    status_page.set_description(Some(if is_fully_certified {
-        "Le moteur peut générer un rapport signé, traçable et officiellement exploitable."
-    } else {
-        "Un ou plusieurs prérequis manquent encore pour une chaîne de preuve complète."
-    }));
+    status_page.set_title(tr("trust-console-engine-title").as_str());
+    status_page.set_description(Some(
+        tr(if is_fully_certified {
+            "trust-console-engine-ready"
+        } else {
+            "trust-console-engine-pending"
+        })
+        .as_str(),
+    ));
     content.append(&status_page);
 
     let compliance_badges = gtk4::Box::builder()
@@ -104,10 +113,10 @@ pub(super) fn show_certification_diagnostics_dialog(
         .spacing(10)
         .halign(Align::Center)
         .build();
-    let rgpd_badge = gtk4::Label::new(Some("Conforme RGPD"));
+    let rgpd_badge = gtk4::Label::new(Some(tr("trust-console-badge-gdpr").as_str()));
     rgpd_badge.add_css_class("trust-compliance-badge");
     rgpd_badge.add_css_class("trust-compliance-rgpd");
-    let nis2_badge = gtk4::Label::new(Some("Prêt NIS2"));
+    let nis2_badge = gtk4::Label::new(Some(tr("trust-console-badge-nis2").as_str()));
     nis2_badge.add_css_class("trust-compliance-badge");
     nis2_badge.add_css_class("trust-compliance-nis2");
     compliance_badges.append(&rgpd_badge);
@@ -119,17 +128,19 @@ pub(super) fn show_certification_diagnostics_dialog(
     details_list.add_css_class("trust-console-list");
     details_list.set_selection_mode(gtk4::SelectionMode::None);
     details_list.append(&build_certification_status_row(
-        "Licence",
-        if status.is_certified_license {
-            "PRO"
+        tr("trust-console-license-title").as_str(),
+        tr(if status.is_certified_license {
+            "trust-console-license-pro"
         } else {
-            "FREE"
-        },
-        if status.is_certified_license {
-            "Version certifiée active"
+            "trust-console-license-free"
+        })
+        .as_str(),
+        tr(if status.is_certified_license {
+            "trust-console-license-pro-description"
         } else {
-            "Upgrade requis pour les rapports signés"
-        },
+            "trust-console-license-free-description"
+        })
+        .as_str(),
         if status.is_certified_license {
             Some("compliance")
         } else {
@@ -137,25 +148,23 @@ pub(super) fn show_certification_diagnostics_dialog(
         },
     ));
     details_list.append(&build_certification_status_row(
-        "Signature",
-        if status.signing_key_present {
-            if status.signing_key_auto_generated {
-                "ACTIVE (Auto-générée)"
-            } else {
-                "ACTIVE"
-            }
+        tr("trust-console-signature-title").as_str(),
+        tr(if !status.signing_key_present {
+            "trust-console-signature-absent"
+        } else if status.signing_key_auto_generated {
+            "trust-console-signature-active-generated"
         } else {
-            "ABSENTE"
-        },
-        if status.signing_key_present {
-            if status.signing_key_auto_generated {
-                "Chaîne de signature opérationnelle, provisionnée localement au premier lancement"
-            } else {
-                "Chaîne de signature opérationnelle"
-            }
+            "trust-console-signature-active"
+        })
+        .as_str(),
+        tr(if !status.signing_key_present {
+            "trust-console-signature-absent-description"
+        } else if status.signing_key_auto_generated {
+            "trust-console-signature-active-generated-description"
         } else {
-            "Requis pour la conformité NIS2/RGPD"
-        },
+            "trust-console-signature-active-description"
+        })
+        .as_str(),
         if status.signing_key_present {
             Some("emerald")
         } else {
@@ -163,16 +172,18 @@ pub(super) fn show_certification_diagnostics_dialog(
         },
     ));
     details_list.append(&build_certification_status_row(
-        "Empreinte Moteur",
+        tr("trust-console-fingerprint-title").as_str(),
         engine_fingerprint.as_str(),
-        format!("HeelonVault v{}", env!("CARGO_PKG_VERSION")).as_str(),
+        tr_args(
+            "trust-console-fingerprint-version",
+            &[("version", I18nArg::Str(env!("CARGO_PKG_VERSION")))],
+        )
+        .as_str(),
         Some("info"),
     ));
     content.append(&details_list);
 
-    let signature_note = gtk4::Label::new(Some(
-        "La clé de signature garantit que vos rapports PDF ne peuvent pas être falsifiés après export.",
-    ));
+    let signature_note = gtk4::Label::new(Some(tr("trust-console-signature-note").as_str()));
     signature_note.set_wrap(true);
     signature_note.set_halign(Align::Start);
     signature_note.add_css_class("dim-label");
@@ -180,41 +191,47 @@ pub(super) fn show_certification_diagnostics_dialog(
     content.append(&signature_note);
 
     if status.is_certified_license && !status.signing_key_present {
-        let generate_key_button = gtk4::Button::with_label("Générer une clé maintenant");
+        let generate_key_button =
+            gtk4::Button::with_label(tr("trust-console-generate-key").as_str());
         generate_key_button.add_css_class("suggested-action");
         generate_key_button.set_halign(Align::Fill);
         let parent_window = parent.clone();
         let dialog_for_close = dialog.clone();
         let license_service = Arc::clone(&license_service);
         let show_feedback_dialog_for_click = Rc::clone(&show_feedback_dialog);
-        generate_key_button.connect_clicked(move |_| match license_service.ensure_audit_key_exists() {
-            Ok(_) => {
-                dialog_for_close.close();
-                (show_feedback_dialog_for_click)(
-                    &parent_window,
-                    "Clé de certification générée",
-                    "Une nouvelle clé Ed25519 a été générée et stockée localement pour les exports certifiés.",
-                );
-                show_certification_diagnostics_dialog(
-                    &parent_window,
-                    Arc::clone(&license_service),
-                    Rc::clone(&show_feedback_dialog_for_click),
-                );
-            }
-            Err(error) => {
-                let message = format!("Impossible de générer la clé de signature: {:?}", error);
-                (show_feedback_dialog_for_click)(
-                    &parent_window,
-                    "Provisionnement impossible",
-                    message.as_str(),
-                );
+        generate_key_button.connect_clicked(move |_| {
+            match license_service.ensure_audit_key_exists() {
+                Ok(_) => {
+                    dialog_for_close.close();
+                    (show_feedback_dialog_for_click)(
+                        &parent_window,
+                        tr("trust-console-key-generated-title").as_str(),
+                        tr("trust-console-key-generated-body").as_str(),
+                    );
+                    show_certification_diagnostics_dialog(
+                        &parent_window,
+                        Arc::clone(&license_service),
+                        Rc::clone(&show_feedback_dialog_for_click),
+                    );
+                }
+                Err(error) => {
+                    let message = tr_args(
+                        "trust-console-key-error-body",
+                        &[("error", I18nArg::Str(format!("{error:?}").as_str()))],
+                    );
+                    (show_feedback_dialog_for_click)(
+                        &parent_window,
+                        tr("trust-console-key-error-title").as_str(),
+                        message.as_str(),
+                    );
+                }
             }
         });
         content.append(&generate_key_button);
     }
 
     if !status.is_certified_license {
-        let upgrade_button = gtk4::Button::with_label("Upgrade vers Premium");
+        let upgrade_button = gtk4::Button::with_label(tr("trust-console-upgrade").as_str());
         upgrade_button.add_css_class("suggested-action");
         upgrade_button.set_halign(Align::Fill);
         upgrade_button.connect_clicked(|_| {
@@ -226,9 +243,7 @@ pub(super) fn show_certification_diagnostics_dialog(
         content.append(&upgrade_button);
     }
 
-    let anssi_note = gtk4::Label::new(Some(
-        "Ce moteur utilise le protocole Ed25519 pour garantir la non-répudiation de vos preuves d'audit selon les standards de l'ANSSI.",
-    ));
+    let anssi_note = gtk4::Label::new(Some(tr("trust-console-anssi-note").as_str()));
     anssi_note.set_wrap(true);
     anssi_note.set_halign(Align::Start);
     anssi_note.add_css_class("caption");
@@ -241,7 +256,7 @@ pub(super) fn show_certification_diagnostics_dialog(
         .spacing(12)
         .margin_top(4)
         .build();
-    let ok_button = gtk4::Button::with_label(heelonvault_core::tr!("common-ok").as_str());
+    let ok_button = gtk4::Button::with_label(tr("common-ok").as_str());
     ok_button.add_css_class("suggested-action");
     ok_button.add_css_class("trust-console-ok");
     let dialog_for_close = dialog.clone();

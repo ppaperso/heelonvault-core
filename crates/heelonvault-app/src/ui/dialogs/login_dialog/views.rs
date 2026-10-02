@@ -5,6 +5,7 @@ use gtk4::{
 };
 use libadwaita as adw;
 
+use crate::ui::license_badge::LicenseDisplay;
 use crate::ui::widgets::password_strength_bar::PasswordStrengthBar;
 
 /// Structure contenant tous les widgets de la dialogue de connexion.
@@ -30,7 +31,11 @@ pub struct LoginDialogWidgets {
     pub badges_box: gtk4::Box,
     #[cfg(feature = "premium")]
     pub license_seal: gtk4::Box,
+    /// "Certifié par Heelonys" caption of the seal (empty label in Community).
+    #[cfg(feature = "premium")]
+    pub license_seal_caption: gtk4::Label,
     pub license_badge: gtk4::Label,
+    pub license: LicenseDisplay,
 
     // Section Formulaire
     pub form_card: gtk4::Frame,
@@ -149,12 +154,12 @@ pub struct LoginDialogWidgets {
 /// y compris la section hero, le formulaire de connexion, les sections TOTP et bootstrap.
 ///
 /// # Arguments
-/// * `license_badge_text` - Texte pour le badge de licence
+/// * `license` - Licence affichée (badge Community ou sceau Professionnel)
 /// * `in_bootstrap_mode` - Si vrai, active le mode d'initialisation (premier admin)
 ///
 /// # Returns
 /// Une structure `LoginDialogWidgets` contenant tous les widgets créés.
-pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> LoginDialogWidgets {
+pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> LoginDialogWidgets {
     // ─── Section Shell ────────────────────────────────────────────────────────────
     let shell = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
@@ -246,8 +251,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
 
     // License seal (Premium) ou badge simple
     #[cfg(feature = "premium")]
-    let (license_seal, license_badge) =
-        if let Some(customer_name) = professional_customer_name(license_badge_text.as_str()) {
+    let (license_seal, license_seal_caption, license_badge) =
+        if let Some(customer_name) = license.customer_name() {
             let seal = gtk4::Box::builder()
                 .orientation(Orientation::Horizontal)
                 .spacing(8)
@@ -280,7 +285,9 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
                 .valign(Align::Center)
                 .build();
 
-            let cert_label = gtk4::Label::new(Some("CERTIFIE PAR HEELONYS"));
+            let cert_label = gtk4::Label::new(Some(
+                heelonvault_core::tr!("license-seal-certified-by").as_str(),
+            ));
             cert_label.set_halign(Align::Start);
             cert_label.add_css_class("heelonys-seal-cert");
             let customer_label = gtk4::Label::new(Some(customer_name.as_str()));
@@ -296,20 +303,20 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
 
             // Retourner un dummy license_badge pour satisfaire la structure
             let dummy_badge = gtk4::Label::new(None);
-            (seal, dummy_badge)
+            (seal, cert_label, dummy_badge)
         } else {
-            let lb = gtk4::Label::new(Some(license_badge_text.as_str()));
+            let lb = gtk4::Label::new(Some(license.badge_text().as_str()));
             lb.add_css_class("login-hero-badge");
             lb.add_css_class("login-license-badge");
             badges_box.append(&lb);
             // Retourner un dummy license_seal
             let dummy_seal = gtk4::Box::builder().build();
-            (dummy_seal, lb)
+            (dummy_seal, gtk4::Label::new(None), lb)
         };
 
     #[cfg(not(feature = "premium"))]
     let license_badge = {
-        let lb = gtk4::Label::new(Some(license_badge_text.as_str()));
+        let lb = gtk4::Label::new(Some(license.badge_text().as_str()));
         lb.add_css_class("login-hero-badge");
         lb.add_css_class("login-license-badge");
         badges_box.append(&lb);
@@ -468,7 +475,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
 
     // Widgets PSC (Premium uniquement)
     #[cfg(feature = "premium")]
-    let psc_start_button = gtk4::Button::with_label("Se connecter avec Pro Sante Connect");
+    let psc_start_button =
+        gtk4::Button::with_label(heelonvault_core::tr!("psc-start-button").as_str());
     #[cfg(feature = "premium")]
     {
         psc_start_button.add_css_class("suggested-action");
@@ -477,7 +485,7 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
 
     #[cfg(feature = "premium")]
     let psc_artifact_entry = gtk4::Entry::builder()
-        .placeholder_text("Artefact callback PSC")
+        .placeholder_text(heelonvault_core::tr!("psc-artifact-placeholder").as_str())
         .hexpand(true)
         .build();
     #[cfg(feature = "premium")]
@@ -486,7 +494,8 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
     }
 
     #[cfg(feature = "premium")]
-    let psc_complete_button = gtk4::Button::with_label("Valider artefact PSC");
+    let psc_complete_button =
+        gtk4::Button::with_label(heelonvault_core::tr!("psc-complete-button").as_str());
     #[cfg(feature = "premium")]
     {
         psc_complete_button.add_css_class("secondary-pill");
@@ -944,7 +953,10 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
         badges_box,
         #[cfg(feature = "premium")]
         license_seal,
+        #[cfg(feature = "premium")]
+        license_seal_caption,
         license_badge,
+        license: license.clone(),
         form_card,
         form_box,
         language_row,
@@ -1024,23 +1036,6 @@ pub fn build_login_view(license_badge_text: String, in_bootstrap_mode: bool) -> 
         init_pending_spinner,
         init_pending_label,
     }
-}
-
-/// Extraire le nom du client professionnel du texte du badge de licence.
-/// Format attendu: "Licence pro - NomClient" ou similaire.
-#[cfg(feature = "premium")]
-fn professional_customer_name(license_badge_text: &str) -> Option<String> {
-    let text = license_badge_text.trim();
-    if text.starts_with("Licence pro") && text.contains('-') {
-        let parts: Vec<&str> = text.splitn(2, '-').collect();
-        if parts.len() == 2 {
-            let customer = parts[1].trim();
-            if !customer.is_empty() {
-                return Some(customer.to_string());
-            }
-        }
-    }
-    None
 }
 
 /// Configure le basculement de langue (FR/EN) pour tous les widgets.
@@ -1194,6 +1189,25 @@ pub fn setup_language_toggle(widgets: &LoginDialogWidgets, in_bootstrap_mode: bo
                 widgets_clone.language_en_button.set_active(true);
             } else {
                 widgets_clone.language_fr_button.set_active(true);
+            }
+
+            widgets_clone
+                .license_badge
+                .set_text(widgets_clone.license.badge_text().as_str());
+            #[cfg(feature = "premium")]
+            {
+                widgets_clone
+                    .license_seal_caption
+                    .set_text(heelonvault_core::tr!("license-seal-certified-by").as_str());
+                widgets_clone
+                    .psc_start_button
+                    .set_label(heelonvault_core::tr!("psc-start-button").as_str());
+                widgets_clone.psc_artifact_entry.set_placeholder_text(Some(
+                    heelonvault_core::tr!("psc-artifact-placeholder").as_str(),
+                ));
+                widgets_clone
+                    .psc_complete_button
+                    .set_label(heelonvault_core::tr!("psc-complete-button").as_str());
             }
 
             // Mettre à jour le texte du bouton en fonction de l'étape courante

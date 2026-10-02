@@ -100,8 +100,10 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     certification_menu_button.set_halign(Align::Fill);
     certification_menu_button.set_hexpand(true);
     certification_menu_button.set_icon_name("emblem-ok-symbolic");
-    certification_menu_button.set_label("Certifier & Exporter");
-    certification_menu_button.set_tooltip_text(Some("Certifier & Exporter"));
+    certification_menu_button.set_label(heelonvault_core::tr!("certification-menu-label").as_str());
+    certification_menu_button.set_tooltip_text(Some(
+        heelonvault_core::tr!("certification-menu-label").as_str(),
+    ));
     sidebar_box.append(&certification_menu_button);
 
     let sidebar_title = gtk4::Label::new(Some(
@@ -325,7 +327,10 @@ pub(super) fn refresh_i18n(sidebar: &SidebarWidgets) {
         .set_text(heelonvault_core::tr!("main-user-nav").as_str());
     sidebar
         .certification_menu_button
-        .set_tooltip_text(Some("Certifier & Exporter"));
+        .set_label(heelonvault_core::tr!("certification-menu-label").as_str());
+    sidebar.certification_menu_button.set_tooltip_text(Some(
+        heelonvault_core::tr!("certification-menu-label").as_str(),
+    ));
 }
 
 pub(super) fn build_audit_sidebar_row(
@@ -440,12 +445,12 @@ pub(super) fn build_vault_sidebar_row(
 
     if let Some(role) = shared_role {
         let role_badge = gtk4::Label::new(None);
-        let badge_text = match role {
-            heelonvault_core::models::VaultShareRole::Read => "READ",
-            heelonvault_core::models::VaultShareRole::Write => "WRITE",
-            heelonvault_core::models::VaultShareRole::Admin => "ADMIN",
+        let badge_key = match role {
+            heelonvault_core::models::VaultShareRole::Read => "vault-share-role-read",
+            heelonvault_core::models::VaultShareRole::Write => "vault-share-role-write",
+            heelonvault_core::models::VaultShareRole::Admin => "vault-share-role-admin",
         };
-        role_badge.set_text(badge_text);
+        role_badge.set_text(heelonvault_core::tr!(badge_key).as_str());
         role_badge.add_css_class("vault-share-role-badge");
         role_badge.set_margin_end(6);
         content.append(&role_badge);

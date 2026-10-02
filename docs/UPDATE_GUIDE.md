@@ -1,131 +1,140 @@
-# Guide de Mise a Jour en Production (Rust)
+# Mise à jour et déploiement
 
 Langue : FR | [EN](UPDATE_GUIDE.en.md)
 
-Version documentée: `2.0.0`
+Ce guide explique comment passer à une nouvelle version de HeelonVault, puis, pour les
+administrateurs, comment réaliser une installation système sous Linux. Pour une première
+installation sur un poste, voir [QUICKSTART.fr.md](QUICKSTART.fr.md).
 
-> Dernière mise à jour : 2026-10-02
+## Avant toute mise à jour
 
-Ce guide decrit la mise a jour de HeelonVault dans son architecture Rust-only.
+1. Faites un **export chiffré `.hvb`** de vos coffres depuis **Profil & Sécurité > Gestion des
+   données**, et conservez-le hors du poste.
+2. Notez la version installée (en-tête du [journal des modifications](CHANGELOG.md)) et lisez
+   les sections des versions intermédiaires, en particulier les « Changements incompatibles ».
+3. Fermez HeelonVault.
 
-**Nouveautés v2.0.0** : migrations 0016 → 0019 (16 → 19 total) pour le rate limiting par IP et la récupération de clé de compte. Seule la migration 0016 crée une nouvelle table (`login_attempts_ip`) ; les migrations 0017-0019 ajoutent des colonnes nullables à la table `users` existante. Le cache PIN (`PinCache`) est volontairement gardé en mémoire uniquement et n'est jamais persisté en base — il n'y a pas de table associée.
+Les évolutions du schéma de base sont appliquées **automatiquement** au premier lancement de la
+nouvelle version. Elles ne sont pas réversibles : revenir à une version antérieure impose de
+restaurer une sauvegarde faite avant la mise à jour.
 
-## Portee
+## Mettre à jour un poste
 
-- Application: `/opt/heelonvault`
-- Profil Personnel: base `~/.local/share/heelonvault/heelonvault-rust.db`, logs `~/.local/state/heelonvault/logs`
-- Profil Entreprise: base `/var/lib/heelonvault/heelonvault-rust.db`, logs `/var/log/heelonvault`
-- Recommandation performance Entreprise: héberger la base sur un stockage à faible latence, idéalement local au serveur d'exécution.
-- Backups: `/var/backups/heelonvault`
-- Legacy Python a ne jamais modifier: `/var/lib/heelonvault-shared`
+Téléchargez et vérifiez le nouveau paquet comme pour une première installation
+([sections 1 et 2](QUICKSTART.fr.md#1-télécharger) du démarrage rapide), puis :
 
-## Prerequis
+| Système | Procédure |
+| ------- | --------- |
+| Windows | Lancez le nouveau `.msi`. Il remplace la version installée ; inutile de désinstaller d'abord. Un `.msi` plus ancien que la version installée est refusé. |
+| macOS | Glissez la nouvelle application dans **Applications** et choisissez **Remplacer**. L'étape Gatekeeper du premier lancement est à refaire. |
+| Linux (AppImage) | Remplacez l'ancien fichier `.AppImage` par le nouveau, puis rendez-le exécutable (`chmod +x`). |
 
-1. L'application est deja installee via `scripts/install.sh` (auto-détection OS), ou explicitement via `scripts/install-ubuntu.sh` / `scripts/install-rhel.sh`.
-2. Vous avez les droits `sudo`.
-3. Vous etes dans le dossier source de la version cible (avec `scripts/install.sh`, le binaire `heelonvault` et le dossier `migrations/`).
+Vos données ne sont pas touchées par le remplacement de l'application : elles vivent dans un
+dossier séparé (voir [Où sont mes données ?](QUICKSTART.fr.md#6-où-sont-mes-données-)).
 
-## Procedure de mise a jour
+### AppImage : données créées avec la version 2.0.0
+
+L'AppImage 2.0.0 enregistrait sa base dans un dossier `data/` relatif au dossier depuis lequel
+elle était lancée (souvent le dossier personnel : `~/data/heelonvault-rust-dev.db`). Les versions
+suivantes utilisent `~/.local/share/heelonvault/heelonvault-rust.db`. Au premier lancement, si ce
+nouveau fichier n'existe pas encore, l'AppImage y **copie** automatiquement l'ancienne base
+trouvée dans le dossier de lancement ou dans le dossier personnel. L'ancien fichier est laissé
+en place : supprimez-le vous-même une fois vos secrets vérifiés.
+
+## Installation système Linux
+
+Réservée aux administrateurs qui veulent une installation dans `/opt/heelonvault` avec intégration
+au menu des applications, ou une base partagée sur un serveur. Pour un poste individuel,
+l'AppImage suffit.
+
+Les scripts d'installation détectent la distribution (famille Debian/Ubuntu ou
+Fedora/RHEL/Rocky/AlmaLinux), installent les dépendances système et proposent deux profils :
+
+| Profil | Base de données | Logs |
+| ------ | --------------- | ---- |
+| **Personnel** (défaut) | `~/.local/share/heelonvault/heelonvault-rust.db` | `~/.local/state/heelonvault/logs/` |
+| **Entreprise** | `/var/lib/heelonvault/heelonvault-rust.db` | `/var/log/heelonvault/` |
+
+Le profil Personnel partage la base de l'AppImage : les deux peuvent coexister.
+
+### Installer
+
+Prérequis : un dépôt `heelonvault-core` au tag voulu, avec le binaire `heelonvault` construit en
+mode release et copié à la racine du dépôt (voir la
+[documentation de développement](internal/DEVELOPMENT.fr.md)).
 
 ```bash
-cd /chemin/vers/HeelonVault
+# Aperçu, sans rien modifier
+sudo env HEELONVAULT_DRY_RUN=1 ./scripts/install.sh
+
+# Installation
 sudo ./scripts/install.sh
 ```
 
-Le script effectue:
+Le script vérifie l'intégrité du binaire si un fichier `heelonvault.sha256` l'accompagne, copie
+l'application et ses migrations dans `/opt/heelonvault`, génère le lanceur `run.sh` et l'entrée
+de menu `com.heelonvault.rust.desktop`. Les scripts `install-ubuntu.sh` et `install-rhel.sh`
+permettent de forcer une famille de distribution.
 
-1. Verification des preconditions et de l'integrite de l'artefact.
-2. Detection du mode de deploiement (personnel/entreprise) et des bases existantes.
-3. Backup automatique des bases detectees dans `/var/backups/heelonvault` (rotation des backups conservee).
-4. Redeploiement vers `/opt/heelonvault`.
-5. Regeneration du lanceur `run.sh`, integration desktop et verification des artefacts.
+En profil Entreprise, le script ne configure que les chemins partagés : la publication réseau
+(RDS, VDI, RemoteApp, bastion…) reste à votre charge. Placez la base sur un stockage à faible
+latence, idéalement local au serveur d'exécution.
 
-## Verifications post-update
+### Mettre à jour
+
+Depuis le dépôt au nouveau tag, avec le nouveau binaire à la racine :
 
 ```bash
-# binaire present
-test -x /opt/heelonvault/heelonvault && echo OK
-
-# lanceur et entrees desktop
-test -x /opt/heelonvault/run.sh
-test -f /usr/share/applications/com.heelonvault.rust.desktop
-test -f /usr/share/applications/heelonvault.desktop
-
-# controle local optionnel
-cd /opt/heelonvault && cargo check
+sudo ./scripts/install.sh
 ```
 
-## Restauration (rollback)
+Avant de redéployer, le script sauvegarde les bases détectées dans `/var/backups/heelonvault`
+(`heelonvault_user_<utilisateur>_backup_AAAAMMJJ_HHMMSS.db` ou
+`heelonvault_enterprise_backup_AAAAMMJJ_HHMMSS.db`). Un échec de sauvegarde interrompt la mise
+à jour : ne le contournez pas. Vérifiez l'espace disque au préalable (`df -h /var/backups`).
 
-Si une mise a jour doit etre annulee:
+Contrôle après mise à jour :
 
 ```bash
-# 1. Revenir au code/source de la version precedente
-cd /chemin/vers/HeelonVault
-# exemple: git checkout <tag_precedent>
+test -x /opt/heelonvault/heelonvault && test -x /opt/heelonvault/run.sh && echo OK
+stat -c "%a %n" ~/.local/share/heelonvault/heelonvault-rust.db   # attendu : 600
+```
 
-# 2. Reinstaller cette version
+### Revenir à la version précédente
+
+```bash
+# 1. Réinstaller la version précédente (dépôt au tag précédent, binaire correspondant)
 sudo ./scripts/install.sh
 
-# 3. Restaurer la base depuis un backup recent (choisir selon mode)
+# 2. Restaurer la sauvegarde faite avant la mise à jour
 ls -lth /var/backups/heelonvault/
-# personnel: heelonvault_user_<user>_backup_YYYYMMDD_HHMMSS.db
-# entreprise: heelonvault_enterprise_backup_YYYYMMDD_HHMMSS.db
-
-# 4. Relancer
-/opt/heelonvault/run.sh
+cp /var/backups/heelonvault/<sauvegarde>.db ~/.local/share/heelonvault/heelonvault-rust.db
 ```
 
-Verifications fonctionnelles recommandees:
-
-1. Se connecter puis cliquer sur la croix de la fenêtre: l'écran de login doit réapparaître.
-2. Se reconnecter immédiatement: la grille des cartes doit être rechargée.
-3. Ouvrir `Profil & Sécurité` et changer la préférence d'affichage du mot de passe en édition.
-4. Modifier un secret de type mot de passe pour vérifier le comportement du champ selon la préférence.
-5. En tant qu'admin, ouvrir `Equipes` puis lancer un partage: un sélecteur explicite de coffre doit être proposé avant confirmation.
-6. Vérifier qu'un membre de team reçoit bien le coffre partagé et peut l'ouvrir selon son rôle (READ/WRITE/ADMIN).
-7. Vérifier le marquage visuel d'un coffre partagé: icône de partage visible sur les coffres partagés, sans badge texte redondant côté propriétaire/admin.
-8. Enchaîner plusieurs échecs d'authentification et vérifier que l'attente augmente progressivement avant nouvelle tentative (backoff).
-9. Si la 2FA est activée, vérifier qu'un code TOTP valide ne peut pas être réutilisé immédiatement (anti-rejeu).
-10. Importer un CSV de test et vérifier que les URL non `http/https`, les fichiers trop volumineux et les champs anormalement longs sont rejetés.
-11. Après export backup/restauration, vérifier les permissions Linux avec `stat -c "%a %n" /chemin/backup.hvb` et `stat -c "%a %n" /chemin/heelonvault-rust.db` (valeur attendue: `600`).
-12. Changer le mot de passe maître, puis vérifier l'accès aux coffres principaux après reconnexion (rotation master key durcie).
-13. Vérifier le flux CSV en 3 étapes (prévisualisation, progression, résumé) et, en cas de rejet, noter le chemin `csv_import_rejects_*.txt` indiqué dans le résumé.
-
-### Vérifications spécifiques v2.0.0
-
-**Nouveaux composants de base de données** :
+### Désinstaller
 
 ```bash
-# Vérifier la table de rate limiting par IP (Migration 0016, seule nouvelle table)
-sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
-  "SELECT name FROM sqlite_master WHERE type='table' AND name='login_attempts_ip';"
-
-# Vérifier les colonnes de récupération de clé de compte sur la table users
-# (Migrations 0017-0019 : recovery_phrase_envelope, recovery_verifier, recovery_key_envelope)
-sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db \
-  "PRAGMA table_info(users);" | grep -E "recovery_phrase_envelope|recovery_verifier|recovery_key_envelope"
+sudo ./scripts/remove.sh
 ```
 
-Il n'y a pas de table `pin_cache` ni `session_state` à vérifier : le cache PIN est en mémoire
-uniquement (jamais persisté) et il n'existe pas de mécanisme de `session_state` en base dans
-cette version.
+Les données et les sauvegardes ne sont supprimées que si vous le confirmez explicitement.
 
-**Fonctionnalités à tester** :
-14. Tester la génération et la ré-exportation de la clé de récupération de compte depuis `Profil & Sécurité`.
-15. Vérifier l'activation et le fonctionnement du PIN avec badge et minuteur dans la barre de titre.
-16. Tester le rate limiting par IP en déclenchant plusieurs échecs d'authentification depuis différentes adresses.
-17. Vérifier que la session reste active après un changement de mot de passe maître.
+## Migration depuis l'ancienne version Python (0.4)
 
-## Bonnes pratiques
+HeelonVault ne lit ni ne modifie jamais les données de l'ancienne application Python. Pour les
+reprendre, exportez-les en CSV, puis importez ce fichier depuis **Profil & Sécurité > Gestion des
+données > Importer des données (CSV)** :
 
-- Toujours lancer `scripts/install.sh` (ou le wrapper OS explicite) depuis le code source cible.
-- Verifier l'espace disque avant mise a jour (`df -h /var/backups`).
-- Ne pas modifier les donnees pendant la mise a jour.
-- Conserver plusieurs backups recents avant nettoyage manuel.
+```bash
+# Données dans le dossier par défaut (~/.local/share/passwordmanager), profil donné
+./scripts/export-legacy-v0.4-to-csv.py --profile <profil> --output legacy_export.csv
 
-## A ne pas faire
+# Ou chemins explicites (déploiement partagé, par exemple sous /var/lib/heelonvault-shared)
+./scripts/export-legacy-v0.4-to-csv.py \
+  --db-path <chemin>/passwords_<profil>.db \
+  --salt-path <chemin>/salt_<profil>.bin \
+  --output legacy_export.csv
+```
 
-- Ne pas reutiliser d'anciennes procedures `venv`/`pip`.
-- Ne pas modifier les anciens chemins Python (`/var/lib/heelonvault-shared`).
-- Ne pas contourner les erreurs backup: un echec backup doit bloquer la mise a jour.
+Le fichier CSV contient vos mots de passe **en clair** : supprimez-le de façon sûre dès l'import
+terminé.

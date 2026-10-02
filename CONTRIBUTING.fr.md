@@ -1,69 +1,49 @@
-# Guide de contribution (Rust)
+# Guide de contribution
 
 Langue : FR | [EN](CONTRIBUTING.md)
 
-Merci de contribuer a HeelonVault.
+Merci de contribuer à HeelonVault.
 
-## Perimetre
+## Pour commencer
 
-- Le code principal est a la racine du depot.
-- Le code Python historique a ete retire.
-- Les contributions doivent rester Rust-first et security-first.
+Prérequis, build, tests et contrôles qualité sont décrits dans le
+[guide de développement](docs/internal/DEVELOPMENT.fr.md). Le fonctionnement interne est
+détaillé dans [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Environnement de developpement
+> Construire le workspace nécessite actuellement le dépôt privé `heelonvault-premium`, cloné à
+> côté de celui-ci (voir le guide de développement). Les corrections de documentation et les
+> changements limités à la crate `heelonvault-core` restent vérifiables avec
+> `cargo test -p heelonvault-core` depuis une copie autonome de cette crate.
 
-Prerequis :
+## Règles de code
 
-- Linux
-- Toolchain Rust (`cargo`, `rustc`)
-- Paquets runtime GTK4/libadwaita pour votre distribution
+- Suivre le style, le nommage et le découpage en modules existants.
+- Pas de `unwrap()` / `expect()` (interdits par `clippy.toml`), pas d'`unsafe`, aucun
+  avertissement : la CI compile avec `-D warnings`. Utiliser des erreurs typées (`thiserror`).
+- Pas de `#[allow(...)]` pour faire taire un lint sans justification écrite.
+- Aucune valeur secrète ne doit atteindre l'interface, un journal ou un message d'erreur.
+- Ajouter des tests pour tout changement de comportement des repositories et services
+  (`crates/heelonvault-core/tests/`).
+- L'API publique de `heelonvault-core` suit semver : préférer les méthodes de trait par défaut,
+  `#[non_exhaustive]` et la dépréciation aux ruptures ([RELEASING.md](docs/internal/RELEASING.md)).
+- Préférer des commits petits et ciblés. Ne jamais commiter de secret ni de donnée personnelle.
 
-Installation locale :
+## Checklist de pull request
 
-```bash
-git clone <repo-url>
-cd HeelonVault
-cargo check
-```
+- Les contrôles qualité du guide de développement passent (`fmt`, `clippy`, `test`,
+  `semver-checks`).
+- `sbom.cyclonedx.json` est régénéré si les dépendances ont changé.
+- Les changements visibles sont reportés dans le journal des modifications (FR et EN) et dans le
+  guide concerné (`docs/QUICKSTART*`, `docs/USER_GUIDE*`, `docs/UPDATE_GUIDE*`).
+- Les changements sensibles pour la sécurité sont justifiés dans la description de la PR.
 
-Lancement en mode developpement :
+## Documentation
 
-```bash
-./scripts/run-dev.sh
-```
+`docs/` est publié sur [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr) ;
+`docs/internal/` est réservé aux mainteneurs et n'est pas publié. Garder les deux langues
+synchronisées.
 
-Chemins de base :
+## Signalements de sécurité
 
-- Dev : `data/heelonvault-rust-dev.db`
-- Prod packagee : `~/.local/share/heelonvault/heelonvault-rust.db`
-- Legacy a ne pas toucher : `/var/lib/heelonvault-shared`
-
-## Standards de code
-
-- Respecter le style et les conventions existantes.
-- Privilegier les commits petits et focalises.
-- Ajouter des tests pour les changements repository/service.
-- Ne jamais commiter de secrets ou donnees privees.
-
-## Commandes de test
-
-Depuis la racine :
-
-```bash
-cargo check
-cargo test
-cargo test secret_repository:: -- --nocapture
-cargo test secret_service:: -- --nocapture
-```
-
-## Checklist Pull Request
-
-- `cargo check` passe.
-- Les tests pertinents passent.
-- Les changements sensibles cote securite sont justifies dans la PR.
-- La documentation est mise a jour si le comportement change.
-
-## Signalements de securite
-
-Ne pas ouvrir d'issue publique pour les vulnerabilites.
+Ne pas ouvrir d'issue publique pour une vulnérabilité : voir [SECURITY.fr.md](SECURITY.fr.md).
 Contact : `security@heelonys.fr`

@@ -1,31 +1,34 @@
-# Documentation Index
+# Documentation HeelonVault
 
-Language: EN | FR
+Langue : FR | [EN](README.en.md)
 
-## 🌐 Online Documentation
+Cette documentation est publiée sur [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr).
 
-| Resource | URL |
-|----------|-----|
-| **Official Documentation** | [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr) |
-| **CycloneDX SBOM** | [sbom.heelonvault.heelonys.fr](https://sbom.heelonvault.heelonys.fr) |
+## Utiliser HeelonVault
 
-This folder contains bilingual technical documentation for HeelonVault.
+| Document | Pour… |
+| -------- | ----- |
+| [Installation et démarrage rapide](QUICKSTART.fr.md) | télécharger, vérifier et installer l'application, créer son compte |
+| [Guide utilisateur](USER_GUIDE.md) | découvrir chaque écran : secrets, recherche, profil, import / export |
+| [Mise à jour et déploiement](UPDATE_GUIDE.md) | passer à une nouvelle version, installation système Linux |
+| [Journal des modifications](CHANGELOG.md) | savoir ce qui change d'une version à l'autre |
 
-## Core Docs
+## Comprendre et évaluer
 
-| Topic | English | Francais |
-| ----- | ------- | -------- |
-| Architecture | [ARCHITECTURE.en.md](ARCHITECTURE.en.md) | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Update guide | [UPDATE_GUIDE.en.md](UPDATE_GUIDE.en.md) | [UPDATE_GUIDE.md](UPDATE_GUIDE.md) |
-| User guide | [USER_GUIDE.en.md](USER_GUIDE.en.md) | [USER_GUIDE.md](USER_GUIDE.md) |
-| Graphic guidelines | [charte/CHARTE_GRAPHIQUE.en.md](charte/CHARTE_GRAPHIQUE.en.md) | [charte/CHARTE_GRAPHIQUE.md](charte/CHARTE_GRAPHIQUE.md) |
+| Document | Pour… |
+| -------- | ----- |
+| [Sécurité](../SECURITY.fr.md) | modèle de menace, cryptographie, signalement de vulnérabilité, SBOM |
+| [Architecture](ARCHITECTURE.md) | fonctionnement interne, modèle de clés, chemins de données |
+| [Licences tierces](THIRD_PARTY_LICENSES.fr.md) | inventaire des dépendances et de leurs licences |
+| [Mentions légales](LEGAL.md) | marque, Sceau d'Authenticité |
 
-## Project-level Docs
+## Contribuer
 
-- Overview: [../README.en.md](../README.en.md) | [../README.md](../README.md)
-- Changelog: [CHANGELOG.en.md](CHANGELOG.en.md) | [CHANGELOG.md](CHANGELOG.md)
-- Quickstart: [QUICKSTART.md](QUICKSTART.md) | [QUICKSTART.fr.md](QUICKSTART.fr.md)
-- Security: [../SECURITY.md](../SECURITY.md) | [../SECURITY.fr.md](../SECURITY.fr.md)
-- Contributing: [../CONTRIBUTING.md](../CONTRIBUTING.md) | [../CONTRIBUTING.fr.md](../CONTRIBUTING.fr.md)
-- Code of Conduct: [../CODE_OF_CONDUCT.en.md](../CODE_OF_CONDUCT.en.md) | [../CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md)
-- Third-party licenses: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) | [THIRD_PARTY_LICENSES.fr.md](THIRD_PARTY_LICENSES.fr.md)
+- [Guide de contribution](../CONTRIBUTING.fr.md) et [code de conduite](../CODE_OF_CONDUCT.md)
+- [Documentation interne](internal/README.md) (développement, livraison, packaging) : disponible
+  sur GitHub, non publiée sur le site.
+
+## Téléchargements et intégrité
+
+Paquets, sommes SHA-256 et SBOM CycloneDX signé de chaque version :
+[Releases GitHub](https://github.com/ppaperso/heelonvault-core/releases/latest).

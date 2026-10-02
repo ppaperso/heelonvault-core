@@ -644,3 +644,115 @@ license-expired-body = Votre licence HeelonVault Professional a expiré. Renouve
 feature-name-user-management = Gestion des utilisateurs
 feature-name-team-management = Gestion des équipes
 feature-name-audit-report = Rapport d'audit certifié
+
+## Console de confiance (certification)
+trust-console-title = Console de confiance
+trust-console-engine-title = Moteur de confiance Heelonys
+trust-console-engine-ready = Le moteur peut générer un rapport signé, traçable et officiellement exploitable.
+trust-console-engine-pending = Un ou plusieurs prérequis manquent encore pour une chaîne de preuve complète.
+trust-console-badge-gdpr = Conforme RGPD
+trust-console-badge-nis2 = Prêt NIS2
+trust-console-license-title = Licence
+trust-console-license-pro = PRO
+trust-console-license-free = FREE
+trust-console-license-pro-description = Version certifiée active
+trust-console-license-free-description = Licence Pro requise pour les rapports signés
+trust-console-signature-title = Signature
+trust-console-signature-active = ACTIVE
+trust-console-signature-active-generated = ACTIVE (auto-générée)
+trust-console-signature-absent = ABSENTE
+trust-console-signature-active-description = Chaîne de signature opérationnelle
+trust-console-signature-active-generated-description = Chaîne de signature opérationnelle, provisionnée localement au premier lancement
+trust-console-signature-absent-description = Requis pour la conformité NIS2/RGPD
+trust-console-fingerprint-title = Empreinte du moteur
+trust-console-fingerprint-version = HeelonVault v{ $version }
+trust-console-signature-note = La clé de signature garantit que vos rapports PDF ne peuvent pas être falsifiés après export.
+trust-console-generate-key = Générer une clé maintenant
+trust-console-key-generated-title = Clé de certification générée
+trust-console-key-generated-body = Une nouvelle clé Ed25519 a été générée et stockée localement pour les exports certifiés.
+trust-console-key-error-title = Provisionnement impossible
+trust-console-key-error-body = Impossible de générer la clé de signature : { $error }
+trust-console-upgrade = Passer à la licence Pro
+trust-console-anssi-note = Ce moteur utilise Ed25519 pour garantir la non-répudiation de vos preuves d'audit, conformément aux recommandations de l'ANSSI.
+
+## Licence, Pro Santé Connect et erreurs de connexion
+license-badge-free = Licence free
+license-badge-pro = Licence pro - { $customer }
+license-seal-certified-by = CERTIFIÉ PAR HEELONYS
+license-seal-certified = CERTIFIÉ HEELONYS
+license-report-default-customer = CLIENT
+psc-start-button = Se connecter avec Pro Santé Connect
+psc-artifact-placeholder = Artefact de retour PSC
+psc-complete-button = Valider l'artefact PSC
+psc-browser-error = Impossible d'ouvrir le navigateur pour Pro Santé Connect : { $error }
+psc-browser-opened = Connexion Pro Santé Connect ouverte dans le navigateur. Revenez ici avec l'artefact de retour.
+psc-start-error = Impossible de démarrer Pro Santé Connect : { $error }
+psc-start-interrupted = Démarrage de Pro Santé Connect interrompu.
+psc-artifact-required = L'artefact de retour PSC est requis.
+psc-authenticated-not-linked = Identité Pro Santé Connect vérifiée. La liaison avec un compte local n'est pas encore disponible : connectez-vous avec votre mot de passe.
+psc-artifact-error = Échec de la validation de l'artefact PSC : { $error }
+psc-artifact-interrupted = Validation de l'artefact PSC interrompue.
+login-error-generic = Erreur : { $error }
+
+## Rapports d'audit signés et fermeture de la fenêtre
+main-close-busy-title = Opération en cours
+main-close-busy-body = Une opération d'import ou d'export est en cours. Attendez la fin avant de fermer la fenêtre.
+certification-menu-label = Certifier & Exporter
+certification-menu-license-required = Certifier & Exporter (licence Pro requise)
+certification-report-24h = Rapport 24 h
+certification-report-7d = Rapport 7 jours
+certification-report-30d = Rapport 30 jours
+certification-diagnostics = Vérifier l'état de la signature
+certification-report-generating = Génération du rapport signé…
+certification-report-generated-toast = Rapport certifié généré (SHA-256 : { $hash })
+certification-report-generated-title = Rapport signé généré
+certification-report-generated-body = Rapport PDF signé enregistré :
+    { $path }
+certification-report-license-required = Le rapport signé nécessite une licence Pro.
+certification-report-key-missing = Clé de certification indisponible. Ouvrez la console de confiance.
+certification-report-error-title = Erreur de génération
+certification-report-error-body = Impossible de générer le rapport : { $error }
+certification-report-interrupted = La génération du rapport a été interrompue.
+vault-share-role-read = LECTURE
+vault-share-role-write = ÉCRITURE
+vault-share-role-admin = ADMIN
+
+## Indicateur de robustesse du mot de passe
+password-hint-too-short = Trop court — minimum 12 caractères ({ $count } saisis)
+password-hint-missing-categories = { $count ->
+    [one] Ajoutez 1 catégorie de caractères manquante
+    *[other] Ajoutez { $count } catégories de caractères manquantes
+    }
+password-hint-for-solid = 12 caractères + 4 catégories, ou 14 + 3 catégories, pour « Solide »
+password-hint-for-robust = Ajoutez 1 catégorie ou allongez à 15 caractères pour « Robuste »
+password-hint-score-good = Bien — évitez les suites prévisibles
+password-hint-score-medium = Moyen — diversifiez davantage
+password-hint-score-solid = Solide
+password-hint-score-robust = Robuste — conforme ANSSI
+password-feedback-too-short = Trop court
+password-feedback-similar = Trop proche d'un mot connu
+password-feedback-repeats = Évitez les répétitions
+password-feedback-sequence = Évitez les suites prévisibles
+password-feedback-common = Mot de passe trop commun
+password-feedback-add-symbols = Ajoutez des symboles et des chiffres
+password-feedback-generic = Évitez les mots et motifs prévisibles
+
+## Liste des secrets, éditeur, import CSV, badge PIN
+main-no-vault-selected-title = Aucun coffre sélectionné
+main-no-vault-selected-description = Sélectionnez un coffre dans la barre latérale pour afficher ses secrets.
+main-vault-unavailable-title = Coffre non disponible
+main-vault-unavailable-description = Le coffre sélectionné n'est plus accessible. Sélectionnez-en un autre.
+add-edit-health-access = Accès données de santé
+add-edit-delete-tooltip = Supprimer ce secret
+add-edit-delete-button = Supprimer
+profile-import-preview-error = Impossible de lire l'aperçu du fichier CSV :
+    { $error }
+profile-import-default-file-name = fichier CSV
+profile-import-preflight = Vérification : { $ready } prêt(s), { $review } à revoir
+pin-status-critical = PIN · { $minutes } min
+
+## Types de secret (liste, corbeille, recherche)
+secret-type-password = Mot de passe
+secret-type-api-token = Token API
+secret-type-ssh-key = Clé SSH
+secret-type-secure-document = Document sécurisé

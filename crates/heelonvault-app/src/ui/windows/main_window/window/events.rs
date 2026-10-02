@@ -49,12 +49,10 @@ pub fn setup_window_close_handler(
                 critical_ops_in_flight = critical_ops_for_close.get(),
                 "main window close deferred because a critical operation is still running"
             );
-            // TODO: This should use the translated strings from the original
-            // For now, we'll keep the French text to maintain functionality
             crate::ui::windows::main_window::MainWindow::show_feedback_dialog(
                 win,
-                "Opération en cours",
-                "Une opération d'import/export est en cours. Attendez la fin avant de fermer la fenêtre.",
+                heelonvault_core::i18n::tr("main-close-busy-title").as_str(),
+                heelonvault_core::i18n::tr("main-close-busy-body").as_str(),
             );
             return glib::Propagation::Stop;
         }
@@ -774,9 +772,9 @@ pub fn setup_motion_controller(
 
 /// Setup the certification popover and handlers (premium feature)
 ///
-/// Creates the certification menu with report buttons (24h, 7d, 30d) and diagnostics.
+/// Creates the certification menu with report buttons (24h, 7d, 30d) and diagnostics, and
+/// returns the callback that re-applies its translations on a language change.
 #[cfg(feature = "premium")]
-#[allow(clippy::too_many_arguments)]
 pub fn setup_certification_handlers(
     certification_menu_button: &gtk4::MenuButton,
     window: &adw::ApplicationWindow,
@@ -784,7 +782,8 @@ pub fn setup_certification_handlers(
     license_service: Arc<LicenseService>,
     audit_report_service: Arc<AuditReportService>,
     report_customer_name: String,
-) {
+) -> Rc<dyn Fn()> {
+    use heelonvault_core::i18n::{I18nArg, tr, tr_args};
     use heelonvault_core::services::audit_report_provider::ReportError;
 
     let certification_popover = gtk4::Popover::new();
@@ -801,26 +800,23 @@ pub fn setup_certification_handlers(
         .build();
     certification_menu_box.add_css_class("profile-login-history-popover");
 
-    let report_24h_menu_button =
-        crate::ui::windows::main_window::certification::build_certification_menu_item(
-            "document-save-symbolic",
-            "Rapport 24h",
-        );
-    let report_7d_menu_button =
-        crate::ui::windows::main_window::certification::build_certification_menu_item(
-            "document-save-symbolic",
-            "Rapport 7 jours",
-        );
-    let report_30d_menu_button =
-        crate::ui::windows::main_window::certification::build_certification_menu_item(
-            "document-save-symbolic",
-            "Rapport 30 jours",
-        );
-    let diagnostics_menu_button =
-        crate::ui::windows::main_window::certification::build_certification_menu_item(
-            "emblem-system-symbolic",
-            "Vérifier l'état de signature",
-        );
+    use crate::ui::windows::main_window::certification::build_certification_menu_item;
+    let (report_24h_menu_button, report_24h_label) = build_certification_menu_item(
+        "document-save-symbolic",
+        tr("certification-report-24h").as_str(),
+    );
+    let (report_7d_menu_button, report_7d_label) = build_certification_menu_item(
+        "document-save-symbolic",
+        tr("certification-report-7d").as_str(),
+    );
+    let (report_30d_menu_button, report_30d_label) = build_certification_menu_item(
+        "document-save-symbolic",
+        tr("certification-report-30d").as_str(),
+    );
+    let (diagnostics_menu_button, diagnostics_label) = build_certification_menu_item(
+        "emblem-system-symbolic",
+        tr("certification-diagnostics").as_str(),
+    );
 
     certification_menu_box.append(&report_24h_menu_button);
     certification_menu_box.append(&report_7d_menu_button);
@@ -840,10 +836,25 @@ pub fn setup_certification_handlers(
         .unwrap_or(false);
 
     certification_menu_button.set_sensitive(certification_enabled);
-    if !certification_enabled {
-        certification_menu_button
-            .set_tooltip_text(Some("Certifier & Exporter (licence Pro requise)"));
-    }
+    let refresh_i18n: Rc<dyn Fn()> = Rc::new({
+        let menu_button = certification_menu_button.clone();
+        move || {
+            report_24h_label.set_text(tr("certification-report-24h").as_str());
+            report_7d_label.set_text(tr("certification-report-7d").as_str());
+            report_30d_label.set_text(tr("certification-report-30d").as_str());
+            diagnostics_label.set_text(tr("certification-diagnostics").as_str());
+            menu_button.set_label(tr("certification-menu-label").as_str());
+            menu_button.set_tooltip_text(Some(
+                tr(if certification_enabled {
+                    "certification-menu-label"
+                } else {
+                    "certification-menu-license-required"
+                })
+                .as_str(),
+            ));
+        }
+    });
+    refresh_i18n();
     certification_menu_button.set_popover(Some(&certification_popover));
 
     // Setup launch_signed_report closure
@@ -860,8 +871,9 @@ pub fn setup_certification_handlers(
         let report_window = window_for_report.clone();
         let report_toast_overlay = toast_overlay_for_report.clone();
         move |days| {
-            report_toast_overlay
-                .add_toast(adw::Toast::new("Génération du rapport signé en cours..."));
+            report_toast_overlay.add_toast(adw::Toast::new(
+                tr("certification-report-generating").as_str(),
+            ));
 
             let (sender, receiver) = tokio::sync::oneshot::channel();
             let report_service_for_task = Arc::clone(&report_service);
@@ -878,38 +890,45 @@ pub fn setup_certification_handlers(
                 match receiver.await {
                     Ok(Ok(report)) => {
                         toast_overlay_for_result.add_toast(adw::Toast::new(
-                            format!(
-                                "Rapport certifié généré (SHA-256: {})",
-                                report.hash_prefix()
+                            tr_args(
+                                "certification-report-generated-toast",
+                                &[("hash", I18nArg::Str(report.hash_prefix()))],
                             )
                             .as_str(),
                         ));
                         super::super::MainWindow::show_feedback_dialog(
                             &window_for_result,
-                            "Rapport signé généré",
-                            format!("Rapport PDF signé généré avec succès:\n{}", report.path)
-                                .as_str(),
+                            tr("certification-report-generated-title").as_str(),
+                            tr_args(
+                                "certification-report-generated-body",
+                                &[("path", I18nArg::Str(report.path.as_str()))],
+                            )
+                            .as_str(),
                         );
                     }
                     Ok(Err(ReportError::LicenseRequired)) => {
                         toast_overlay_for_result.add_toast(adw::Toast::new(
-                            "Le rapport signé nécessite une licence Pro.",
+                            tr("certification-report-license-required").as_str(),
                         ));
                     }
                     Ok(Err(ReportError::SigningKeyMissing)) => {
                         toast_overlay_for_result.add_toast(adw::Toast::new(
-                            "Clé de certification indisponible. Ouvrez la Console de Confiance.",
+                            tr("certification-report-key-missing").as_str(),
                         ));
                     }
                     Ok(Err(error)) => super::super::MainWindow::show_feedback_dialog(
                         &window_for_result,
-                        "Erreur de génération",
-                        format!("Impossible de générer le rapport: {}", error).as_str(),
+                        tr("certification-report-error-title").as_str(),
+                        tr_args(
+                            "certification-report-error-body",
+                            &[("error", I18nArg::Str(error.to_string().as_str()))],
+                        )
+                        .as_str(),
                     ),
                     Err(_) => super::super::MainWindow::show_feedback_dialog(
                         &window_for_result,
-                        "Erreur de génération",
-                        "La génération du rapport a été interrompue.",
+                        tr("certification-report-error-title").as_str(),
+                        tr("certification-report-interrupted").as_str(),
                     ),
                 }
             });
@@ -970,4 +989,6 @@ pub fn setup_certification_handlers(
             );
         }
     });
+
+    refresh_i18n
 }

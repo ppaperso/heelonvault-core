@@ -113,7 +113,7 @@ jobs:
       # Lie le hash du SBOM publié à cette exécution de workflow précise et au
       # commit source — vérifiable par quiconque via :
       #   gh attestation verify heelonvault-sbom-<tag>.cyclonedx.json \
-      #     --owner ppaperso --repo heelonvault-core
+      #     --repo ppaperso/heelonvault-core
       # N'apparaît PAS comme un asset téléchargeable sur la page de release
       # (c'est un enregistrement séparé, consultable via l'onglet Attestations
       # du repo ou la commande ci-dessus) — le fichier lui-même est publié

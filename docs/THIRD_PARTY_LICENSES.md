@@ -6,7 +6,7 @@ HeelonVault incorporates or links against third-party software. This document
 lists those components and their license terms.
 
 > **Machine-readable inventory:** The full SBOM (Software Bill of Materials) in
-> CycloneDX 1.4 JSON format is available at [`sbom.cyclonedx.json`](sbom.cyclonedx.json).
+> CycloneDX 1.4 JSON format is available at [`sbom.cyclonedx.json`](../sbom.cyclonedx.json) (signed copy attached to each [GitHub release](https://github.com/ppaperso/heelonvault-core/releases/latest)).
 > It is regenerated automatically on every release and can be ingested by tools
 > such as OWASP Dependency-Track, Grype, or Trivy.
 
@@ -51,7 +51,7 @@ equivalent). The full license texts are available via
 | libadwaita | 0.9.2 | MIT | libadwaita Rust bindings |
 | qrcode | 0.14.1 | MIT OR Apache-2.0 | QR code generation (TOTP setup) |
 | ring | 0.17.14 | Apache-2.0 AND ISC | Cryptographic primitives |
-| rustls | 0.23.44 | Apache-2.0 OR ISC OR MIT | TLS 1.3 |
+| rustls | 0.23.45 | Apache-2.0 OR ISC OR MIT | TLS 1.3 |
 | secrecy | 0.10.3 | Apache-2.0 OR MIT | Secret value zeroization |
 | serde | 1.0.229 | MIT OR Apache-2.0 | Serialization framework |
 | serde_json | 1.0.151 | MIT OR Apache-2.0 | JSON serialization |
@@ -169,6 +169,7 @@ equivalent). The full license texts are available via
 | ed25519 | 3.0.0 | Apache-2.0 OR MIT |
 | ed25519-dalek | 3.0.0 | BSD-3-Clause |
 | either | 1.18.0 | MIT OR Apache-2.0 |
+| embed-resource | 3.0.11 | MIT |
 | encoding_rs | 0.8.41 | (Apache-2.0 OR MIT) AND BSD-3-Clause |
 | equivalent | 1.0.2 | Apache-2.0 OR MIT |
 | errno | 0.3.14 | MIT OR Apache-2.0 |
@@ -232,9 +233,9 @@ equivalent). The full license texts are available via
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 |
 | hashlink | 0.11.1 | MIT OR Apache-2.0 |
 | heck | 0.5.0 | MIT OR Apache-2.0 |
-| heelonvault-app | 1.2.0-rc.1 | Apache-2.0 |
-| heelonvault-core | 1.2.0-rc.1 | Apache-2.0 |
-| heelonvault-premium | 1.2.0-rc.1 | Apache-2.0 |
+| heelonvault-app | 2.0.1 | Apache-2.0 |
+| heelonvault-core | 2.0.1 | Apache-2.0 |
+| heelonvault-premium | 2.0.1 | LicenseRef-Heelonys-Proprietary |
 | hex | 0.4.3 | MIT OR Apache-2.0 |
 | hex-conservative | 0.2.3 | CC0-1.0 |
 | hkdf | 0.13.0 | MIT OR Apache-2.0 |
@@ -364,7 +365,7 @@ equivalent). The full license texts are available via
 | rustc-hash | 2.1.3 | Apache-2.0 OR MIT |
 | rustc_version | 0.4.1 | MIT OR Apache-2.0 |
 | rustix | 1.1.4 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
-| rustls | 0.23.44 | Apache-2.0 OR ISC OR MIT |
+| rustls | 0.23.45 | Apache-2.0 OR ISC OR MIT |
 | rustls-native-certs | 0.8.4 | Apache-2.0 OR ISC OR MIT |
 | rustls-pki-types | 1.15.1 | MIT OR Apache-2.0 |
 | rustls-platform-verifier | 0.7.0 | MIT OR Apache-2.0 |
@@ -473,6 +474,8 @@ equivalent). The full license texts are available via
 | vcpkg | 0.2.15 | MIT/Apache-2.0 |
 | version-compare | 0.2.1 | MIT |
 | version_check | 0.9.5 | MIT/Apache-2.0 |
+| vswhom | 0.1.0 | MIT |
+| vswhom-sys | 0.1.3 | MIT |
 | wait-timeout | 0.2.1 | MIT/Apache-2.0 |
 | walkdir | 2.5.0 | Unlicense/MIT |
 | want | 0.3.1 | MIT |
@@ -500,6 +503,7 @@ equivalent). The full license texts are available via
 | windows-result | 0.4.1 | MIT OR Apache-2.0 |
 | windows-strings | 0.5.1 | MIT OR Apache-2.0 |
 | windows-sys | 0.52.0 | MIT OR Apache-2.0 |
+| windows-sys | 0.59.0 | MIT OR Apache-2.0 |
 | windows-sys | 0.61.2 | MIT OR Apache-2.0 |
 | windows-targets | 0.52.6 | MIT OR Apache-2.0 |
 | windows_aarch64_gnullvm | 0.52.6 | MIT OR Apache-2.0 |
@@ -511,6 +515,7 @@ equivalent). The full license texts are available via
 | windows_x86_64_gnullvm | 0.52.6 | MIT OR Apache-2.0 |
 | windows_x86_64_msvc | 0.52.6 | MIT OR Apache-2.0 |
 | winnow | 1.0.4 | MIT |
+| winreg | 0.55.0 | MIT |
 | wit-bindgen | 0.57.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
 | writeable | 0.6.4 | Unicode-3.0 |
 | yoke | 0.8.3 | Unicode-3.0 |
@@ -536,8 +541,8 @@ equivalent). The full license texts are available via
 
 | License | Count | Notes |
 | ------- | ----- | ----- |
-| MIT OR Apache-2.0 (and variants) | ~229 | Fully permissive |
-| MIT only | ~114 | Fully permissive |
+| MIT OR Apache-2.0 (and variants) | ~231 | Fully permissive |
+| MIT only | ~115 | Fully permissive |
 | Unicode-3.0 | 19 | Permissive (Unicode data) |
 | BSD-2-Clause / BSD-3-Clause | 7 | Permissive |
 | Apache-2.0 WITH LLVM-exception | 6 | Permissive (LLVM exception) |
@@ -547,6 +552,7 @@ equivalent). The full license texts are available via
 | Unlicense/MIT | 7 | Public domain / permissive |
 | Zlib | 11 | Permissive |
 | CDLA-Permissive-2.0 | 2 | `webpki-roots` data license |
+| LicenseRef-Heelonys-Proprietary | 1 | `heelonvault-premium` — proprietary, source readable for audit under NDA |
 
 > No copyleft licenses (GPL, LGPL, AGPL, EUPL) are present in the statically
 > compiled Rust dependency tree. The only LGPL components are the system

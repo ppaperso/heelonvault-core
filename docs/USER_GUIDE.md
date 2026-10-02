@@ -2,10 +2,6 @@
 
 Langue : FR | [EN](USER_GUIDE.en.md)
 
-Version cible documentée : `1.2.0-rc.1`
-
-> Dernière mise à jour : 2026-09-15
-
 ## Objectif
 
 Ce manuel utilisateur présente l'utilisation de HeelonVault dans un contexte opérationnel quotidien. Il s'adresse aux utilisateurs finaux qui doivent protéger, retrouver et maintenir leurs secrets dans l'application sans dépendre de la documentation technique du projet.
@@ -20,32 +16,6 @@ Ce guide utilisateur décrit l'utilisation courante de HeelonVault côté poste 
 - import, export et corbeille ;
 - bonnes pratiques de sécurité.
 
-## Table des matières
-
-1. Vue générale du parcours utilisateur
-2. Écran 1 - Assistant d'initialisation
-3. Écran 2 - Connexion
-4. Écran 3 - Vue principale du coffre
-5. Écran 4 - Création d'un secret
-6. Écran 5 - Modification, suppression et corbeille
-7. Écran 6 - Recherche et organisation
-8. Écran 7 - Profil et sécurité
-9. Écran 8 - Import et export
-10. Écran 9 - Tableau de bord et audit
-11. Bonnes pratiques
-12. Dépannage rapide
-13. Références utiles
-
-## Emplacements pour captures d'écran
-
-Les captures d'écran pourront être ajoutées plus tard dans ce document aux emplacements prévus. La numérotation ci-dessous permet d'aligner facilement les futures captures avec les sections du manuel.
-
-Exemple de convention conseillée :
-
-- `docs/images/user-guide/login-fr.png`
-- `docs/images/user-guide/dashboard-fr.png`
-- `docs/images/user-guide/editor-fr.png`
-
 ## 1. Vue générale du parcours utilisateur
 
 Le parcours standard d'un utilisateur HeelonVault suit la séquence suivante :
@@ -56,7 +26,7 @@ Le parcours standard d'un utilisateur HeelonVault suit la séquence suivante :
 4. créer, modifier, partager ou supprimer un élément ;
 5. gérer la sécurité de session et les opérations avancées.
 
-Dans une documentation produit, ce chemin est important car il reflète les écrans réellement manipulés par l'utilisateur final. Les sections suivantes sont donc organisées par écrans fonctionnels.
+Les sections suivantes sont organisées par écran.
 
 ## 2. Écran 1 - Assistant d'initialisation
 
@@ -84,15 +54,13 @@ Rôle de l'écran :
 - cette étape ne doit pas être interrompue sans sauvegarder les informations affichées ;
 - une vérification de 2 mots est obligatoire avant de pouvoir finaliser.
 
-Emplacement capture d'écran : Écran 1 - assistant d'initialisation
+![Écran 1a - Initialisation étape 1](images/user-guide/hv_first_init_1.png)
 
-![Écran 1a - Initialisation étape 1](../assets/images/user-guide/hv_first_init_1.png)
+*Assistant d'initialisation, étape 1 (création du compte administrateur).*
 
-Capture 01a - Assistant d'initialisation, étape 1 (création du compte administrateur).
+![Écran 1b - Initialisation étape 2](images/user-guide/hv_first_init_2.png)
 
-![Écran 1b - Initialisation étape 2](../assets/images/user-guide/hv_first_init_2.png)
-
-Capture 01b - Assistant d'initialisation, étape 2 (clé de secours 24 mots).
+*Assistant d'initialisation, étape 2 (clé de secours 24 mots).*
 
 ## 3. Écran 2 - Connexion
 
@@ -112,11 +80,9 @@ Bonnes pratiques :
 - conserver la clé de récupération hors poste ;
 - vérifier l'heure système si le TOTP est refusé.
 
-Emplacement capture d'écran : Écran 2 - connexion
+![Écran 2 - Connexion](images/user-guide/hv_login_screen_after_init.png)
 
-![Écran 2 - Connexion](../assets/images/user-guide/hv_login_screen_after_init.png)
-
-Capture 02 - Écran de connexion avec identifiant, mot de passe et accès récupération de base (.hvb).
+*Écran de connexion avec identifiant, mot de passe et accès récupération de base (.hvb).*
 
 ## 4. Écran 3 - Vue principale du coffre
 
@@ -143,11 +109,9 @@ Rôle de l'écran :
 - centraliser la navigation dans les données du coffre ;
 - offrir un accès rapide aux actions prioritaires.
 
-Emplacement capture d'écran : Écran 3 - vue principale
+![Écran 3 - Vue principale du coffre](images/user-guide/hv_dashboard_empty.png)
 
-![Écran 3 - Vue principale du coffre](../assets/images/user-guide/hv_dashboard_empty.png)
-
-Capture 03 - Vue principale du coffre avec recherche, catégories, audit de sécurité et zone centrale.
+*Vue principale du coffre avec recherche, catégories, audit de sécurité et zone centrale.*
 
 ## 5. Écran 4 - Création d'un secret
 
@@ -167,33 +131,29 @@ Recommandations :
 - utiliser le marqueur « Accès données de santé » uniquement pour les secrets réellement sensibles au sens santé ;
 - éviter les notes contenant des informations non nécessaires.
 
-Dans une logique produit, cet écran est central : il doit permettre une saisie rapide sans compromettre la qualité ni la sécurité des données enregistrées.
+![Écran 4a - Sélection du type de secret](images/user-guide/hv_add_menu.png)
 
-Emplacement capture d'écran : Écran 4 - éditeur de secret
+*Choix du type de secret (password, api_token, ssh_key, secure_document).*
 
-![Écran 4a - Sélection du type de secret](../assets/images/user-guide/hv_add_menu.png)
+![Écran 4b - Formulaire mot de passe](images/user-guide/hv_add_password1.png)
 
-Capture 04a - Choix du type de secret (password, api_token, ssh_key, secure_document).
+*Création d'un secret de type mot de passe (vue générale du formulaire).*
 
-![Écran 4b - Formulaire mot de passe](../assets/images/user-guide/hv_add_password1.png)
+![Écran 4c - Formulaire mot de passe, zone de validité](images/user-guide/hv_add_password2.png)
 
-Capture 04b - Création d'un secret de type mot de passe (vue générale du formulaire).
+*Paramètres complémentaires d'un secret mot de passe (notes, validité, enregistrement).*
 
-![Écran 4c - Formulaire mot de passe, zone de validité](../assets/images/user-guide/hv_add_password2.png)
+![Écran 4d - Formulaire token API](images/user-guide/hv_add_apikey.png)
 
-Capture 04c - Paramètres complémentaires d'un secret mot de passe (notes, validité, enregistrement).
+*Création d'un secret de type token API.*
 
-![Écran 4d - Formulaire token API](../assets/images/user-guide/hv_add_apikey.png)
+![Écran 4e - Formulaire clé SSH](images/user-guide/hv_add_sshkey.png)
 
-Capture 04d - Création d'un secret de type token API.
+*Création d'un secret de type clé SSH.*
 
-![Écran 4e - Formulaire clé SSH](../assets/images/user-guide/hv_add_sshkey.png)
+![Écran 4f - Formulaire document sécurisé](images/user-guide/hv_add_securedoc.png)
 
-Capture 04e - Création d'un secret de type clé SSH.
-
-![Écran 4f - Formulaire document sécurisé](../assets/images/user-guide/hv_add_securedoc.png)
-
-Capture 04f - Création d'un secret de type document sécurisé.
+*Création d'un secret de type document sécurisé.*
 
 ## 6. Écran 5 - Modification, suppression et corbeille
 
@@ -217,11 +177,9 @@ Flux recommandé :
 3. Restaurer le secret en cas d'erreur.
 4. Purger définitivement seulement après validation.
 
-Emplacement capture d'écran : Écran 5 - corbeille
+![Écran 5 - Corbeille et restauration](images/user-guide/hv_trash.png)
 
-![Écran 5 - Corbeille et restauration](../assets/images/user-guide/hv_trash.png)
-
-Capture 05 - Corbeille avec actions de restauration et purge des éléments supprimés.
+*Corbeille avec actions de restauration et purge des éléments supprimés.*
 
 ## 7. Écran 6 - Recherche et organisation
 
@@ -290,11 +248,9 @@ Renforcer la pertinence de la recherche avec une organisation cohérente :
 - utiliser les tags de manière cohérente ;
 - regrouper les secrets par type, usage ou équipe selon le contexte.
 
-Emplacement capture d'écran : Écran 6 - recherche
+![Écran 6 - Recherche et navigation](images/user-guide/hv_dashboard_empty.png)
 
-![Écran 6 - Recherche et navigation](../assets/images/user-guide/hv_dashboard_empty.png)
-
-Capture 06 - Barre de recherche avec toggle MultiCoffre et bouton d'aide, navigation latérale.
+*Barre de recherche avec toggle MultiCoffre et bouton d'aide, navigation latérale.*
 
 ## 8. Écran 7 - Profil et sécurité
 
@@ -354,7 +310,7 @@ Points d'attention généraux :
 - après un changement de mot de passe maître, vérifier rapidement l'accès aux coffres principaux ;
 - ne jamais laisser une session ouverte sans surveillance.
 
-### Récupération de clé de compte (NOUVEAU en v1.2.0-rc.1)
+### Récupération de clé de compte
 
 HeelonVault permet maintenant de récupérer l'accès à votre compte si vous perdez votre mot de passe maître, grâce à une **clé de récupération de compte** générée lors de l'initialisation.
 
@@ -381,11 +337,9 @@ HeelonVault permet maintenant de récupérer l'accès à votre compte si vous pe
 
 Cet écran correspond à l'espace de gestion de la confiance utilisateur. C'est ici que se concentrent les réglages qui influencent directement le niveau de protection du coffre.
 
-Emplacement capture d'écran : Écran 7 - profil et sécurité
+![Écran 7 - Profil et sécurité](images/user-guide/hv_userprofil.png)
 
-![Écran 7 - Profil et sécurité](../assets/images/user-guide/hv_userprofil.png)
-
-Capture 07 - Paramètres de profil, sécurité de session, TOTP, import/export et préférences.
+*Paramètres de profil, sécurité de session, TOTP, import/export et préférences.*
 
 ## 9. Écran 8 - Import et export
 
@@ -415,11 +369,9 @@ Avant un export :
 - protéger le fichier exporté ;
 - supprimer l'artefact après usage si possible.
 
-Emplacement capture d'écran : Écran 8 - import / export
+![Écran 8 - Import / Export depuis le profil](images/user-guide/hv_userprofil.png)
 
-![Écran 8 - Import / Export depuis le profil](../assets/images/user-guide/hv_userprofil.png)
-
-Capture 08 - Zone Gestion des données (export .hvb et import CSV) accessible dans Profil & Sécurité.
+*Zone Gestion des données (export .hvb et import CSV) accessible dans Profil & Sécurité.*
 
 ## 10. Écran 9 - Tableau de bord et audit
 
@@ -443,19 +395,17 @@ Utilisations courantes :
 - vérifier les événements récents ;
 - suivre les suppressions, modifications et partages.
 
-Emplacement capture d'écran : Écran 9 - tableau de bord sécurité
+![Écran 9a - Tableau de bord sécurité](images/user-guide/hv_dashboard_empty.png)
 
-![Écran 9a - Tableau de bord sécurité](../assets/images/user-guide/hv_dashboard_empty.png)
+*Tableau de bord principal et indicateurs d'audit de sécurité.*
 
-Capture 09a - Tableau de bord principal et indicateurs d'audit de sécurité.
+![Écran 9b - Gestion des équipes](images/user-guide/hv_team.png)
 
-![Écran 9b - Gestion des équipes](../assets/images/user-guide/hv_team.png)
+*Vue d'administration des équipes (partage de coffres, gestion des membres).*
 
-Capture 09b - Vue d'administration des équipes (partage de coffres, gestion des membres).
+![Écran 9c - Gestion des utilisateurs](images/user-guide/hv_users.png)
 
-![Écran 9c - Gestion des utilisateurs](../assets/images/user-guide/hv_users.png)
-
-Capture 09c - Vue d'administration des utilisateurs (création, rôles, réinitialisation, suppression).
+*Vue d'administration des utilisateurs (création, rôles, réinitialisation, suppression).*
 
 ## 11. Bonnes pratiques
 
@@ -491,7 +441,8 @@ Capture 09c - Vue d'administration des utilisateurs (création, rôles, réiniti
 
 ## Références utiles
 
-- [QUICKSTART.md](QUICKSTART.md)
-- [ARCHITECTURE.md](ARCHITECTURE.md)
-- [UPDATE_GUIDE.md](UPDATE_GUIDE.md)
-- [CHANGELOG.md](CHANGELOG.md)
+- [Installation et démarrage rapide](QUICKSTART.fr.md)
+- [Mise à jour et déploiement](UPDATE_GUIDE.md)
+- [Sécurité](../SECURITY.fr.md)
+- [Architecture](ARCHITECTURE.md)
+- [Journal des modifications](CHANGELOG.md)

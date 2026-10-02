@@ -4,9 +4,13 @@
 //!
 //! The construction is split into logical sections that can be tested independently.
 
+use std::rc::Rc;
+
 use gtk4::prelude::*;
 use gtk4::{Align, Orientation};
 use libadwaita as adw;
+
+use crate::ui::license_badge::LicenseDisplay;
 
 /// Build the main application window with basic configuration
 pub fn build_main_window(application: &adw::Application) -> adw::ApplicationWindow {
@@ -28,14 +32,14 @@ pub fn build_main_window(application: &adw::Application) -> adw::ApplicationWind
 
 /// Build the header bar with title and badges
 pub fn build_header_bar(
-    license_badge_text: &str,
+    license: &LicenseDisplay,
 ) -> (
     adw::HeaderBar,
     gtk4::Box,
     gtk4::Image,
     gtk4::Label,
     gtk4::Label,
-    gtk4::Widget,
+    Rc<dyn Fn()>,
     gtk4::Button,
 ) {
     let header_bar = adw::HeaderBar::new();
@@ -66,7 +70,8 @@ pub fn build_header_bar(
     header_plan_badge.add_css_class("header-beta-badge");
 
     // License badge
-    let header_license_badge = super::super::header::build_header_license_badge(license_badge_text);
+    let (header_license_badge, header_license_refresh) =
+        super::super::header::build_header_license_badge(license);
 
     title_box.append(&logo);
     title_box.append(&title_label);
@@ -89,7 +94,7 @@ pub fn build_header_bar(
         logo,
         title_label,
         header_plan_badge,
-        header_license_badge,
+        header_license_refresh,
         help_button,
     )
 }

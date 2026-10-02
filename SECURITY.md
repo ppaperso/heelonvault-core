@@ -1,11 +1,8 @@
-# Security Guide (Rust Runtime)
+# Security Guide
 
 Language: EN | [FR](SECURITY.fr.md)
 
-Last update: 16 September 2026
-Scope: active runtime in src/
-
-This document replaces legacy Python-era notes and reflects the current Rust codebase.
+Scope: the HeelonVault desktop application (`crates/heelonvault-core`, `crates/heelonvault-app`).
 
 Language note / Note de langue:
 
@@ -156,12 +153,12 @@ When the application starts with no admin account, a 3-step bootstrap wizard is 
 
 1. **Identity step** — the user provides a username and password (minimum strength enforced, confirmation required);
 2. **Oath step** — a 24-word BIP39-style mnemonic recovery phrase is generated via `BackupService::generate_recovery_key()`. The user must verify two randomly drawn words before confirming, proving they have recorded the phrase;
-3. **Pending step** — `AdminService::bootstrap_first_admin()` is called in a background thread; on success the session is opened automatically.
+3. **Pending step** — `admin_service::bootstrap_first_admin_with_recovery()` runs in a background thread: it creates the account key, stores it encrypted under the password and under the recovery phrase, and stores a verifier of the phrase. On success **no session is opened**: the account key is wiped from memory and the regular sign-in screen is shown, username pre-filled.
 
 Recovery key security properties:
 
 - generated from a cryptographically secure RNG (`getrandom`);
-- the phrase is never persisted in the database; it is the user's sole responsibility to store it safely;
+- the phrase itself is never persisted in the database (only the account key sealed under it, and a verifier); it is the user's sole responsibility to store it safely;
 - clipboard copy sets a 60-second auto-clear timer; the clipboard is also wiped when the dialog closes;
 - on Linux/macOS, the clipboard content is served on demand through a custom provider that itself starts returning empty text once expired, so no unzeroized copy of the secret persists in memory beyond expiry. On **Windows**, GDK's clipboard backend (OLE/`IDataObject`) crashes with that same provider (`STATUS_ACCESS_VIOLATION` inside `libgtk-4-1.dll`, reproduced consistently); Windows instead uses GDK's built-in eager content provider, so the secret is copied into GDK-owned memory at copy time and cleared by overwriting the clipboard outright at expiry, rather than by the provider self-clearing on read. See `crates/heelonvault-app/src/ui/sensitive_clipboard.rs`.
 - after bootstrap, the recovery key can be re-exported at any time from `Profile & Security` (admin only), generating a new phrase wrapped in the same secure export dialog;
@@ -299,6 +296,16 @@ main, every pull request, and daily):
   `sbom.cyclonedx.json` at the repository root; the `check-sbom` CI job
   regenerates it on every relevant push and fails the build if the committed
   file has drifted from the actual dependency graph.
+- **Signed release SBOM**: on every `vX.Y.Z` tag, `.github/workflows/sbom-release.yml`
+  attaches `heelonvault-sbom-<tag>.cyclonedx.json` and its `.sha256` to the
+  [GitHub release](https://github.com/ppaperso/heelonvault-core/releases/latest),
+  with a Sigstore build-provenance attestation:
+  `gh attestation verify heelonvault-sbom-<tag>.cyclonedx.json --repo ppaperso/heelonvault-core`.
+- **Proprietary component**: `heelonvault-premium` (license verification, administration, teams,
+  audit report) is proprietary and its source is not public. It is listed in the SBOM with its
+  dependencies. On request, a customer's security teams (IT department, CISO, appointed auditor)
+  can be given read access to that source for audit purposes, under a non-disclosure agreement
+  or equivalent: contact `support@heelonys.fr`.
 
 Regulatory context: the EU **Cyber Resilience Act (CRA)** introduces SBOM and
 vulnerability-handling obligations for manufacturers of products with digital

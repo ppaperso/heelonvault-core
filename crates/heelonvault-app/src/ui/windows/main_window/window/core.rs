@@ -32,6 +32,7 @@ use heelonvault_premium::services::license_service::LicenseService;
 use super::{editor, events, i18n_refresh, navigation, pin_badge, refresh, vault_list, views};
 use crate::constants::DOCS_URL;
 use crate::ui::dialogs::add_edit_dialog::DialogMode;
+use crate::ui::license_badge::LicenseDisplay;
 use crate::ui::widgets::clipboard_indicator::ClipboardIndicator;
 use crate::ui::windows::main_window::types::FilterRuntime;
 use crate::ui::windows::main_window::{
@@ -74,7 +75,7 @@ pub fn build_main_window<
     admin_user_id: Uuid,
     admin_master_key: Vec<u8>,
     connected_identity_label: String,
-    license_badge_text: String,
+    license: LicenseDisplay,
     is_admin: bool,
 ) -> super::super::MainWindow
 where
@@ -128,9 +129,9 @@ where
         _logo,
         _title_label,
         _header_plan_badge,
-        _header_license_badge,
+        header_license_refresh,
         help_button,
-    ) = views::build_header_bar(&license_badge_text);
+    ) = views::build_header_bar(&license);
     let (root, toast_overlay) = views::build_root_container();
     let clipboard_indicator = ClipboardIndicator::new();
     let (profile_button, profile_popover, profile_title, login_history_list) =
@@ -378,25 +379,28 @@ where
         Rc::clone(&refresh_entries),
     );
 
+    // Translation callback of the certification menu (premium only).
+    #[cfg(not(feature = "premium"))]
+    let certification_refresh: Option<Rc<dyn Fn()>> = None;
     #[cfg(feature = "premium")]
-    {
+    let certification_refresh: Option<Rc<dyn Fn()>> = {
         let audit_report_service = Arc::new(AuditReportService::new(
             Arc::clone(&license_service),
             runtime_handle.clone(),
             database_pool.clone(),
         ));
-        let report_customer_name =
-            super::super::MainWindow::professional_customer_name(license_badge_text.as_str())
-                .unwrap_or_else(|| "CLIENT".to_string());
-        events::setup_certification_handlers(
+        let report_customer_name = license
+            .customer_name()
+            .unwrap_or_else(|| heelonvault_core::tr!("license-report-default-customer"));
+        Some(events::setup_certification_handlers(
             &sidebar_panel.certification_menu_button,
             &window,
             &toast_overlay,
             Arc::clone(&license_service),
             audit_report_service,
             report_customer_name,
-        );
-    }
+        ))
+    };
 
     // ── 5. Secondary navigation pages ─────────────────────────────────────────
     #[cfg(feature = "premium")]
@@ -506,6 +510,9 @@ where
             clipboard_indicator: clipboard_indicator.clone(),
             profile_container,
             editor_host,
+            extra_refreshers: std::iter::once(header_license_refresh)
+                .chain(certification_refresh)
+                .collect(),
         },
         #[cfg(feature = "premium")]
         admin_pages,

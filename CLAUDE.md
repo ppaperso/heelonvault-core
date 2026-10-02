@@ -48,8 +48,8 @@ cargo deny check advisories
 Toolchain is pinned via `rust-toolchain.toml` to Rust `1.98.0`. `.cargo/config.toml` sets
 `-Dwarnings` and `-Dunsafe_code` globally, so any warning or `unsafe` block fails the build.
 
-Integration tests live under `crates/heelonvault-core/tests/` (the top-level `tests/` directory
-is a stale skeleton, not wired into the workspace). Most integration tests spin up a real SQLite
+Integration tests live under `crates/heelonvault-core/tests/` (plus a few repo-consistency tests in
+`crates/heelonvault-app/tests/`: versions, i18n keys). Most integration tests spin up a real SQLite
 DB via helpers in `crates/heelonvault-core/tests/common/mod.rs`.
 
 ## Zero-technical-debt policy
@@ -73,7 +73,7 @@ The product, the `heelonvault-core` crate (published on crates.io) and `heelonva
 (removed/renamed item, changed signature, required trait method, variant on an exhaustive enum)
 means a major release of the whole product. Prefer default trait methods, `#[non_exhaustive]` and
 `#[deprecated]`-then-remove to avoid breaks. `tests/release_consistency.rs` (in `heelonvault-app`)
-and CI `cargo semver-checks` enforce this; the release checklist is `docs/RELEASING.md`.
+and CI `cargo semver-checks` enforce this; the release checklist is `docs/internal/RELEASING.md`.
 
 ## Architecture
 
@@ -123,16 +123,22 @@ Layered flow: `UI (gtk4/libadwaita) -> Services -> Repositories (SQLx) -> SQLite
     deps struct; `core.rs` assembles them.
   - Widget-holder structs (`SidebarWidgets`, `CenterPanelWidgets`, the section structs) derive
     `Clone` — GTK widgets are refcounted handles, so cloning them into closures is the norm.
+  - No user-visible text in the code: every label, tooltip, toast and dialog string goes through
+    `heelonvault_core::tr!` / `tr_args` with a key in both `locales/fr/main.ftl` and
+    `locales/en/main.ftl` (enforced by `heelonvault-core/tests/i18n_catalog.rs` and
+    `heelonvault-app/tests/i18n_usage.rs`). Don't pass pre-rendered translated text around as
+    data (the license badge is a `LicenseDisplay`, rendered at display time).
   - Language changes re-translate the live UI rather than requiring a restart: any new static
-    label must also be re-applied in the relevant `refresh_i18n`.
+    label must also be re-applied in the relevant `refresh_i18n` (main window widgets that own
+    their translation return a callback collected in `I18nTargets::extra_refreshers`).
   - `src/ui/dialogs/` — modal/dialog flows, several structured the same way as `main_window`:
     a directory per dialog (`login_dialog/`, `pin_setup_dialog/`, `pin_unlock_dialog/`,
     `add_edit_dialog/`) split into `core.rs` (state/build), `events.rs` (signal wiring),
     `views.rs`, `types.rs`, `feedback.rs` (user-facing messages), and dedicated flow files
     (e.g. `login_dialog/bootstrap_flow.rs`, `login_flow.rs`, `restore_flow.rs`).
   - `src/ui/widgets/` — reusable widgets (`secret_card.rs`, `password_strength_bar.rs`).
-  - `migrations/` — the 19 SQLx SQL migrations actually applied at startup (this is the real
-    migrations directory; `docs/ARCHITECTURE.md`'s top-level `migrations/` reference is legacy).
+  - `migrations/` — the SQLx SQL migrations applied at startup (there is no top-level
+    `migrations/` directory).
 - **`crates/sqlx-shim`** — a local crate published under the name `sqlx` that re-exports
   `sqlx-core`/`sqlx-sqlite` with a pinned feature set. `heelonvault-app` depends on this shim
   (not upstream `sqlx`) directly for its own SQLx usage, while `heelonvault-core` depends on
@@ -165,8 +171,10 @@ Layered flow: `UI (gtk4/libadwaita) -> Services -> Repositories (SQLx) -> SQLite
   SensitiveKind, delay)`, which feeds the header exposure indicator; any new on-demand decryption
   for a copy should hold a `begin_decrypting()` guard. Indicator wording must only claim what the
   app controls (never "no secret in memory").
-- Master password rotation (`rotate_master_key_hardened`) rewraps owner/shared vault key
-  envelopes and applies critical mutations atomically, with pre/post validation.
+- Key model: a random account key wraps every vault key; it is stored only encrypted, under the
+  master password and under the recovery phrase (`services/account_key.rs`). Changing the master
+  password (`UserService::change_master_password`) rewrites only the password envelope; legacy
+  accounts are migrated to the account-key format in one transaction (`rekey_service.rs`).
 - The main window uses a root `GtkStack` (not modal dialogs) to switch between
   `entries_view`, `profile_view`, and `secret_editor_view`, keeping the sidebar visible during
   profile/edit operations.
@@ -184,5 +192,16 @@ Layered flow: `UI (gtk4/libadwaita) -> Services -> Repositories (SQLx) -> SQLite
   `/var/lib/heelonvault/heelonvault-rust.db`. A legacy Python deployment's shared data lives at
   `/var/lib/heelonvault-shared` — never touch it from this Rust runtime.
 
-For a deeper narrative walkthrough (startup sequence, decision log for the PDF/audit-report
-dependency replacement, etc.), see `docs/ARCHITECTURE.md` / `docs/ARCHITECTURE.en.md`.
+For a deeper narrative walkthrough (startup sequence, key model, data paths), see
+`docs/ARCHITECTURE.md` / `docs/ARCHITECTURE.en.md`.
+
+## Documentation layout
+
+- `docs/` (plus root `README*`, `SECURITY*`, `CONTRIBUTING*`, `CODE_OF_CONDUCT*`) is published on
+  doc.heelonvault.heelonys.fr by the sibling `Heelonys_webdoc` repo (`npm run sync:docs`, synced
+  from the latest release tag). Write it for users / admins / security reviewers.
+- `docs/internal/` is excluded from the site: development, release, packaging, CI, specs, QA.
+- Bilingual docs need the `Langue : FR | [EN](…)` / `Language: EN | [FR](…)` line (the site detects
+  the language from it). No version numbers or "new in vX" in docs; the changelog holds history.
+- Images go in `docs/images/` and are referenced relatively (the site rewrites them to GitHub raw
+  URLs; a missing image is dropped).

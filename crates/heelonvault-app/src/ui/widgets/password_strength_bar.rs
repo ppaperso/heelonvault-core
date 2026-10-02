@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use gtk4::prelude::*;
+use heelonvault_core::i18n::{I18nArg, tr, tr_args};
 use libadwaita as adw;
 use libadwaita::prelude::*;
 use zxcvbn::zxcvbn;
@@ -86,30 +87,37 @@ fn anssi_cap(len: usize, categories: usize) -> i32 {
 /// Human-readable label for the ANSSI policy score.
 fn anssi_hint(len: usize, categories: usize, zxcvbn_score: i32) -> String {
     if len < 12 {
-        return format!("Trop court — minimum 12 caractères ({} saisis)", len);
+        return tr_args(
+            "password-hint-too-short",
+            &[(
+                "count",
+                I18nArg::Num(i64::try_from(len).unwrap_or(i64::MAX)),
+            )],
+        );
     }
     if categories < 3 {
         let missing = 3usize.saturating_sub(categories);
-        return format!(
-            "Ajoutez {} catégorie{} manquante{}",
-            missing,
-            if missing > 1 { "s" } else { "" },
-            if missing > 1 { "s" } else { "" }
+        return tr_args(
+            "password-hint-missing-categories",
+            &[(
+                "count",
+                I18nArg::Num(i64::try_from(missing).unwrap_or(i64::MAX)),
+            )],
         );
     }
     if len < 15 && categories < 4 {
         if len < 14 {
-            return "12 + 4 catégories — ou 14 + 3 catégories pour 'Solide'".to_string();
+            return tr("password-hint-for-solid");
         }
-        return "Ajoutez 1 catégorie ou allongez à 15 caractères pour 'Robuste'".to_string();
+        return tr("password-hint-for-robust");
     }
     // All ANSSI requirements met — relay zxcvbn signal
-    match zxcvbn_score {
-        0 | 1 => "Bien — évitez les suites prévisibles".to_string(),
-        2 => "Moyen — diversifiez davantage".to_string(),
-        3 => "Solide".to_string(),
-        _ => "Robuste — conforme ANSSI".to_string(),
-    }
+    tr(match zxcvbn_score {
+        0 | 1 => "password-hint-score-good",
+        2 => "password-hint-score-medium",
+        3 => "password-hint-score-solid",
+        _ => "password-hint-score-robust",
+    })
 }
 
 // ─── Shared widget state ────────────────────────────────────────────────────
@@ -365,37 +373,24 @@ impl PasswordStrengthBar {
         state.hint.set_label(&hint);
     }
 
+    /// Translate a zxcvbn feedback message (English) into the active language.
     fn localize(message: &str) -> String {
         let n = message.to_ascii_lowercase();
-        if n.contains("too short") {
-            return "Trop court".into();
-        }
-        if n.contains("similar") {
-            return "Trop proche d'un mot connu".into();
-        }
-        if n.contains("repeat") {
-            return "Évitez les répétitions".into();
-        }
-        if n.contains("sequence") {
-            return "Évitez les suites prévisibles".into();
-        }
-        if n.contains("common") {
-            return "Mot de passe trop commun".into();
-        }
-        if n.contains("word") {
-            return "Ajoutez des symboles et chiffres".into();
-        }
-        message.to_string()
-    }
-
-    // Kept for context-free callers (add_edit_dialog etc.)
-    #[allow(dead_code)]
-    fn score_label(score: i32) -> &'static str {
-        match score {
-            0 | 1 => "Faible",
-            2 => "Moyen",
-            3 => "Solide",
-            _ => "Robuste",
-        }
+        let key = if n.contains("too short") {
+            "password-feedback-too-short"
+        } else if n.contains("similar") {
+            "password-feedback-similar"
+        } else if n.contains("repeat") {
+            "password-feedback-repeats"
+        } else if n.contains("sequence") {
+            "password-feedback-sequence"
+        } else if n.contains("common") {
+            "password-feedback-common"
+        } else if n.contains("word") {
+            "password-feedback-add-symbols"
+        } else {
+            "password-feedback-generic"
+        };
+        tr(key)
     }
 }

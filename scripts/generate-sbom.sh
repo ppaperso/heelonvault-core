@@ -32,6 +32,20 @@ if [[ ! -d "../heelonvault-premium" ]]; then
     exit 1
 fi
 
+# cargo-cyclonedx (via cargo metadata) re-résout silencieusement un Cargo.lock
+# qui ne correspond plus aux sources — typiquement un heelonvault-premium voisin
+# à une autre version que celle du lockfile (en CI : la branche main de premium
+# avant le merge de sa PR de release). Le SBOM obtenu décrirait alors un autre
+# graphe de dépendances : on refuse plutôt que de produire un diff trompeur.
+if ! cargo metadata --format-version 1 --locked >/dev/null 2>&1; then
+    PREMIUM_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' ../heelonvault-premium/Cargo.toml | head -1)"
+    echo "[SBOM] [ERROR] Cargo.lock does not match the checked-out sources (cargo metadata --locked failed)."
+    echo "[SBOM] [ERROR] ../heelonvault-premium is at version ${PREMIUM_VERSION:-unknown}: it must match the"
+    echo "[SBOM] [ERROR] heelonvault-premium entry of Cargo.lock. Merge the premium release first, or run"
+    echo "[SBOM] [ERROR] 'cargo check --workspace' locally and commit the updated Cargo.lock."
+    exit 1
+fi
+
 CURRENT_TOOL_VERSION=""
 if command -v cargo-cyclonedx &>/dev/null; then
     CURRENT_TOOL_VERSION="$(cargo cyclonedx --version 2>/dev/null | awk '{print $2}')"

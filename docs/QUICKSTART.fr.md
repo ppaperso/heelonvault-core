@@ -1,373 +1,157 @@
-# Démarrage rapide (Rust)
+# Installation et démarrage rapide
 
 Langue : FR | [EN](QUICKSTART.md)
 
-Version rapide documentée : `1.2.0-rc.1`
+Ce guide couvre l'installation de HeelonVault sur votre poste et le premier lancement, jusqu'à
+votre premier secret enregistré. Comptez une dizaine de minutes.
 
----
+## 1. Télécharger
 
-## Prérequis
+Les paquets sont publiés sur la page
+[Releases GitHub](https://github.com/ppaperso/heelonvault-core/releases/latest). Choisissez le
+fichier correspondant à votre système :
 
-- **Toolchain Rust** : `1.98.0` (épinglée via `rust-toolchain.toml`)
-- **GTK4** : Requis pour l'interface desktop
-- **libadwaita** : Bibliothèque compagnon de GTK4
-- **SQLite** : Base de données backend
+| Système | Fichier | Configuration requise |
+| ------- | ------- | --------------------- |
+| Windows | `heelonvault-windows-x86_64-vX.Y.Z.msi` | Windows 10 ou 11, 64 bits, droits administrateur pour l'installation |
+| macOS | `heelonvault-macos-aarch64-vX.Y.Z.dmg` | macOS 13 Ventura ou plus récent, Mac Apple Silicon (M1 et suivants) |
+| Linux | `heelonvault-linux-x86_64-vX.Y.Z.AppImage` | Distribution 64 bits récente (x86_64) |
 
-Vérifiez votre environnement :
+Téléchargez aussi le fichier `.sha256` du même nom : il sert à vérifier que le paquet n'a pas
+été altéré.
 
-```bash
-rustc --version  # Doit afficher 1.98.0
-cargo --version
-```
+## 2. Vérifier le téléchargement
 
----
+Placez le paquet et son fichier `.sha256` dans le même dossier, puis :
 
-## 1. Vérification du build
+- **Linux** : `sha256sum -c heelonvault-linux-x86_64-vX.Y.Z.AppImage.sha256`
+- **macOS** : `shasum -a 256 -c heelonvault-macos-aarch64-vX.Y.Z.dmg.sha256`
+- **Windows** (PowerShell) : comparez la valeur affichée par
+  `Get-FileHash .\heelonvault-windows-x86_64-vX.Y.Z.msi -Algorithm SHA256`
+  au contenu du fichier `.sha256`.
 
-Vérifiez que le workspace compile sans erreurs :
+La commande doit répondre `OK` (Linux, macOS) ou afficher la même empreinte (Windows). Dans le
+cas contraire, ne lancez pas le paquet et téléchargez-le à nouveau.
 
-```bash
-cargo check --workspace
-```
+## 3. Installer
 
-Pour une compilation complète avec optimisations :
+### Windows
 
-```bash
-cargo build --workspace
-```
+1. Double-cliquez sur le fichier `.msi`.
+2. Le paquet n'est pas signé numériquement : si SmartScreen affiche « Windows a protégé votre
+   ordinateur », cliquez sur **Informations complémentaires**, puis **Exécuter quand même**.
+3. Acceptez la demande d'élévation : l'application s'installe dans
+   `C:\Program Files\HeelonVault` pour tous les utilisateurs du poste.
+4. Lancez **HeelonVault** depuis le menu Démarrer. Le tout premier lancement peut prendre
+   quelques secondes, le temps que Windows Defender analyse l'application.
 
----
+### macOS
 
-## 2. Lancement en développement
+1. Ouvrez le fichier `.dmg` et faites glisser **HeelonVault** dans le dossier **Applications**.
+2. L'application n'est pas signée par un compte développeur Apple, Gatekeeper la bloque donc au
+   premier lancement :
+   - **macOS 13 et 14** : clic droit (ou Ctrl+clic) sur HeelonVault dans Applications, choisir
+     **Ouvrir**, puis confirmer **Ouvrir** ;
+   - **macOS 15 et suivants** : lancez l'application une première fois, fermez l'avertissement,
+     puis ouvrez **Réglages Système > Confidentialité et sécurité** et cliquez sur
+     **Ouvrir quand même** en face de HeelonVault.
 
-Depuis la racine du dépôt :
+   Cette opération n'est nécessaire qu'une seule fois. Alternative en Terminal :
+   `xattr -cr /Applications/HeelonVault.app`.
 
-```bash
-./scripts/run-dev.sh
-```
+### Linux (AppImage)
 
-**Spécificités de l'environnement de développement** :
-- Chemin de la base de développement : `data/heelonvault-rust-dev.db`
-- Niveau de log : `debug` (via `HEELONVAULT_LOG_LEVEL=debug`)
-- Dossier des logs : `./logs`
-- La base de données est créée automatiquement au premier lancement
-
-**Variables d'environnement** (optionnelles) :
-
-```bash
-# Modifier le niveau de log
-HEELONVAULT_LOG_LEVEL=trace ./scripts/run-dev.sh
-
-# Modifier le dossier des logs
-HEELONVAULT_LOG_DIR=/tmp/heelonvault-logs ./scripts/run-dev.sh
-
-# Modifier le chemin de la base de données
-HEELONVAULT_DB_PATH=/tmp/heelonvault-dev.db ./scripts/run-dev.sh
-```
-
----
-
-## 3. Lancement des tests
-
-### Tests unitaires et d'intégration
-
-Exécuter tous les tests :
+L'AppImage embarque GTK4 et libadwaita : rien d'autre à installer.
 
 ```bash
-cargo test --workspace
+chmod +x heelonvault-linux-x86_64-vX.Y.Z.AppImage
+./heelonvault-linux-x86_64-vX.Y.Z.AppImage
 ```
 
-Exécuter des modules de test spécifiques :
+Si le lancement échoue avec une erreur mentionnant FUSE, installez la bibliothèque `libfuse2`
+(Ubuntu 24.04 : `sudo apt install libfuse2t64` ; Fedora : `sudo dnf install fuse-libs`).
 
-```bash
-# Tests des repositories
-cargo test secret_repository:: -- --nocapture
-cargo test user_repository:: -- --nocapture
+Pour faire apparaître HeelonVault dans le menu des applications, rangez l'AppImage dans un
+dossier stable (par exemple `~/Applications`) et utilisez un outil d'intégration comme
+Gear Lever ou AppImageLauncher.
 
-# Tests des services
-cargo test secret_service:: -- --nocapture
-cargo test auth_service:: -- --nocapture
+> Administrateurs : une installation système Linux (profil personnel ou entreprise, base
+> partagée) est décrite dans [UPDATE_GUIDE.md](UPDATE_GUIDE.md#installation-système-linux).
 
-# Tests d'intégration
-cargo test --workspace --test login_history_integration
-cargo test --workspace --test account_rekey_integration  # NOUVEAU en v1.2.0-rc.1
-```
+## 4. Premier lancement : créer votre compte
 
-### Vérification Clippy
+Au premier démarrage, un assistant crée le compte administrateur du coffre :
 
-Assurez la qualité du code :
+1. Choisissez un **identifiant** et un **mot de passe maître** robuste. C'est le seul mot de passe
+   à retenir : il ne peut pas être retrouvé par l'éditeur.
+2. Notez la **phrase de récupération de 24 mots** affichée. Elle permet de redéfinir le mot de
+   passe maître si vous l'oubliez. Conservez-la hors de l'ordinateur (papier rangé en lieu sûr).
+3. Confirmez deux mots tirés au hasard pour prouver que la phrase a bien été notée.
+4. L'assistant se ferme et l'écran de connexion s'ouvre, identifiant pré-rempli : connectez-vous.
 
-```bash
-cargo clippy --workspace --all-targets -- -D warnings
-```
+> Sans mot de passe maître ni phrase de récupération, vos secrets sont **irrécupérables**.
+> C'est le prix d'un chiffrement que personne d'autre que vous ne peut ouvrir.
 
----
+## 5. Premiers pas
 
-## 3bis. Vérifications UI recommandées (v1.2.0-rc.1)
+- **Créer un secret** : bouton **Ajouter** en haut à droite, puis choisissez le type (mot de
+  passe, clé API, clé SSH, document sécurisé…). Le bouton **+** de la barre latérale, lui, crée
+  un nouveau coffre.
+- **Copier un mot de passe** : sélectionnez la carte puis `Ctrl+C`. Le presse-papiers est vidé
+  automatiquement après 20 secondes ; l'icône de presse-papiers de la barre d'en-tête montre le
+  compte à rebours, un clic l'efface immédiatement.
+- **Sécuriser la session** : dans **Profil & Sécurité**, activez la double authentification
+  (TOTP), réglez le délai d'auto-verrouillage et, si vous le souhaitez, un code PIN de
+  déverrouillage rapide.
+- **Importer vos mots de passe** : **Profil & Sécurité > Gestion des données > Importer des
+  données (CSV)** accepte un export CSV (colonnes `name`, `url`, `username`, `password`, `notes`).
 
-### Fonctionnalités de session et PIN (NOUVELLES)
+Le [guide utilisateur](USER_GUIDE.md) décrit chaque écran en détail.
 
-1. **Configuration du PIN** :
-   - Ouvrir `Profil & Sécurité` depuis la barre latérale
-   - Configurer un code PIN de 4 à 8 chiffres
-   - Vérifier que le badge PIN apparaît dans la barre de titre
-   - Tester l'auto-verrouillage : la boîte de dialogue de déverrouillage PIN doit apparaître
+## 6. Où sont mes données ?
 
-2. **Badge PIN et minuteur** :
-   - Vérifier que le badge PIN affiche l'état correct (nominal, avertissement, critique)
-   - Survoler le badge pour voir l'infobulle du compte à rebours de session
-   - Vérifier que le texte du badge est lisible sur la barre de titre foncée
+Tout reste sur votre poste, dans une base SQLite chiffrée :
 
-3. **Cycle de vie de la session** :
-   - Fermer la fenêtre principale avec le bouton de fermeture : l'écran de connexion doit réapparaître
-   - Se reconnecter immédiatement : les cartes de secrets doivent être visibles
-   - Vérifier que l'auto-verrouillage déclenche le déverrouillage PIN (quand le PIN est activé)
+| Système | Base de données | Journaux |
+| ------- | --------------- | -------- |
+| Windows | `%LOCALAPPDATA%\Heelonys\HeelonVault\data\heelonvault\data\` | `%LOCALAPPDATA%\Heelonys\HeelonVault\data\heelonvault\logs\` |
+| macOS | `~/Library/Application Support/fr.Heelonys.HeelonVault/heelonvault/data/` | `~/Library/Application Support/fr.Heelonys.HeelonVault/heelonvault/logs/` |
+| Linux | `~/.local/share/heelonvault/` | `~/.local/state/heelonvault/logs/` |
 
-### Navigation par cartes et raccourcis clavier
+Pour sauvegarder vos secrets, préférez l'export chiffré `.hvb` de **Profil & Sécurité** à une
+copie brute du fichier de base.
 
-4. **Sélection de carte** :
-   - Cliquer une fois sur une carte de secret : elle doit devenir active sans ouvrir le mode édition
-   - Vérifier que la carte active a une mise en évidence visible
+## 7. Licence Professionnelle (optionnel)
 
-5. **Édition de carte** :
-   - Double-cliquer sur la même carte : le formulaire d'édition doit s'ouvrir
-   - Vérifier que tous les champs sont correctement remplis
+Sans licence, HeelonVault fonctionne en édition **Community**, sans limite de durée ni de
+nombre de secrets. Une licence **Professionnelle** active en plus l'administration des
+utilisateurs, les équipes et coffres partagés, et les rapports d'audit signés : voir
+[HeelonVault Premium](https://doc.heelonvault.heelonys.fr/premium/).
 
-6. **Raccourcis clavier** :
-   - Sur la carte active, tester les raccourcis :
-     - `Ctrl+C` : copier la valeur du secret dans le presse-papier
-     - `Ctrl+L` : copier la valeur de connexion dans le presse-papier
-     - `Ctrl+U` : ouvrir l'URL dans le navigateur par défaut
-   - Vérifier l'effacement automatique du presse-papier après 60 secondes
+Pour l'activer, copiez le fichier `license.hvl` fourni à cet emplacement, puis relancez
+l'application :
 
-### Recherche et MultiCoffre (NOUVEAU en v1.2.0-rc.1)
+| Système | Emplacement |
+| ------- | ----------- |
+| Windows | `C:\ProgramData\HeelonVault\license.hvl` |
+| macOS | `~/Library/Application Support/heelonvault/license.hvl` |
+| Linux | `/etc/heelonvault/license.hvl` (droits administrateur requis) |
 
-7. **Fonctionnalités de recherche** :
-   - Utiliser la barre de recherche pour trouver des secrets par titre, connexion, email, URL, notes, catégorie, tags ou type
-   - Tester la syntaxe par champ : `email:`, `tag:`, `type:`
-   - Tester la syntaxe avec espace après les deux-points : `champ: valeur` == `champ:valeur`
+Le badge « Licence free » de l'écran de connexion est remplacé par le sceau « Certifié par
+Heelonys » au nom de votre organisation. Un fichier invalide ou expiré est ignoré : l'application reste en édition Community.
 
-8. **Bouton bascule MultiCoffre** :
-   - Cliquer sur le bouton bascule **MultiCoffre** (à gauche de la barre de recherche)
-   - Vérifier que la recherche fonctionne sur tous les coffres quand activé
-   - Vérifier que la recherche est limitée au coffre actif quand désactivé
+## 8. Désinstaller
 
-9. **Marqueur santé** :
-   - En création/édition, cocher « Accès données de santé »
-   - Enregistrer le secret
-   - Vérifier que la recherche avec `#sante` trouve le secret marqué
-   - Vérifier que le badge « Sante » apparaît sur les cartes correspondantes
+- **Windows** : Paramètres > Applications > HeelonVault > Désinstaller.
+- **macOS** : glissez HeelonVault depuis Applications vers la Corbeille.
+- **Linux** : supprimez le fichier AppImage.
 
-### Import et récupération (NOUVEAU en v1.2.0-rc.1)
+La désinstallation **conserve vos données** (voir section 6). Supprimez ce dossier à la main
+seulement si vous voulez effacer définitivement vos secrets, après en avoir fait un export si
+nécessaire.
 
-10. **Import CSV** (Fonctionnalité Premium) :
-    - Aller dans `Profil & Sécurité` > Import
-    - Sélectionner un fichier CSV
-    - Vérifier le flux en 3 étapes : prévisualisation, progression, résumé final
-    - Vérifier la tolérance aux erreurs : les imports partiels doivent fonctionner
-    - Vérifier le fichier `csv_import_rejects_*.txt` dans `HEELONVAULT_LOG_DIR` si des lignes sont rejetées
+## Aller plus loin
 
-11. **Récupération de compte** (NOUVEAU en v1.2.0-rc.1) :
-    - Lors du bootstrap : vérifier la génération de la clé de récupération (phrase mnémotechnique de 24 mots au format BIP39)
-    - Vérifier la vérification obligatoire de 2 mots tirés au hasard
-    - Vérifier la copie dans le presse-papier avec effacement automatique après 60 secondes
-    - Depuis `Profil & Sécurité` : vérifier la ré-exportation de la clé de récupération
-
----
-
-## 4. Build de production
-
-Compilation pour release :
-
-```bash
-cargo build --release
-```
-
-Le binaire sera créé à l'emplacement :
-
-```bash
-./target/release/heelonvault
-```
-
-### Installateur Linux packagé
-
-L'archive (`heelonvault-linux-x86_64.tar.gz`) déploie :
-
-- **Chemin du binaire** : `/opt/heelonvault/heelonvault`
-- **Lanceur** : `/opt/heelonvault/run.sh`
-- **Entrée desktop** : `/usr/share/applications/com.heelonvault.rust.desktop`
-- **Ancienne entrée desktop** : `/usr/share/applications/heelonvault.desktop`
-- **Base utilisateur** : `~/.local/share/heelonvault/heelonvault-rust.db`
-- **Logs utilisateur** : `~/.local/state/heelonvault/logs`
-- **Dossier des migrations** : `/opt/heelonvault/migrations` (19 migrations en v1.2.0-rc.1)
-
-Installation :
-
-```bash
-tar -xzf heelonvault-linux-x86_64.tar.gz
-cd heelonvault-linux-x86_64
-sudo ./scripts/install.sh
-```
-
-### Variables d'environnement de production
-
-Le `run.sh` généré exporte :
-
-```bash
-HEELONVAULT_MIGRATIONS_DIR=/opt/heelonvault/migrations
-HEELONVAULT_DB_PATH=~/.local/share/heelonvault/heelonvault-rust.db
-HEELONVAULT_LOG_DIR=~/.local/state/heelonvault/logs
-HEELONVAULT_LOG_LEVEL=info
-```
-
----
-
-## Vérifications post-installation (Ubuntu)
-
-### Vérifications du binaire et du lanceur
-
-```bash
-# Vérifier que le binaire existe et est exécutable
-test -x /opt/heelonvault/heelonvault
-
-# Vérifier que le lanceur existe et est exécutable
-test -x /opt/heelonvault/run.sh
-
-# Vérifier que les entrées desktop existent
-test -f /usr/share/applications/com.heelonvault.rust.desktop
-test -f /usr/share/applications/heelonvault.desktop
-
-# Valider le format de l'entrée desktop
-desktop-file-validate /usr/share/applications/com.heelonvault.rust.desktop
-
-# Tester le lancement via l'entrée desktop
-gtk-launch com.heelonvault.rust
-```
-
-### Vérifications de la base de données et des migrations
-
-```bash
-# Vérifier que le dossier de la base de données existe
-ls -la ~/.local/share/heelonvault/
-
-# Vérifier le dossier et les fichiers de migration (19 migrations en v1.2.0-rc.1)
-ls -la /opt/heelonvault/migrations/ | wc -l  # Doit afficher 19 + 1 (en-tête)
-
-# Vérifier le contenu de chaque fichier SQL de migration
-grep -c "CREATE TABLE\|ALTER TABLE\|CREATE INDEX" /opt/heelonvault/migrations/*.sql
-```
-
-### Vérifications PIN et session (NOUVELLES en v1.2.0-rc.1)
-
-```bash
-# Vérifier les tables liées au PIN
-sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%pin%';"
-
-# Vérifier les tables de rate limiting (par IP)
-sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db "SELECT name FROM sqlite_master WHERE type='table' AND name='login_attempts_ip';"
-
-# Vérifier la table des enveloppes de clé de récupération (NOUVELLE en v1.2.0-rc.1)
-sqlite3 ~/.local/share/heelonvault/heelonvault-rust.db "SELECT name FROM sqlite_master WHERE type='table' AND name='user_recovery_key_envelopes';"
-```
-
-### Vérifications des permissions
-
-```bash
-# Vérifier les permissions de la base de données (doit être 0600)
-stat -c "%a" ~/.local/share/heelonvault/heelonvault-rust.db
-
-# Vérifier les permissions du dossier des logs
-stat -c "%a" ~/.local/state/heelonvault/
-```
-
----
-
-## Notes de migration Legacy
-
-### Depuis v0.4 vers v1.2.0-rc.1
-
-Les anciens installateurs pouvaient stocker la base dans `/opt/heelonvault/data/heelonvault-rust-dev.db`. 
-Le lanceur packagé copie ce fichier vers le dossier utilisateur au premier démarrage si nécessaire.
-
-Pour une migration manuelle :
-
-```bash
-# Utiliser le script de migration fourni
-./scripts/export-legacy-v0.4-to-csv.py --db-path /var/lib/heelonvault-shared/old.db \
-  --salt-path /var/lib/heelonvault-shared/salt.txt \
-  --output legacy_export.csv
-
-# Puis importer via le flux d'import CSV (Fonctionnalité Premium)
-```
-
-### Depuis v1.1.0 vers v1.2.0-rc.1
-
-Le schéma de la base de données a été mis à jour avec 5 nouvelles migrations (14 → 19 au total) :
-
-- Migration 0015 : Index supplémentaires pour les performances
-- Migration 0016 : Table de rate limiting par IP (`login_attempts_ip`)
-- Migration 0017 : Table de cache PIN
-- Migration 0018 : Table d'état de session
-- Migration 0019 : Table des enveloppes de clé de récupération utilisateur (Récupération de clé de compte)
-
-Ces migrations sont appliquées automatiquement au premier lancement.
-
----
-
-## Résolution des problèmes
-
-### Problèmes courants
-
-**Problème : GSK_RENDERER non défini**
-
-Solution : Assurez-vous que les variables de rendu GTK sont définies avant l'initialisation de Tokio :
-
-```bash
-# Vérifier si la variable est exportée
-echo $GSK_RENDERER
-
-# Exécuter avec un rendu explicite
-gsk_renderer=gl ./scripts/run-dev.sh
-```
-
-**Problème : La base de données existe déjà avec un schéma obsolète**
-
-Solution : Sauvegardez et laissez les migrations s'exécuter :
-
-```bash
-mv data/heelonvault-rust-dev.db data/heelonvault-rust-dev.db.bak
-./scripts/run-dev.sh  # Va créer une nouvelle base avec le schéma actuel
-```
-
-**Problème : Dépendances GTK4 manquantes**
-
-Solution (Ubuntu/Debian) :
-
-```bash
-sudo apt-get install libgtk-4-dev libadwaita-1-dev
-```
-
-**Problème : Les logs n'apparaissent pas**
-
-Solution : Vérifiez les variables d'environnement :
-
-```bash
-# Vérifier que le dossier des logs existe
-mkdir -p ./logs
-
-# Exécuter avec des paramètres de log explicites
-HEELONVAULT_LOG_LEVEL=debug HEELONVAULT_LOG_DIR=./logs ./scripts/run-dev.sh
-```
-
----
-
-## Ressources supplémentaires
-
-- [Index de la documentation complète](../README.md)
-- [Détails de l'architecture](ARCHITECTURE.md)
-- [Guide utilisateur](USER_GUIDE.md)
-- [Journal des modifications](CHANGELOG.md)
-
----
-
-> **Note** : Pour les fonctionnalités premium (import CSV, partage d'équipe, etc.), assurez-vous que votre licence est correctement configurée dans `~/.config/heelonvault/license.hvl` (dev) ou `/etc/heelonvault/license.hvl` (prod).
+- [Guide utilisateur](USER_GUIDE.md) — tous les écrans et fonctions
+- [Mettre à jour](UPDATE_GUIDE.md) — passer à une nouvelle version
+- [Sécurité](../SECURITY.fr.md) — modèle de menace, cryptographie, signalement de vulnérabilité
