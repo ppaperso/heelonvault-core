@@ -126,6 +126,8 @@ struct CenterPanelWidgets {
     sort_recent_button: gtk4::Button,
     sort_title_button: gtk4::Button,
     sort_risk_button: gtk4::Button,
+    view_grid_button: gtk4::Button,
+    view_list_button: gtk4::Button,
     empty_title: gtk4::Label,
     empty_copy: gtk4::Label,
 }

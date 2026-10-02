@@ -3,6 +3,7 @@ use uuid::Uuid;
 /// Typed audit actions for compile-time safety.
 /// Serialised as dot-namespaced strings in the DB for easy SQL filtering.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum AuditAction {
     // User management
     UserCreated,

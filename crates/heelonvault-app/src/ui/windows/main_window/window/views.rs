@@ -78,7 +78,7 @@ pub fn build_header_bar(
     // Help button for online documentation
     let help_button = gtk4::Button::builder()
         .icon_name("help-about-symbolic")
-        .tooltip_text("Documentation en ligne")
+        .tooltip_text(heelonvault_core::tr!("main-help-tooltip").as_str())
         .build();
     help_button.add_css_class("flat");
     help_button.add_css_class("header-help-button");

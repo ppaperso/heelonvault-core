@@ -6,6 +6,7 @@ use libadwaita as adw;
 use uuid::Uuid;
 
 use super::{AuditFilter, SecretCategoryFilter, SecretKind, SecretSortMode};
+use crate::ui::view_preferences::SecretViewMode;
 
 #[derive(Clone)]
 pub(super) struct SecretQuickActions {
@@ -43,6 +44,8 @@ pub(super) struct FilterRuntime {
     pub(super) selected_category: Rc<Cell<SecretCategoryFilter>>,
     pub(super) selected_audit: Rc<Cell<AuditFilter>>,
     pub(super) selected_sort: Rc<Cell<SecretSortMode>>,
+    /// Card grid or compact list; read when the secret widgets are (re)built.
+    pub(super) view_mode: Rc<Cell<SecretViewMode>>,
     pub(super) audit_all_count_label: gtk4::Label,
     pub(super) audit_weak_count_label: gtk4::Label,
     pub(super) audit_duplicate_count_label: gtk4::Label,
@@ -53,8 +56,11 @@ pub(super) struct FilterRuntime {
     pub(super) filtered_status_page: adw::StatusPage,
 }
 
+/// Display data of one secret. Deliberately holds **no secret value**: only metadata and
+/// verdicts derived at load time. Copying the password decrypts it again on demand.
 pub(super) struct SecretRowView {
     pub(super) secret_id: Uuid,
+    pub(super) vault_id: Uuid,
     pub(super) icon_name: String,
     pub(super) type_label: String,
     pub(super) title: String,
@@ -65,10 +71,13 @@ pub(super) struct SecretRowView {
     pub(super) notes: String,
     pub(super) category: String,
     pub(super) tags: String,
-    pub(super) secret_value: String,
+    /// The secret has a non-empty value (enables the copy action).
+    pub(super) has_secret: bool,
     pub(super) kind: SecretKind,
     pub(super) color_class: String,
-    pub(super) health: String,
+    pub(super) is_weak: bool,
+    /// Same value as another secret of the same load (computed in the loader thread).
+    pub(super) is_duplicate: bool,
     pub(super) is_health_access: bool,
     pub(super) usage_count: u32,
     pub(super) vault_name: String,

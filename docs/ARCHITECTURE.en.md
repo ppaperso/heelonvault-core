@@ -90,6 +90,8 @@ The new system enables:
 - Account restoration via recovery key with two-step validation
 - User key management with secure rotation
 
+End of bootstrap: a successful initialization does **not** open a session. `bootstrap_flow.rs` wipes the account key (drops the `BootstrapResult`), sets the flag shared with the `close_request` handler (otherwise closing would be treated as a cancellation and quit the application), closes the wizard, then calls `on_bootstrap_completed(username)`. `main.rs` switches back to sign-in mode and presents a regular `LoginDialog`, on which `show_account_created()` pre-fills the username and shows the confirmation.
+
 ### Account Key Recovery System
 
 Commit `7cc2556` introduces a complete recovery system:
@@ -115,6 +117,36 @@ Effects:
 - sidebar remains visible during profile operations;
 - secret creation/editing stays in the center pane;
 - profile badge opens a read-only popover with recent login history.
+
+### Secret display: cards or list
+
+`entries_view` relies on a single `GtkFlowBox` (`secret_flow`) whatever the display mode (`SecretViewMode::Grid` / `List`, defined in `ui/view_preferences.rs`):
+
+- `center::apply_view_mode_to_flow` configures the container (multi-column grid, or one full-width column + `main-secret-list` CSS class);
+- `SecretCard::new(data, mode)` builds a card or a compact row from the same building blocks (title, badges, actions), keeping the same action buttons;
+- the current mode lives in `FilterRuntime::view_mode`; the toggle (`events::setup_view_mode_handlers`) persists the choice then rebuilds the widgets from the last load (`SecretListCallbacks::rerender`), with no query and no decryption. A full reload only happens when nothing has been loaded yet.
+
+Filtering, sorting, search, counters and keyboard shortcuts are therefore mode-independent. The choice is persisted per installation in `ui_view_preferences.json` (same directory as `ui_main_window_state.json`).
+
+### Secret list: no plaintext value in the UI
+
+`window/refresh.rs` builds a single `SecretFlowContext` shared by two callbacks (`SecretListCallbacks`): `reload` (database) and `rerender` (widgets only). `secret_flow.rs` works in three stages:
+
+1. **Load** (`refresh_secret_flow`, worker thread): for each secret, `get_secret()` decrypts the value, from which only `has_secret`, `is_weak` and a SHA-256 fingerprint are derived; the plaintext stays in the service's `SecretBox` (wiped on drop). `finalize_rows` flags duplicates then drops the fingerprints **inside the loader thread**. The master key copy handed over is a `Zeroizing<Vec<u8>>`.
+2. **Render** (`render_secret_rows`): builds cards or rows from `LoadedSecrets` (metadata + live usage counters, `Rc<Cell<u32>>`), kept in the context for `rerender`.
+3. **On-demand copy** (`PasswordCopier::copy`): snapshot of the session key (refused when locked), `open_vault_for_user` (re-checks access — a revoked share can no longer be copied), `get_secret`, copy through `sensitive_clipboard`, then wipe. The button is disabled and an `in_flight` flag blocks re-entry (`Ctrl+C` emits `clicked` even on an insensitive button).
+
+Invariant: `SecretRowView` / `SecretRowData` **never** hold a secret value. Login and URL are not encrypted (`metadata_json`) and can therefore be copied directly. The per-copy overhead (a few SQLite queries + one AES decryption) is imperceptible.
+
+### Clipboard exposure indicator
+
+`ui/sensitive_clipboard.rs` publishes an `Exposure` (`Idle`, `Decrypting`, `InClipboard { kind, copied_at, expires_at }`) on every change: copy (`copy_sensitive(text, SensitiveKind, delay)`), expiry, `clear_now()`, clipboard replaced by another application (`changed` signal with `is_local() == false`: the value is wiped at once, leaving the new content alone), and decryption in flight (`begin_decrypting()` returns an RAII guard held by `PasswordCopier`).
+
+- `subscribe()` calls the listener at once, then on every change, until it returns `ControlFlow::Break`. Notifications are emitted **after** the internal state is released (a listener may call back `clear_now()`), and subscriptions made during a notification are kept.
+- `ui/widgets/clipboard_indicator.rs`: header bar button (icon + ring drawn with cairo in a `DrawingArea`). It only holds weak references, so the subscription ends with the main window rebuilt at each sign-in. The ring is animated (tick callback) only while something is exposed; idle, it costs nothing. Clicking calls `clear_now()`.
+- Labels only claim what the application controls: never "no secret in memory".
+
+Known limitation: `get_secret()` re-reads each secret from the database although `list_by_vault()` just loaded it (N+1 queries). Fixing it needs a new method on the public `SecretService` trait of `heelonvault-core`: deferred to a dedicated change.
 
 ## Runtime Session and Security
 

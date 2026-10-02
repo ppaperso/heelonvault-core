@@ -3,8 +3,28 @@ use gtk4::{Align, Orientation};
 use libadwaita as adw;
 
 use super::CenterPanelWidgets;
+use crate::ui::view_preferences::SecretViewMode;
 
-pub(super) fn build_center_panel() -> CenterPanelWidgets {
+/// Lay the secret flow box out for `mode`: a wrapping grid of cards, or one full-width
+/// row per secret. The widgets themselves are rebuilt by the next secret list refresh.
+pub(super) fn apply_view_mode_to_flow(secret_flow: &gtk4::FlowBox, mode: SecretViewMode) {
+    match mode {
+        SecretViewMode::Grid => {
+            secret_flow.set_max_children_per_line(5);
+            secret_flow.set_row_spacing(16);
+            secret_flow.set_halign(Align::Start);
+            secret_flow.remove_css_class("main-secret-list");
+        }
+        SecretViewMode::List => {
+            secret_flow.set_max_children_per_line(1);
+            secret_flow.set_row_spacing(6);
+            secret_flow.set_halign(Align::Fill);
+            secret_flow.add_css_class("main-secret-list");
+        }
+    }
+}
+
+pub(super) fn build_center_panel(view_mode: SecretViewMode) -> CenterPanelWidgets {
     let center_frame = gtk4::Frame::new(None);
     center_frame.add_css_class("main-center-panel");
 
@@ -37,6 +57,7 @@ pub(super) fn build_center_panel() -> CenterPanelWidgets {
         .build();
     secret_flow.set_focusable(true);
     secret_flow.add_css_class("main-secret-grid");
+    apply_view_mode_to_flow(&secret_flow, view_mode);
     list_scroll.set_child(Some(&secret_flow));
 
     let filtered_status_page = adw::StatusPage::builder()
@@ -94,8 +115,22 @@ pub(super) fn build_center_panel() -> CenterPanelWidgets {
     sort_switch.append(&sort_title_button);
     sort_switch.append(&sort_risk_button);
 
+    let view_switch = gtk4::Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(4)
+        .halign(Align::End)
+        .build();
+    view_switch.add_css_class("vault-secret-sort-switch");
+    view_switch.add_css_class("vault-secret-view-switch");
+
+    let view_grid_button = build_status_sort_button("view-grid-symbolic");
+    let view_list_button = build_status_sort_button("view-list-symbolic");
+    view_switch.append(&view_grid_button);
+    view_switch.append(&view_list_button);
+
     status_row.append(&metrics_box);
     status_row.append(&sort_switch);
+    status_row.append(&view_switch);
 
     let list_page = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
@@ -183,6 +218,8 @@ pub(super) fn build_center_panel() -> CenterPanelWidgets {
         sort_recent_button,
         sort_title_button,
         sort_risk_button,
+        view_grid_button,
+        view_list_button,
         empty_title,
         empty_copy: empty_description,
     }

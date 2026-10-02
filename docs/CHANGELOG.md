@@ -7,6 +7,55 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.0.0] — 2026-10-02
+
+> Version stable. Elle succède à la pré-version [1.2.0-rc.1](#120-rc1--2026-09-01), dont elle reprend l'intégralité du contenu, plus les changements ci-dessous. La numérotation passe en 2.0.0 parce que l'API publique de la crate `heelonvault-core` publiée sur crates.io n'est plus compatible avec la 1.1.0 (voir « Changements incompatibles ») ; le produit, la crate et `heelonvault-premium` partagent le même numéro de version.
+
+### Sécurité — plus aucun secret en clair conservé par l'interface
+
+- La liste des secrets ne garde plus les mots de passe déchiffrés en mémoire. Auparavant, chaque rafraîchissement déchiffrait tout le coffre et conservait les valeurs en clair (`String` jamais effacées) dans les données d'affichage et dans le handler de copie de chaque carte, pendant toute la session.
+- Au chargement, chaque valeur n'est déchiffrée que le temps de calculer la robustesse et une empreinte SHA-256 pour la détection des doublons, dans le thread de chargement ; le clair reste dans un `SecretBox` (effacé à la libération) et les empreintes ne quittent jamais ce thread. Seuls des booléens (`has_secret`, `is_weak`, `is_duplicate`) parviennent à l'interface.
+- **Copie à la demande** : copier un mot de passe (bouton ou `Ctrl+C`) rouvre le coffre (`open_vault_for_user`, donc revérification des droits : un partage révoqué n'est plus copiable), déchiffre ce seul secret, le copie puis l'efface. Le bouton est désactivé pendant l'opération (anti double-clic, y compris au clavier) ; un message s'affiche si la session est verrouillée ou si la copie échoue.
+- La copie de la clé maître transmise au chargement est désormais effacée (`Zeroizing`).
+- **Indicateur d'exposition du presse-papiers** dans la barre d'en-tête : icône de presse-papiers entourée d'un anneau ambré qui se consume pendant le délai d'effacement réel (20 s pour un mot de passe ou un login, 60 s pour la phrase de récupération). L'infobulle indique ce qui est exposé (mot de passe, identifiant, phrase de récupération) et le compte à rebours ; au repos : « Aucun secret exposé par HeelonVault ». Un clic efface le presse-papiers immédiatement. L'indicateur ne prétend jamais qu'aucun secret n'est en mémoire.
+- Un verrouillage (manuel, automatique ou déconnexion) survenant pendant le déchiffrement d'une copie à la demande n'envoie plus le mot de passe dans le presse-papiers après coup : la session est revérifiée au retour du déchiffrement, et le message « Session verrouillée » s'affiche.
+- Si une autre application remplace le presse-papiers, la valeur sensible détenue par HeelonVault est effacée aussitôt au lieu d'attendre la fin du délai.
+- La bascule cartes/liste reconstruit les widgets depuis le dernier chargement (métadonnées uniquement) : plus de requête ni de déchiffrement, plus d'écran « Chargement ». Les compteurs d'utilisation incrémentés depuis le chargement sont conservés.
+
+### UX — affichage liste, premier lancement et aide en ligne
+
+- **Affichage en cartes ou en liste** : deux boutons dans la barre d'état de la liste basculent entre la grille de cartes et une liste compacte à colonnes alignées (type, titre, login, domaine, badges essentiels, actions rapides). Filtre, tri, recherche, compteurs et raccourcis clavier inchangés ; la bascule est instantanée (pas de rechargement). Le choix est persisté dans `ui_view_preferences.json` (préférence d'installation).
+- **Premier lancement** : après l'assistant d'initialisation, l'application revient à l'écran de connexion au lieu de se fermer ; l'identifiant créé y est pré-rempli et le message « Compte créé, connectez-vous. » s'affiche. Aucune session n'est ouverte implicitement : la clé de compte issue du bootstrap est effacée de la mémoire.
+- **Aide en ligne** : bouton « ? » dans la barre d'en-tête ouvrant https://doc.heelonvault.heelonys.fr (infobulle traduite FR/EN).
+- **Cartes de secrets** : login et domaine sur deux lignes avec icônes.
+
+### Correctifs
+
+- Bootstrap : la fermeture de l'assistant après une initialisation réussie était interprétée comme une annulation et quittait l'application (drapeau d'état non partagé avec le handler `close_request`).
+- Le bouton de tri actif est de nouveau mis en évidence (classe CSS `vault-secret-sort-button-active` jamais appliquée).
+- Cartes : le texte login/domaine n'est plus décalé de 4 px par rapport à son icône.
+- Cartes : en anglais, un mot de passe faible s'affichait avec le badge vert « robuste » (couleur déduite du libellé français). La robustesse est désormais un booléen, traduit uniquement à l'affichage ; badges « Santé », « Incomplet », « Partagé » et infobulles des actions rapides traduits FR/EN.
+
+
+### Changements incompatibles — API de la crate `heelonvault-core`
+
+Relevés par `cargo-semver-checks` par rapport à la 1.1.0 publiée sur crates.io. Ils ne concernent que le code qui utilise la crate ; l'application et les bases existantes ne sont pas touchées (aucune migration depuis 1.2.0-rc.1).
+
+- Supprimés : `admin_service::bootstrap_first_admin`, `user_service::{MasterKeyRotationPolicy, MasterKeyRotationRequest, MasterKeyRotationReport, RotationValidationMode}` ; méthodes `BackupService::{export_backup, import_backup}` et `UserService::rotate_master_key_hardened` retirées ou modifiées.
+- Nouvelles méthodes obligatoires sur des traits publics : `UserRepository` (enveloppe et vérificateur de la phrase de récupération), `VaultRepository::create_vault_with_envelope`, `SecretService::{record_viewed, record_field_copy}`, `UserService::{upgrade_legacy_credentials, account_needs_recovery_key}`, `BackupService::{build_recovery_verifier, verify_recovery_phrase}`.
+- `BackupApplicationServiceImpl::new` prend un paramètre de plus ; `BootstrapResult` gagne le champ `recovery_phrase`.
+- Nouvelles variantes : `AuditAction::{SecretViewed, SecretPasswordCopied, SecretFieldCopied}`, `AppError::{Recovery, SingleAccountVault}`.
+- `AppError`, `AccessDeniedReason`, `RecoveryFailure` et `AuditAction` sont désormais `#[non_exhaustive]` : un `match` hors de la crate doit prévoir un bras `_`. En contrepartie, l'ajout d'une variante ne sera plus un changement incompatible.
+
+### Infrastructure — garde-fous de version
+
+- CI : `cargo-semver-checks` compare l'API de `heelonvault-core` à la dernière version publiée sur crates.io et échoue si une rupture n'est pas accompagnée d'une version majeure.
+- CI : `cargo publish --dry-run -p heelonvault-core` vérifie que la crate se construit seule, hors du workspace.
+- Test `release_consistency` : `heelonvault-core`, `heelonvault-app` et `heelonvault-premium` doivent porter la même version, et premium doit dépendre de cette version de `heelonvault-core`.
+- Procédure de livraison documentée dans [RELEASING.md](RELEASING.md).
+
+---
+
 ## [1.2.0-rc.1] — 2026-09-01
 
 > Note release: `v1.1.0` (et `v1.1.0-rc.1`) est figée. Les changements ci-dessous appartiennent au périmètre de `v1.2.0`.

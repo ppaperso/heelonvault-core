@@ -32,6 +32,7 @@ use heelonvault_premium::services::license_service::LicenseService;
 use super::{editor, events, i18n_refresh, navigation, pin_badge, refresh, vault_list, views};
 use crate::constants::DOCS_URL;
 use crate::ui::dialogs::add_edit_dialog::DialogMode;
+use crate::ui::widgets::clipboard_indicator::ClipboardIndicator;
 use crate::ui::windows::main_window::types::FilterRuntime;
 use crate::ui::windows::main_window::{
     AuditFilter, SecretCategoryFilter, SecretKind, SecretSortMode, center, search_filter, shell,
@@ -131,6 +132,7 @@ where
         help_button,
     ) = views::build_header_bar(&license_badge_text);
     let (root, toast_overlay) = views::build_root_container();
+    let clipboard_indicator = ClipboardIndicator::new();
     let (profile_button, profile_popover, profile_title, login_history_list) =
         views::build_profile_button(&connected_identity_label);
     let (header_pin_btn, header_pin_label) = views::build_pin_status_badge();
@@ -138,7 +140,8 @@ where
     let (user_identity_box, admin_badge, add_button, trash_button) =
         views::build_user_identity_box(&profile_button, is_admin);
 
-    let center_panel = center::build_center_panel();
+    let view_mode = crate::ui::view_preferences::load_secret_view_mode();
+    let center_panel = center::build_center_panel(view_mode);
     let sidebar_panel = sidebar::build_sidebar_panel();
 
     let filter_runtime = FilterRuntime {
@@ -148,6 +151,7 @@ where
         selected_category: Rc::new(Cell::new(SecretCategoryFilter::All)),
         selected_audit: Rc::new(Cell::new(AuditFilter::All)),
         selected_sort: Rc::new(Cell::new(SecretSortMode::Recent)),
+        view_mode: Rc::new(Cell::new(view_mode)),
         audit_all_count_label: sidebar_panel.audit_all_badge.clone(),
         audit_weak_count_label: sidebar_panel.audit_weak_badge.clone(),
         audit_duplicate_count_label: sidebar_panel.audit_duplicate_badge.clone(),
@@ -169,8 +173,7 @@ where
 
     // ── 3. Refresh chain ──────────────────────────────────────────────────────
     // A single reload backs both the active-vault and the cross-vault refresh.
-    let secret_reload = refresh::build_secret_reload(refresh::SecretRefreshDeps {
-        application: application.clone(),
+    let secret_list = refresh::build_secret_reload(refresh::SecretRefreshDeps {
         parent_window: window.clone(),
         runtime_handle: runtime_handle.clone(),
         secret_service: Arc::clone(&secret_service),
@@ -186,6 +189,7 @@ where
         filter_runtime: filter_runtime.clone(),
         editor_launcher: Rc::clone(&editor_launcher),
     });
+    let secret_reload = Rc::clone(&secret_list.reload);
 
     let refresh_secrets: Rc<dyn Fn()> = {
         let reload = Rc::clone(&secret_reload);
@@ -314,6 +318,25 @@ where
         &center_panel.sort_risk_button,
         center_panel.secret_flow.clone(),
         filter_runtime.clone(),
+    );
+
+    // A layout switch only rebuilds the widgets from the last load; it reloads (and so
+    // decrypts) only if nothing has been loaded yet.
+    let rerender_secrets: Rc<dyn Fn()> = {
+        let rerender = Rc::clone(&secret_list.rerender);
+        let refresh = Rc::clone(&refresh_secrets);
+        Rc::new(move || {
+            if !rerender() {
+                refresh();
+            }
+        })
+    };
+    events::setup_view_mode_handlers(
+        &center_panel.view_grid_button,
+        &center_panel.view_list_button,
+        center_panel.secret_flow.clone(),
+        filter_runtime.clone(),
+        rerender_secrets,
     );
 
     events::setup_search_entry_handlers(
@@ -479,6 +502,8 @@ where
             trash_button: trash_button.clone(),
             panic_button: panic_button.clone(),
             panic_label,
+            help_button: help_button.clone(),
+            clipboard_indicator: clipboard_indicator.clone(),
             profile_container,
             editor_host,
         },
@@ -488,6 +513,11 @@ where
     *i18n_refresh_holder.borrow_mut() = Some(Rc::clone(&refresh_i18n));
     refresh_i18n();
 
+    events::update_view_button_states(
+        &center_panel.view_grid_button,
+        &center_panel.view_list_button,
+        view_mode,
+    );
     events::update_sort_button_states(
         &center_panel.sort_recent_button,
         &center_panel.sort_title_button,
@@ -506,11 +536,13 @@ where
     header_bar.pack_end(&user_identity_box);
     header_bar.pack_end(&panic_button);
     header_bar.pack_end(&help_button);
+    header_bar.pack_end(clipboard_indicator.widget());
     header_bar.set_title_widget(Some(&title_box));
 
     // Connect help button to open documentation URL
-    help_button.connect_clicked(|_| {
-        gtk4::show_uri(None::<&gtk4::Window>, DOCS_URL, gtk4::gdk::CURRENT_TIME);
+    let window_for_help = window.clone();
+    help_button.connect_clicked(move |_| {
+        gtk4::show_uri(Some(&window_for_help), DOCS_URL, gtk4::gdk::CURRENT_TIME);
     });
 
     root.append(&header_bar);

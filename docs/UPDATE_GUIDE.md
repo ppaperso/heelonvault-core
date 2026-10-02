@@ -2,13 +2,13 @@
 
 Langue : FR | [EN](UPDATE_GUIDE.en.md)
 
-Version documentée: `1.2.0-rc.1`
+Version documentée: `2.0.0`
 
-> Dernière mise à jour : 2026-09-15
+> Dernière mise à jour : 2026-10-02
 
 Ce guide decrit la mise a jour de HeelonVault dans son architecture Rust-only.
 
-**Nouveautés v1.2.0-rc.1** : migrations 0016 → 0019 (16 → 19 total) pour le rate limiting par IP et la récupération de clé de compte. Seule la migration 0016 crée une nouvelle table (`login_attempts_ip`) ; les migrations 0017-0019 ajoutent des colonnes nullables à la table `users` existante. Le cache PIN (`PinCache`) est volontairement gardé en mémoire uniquement et n'est jamais persisté en base — il n'y a pas de table associée.
+**Nouveautés v2.0.0** : migrations 0016 → 0019 (16 → 19 total) pour le rate limiting par IP et la récupération de clé de compte. Seule la migration 0016 crée une nouvelle table (`login_attempts_ip`) ; les migrations 0017-0019 ajoutent des colonnes nullables à la table `users` existante. Le cache PIN (`PinCache`) est volontairement gardé en mémoire uniquement et n'est jamais persisté en base — il n'y a pas de table associée.
 
 ## Portee
 
@@ -92,7 +92,7 @@ Verifications fonctionnelles recommandees:
 12. Changer le mot de passe maître, puis vérifier l'accès aux coffres principaux après reconnexion (rotation master key durcie).
 13. Vérifier le flux CSV en 3 étapes (prévisualisation, progression, résumé) et, en cas de rejet, noter le chemin `csv_import_rejects_*.txt` indiqué dans le résumé.
 
-### Vérifications spécifiques v1.2.0-rc.1
+### Vérifications spécifiques v2.0.0
 
 **Nouveaux composants de base de données** :
 

@@ -455,11 +455,14 @@ fn run_application(
         let context_for_login = Arc::clone(&context);
         let active_main_window: Rc<RefCell<Option<Rc<MainWindow>>>> = Rc::new(RefCell::new(None));
         let present_login_holder: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
+        // Username of the account just created by the bootstrap, consumed by the next login screen.
+        let created_account_notice: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
 
         let active_main_for_login = Rc::clone(&active_main_window);
         let present_holder_for_login = Rc::clone(&present_login_holder);
         let needs_bootstrap_for_login = Rc::clone(&needs_bootstrap_flag);
         let startup_psc_artifact_for_login = startup_psc_artifact_for_activate.clone();
+        let created_account_for_login = Rc::clone(&created_account_notice);
         let present_login: Rc<dyn Fn()> = Rc::new(move || {
             if let Some(main) = active_main_for_login.borrow().as_ref() {
                 main.deactivate_auto_lock();
@@ -477,6 +480,7 @@ fn run_application(
             let needs_bootstrap_for_dialog = Rc::clone(&needs_bootstrap_for_login);
             let needs_bootstrap_for_completed = Rc::clone(&needs_bootstrap_for_login);
             let present_holder_for_bootstrap = Rc::clone(&present_holder_for_login);
+            let created_account_for_bootstrap = Rc::clone(&created_account_for_login);
             let app_for_main_success = app_for_login.clone();
             let login_parent_for_dialog = login_parent.clone();
             let startup_psc_artifact_for_dialog = startup_psc_artifact_for_login.clone();
@@ -858,9 +862,10 @@ fn run_application(
                     });
                     main_for_success.activate_auto_lock();
                 },
-                move || {
+                move |created_username: String| {
                     info!("bootstrap completed, presenting login screen");
                     needs_bootstrap_for_completed.set(false);
+                    *created_account_for_bootstrap.borrow_mut() = Some(created_username);
                     let present_holder = Rc::clone(&present_holder_for_bootstrap);
                     // Deferred so the bootstrap window finishes closing first.
                     glib::idle_add_local_once(move || {
@@ -873,6 +878,9 @@ fn run_application(
                     app_for_cancel.quit();
                 },
             );
+            if let Some(created_username) = created_account_for_login.borrow_mut().take() {
+                login_dialog.show_account_created(&created_username);
+            }
             login_dialog.present();
         });
 

@@ -505,6 +505,7 @@ impl RecoveryKeyExportDialog {
         copy_button.connect_clicked(move |_| {
             if !sensitive_clipboard::copy_sensitive(
                 phrase_for_copy.as_str(),
+                sensitive_clipboard::SensitiveKind::RecoveryPhrase,
                 sensitive_clipboard::RECOVERY_PHRASE_CLEAR_DELAY,
             ) {
                 feedback_for_copy(

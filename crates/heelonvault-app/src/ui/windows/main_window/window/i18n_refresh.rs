@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 use gtk4::prelude::*;
 
+use crate::ui::widgets::clipboard_indicator::ClipboardIndicator;
 use crate::ui::windows::main_window::sidebar;
 use crate::ui::windows::main_window::{CenterPanelWidgets, SidebarWidgets};
 
@@ -21,6 +22,8 @@ pub struct I18nTargets {
     pub trash_button: gtk4::Button,
     pub panic_button: gtk4::Button,
     pub panic_label: gtk4::Label,
+    pub help_button: gtk4::Button,
+    pub clipboard_indicator: ClipboardIndicator,
     pub profile_container: gtk4::ScrolledWindow,
     pub editor_host: gtk4::Box,
 }
@@ -52,6 +55,10 @@ pub fn build_refresh(
         targets
             .panic_label
             .set_text(heelonvault_core::tr!("main-panic-label").as_str());
+        targets
+            .help_button
+            .set_tooltip_text(Some(heelonvault_core::tr!("main-help-tooltip").as_str()));
+        targets.clipboard_indicator.refresh_i18n();
 
         let center = &targets.center_panel;
         center.status_total_chip.set_tooltip_text(Some(
@@ -74,6 +81,12 @@ pub fn build_refresh(
         ));
         center.sort_risk_button.set_tooltip_text(Some(
             heelonvault_core::tr!("main-sort-risk-tooltip").as_str(),
+        ));
+        center.view_grid_button.set_tooltip_text(Some(
+            heelonvault_core::tr!("main-view-grid-tooltip").as_str(),
+        ));
+        center.view_list_button.set_tooltip_text(Some(
+            heelonvault_core::tr!("main-view-list-tooltip").as_str(),
         ));
         center
             .filtered_status_page

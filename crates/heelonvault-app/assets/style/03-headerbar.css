@@ -181,3 +181,26 @@ searchentry.main-search-entry {
     padding: 10px 12px;
 }
 
+
+/* Clipboard exposure indicator (ui/widgets/clipboard_indicator.rs): the ring is drawn in
+   cairo, these rules only tint the icon and frame the button. */
+button.header-clipboard-indicator {
+    min-width: 34px;
+    min-height: 34px;
+    padding: 2px;
+    border-radius: 999px;
+    color: #5A7072;
+}
+
+button.header-clipboard-indicator:hover {
+    background: rgba(19, 161, 161, 0.10);
+}
+
+button.header-clipboard-indicator.exposed {
+    color: #B26A00;
+    background: rgba(217, 142, 4, 0.12);
+}
+
+button.header-clipboard-indicator.exposed:hover {
+    background: rgba(217, 142, 4, 0.20);
+}

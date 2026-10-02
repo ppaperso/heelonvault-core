@@ -2,13 +2,13 @@
 
 Language: EN | [FR](UPDATE_GUIDE.md)
 
-Documented version: `1.2.0-rc.1`
+Documented version: `2.0.0`
 
-> Last updated: 2026-09-15
+> Last updated: 2026-10-02
 
 This guide explains how to update HeelonVault in its Rust-only architecture.
 
-**What's new in v1.2.0-rc.1**: migrations 0016 → 0019 (16 → 19 total) for IP-based rate limiting and account key recovery. Only migration 0016 creates a new table (`login_attempts_ip`); migrations 0017-0019 add nullable columns to the existing `users` table. The PIN cache (`PinCache`) is intentionally kept in memory only and is never persisted to disk — there is no associated table.
+**What's new in v2.0.0**: migrations 0016 → 0019 (16 → 19 total) for IP-based rate limiting and account key recovery. Only migration 0016 creates a new table (`login_attempts_ip`); migrations 0017-0019 add nullable columns to the existing `users` table. The PIN cache (`PinCache`) is intentionally kept in memory only and is never persisted to disk — there is no associated table.
 
 ## Scope
 
@@ -71,7 +71,7 @@ Recommended functional checks:
 12. Change the master password, then verify access to main vaults after re-login (hardened master-key rotation).
 13. Verify the 3-step CSV flow (preview, progress, summary) and, when rows are rejected, record the `csv_import_rejects_*.txt` path shown in the summary.
 
-### v1.2.0-rc.1 Specific Checks
+### v2.0.0 Specific Checks
 
 **New database components**:
 

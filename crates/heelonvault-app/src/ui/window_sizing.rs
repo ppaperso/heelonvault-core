@@ -21,21 +21,23 @@ struct MainWindowState {
 }
 
 fn state_file_path() -> PathBuf {
+    ui_state_file_path("ui_main_window_state.json")
+}
+
+/// Location of a per-installation UI state file (window sizes, view preferences).
+pub(crate) fn ui_state_file_path(file_name: &str) -> PathBuf {
     if let Some(proj_dirs) = ProjectDirs::from("fr", "Heelonys", "HeelonVault") {
-        return proj_dirs
-            .config_dir()
-            .join("heelonvault")
-            .join("ui_main_window_state.json");
+        return proj_dirs.config_dir().join("heelonvault").join(file_name);
     }
 
     if let Ok(home) = std::env::var("HOME") {
         return PathBuf::from(home)
             .join(".config")
             .join("heelonvault")
-            .join("ui_main_window_state.json");
+            .join(file_name);
     }
 
-    PathBuf::from("ui_main_window_state.json")
+    PathBuf::from(file_name)
 }
 
 fn primary_monitor_size() -> Option<(i32, i32)> {

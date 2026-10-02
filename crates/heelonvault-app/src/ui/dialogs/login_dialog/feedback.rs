@@ -2,11 +2,20 @@ use gtk4::prelude::*;
 use heelonvault_core::i18n::I18nArg;
 
 pub(super) fn clear_feedback(error_label: &gtk4::Label) {
+    error_label.remove_css_class("login-success");
     error_label.set_text("");
     error_label.set_visible(false);
 }
 
 pub(super) fn show_feedback(error_label: &gtk4::Label, message: &str) {
+    error_label.remove_css_class("login-success");
+    error_label.set_text(message);
+    error_label.set_visible(true);
+}
+
+/// Positive notice in the feedback slot; the next error or submit replaces it.
+pub(super) fn show_success(error_label: &gtk4::Label, message: &str) {
+    error_label.add_css_class("login-success");
     error_label.set_text(message);
     error_label.set_visible(true);
 }

@@ -217,3 +217,7 @@ label.login-error {
     font-weight: 600;
 }
 
+label.login-error.login-success {
+    color: #1E8E5A;
+}
+
