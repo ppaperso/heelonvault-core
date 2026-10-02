@@ -7,6 +7,40 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.0.1] — 2026-10-02
+
+> Version corrective : aucune modification de l'API publique de `heelonvault-core` ni du schéma de base de données.
+
+### Correctifs
+
+- AppImage Linux : la base de données et les journaux étaient créés dans `data/` et `logs/` du dossier de lancement (le nom de la base, `heelonvault-rust-dev.db`, était celui du mode développement). Le lanceur utilise désormais `~/.local/share/heelonvault/heelonvault-rust.db` et `~/.local/state/heelonvault/logs/`, comme l'installation système. Au premier lancement, une base créée par l'AppImage 2.0.0 (dossier de lancement ou dossier personnel) est copiée vers ce nouvel emplacement ; l'original est conservé.
+- Les types de secret (Mot de passe, Token API, Clé SSH, Document sécurisé) s'affichaient sous forme de clé technique (`secret-type-…`) dans la liste et la corbeille : les traductions manquaient.
+
+### Interface — plus aucun texte figé dans le code
+
+- Tous les textes de l'interface passent par les catalogues de traduction FR/EN : console de confiance et menu « Certifier & Exporter », messages des rapports d'audit signés, indicateur de robustesse du mot de passe, connexion Pro Santé Connect, badge et sceau de licence, états vides de la liste, éditeur, aperçu d'import CSV, badge PIN, rôles des coffres partagés. Ils suivent le changement de langue sans redémarrage, y compris le badge de licence et le menu de certification.
+- Le badge de licence n'est plus transmis sous forme de texte puis analysé pour retrouver le nom du client : il est rendu dans la langue active au moment de l'affichage.
+- Nouveaux tests : les catalogues FR et EN définissent les mêmes clés, et toute clé utilisée par l'interface existe dans les deux.
+
+### Licence
+
+- `heelonvault-premium` est déclaré propriétaire (`LicenseRef-Heelonys-Proprietary`) au lieu d'Apache-2.0, ce qui se reflète dans le SBOM et l'inventaire des licences tierces. Son code peut être ouvert en lecture aux équipes sécurité d'un client pour audit, sous accord de confidentialité ; la documentation le précise.
+
+### Documentation
+
+- Nouveau guide « Installation et démarrage rapide » destiné aux utilisateurs (paquets MSI, DMG, AppImage, vérification SHA-256, premier lancement, emplacement des données, licence, désinstallation). L'ancien contenu développeur est déplacé dans `docs/internal/DEVELOPMENT*.md`.
+- La documentation réservée aux mainteneurs (développement, livraison, packaging Windows, plan CI, spécifications, charte graphique, recette manuelle) est regroupée dans `docs/internal/`, qui n'est pas publié sur le site de documentation.
+- Guide de mise à jour réécrit (mise à jour des paquets, installation système Linux, retour arrière, migration depuis la version Python). Architecture, sécurité, README et guide de contribution alignés sur le code actuel ; numéros de version retirés des documents.
+- Les captures d'écran du guide utilisateur sont de nouveau affichées (`docs/images/user-guide/`).
+- Lien vers le SBOM signé corrigé : il est publié sur les releases GitHub.
+- Page Premium et guides : la connexion Pro Santé Connect est présentée comme en cours de développement (l'identité est vérifiée, la liaison à un compte local n'est pas encore disponible).
+
+### Nettoyage du dépôt
+
+- Supprimés : `scripts/run.sh` (remplacé par le lanceur généré par l'installation système et par `scripts/run-dev.sh`), le dossier `tests/` racine (copies obsolètes de tests vivant dans `crates/`, jamais compilées), `scripts/create-github-issues-1.1.0.sh`, et le module `LicenseStatusWidget` jamais utilisé.
+
+---
+
 ## [2.0.0] — 2026-10-02
 
 > Version stable. Elle succède à la pré-version [1.2.0-rc.1](#120-rc1--2026-09-01), dont elle reprend l'intégralité du contenu, plus les changements ci-dessous. La numérotation passe en 2.0.0 parce que l'API publique de la crate `heelonvault-core` publiée sur crates.io n'est plus compatible avec la 1.1.0 (voir « Changements incompatibles ») ; le produit, la crate et `heelonvault-premium` partagent le même numéro de version.
@@ -52,7 +86,7 @@ Relevés par `cargo-semver-checks` par rapport à la 1.1.0 publiée sur crates.i
 - CI : `cargo-semver-checks` compare l'API de `heelonvault-core` à la dernière version publiée sur crates.io et échoue si une rupture n'est pas accompagnée d'une version majeure.
 - CI : `cargo publish --dry-run -p heelonvault-core` vérifie que la crate se construit seule, hors du workspace.
 - Test `release_consistency` : `heelonvault-core`, `heelonvault-app` et `heelonvault-premium` doivent porter la même version, et premium doit dépendre de cette version de `heelonvault-core`.
-- Procédure de livraison documentée dans [RELEASING.md](RELEASING.md).
+- Procédure de livraison documentée dans [RELEASING.md](internal/RELEASING.md).
 
 ---
 
