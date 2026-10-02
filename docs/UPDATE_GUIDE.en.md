@@ -58,11 +58,12 @@ The Personal profile shares the AppImage's database: both can coexist.
 
 ### Install
 
-Prerequisite: a `heelonvault-core` checkout at the desired tag, with the `heelonvault` binary
-built in release mode and copied to the repository root (see the
-[development documentation](internal/DEVELOPMENT.md)).
+Prerequisite: a `heelonvault-core` checkout at the desired tag and the binary built in release
+mode, as your user (see the [development documentation](internal/DEVELOPMENT.md)):
 
 ```bash
+cargo build --release -p heelonvault-app
+
 # Preview, without changing anything
 sudo env HEELONVAULT_DRY_RUN=1 ./scripts/install.sh
 
@@ -70,7 +71,13 @@ sudo env HEELONVAULT_DRY_RUN=1 ./scripts/install.sh
 sudo ./scripts/install.sh
 ```
 
-The script checks the binary's integrity when a `heelonvault.sha256` file sits next to it, copies
+The script picks the most recent binary between `target/release/heelonvault` and the repository
+root. If `CARGO_TARGET_DIR` is set (sudo does not pass it on), point to it:
+`sudo env HEELONVAULT_BINARY="$CARGO_TARGET_DIR/release/heelonvault" ./scripts/install.sh`.
+It **refuses a stale binary**: version different from the sources, or a source file changed
+after the build, as after a `git pull` (`HEELONVAULT_ALLOW_STALE_BINARY=1` to override).
+
+It then checks the binary's integrity when a `heelonvault.sha256` file sits next to it, copies
 the application and its migrations to `/opt/heelonvault`, and generates the `run.sh` launcher and
 the `com.heelonvault.rust.desktop` menu entry. `install-ubuntu.sh` and `install-rhel.sh` force a
 distribution family.
@@ -81,16 +88,29 @@ to the server running the application.
 
 ### Update
 
-From the checkout at the new tag, with the new binary at the root:
+Close HeelonVault, then from the checkout at the new tag:
 
 ```bash
+cargo build --release -p heelonvault-app
 sudo ./scripts/install.sh
 ```
 
-Before redeploying, the script backs up the detected databases to `/var/backups/heelonvault`
-(`heelonvault_user_<user>_backup_YYYYMMDD_HHMMSS.db` or
-`heelonvault_enterprise_backup_YYYYMMDD_HHMMSS.db`). A failed backup stops the update: do not work
-around it. Check disk space first (`df -h /var/backups`).
+The same command installs or updates. For an update, the script:
+
+1. shows the installed version and the one replacing it, and offers the current profile
+   (Personal or Enterprise) as the default;
+2. refuses to go on while HeelonVault is open;
+3. installs the system dependencies, then backs up the detected databases to
+   `/var/backups/heelonvault` (`heelonvault_user_<user>_backup_YYYYMMDD_HHMMSS.db` or
+   `heelonvault_enterprise_backup_YYYYMMDD_HHMMSS.db`) with a consistent copy (`sqlite3 .backup`)
+   whose integrity is checked; an invalid backup stops everything;
+4. prepares the new version next to the old one (`/opt/heelonvault.new`), then swaps them in a
+   single operation;
+5. on any error after the swap (icons, launcher, validation), **automatically restores the
+   previous version**.
+
+Up to step 4, a failure leaves the existing installation untouched. The script never modifies
+the databases: only the application migrates them, on its first launch.
 
 Post-update check:
 

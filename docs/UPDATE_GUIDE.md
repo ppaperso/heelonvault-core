@@ -59,11 +59,12 @@ Le profil Personnel partage la base de l'AppImage : les deux peuvent coexister.
 
 ### Installer
 
-Prérequis : un dépôt `heelonvault-core` au tag voulu, avec le binaire `heelonvault` construit en
-mode release et copié à la racine du dépôt (voir la
-[documentation de développement](internal/DEVELOPMENT.fr.md)).
+Prérequis : un dépôt `heelonvault-core` au tag voulu et le binaire construit en mode release,
+en tant qu'utilisateur (voir la [documentation de développement](internal/DEVELOPMENT.fr.md)) :
 
 ```bash
+cargo build --release -p heelonvault-app
+
 # Aperçu, sans rien modifier
 sudo env HEELONVAULT_DRY_RUN=1 ./scripts/install.sh
 
@@ -71,7 +72,14 @@ sudo env HEELONVAULT_DRY_RUN=1 ./scripts/install.sh
 sudo ./scripts/install.sh
 ```
 
-Le script vérifie l'intégrité du binaire si un fichier `heelonvault.sha256` l'accompagne, copie
+Le script prend le binaire le plus récent entre `target/release/heelonvault` et la racine du
+dépôt. Si `CARGO_TARGET_DIR` est défini (sudo ne le transmet pas), indiquez-le :
+`sudo env HEELONVAULT_BINARY="$CARGO_TARGET_DIR/release/heelonvault" ./scripts/install.sh`.
+Il **refuse un binaire périmé** : version différente de celle des sources, ou fichier source
+modifié après le build, comme après un `git pull` (`HEELONVAULT_ALLOW_STALE_BINARY=1` pour passer
+outre).
+
+Il vérifie ensuite l'intégrité du binaire si un fichier `heelonvault.sha256` l'accompagne, copie
 l'application et ses migrations dans `/opt/heelonvault`, génère le lanceur `run.sh` et l'entrée
 de menu `com.heelonvault.rust.desktop`. Les scripts `install-ubuntu.sh` et `install-rhel.sh`
 permettent de forcer une famille de distribution.
@@ -82,16 +90,29 @@ latence, idéalement local au serveur d'exécution.
 
 ### Mettre à jour
 
-Depuis le dépôt au nouveau tag, avec le nouveau binaire à la racine :
+Fermez HeelonVault, puis depuis le dépôt au nouveau tag :
 
 ```bash
+cargo build --release -p heelonvault-app
 sudo ./scripts/install.sh
 ```
 
-Avant de redéployer, le script sauvegarde les bases détectées dans `/var/backups/heelonvault`
-(`heelonvault_user_<utilisateur>_backup_AAAAMMJJ_HHMMSS.db` ou
-`heelonvault_enterprise_backup_AAAAMMJJ_HHMMSS.db`). Un échec de sauvegarde interrompt la mise
-à jour : ne le contournez pas. Vérifiez l'espace disque au préalable (`df -h /var/backups`).
+La même commande installe ou met à jour. Pour une mise à jour, le script :
+
+1. affiche la version installée et celle qui va la remplacer, et propose par défaut le profil
+   actuel (Personnel ou Entreprise) ;
+2. refuse de continuer si HeelonVault est ouvert ;
+3. installe les dépendances système, puis sauvegarde les bases détectées dans
+   `/var/backups/heelonvault` (`heelonvault_user_<utilisateur>_backup_AAAAMMJJ_HHMMSS.db` ou
+   `heelonvault_enterprise_backup_AAAAMMJJ_HHMMSS.db`) avec une copie cohérente (`sqlite3
+   .backup`) dont l'intégrité est vérifiée ; une sauvegarde invalide interrompt tout ;
+4. prépare la nouvelle version à côté de l'ancienne (`/opt/heelonvault.new`), puis l'échange
+   avec elle en une seule opération ;
+5. en cas d'erreur après l'échange (icônes, lanceur, validation), **restaure automatiquement
+   la version précédente**.
+
+Jusqu'à l'étape 4, un échec laisse l'installation existante intacte. Les bases ne sont jamais
+modifiées par le script : seule l'application les migre, à son premier lancement.
 
 Contrôle après mise à jour :
 

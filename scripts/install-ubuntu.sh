@@ -29,6 +29,7 @@ hv_install_runtime_dependencies() {
     libgtk-4-1 \
     libadwaita-1-0 \
     libsqlite3-0 \
+    sqlite3 \
     libglib2.0-0
 }
 

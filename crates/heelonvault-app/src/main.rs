@@ -338,7 +338,10 @@ fn main() -> Result<()> {
 
     let startup_flags = StartupFlags::from_args(&args);
     if startup_flags.show_version {
-        // Version will be logged below with the rest of startup info
+        // Answered before logging, the database and GTK are touched: the installer reads
+        // it to show which version it is about to deploy.
+        println!("HeelonVault {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
     }
 
     // Renderer preference should be set by the launcher environment (AppImage,
