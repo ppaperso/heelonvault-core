@@ -26,6 +26,9 @@ pub struct I18nTargets {
     pub clipboard_indicator: ClipboardIndicator,
     pub profile_container: gtk4::ScrolledWindow,
     pub editor_host: gtk4::Box,
+    /// Widgets that own their translation logic (license badge, certification menu…),
+    /// applied after the sidebar so they can override its defaults.
+    pub extra_refreshers: Vec<Rc<dyn Fn()>>,
 }
 
 /// Build the callback that re-applies every translation of the main window.
@@ -59,6 +62,9 @@ pub fn build_refresh(
             .help_button
             .set_tooltip_text(Some(heelonvault_core::tr!("main-help-tooltip").as_str()));
         targets.clipboard_indicator.refresh_i18n();
+        for refresh in &targets.extra_refreshers {
+            refresh();
+        }
 
         let center = &targets.center_panel;
         center.status_total_chip.set_tooltip_text(Some(

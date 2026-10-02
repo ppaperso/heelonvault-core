@@ -31,7 +31,7 @@ impl MainWindow {
         admin_user_id: Uuid,
         admin_master_key: Vec<u8>,
         connected_identity_label: String,
-        license_badge_text: String,
+        license: crate::ui::license_badge::LicenseDisplay,
         is_admin: bool,
     ) -> Self
     where
@@ -66,7 +66,7 @@ impl MainWindow {
             admin_user_id,
             admin_master_key,
             connected_identity_label,
-            license_badge_text,
+            license,
             is_admin,
         )
     }

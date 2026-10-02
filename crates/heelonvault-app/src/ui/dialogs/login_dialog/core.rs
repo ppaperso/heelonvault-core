@@ -68,7 +68,7 @@ impl super::LoginDialog {
         _federated_auth_service: Arc<TFederated>,
         startup_psc_artifact: Option<String>,
         bootstrap_ctx: Option<BootstrapServicesContext>,
-        license_badge_text: String,
+        license: crate::ui::license_badge::LicenseDisplay,
         on_restore_requested: impl Fn(
             PathBuf,
             String,
@@ -110,7 +110,7 @@ impl super::LoginDialog {
         window.set_size_request(login_min_width, login_min_height);
 
         // 2. Construction de l'interface graphique
-        let widgets = build_login_view(license_badge_text, in_bootstrap_mode);
+        let widgets = build_login_view(&license, in_bootstrap_mode);
 
         // 2b. Configuration du changement de langue (FR/EN)
         setup_language_toggle(&widgets, in_bootstrap_mode);
@@ -644,7 +644,14 @@ impl super::LoginDialog {
                     );
                     feedback::show_feedback(
                         &error_label_for_result,
-                        format!("Erreur: {}", error).as_str(),
+                        heelonvault_core::i18n::tr_args(
+                            "login-error-generic",
+                            &[(
+                                "error",
+                                heelonvault_core::i18n::I18nArg::Str(error.to_string().as_str()),
+                            )],
+                        )
+                        .as_str(),
                     );
                     let button_after_delay = submit_button_for_result.clone();
                     let spinner_after_delay = submit_spinner_for_result.clone();

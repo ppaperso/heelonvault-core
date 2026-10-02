@@ -42,6 +42,7 @@ use crate::ui::dialogs::login_dialog::{
 use crate::ui::dialogs::pin_unlock_dialog::{
     PIN_HARD_TIMEOUT as DIALOG_PIN_HARD_TIMEOUT, PinUnlockDialog,
 };
+use crate::ui::license_badge::LicenseDisplay;
 use crate::ui::windows::main_window::MainWindow;
 use heelonvault_core::config::constants::APP_ID;
 use heelonvault_core::errors::AppError;
@@ -544,18 +545,11 @@ fn run_application(
                 None
             };
             #[cfg(feature = "premium")]
-            let login_license_badge_text = context_for_login
-                ._license_service
-                .get_cached()
-                .map(|license| match license.tier {
-                    heelonvault_core::models::LicenseTier::Community => "Licence free".to_string(),
-                    heelonvault_core::models::LicenseTier::Professional => {
-                        format!("Licence pro - {}", license.customer_name)
-                    }
-                })
-                .unwrap_or_else(|| "Licence free".to_string());
+            let login_license = LicenseDisplay::from_license(
+                context_for_login._license_service.get_cached(),
+            );
             #[cfg(not(feature = "premium"))]
-            let login_license_badge_text = "Licence free".to_string();
+            let login_license = LicenseDisplay::community();
             let login_dialog = LoginDialog::new(
                 &app_for_login,
                 &login_parent_for_dialog,
@@ -567,7 +561,7 @@ fn run_application(
                 Arc::clone(&context_for_login.federated_auth_service),
                 startup_psc_artifact_for_dialog,
                 bootstrap_ctx_for_dialog,
-                login_license_badge_text,
+                login_license,
                 move |backup_file_path, recovery_phrase, new_password| {
                     let staging_path =
                         build_restore_staging_path(&context_for_restore.database_path);
@@ -653,20 +647,11 @@ fn run_application(
 
                     let main_window_build_started = Instant::now();
                     #[cfg(feature = "premium")]
-                    let license_badge_text = context_for_success
-                        ._license_service
-                        .get_cached()
-                        .map(|license| match license.tier {
-                            heelonvault_core::models::LicenseTier::Community => {
-                                "Licence free".to_string()
-                            }
-                            heelonvault_core::models::LicenseTier::Professional => {
-                                format!("Licence pro - {}", license.customer_name)
-                            }
-                        })
-                        .unwrap_or_else(|| "Licence free".to_string());
+                    let license_display = LicenseDisplay::from_license(
+                        context_for_success._license_service.get_cached(),
+                    );
                     #[cfg(not(feature = "premium"))]
-                    let license_badge_text = "Licence free".to_string();
+                    let license_display = LicenseDisplay::community();
                     let main_for_success = Rc::new(MainWindow::new(
                         &app_for_main_success,
                         runtime_for_success.clone(),
@@ -687,7 +672,7 @@ fn run_application(
                         session_user_id,
                         session_master_key,
                         session_identity_label,
-                        license_badge_text,
+                        license_display,
                         is_admin,
                     ));
                     info!(

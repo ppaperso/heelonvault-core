@@ -620,9 +620,8 @@ fn render_secret_rows<TSecret, TVault>(
     }
 
     if no_selection {
-        empty_title.set_text("Aucun coffre sélectionné");
-        empty_copy
-            .set_text("Sélectionnez un coffre dans la barre latérale pour afficher ses secrets.");
+        empty_title.set_text(heelonvault_core::tr!("main-no-vault-selected-title").as_str());
+        empty_copy.set_text(heelonvault_core::tr!("main-no-vault-selected-description").as_str());
         stack.set_visible_child_name("empty");
         return;
     }
@@ -631,9 +630,8 @@ fn render_secret_rows<TSecret, TVault>(
     // — only treat a None vault_state as an error in single-vault mode.
     if vault_state.is_none() && !is_global {
         *active_vault_for_receiver.borrow_mut() = None;
-        empty_title.set_text("Coffre non disponible");
-        empty_copy
-            .set_text("Le coffre sélectionné n'est plus accessible. Sélectionnez-en un autre.");
+        empty_title.set_text(heelonvault_core::tr!("main-vault-unavailable-title").as_str());
+        empty_copy.set_text(heelonvault_core::tr!("main-vault-unavailable-description").as_str());
         stack.set_visible_child_name("empty");
         return;
     }

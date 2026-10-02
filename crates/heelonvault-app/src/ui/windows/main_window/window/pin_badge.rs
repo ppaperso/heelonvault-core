@@ -45,7 +45,18 @@ fn apply_visual(label: &gtk4::Label, button: &gtk4::Button, remaining_secs: u64)
         label.add_css_class("pin-status-warning");
     } else {
         let minutes = (remaining_secs / 60).max(1);
-        label.set_text(&format!("PIN · {minutes}m"));
+        label.set_text(
+            heelonvault_core::i18n::tr_args(
+                "pin-status-critical",
+                &[(
+                    "minutes",
+                    heelonvault_core::i18n::I18nArg::Num(
+                        i64::try_from(minutes).unwrap_or(i64::MAX),
+                    ),
+                )],
+            )
+            .as_str(),
+        );
         label.add_css_class("pin-status-critical");
     }
 

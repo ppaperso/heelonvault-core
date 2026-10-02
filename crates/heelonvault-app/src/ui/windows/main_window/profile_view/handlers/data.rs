@@ -297,7 +297,14 @@ pub fn setup<TBackup, TBackupApp, TImport, TSecret, TVault>(
                     MainWindow::show_feedback_dialog(
                         &window_for_response,
                         heelonvault_core::tr!("profile-import-accept").as_str(),
-                        format!("Cannot read CSV preview:\n{}", error).as_str(),
+                        heelonvault_core::i18n::tr_args(
+                            "profile-import-preview-error",
+                            &[(
+                                "error",
+                                heelonvault_core::i18n::I18nArg::Str(error.to_string().as_str()),
+                            )],
+                        )
+                        .as_str(),
                     );
                     return;
                 }
@@ -336,8 +343,8 @@ pub fn setup<TBackup, TBackupApp, TImport, TSecret, TVault>(
             let file_name = csv_path
                 .file_name()
                 .and_then(|name| name.to_str())
-                .unwrap_or("CSV file")
-                .to_string();
+                .map(str::to_string)
+                .unwrap_or_else(|| heelonvault_core::tr!("profile-import-default-file-name"));
 
             let preview_body = format!(
                 "{}\n{}\n{}\n\n{}",
@@ -414,9 +421,23 @@ pub fn setup<TBackup, TBackupApp, TImport, TSecret, TVault>(
                                     total_rows,
                                     0,
                                     failed_rows,
-                                    Some(&format!(
-                                        "Pre-flight: {} ready, {} to review",
-                                        importable_rows, failed_rows
+                                    Some(&heelonvault_core::i18n::tr_args(
+                                        "profile-import-preflight",
+                                        &[
+                                            (
+                                                "ready",
+                                                heelonvault_core::i18n::I18nArg::Num(
+                                                    i64::try_from(importable_rows)
+                                                        .unwrap_or(i64::MAX),
+                                                ),
+                                            ),
+                                            (
+                                                "review",
+                                                heelonvault_core::i18n::I18nArg::Num(
+                                                    i64::try_from(failed_rows).unwrap_or(i64::MAX),
+                                                ),
+                                            ),
+                                        ],
                                     )),
                                 );
                             }

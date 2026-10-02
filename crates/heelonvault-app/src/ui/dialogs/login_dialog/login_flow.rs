@@ -41,25 +41,39 @@ pub(super) fn handle_psc_start<TFederated>(
                 if let Err(error) = webbrowser::open(start.authorization_url.as_str()) {
                     feedback::show_feedback(
                         &error_for_result,
-                        format!("Impossible d'ouvrir le navigateur PSC: {error}").as_str(),
+                        heelonvault_core::i18n::tr_args(
+                            "psc-browser-error",
+                            &[(
+                                "error",
+                                heelonvault_core::i18n::I18nArg::Str(error.to_string().as_str()),
+                            )],
+                        )
+                        .as_str(),
                     );
                 } else {
                     feedback::show_feedback(
                         &error_for_result,
-                        "Connexion PSC ouverte dans le navigateur. Revenez avec l'artefact de callback.",
+                        heelonvault_core::i18n::tr("psc-browser-opened").as_str(),
                     );
                 }
             }
             Ok(Err(error)) => {
                 feedback::show_feedback(
                     &error_for_result,
-                    format!("Initialisation PSC impossible: {error}").as_str(),
+                    heelonvault_core::i18n::tr_args(
+                        "psc-start-error",
+                        &[(
+                            "error",
+                            heelonvault_core::i18n::I18nArg::Str(error.to_string().as_str()),
+                        )],
+                    )
+                    .as_str(),
                 );
             }
             Err(_) => {
                 feedback::show_feedback(
                     &error_for_result,
-                    "Initialisation PSC interrompue.",
+                    heelonvault_core::i18n::tr("psc-start-interrupted").as_str(),
                 );
             }
         }
@@ -77,7 +91,10 @@ pub(super) fn handle_psc_artifact_completion<TFederated>(
     TFederated: FederatedAuthService + Send + Sync + 'static,
 {
     if artifact.trim().is_empty() {
-        feedback::show_feedback(error_label, "Artefact PSC requis.");
+        feedback::show_feedback(
+            error_label,
+            heelonvault_core::i18n::tr("psc-artifact-required").as_str(),
+        );
         return;
     }
 
@@ -101,19 +118,26 @@ pub(super) fn handle_psc_artifact_completion<TFederated>(
                 }
                 feedback::show_feedback(
                     &error_for_result,
-                    "Authentification PSC validee. La liaison de compte local est en cours d'implementation (M3).",
+                    heelonvault_core::i18n::tr("psc-authenticated-not-linked").as_str(),
                 );
             }
             Ok(Err(error)) => {
                 feedback::show_feedback(
                     &error_for_result,
-                    format!("Validation artefact PSC echouee: {error}").as_str(),
+                    heelonvault_core::i18n::tr_args(
+                        "psc-artifact-error",
+                        &[(
+                            "error",
+                            heelonvault_core::i18n::I18nArg::Str(error.to_string().as_str()),
+                        )],
+                    )
+                    .as_str(),
                 );
             }
             Err(_) => {
                 feedback::show_feedback(
                     &error_for_result,
-                    "Validation artefact PSC interrompue.",
+                    heelonvault_core::i18n::tr("psc-artifact-interrupted").as_str(),
                 );
             }
         }

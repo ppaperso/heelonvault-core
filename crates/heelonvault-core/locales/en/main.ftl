@@ -644,3 +644,115 @@ license-expired-body = Your HeelonVault Professional license has expired. Renew 
 feature-name-user-management = User management
 feature-name-team-management = Team management
 feature-name-audit-report = Certified audit report
+
+## Trust console (certification)
+trust-console-title = Trust console
+trust-console-engine-title = Heelonys trust engine
+trust-console-engine-ready = The engine can produce a signed, traceable report fit for official use.
+trust-console-engine-pending = One or more prerequisites are still missing for a complete chain of evidence.
+trust-console-badge-gdpr = GDPR compliant
+trust-console-badge-nis2 = NIS2 ready
+trust-console-license-title = License
+trust-console-license-pro = PRO
+trust-console-license-free = FREE
+trust-console-license-pro-description = Certified edition active
+trust-console-license-free-description = Pro license required for signed reports
+trust-console-signature-title = Signature
+trust-console-signature-active = ACTIVE
+trust-console-signature-active-generated = ACTIVE (auto-generated)
+trust-console-signature-absent = MISSING
+trust-console-signature-active-description = Signing chain operational
+trust-console-signature-active-generated-description = Signing chain operational, provisioned locally on first launch
+trust-console-signature-absent-description = Required for NIS2/GDPR compliance
+trust-console-fingerprint-title = Engine fingerprint
+trust-console-fingerprint-version = HeelonVault v{ $version }
+trust-console-signature-note = The signing key guarantees that your PDF reports cannot be tampered with after export.
+trust-console-generate-key = Generate a key now
+trust-console-key-generated-title = Certification key generated
+trust-console-key-generated-body = A new Ed25519 key was generated and stored locally for certified exports.
+trust-console-key-error-title = Provisioning failed
+trust-console-key-error-body = Could not generate the signing key: { $error }
+trust-console-upgrade = Upgrade to Pro
+trust-console-anssi-note = This engine uses Ed25519 to guarantee non-repudiation of your audit evidence, in line with ANSSI recommendations.
+
+## License, Pro Santé Connect and sign-in errors
+license-badge-free = Free license
+license-badge-pro = Pro license - { $customer }
+license-seal-certified-by = CERTIFIED BY HEELONYS
+license-seal-certified = HEELONYS CERTIFIED
+license-report-default-customer = CUSTOMER
+psc-start-button = Sign in with Pro Santé Connect
+psc-artifact-placeholder = PSC callback artifact
+psc-complete-button = Validate PSC artifact
+psc-browser-error = Could not open the browser for Pro Santé Connect: { $error }
+psc-browser-opened = Pro Santé Connect sign-in opened in the browser. Come back here with the callback artifact.
+psc-start-error = Could not start Pro Santé Connect: { $error }
+psc-start-interrupted = Pro Santé Connect start-up was interrupted.
+psc-artifact-required = The PSC callback artifact is required.
+psc-authenticated-not-linked = Pro Santé Connect identity verified. Linking it to a local account is not available yet: sign in with your password.
+psc-artifact-error = PSC artifact validation failed: { $error }
+psc-artifact-interrupted = PSC artifact validation was interrupted.
+login-error-generic = Error: { $error }
+
+## Signed audit reports and window closing
+main-close-busy-title = Operation in progress
+main-close-busy-body = An import or export is in progress. Wait for it to finish before closing the window.
+certification-menu-label = Certify & Export
+certification-menu-license-required = Certify & Export (Pro license required)
+certification-report-24h = 24-hour report
+certification-report-7d = 7-day report
+certification-report-30d = 30-day report
+certification-diagnostics = Check signing status
+certification-report-generating = Generating the signed report…
+certification-report-generated-toast = Certified report generated (SHA-256: { $hash })
+certification-report-generated-title = Signed report generated
+certification-report-generated-body = Signed PDF report saved:
+    { $path }
+certification-report-license-required = The signed report requires a Pro license.
+certification-report-key-missing = Certification key unavailable. Open the trust console.
+certification-report-error-title = Generation error
+certification-report-error-body = Could not generate the report: { $error }
+certification-report-interrupted = Report generation was interrupted.
+vault-share-role-read = READ
+vault-share-role-write = WRITE
+vault-share-role-admin = ADMIN
+
+## Password strength meter
+password-hint-too-short = Too short — at least 12 characters ({ $count } entered)
+password-hint-missing-categories = { $count ->
+    [one] Add 1 missing character category
+    *[other] Add { $count } missing character categories
+    }
+password-hint-for-solid = 12 characters + 4 categories, or 14 + 3 categories, for "Strong"
+password-hint-for-robust = Add 1 category or go up to 15 characters for "Very strong"
+password-hint-score-good = Good — avoid predictable sequences
+password-hint-score-medium = Fair — add more variety
+password-hint-score-solid = Strong
+password-hint-score-robust = Very strong — ANSSI compliant
+password-feedback-too-short = Too short
+password-feedback-similar = Too close to a known word
+password-feedback-repeats = Avoid repetitions
+password-feedback-sequence = Avoid predictable sequences
+password-feedback-common = Password too common
+password-feedback-add-symbols = Add symbols and digits
+password-feedback-generic = Avoid predictable words and patterns
+
+## Secret list, editor, CSV import, PIN badge
+main-no-vault-selected-title = No vault selected
+main-no-vault-selected-description = Select a vault in the sidebar to show its secrets.
+main-vault-unavailable-title = Vault unavailable
+main-vault-unavailable-description = The selected vault is no longer accessible. Select another one.
+add-edit-health-access = Health data access
+add-edit-delete-tooltip = Delete this secret
+add-edit-delete-button = Delete
+profile-import-preview-error = Cannot read the CSV preview:
+    { $error }
+profile-import-default-file-name = CSV file
+profile-import-preflight = Pre-check: { $ready } ready, { $review } to review
+pin-status-critical = PIN · { $minutes } min
+
+## Secret types (list, trash, search)
+secret-type-password = Password
+secret-type-api-token = API token
+secret-type-ssh-key = SSH key
+secret-type-secure-document = Secure document

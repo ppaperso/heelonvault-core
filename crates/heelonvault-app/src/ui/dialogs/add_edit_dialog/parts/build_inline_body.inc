@@ -272,7 +272,7 @@
         notes_text.add_css_class("dialog-notes-text");
         notes_scrolled.set_child(Some(&notes_text));
 
-        let health_access_check = gtk4::CheckButton::with_label("Acces donnees de sante");
+        let health_access_check = gtk4::CheckButton::with_label(heelonvault_core::tr!("add-edit-health-access").as_str());
         health_access_check.add_css_class("dialog-health-access-check");
         health_access_check.set_halign(Align::Start);
 
@@ -370,14 +370,14 @@
         delete_button.add_css_class("flat");
         delete_button.add_css_class("destructive-action");
         delete_button.add_css_class("add-edit-delete-btn");
-        delete_button.set_tooltip_text(Some("Supprimer ce secret"));
+        delete_button.set_tooltip_text(Some(heelonvault_core::tr!("add-edit-delete-tooltip").as_str()));
         let delete_content = gtk4::Box::builder()
             .orientation(Orientation::Horizontal)
             .spacing(6)
             .build();
         let delete_icon = gtk4::Image::from_icon_name("user-trash-symbolic");
         delete_icon.set_pixel_size(16);
-        let delete_label = gtk4::Label::new(Some("Supprimer"));
+        let delete_label = gtk4::Label::new(Some(heelonvault_core::tr!("add-edit-delete-button").as_str()));
         delete_content.append(&delete_icon);
         delete_content.append(&delete_label);
         delete_button.set_child(Some(&delete_content));

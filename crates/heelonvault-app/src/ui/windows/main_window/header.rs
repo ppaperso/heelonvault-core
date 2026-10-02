@@ -1,10 +1,14 @@
+use std::rc::Rc;
+
 use gtk4::prelude::*;
 use gtk4::{Align, Orientation};
 
-use super::MainWindow;
+use crate::ui::license_badge::LicenseDisplay;
 
-pub(super) fn build_header_license_badge(license_badge_text: &str) -> gtk4::Widget {
-    if let Some(customer_name) = MainWindow::professional_customer_name(license_badge_text) {
+/// Header license badge (Community) or seal (Professional), plus the callback that
+/// re-applies its translation on a language change.
+pub(super) fn build_header_license_badge(license: &LicenseDisplay) -> (gtk4::Widget, Rc<dyn Fn()>) {
+    if let Some(customer_name) = license.customer_name() {
         let seal = gtk4::Box::builder()
             .orientation(Orientation::Horizontal)
             .spacing(6)
@@ -17,7 +21,9 @@ pub(super) fn build_header_license_badge(license_badge_text: &str) -> gtk4::Widg
         let shield_icon = gtk4::Image::from_icon_name("security-high-symbolic");
         shield_icon.add_css_class("heelonys-seal-shield");
 
-        let cert_label = gtk4::Label::new(Some("HEELONYS CERTIFIED"));
+        let cert_label = gtk4::Label::new(Some(
+            heelonvault_core::tr!("license-seal-certified").as_str(),
+        ));
         cert_label.add_css_class("heelonys-seal-cert");
 
         let divider = gtk4::Separator::new(Orientation::Vertical);
@@ -31,11 +37,19 @@ pub(super) fn build_header_license_badge(license_badge_text: &str) -> gtk4::Widg
         seal.append(&divider);
         seal.append(&customer_label);
 
-        seal.upcast::<gtk4::Widget>()
+        let refresh: Rc<dyn Fn()> = Rc::new(move || {
+            cert_label.set_text(heelonvault_core::tr!("license-seal-certified").as_str());
+        });
+        (seal.upcast::<gtk4::Widget>(), refresh)
     } else {
-        let badge = gtk4::Label::new(Some(license_badge_text));
+        let badge = gtk4::Label::new(Some(license.badge_text().as_str()));
         badge.add_css_class("header-badge");
         badge.add_css_class("license-badge-community");
-        badge.upcast::<gtk4::Widget>()
+        let license = license.clone();
+        let badge_for_refresh = badge.clone();
+        let refresh: Rc<dyn Fn()> = Rc::new(move || {
+            badge_for_refresh.set_text(license.badge_text().as_str());
+        });
+        (badge.upcast::<gtk4::Widget>(), refresh)
     }
 }
