@@ -36,6 +36,10 @@ cargo test -p heelonvault-core some_test_fn_name
 # Extra security-focused clippy pass (defined as a cargo alias in .cargo/config.toml)
 cargo clippy-secure
 
+# Public API of the crates.io crate vs. its latest published version (also run in CI)
+cargo semver-checks -p heelonvault-core
+cargo publish --dry-run -p heelonvault-core --locked
+
 # Supply-chain checks (required clean before merge per CI policy)
 cargo audit
 cargo deny check advisories
@@ -61,6 +65,15 @@ This repo enforces a strict zero-warning / zero-debt policy (see
 - No new dependencies with unmaintained/yanked advisories; don't add permanent `cargo audit`/
   `cargo deny` ignore entries.
 - All 4 CI platforms (Linux, Fedora, macOS, Windows) must stay green.
+
+## Versioning
+
+The product, the `heelonvault-core` crate (published on crates.io) and `heelonvault-premium` share
+**one version number**, which follows semver applied to `heelonvault-core`'s public API: any break
+(removed/renamed item, changed signature, required trait method, variant on an exhaustive enum)
+means a major release of the whole product. Prefer default trait methods, `#[non_exhaustive]` and
+`#[deprecated]`-then-remove to avoid breaks. `tests/release_consistency.rs` (in `heelonvault-app`)
+and CI `cargo semver-checks` enforce this; the release checklist is `docs/RELEASING.md`.
 
 ## Architecture
 
@@ -118,7 +131,7 @@ Layered flow: `UI (gtk4/libadwaita) -> Services -> Repositories (SQLx) -> SQLite
     `views.rs`, `types.rs`, `feedback.rs` (user-facing messages), and dedicated flow files
     (e.g. `login_dialog/bootstrap_flow.rs`, `login_flow.rs`, `restore_flow.rs`).
   - `src/ui/widgets/` — reusable widgets (`secret_card.rs`, `password_strength_bar.rs`).
-  - `migrations/` — the 18 SQLx SQL migrations actually applied at startup (this is the real
+  - `migrations/` — the 19 SQLx SQL migrations actually applied at startup (this is the real
     migrations directory; `docs/ARCHITECTURE.md`'s top-level `migrations/` reference is legacy).
 - **`crates/sqlx-shim`** — a local crate published under the name `sqlx` that re-exports
   `sqlx-core`/`sqlx-sqlite` with a pinned feature set. `heelonvault-app` depends on this shim

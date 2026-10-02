@@ -92,3 +92,18 @@ jobs:
       # ── 9. Tests ─────────────────────────────────────────────────────────────
       - name: cargo test --workspace
         run: cargo test --workspace --locked
+
+      # ── 10. Garde-fou semver — l'API publique de heelonvault-core (publiée sur
+      #       crates.io) est comparée à la dernière version publiée : une rupture
+      #       sans version majeure fait échouer la CI. Voir docs/RELEASING.md.
+      - name: Install cargo-semver-checks
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-semver-checks@0.50.0
+
+      - name: cargo semver-checks (heelonvault-core)
+        run: cargo semver-checks -p heelonvault-core
+
+      # ── 11. La crate publiée doit se construire seule, hors du workspace ─────
+      - name: cargo publish --dry-run (heelonvault-core)
+        run: cargo publish --dry-run -p heelonvault-core --locked
