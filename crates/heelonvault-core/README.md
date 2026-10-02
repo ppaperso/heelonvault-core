@@ -13,7 +13,8 @@ published under the Apache-2.0 license.
 
 - **AES-256-GCM encryption** for secrets at rest
 - **Argon2id key derivation** for master password protection
-- **SQLite persistence** via SQLx with compile-time verified migrations
+- **SQLite persistence** via SQLx repositories (the schema migrations ship with the HeelonVault
+  application, not with this crate)
 - **Multi-vault RBAC** with owner / shared-read / shared-write / admin roles
 - **TOTP two-factor authentication** service (RFC 6238)
 - **Audit log** with immutable, append-only journaling
@@ -23,9 +24,11 @@ published under the Apache-2.0 license.
 
 ## Usage
 
+Requires Rust 1.98 or later.
+
 ```toml
 [dependencies]
-heelonvault-core = "1.1"
+heelonvault-core = "2.0"
 ```
 
 ## Security Policy

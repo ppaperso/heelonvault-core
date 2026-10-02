@@ -4,7 +4,7 @@
 # Usage:
 #   bash scripts/create-macos-bundle.sh \
 #       --binary  target/release/heelonvault \
-#       --version 1.1.0 \
+#       --version 2.0.0 \
 #       --out     heelonvault-macos-arm64.dmg
 #
 # Required tools (install via Homebrew):

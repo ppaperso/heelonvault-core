@@ -7,9 +7,9 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [1.2.0-rc.1] — 2026-09-01
+## [2.0.0] — 2026-10-02
 
-> Release note: `v1.1.0` (and `v1.1.0-rc.1`) is frozen. Changes below are scoped for `v1.2.0`.
+> Stable release. It follows the [1.2.0-rc.1](#120-rc1--2026-09-01) pre-release, includes all of its content, plus the changes below. The version moves to 2.0.0 because the public API of the `heelonvault-core` crate published on crates.io is no longer compatible with 1.1.0 (see "Breaking changes"); the product, the crate and `heelonvault-premium` share the same version number.
 
 ### Security — the UI no longer keeps any plaintext secret
 
@@ -18,6 +18,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - **On-demand copy**: copying a password (button or `Ctrl+C`) re-opens the vault (`open_vault_for_user`, so access is re-checked: a revoked share can no longer be copied), decrypts that single secret, copies it, then wipes it. The button is disabled during the operation (double-click guard, keyboard included); a message is shown when the session is locked or the copy fails.
 - The master key copy handed to the loader is now wiped (`Zeroizing`).
 - **Clipboard exposure indicator** in the header bar: a clipboard icon inside an amber ring that burns down over the actual clearing delay (20 s for a password or login, 60 s for the recovery phrase). The tooltip says what is exposed (password, login, recovery phrase) and the countdown; when idle: "No secret exposed by HeelonVault". Clicking clears the clipboard at once. The indicator never claims that no secret is in memory.
+- A lock (manual, automatic or logout) happening while an on-demand copy is being decrypted no longer sends the password to the clipboard afterwards: the session is checked again once decryption is over, and the "Session locked" message is shown.
 - When another application replaces the clipboard, the sensitive value held by HeelonVault is wiped at once instead of at the end of the delay.
 - Switching between card and list views rebuilds the widgets from the last load (metadata only): no query, no decryption, no "Loading" screen. Usage counters bumped since the load are kept.
 
@@ -33,6 +34,30 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Bootstrap: closing the wizard after a successful initialization was treated as a cancellation and quit the application (state flag not shared with the `close_request` handler).
 - The active sort button is highlighted again (the `vault-secret-sort-button-active` CSS class was never applied).
 - Cards: in English, weak passwords were shown with the green "strong" badge (colour derived from the French label). Strength is now a boolean, translated only for display; "Health", "Incomplete", "Shared" badges and quick-action tooltips are translated FR/EN.
+
+
+### Breaking changes — `heelonvault-core` crate API
+
+Reported by `cargo-semver-checks` against 1.1.0 as published on crates.io. They only affect code using the crate; the application and existing databases are not affected (no migration since 1.2.0-rc.1).
+
+- Removed: `admin_service::bootstrap_first_admin`, `user_service::{MasterKeyRotationPolicy, MasterKeyRotationRequest, MasterKeyRotationReport, RotationValidationMode}`; methods `BackupService::{export_backup, import_backup}` and `UserService::rotate_master_key_hardened` removed or changed.
+- New required methods on public traits: `UserRepository` (recovery phrase envelope and verifier), `VaultRepository::create_vault_with_envelope`, `SecretService::{record_viewed, record_field_copy}`, `UserService::{upgrade_legacy_credentials, account_needs_recovery_key}`, `BackupService::{build_recovery_verifier, verify_recovery_phrase}`.
+- `BackupApplicationServiceImpl::new` takes one more parameter; `BootstrapResult` gains the `recovery_phrase` field.
+- New variants: `AuditAction::{SecretViewed, SecretPasswordCopied, SecretFieldCopied}`, `AppError::{Recovery, SingleAccountVault}`.
+- `AppError`, `AccessDeniedReason`, `RecoveryFailure` and `AuditAction` are now `#[non_exhaustive]`: a `match` outside the crate needs a `_` arm. In return, adding a variant is no longer a breaking change.
+
+### Infrastructure — versioning guardrails
+
+- CI: `cargo-semver-checks` compares the `heelonvault-core` API with the latest version published on crates.io and fails when a break is not paired with a major version.
+- CI: `cargo publish --dry-run -p heelonvault-core` checks that the crate builds on its own, outside the workspace.
+- `release_consistency` test: `heelonvault-core`, `heelonvault-app` and `heelonvault-premium` must carry the same version, and premium must depend on that version of `heelonvault-core`.
+- Release procedure documented in [RELEASING.en.md](RELEASING.en.md).
+
+---
+
+## [1.2.0-rc.1] — 2026-09-01
+
+> Release note: `v1.1.0` (and `v1.1.0-rc.1`) is frozen. Changes below are scoped for `v1.2.0`.
 
 ### Infrastructure — MSRV Rust 1.96 → 1.98
 
