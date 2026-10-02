@@ -1,12 +1,32 @@
-# HeelonVault 2.0.0
+# HeelonVault 2.0.1
 
 Language: EN | [FR](README.md)
 
 [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.4-blue)](sbom.cyclonedx.json) [![Supply chain](https://img.shields.io/badge/supply--chain-cargo--deny-green)](.github/workflows/supply-chain.yml)
 
-HeelonVault is a local-first desktop secrets manager built in Rust with GTK4/libadwaita and SQLite.
+HeelonVault is a **local-first** desktop secrets manager: passwords, API keys, SSH keys and
+sensitive documents are encrypted and stored on your computer, with no server and no online
+account. Written in Rust, with a GTK4 / libadwaita interface, for Windows, macOS and Linux.
 
 > Distributed under the Apache 2.0 License. See [LICENSE](LICENSE) for software terms and [LEGAL.md](docs/LEGAL.md) for trademark and Authenticity Seal terms.
+
+**Full documentation: [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr/en/)**
+
+---
+
+## Installation
+
+Download the package for your system from the
+[Releases](https://github.com/ppaperso/heelonvault-core/releases/latest) page:
+
+| System | Package |
+| ------ | ------- |
+| Windows 10 / 11 (x64) | `heelonvault-windows-x86_64-vX.Y.Z.msi` |
+| macOS 13+ (Apple Silicon) | `heelonvault-macos-aarch64-vX.Y.Z.dmg` |
+| Linux (x86_64) | `heelonvault-linux-x86_64-vX.Y.Z.AppImage` |
+
+Verification, step-by-step install and first launch:
+[Installation and quickstart](docs/QUICKSTART.md).
 
 ---
 
@@ -14,30 +34,22 @@ HeelonVault is a local-first desktop secrets manager built in Rust with GTK4/lib
 
 | Area | Details |
 | ---- | ------- |
-| **Encryption** | AES-256-GCM at application level; secrets never leave the machine in plaintext |
-| **Authentication** | Argon2id password hashing + TOTP 2FA (RFC 6238) |
-| **Multi-user** | Isolated accounts and vaults per user |
-| **Bootstrap** | Guided 3-step wizard for first-admin account creation on initial startup with **refactored flow** (v2.0.0) |
-| **Recovery Key** | 24-word BIP39-style mnemonic phrase generated at bootstrap; re-exportable from profile; clipboard copy with automatic 60-second auto-clear; **complete account recovery system** (v2.0.0) |
-| **Persistence** | Local SQLite with versioned `sqlx` migrations (19 migrations, zero downtime) |
-| **Import / Export** | **3-step CSV import** (v2.0.0) with error tolerance, `.hvb` export with RBAC access control |
-| **Audit Log** | Traceability for sensitive actions (secret create/update/delete, vault sharing) with **IP-based rate limiting** (v2.0.0) |
-| **Trash** | Soft-delete with restore and permanent purge |
-| **Auto-lock** | Configurable policy: 1 / 5 / 15 / 30 minutes or never with **PIN quick-unlock** (v2.0.0) |
-| **Dashboard** | Productivity-first cards: usage-based ordering, clear active selection, and contextual badges (strength, incomplete, duplicate, usage, health) |
-| **Strength Meter** | Real-time `zxcvbn` evaluation for each password |
-| **Advanced Search** | Multi-field search (title, login, email, URL, notes, category, tags, type, vault) with Unicode normalization, **MultiVault toggle mode** (v2.0.0), and `#sante` shortcut |
-| **Editing Workflow** | Single click selects a card, double click opens the editor; keyboard quick actions on active card (`Ctrl+C`, `Ctrl+L`, `Ctrl+U`) |
-| **Health Marker** | Persistent "Health data access" field in create/edit form plus high-confidence local auto-detection |
-| **License** | Ed25519 signature verification for signed licenses; badge visible before and after login; automatic Community fallback |
-| **Structured Logs** | Rotating JSON logs in `~/.local/state/heelonvault/logs` |
-
-### Recent UX Highlights
-
-- Simplified card navigation: single-click to select, double-click to edit.
-- Stronger keyboard productivity on active card with `Ctrl+C`, `Ctrl+L`, and `Ctrl+U`.
-- Faster visual triage through card badges (including health) and usage-driven ordering.
-- Richer search with MultiVault mode and thematic `#sante` filtering.
+| **Encryption** | Application-level AES-256-GCM — secrets never leave the machine in plaintext |
+| **Authentication** | Argon2id key derivation (GPU-resistant) + TOTP two-factor authentication (RFC 6238) |
+| **First launch** | Guided wizard creating the administrator account, followed by an explicit sign-in |
+| **Recovery key** | 24-word phrase generated at setup; sets a new master password without losing any vault; re-exportable from the profile |
+| **Vaults** | Several vaults per account; search the active vault or all of them (MultiVault) |
+| **Display** | Cards or compact list, usage-based ordering, badges (strength, duplicate, incomplete, health, shared) |
+| **Clipboard** | Password decrypted only at copy time, automatic clearing (20 s, 60 s for the recovery phrase), exposure indicator in the header bar |
+| **Search** | Title, login, email, URL, notes, category, tags, type; `field:value` syntax, Unicode normalization, `#sante` shortcut |
+| **Keyboard** | On the active card: `Ctrl+C` (password), `Ctrl+L` (login), `Ctrl+U` (open URL) |
+| **Session** | Auto-lock (1 to 30 minutes or never), quick-unlock PIN, brute-force protection |
+| **Import / Export** | Guided 3-step CSV import, error-tolerant; encrypted `.hvb` export |
+| **Trash** | Soft delete with restore and permanent purge |
+| **Strength meter** | Real-time `zxcvbn` evaluation of every password |
+| **Health marker** | "Health data access" field to single out secrets tied to medical data |
+| **Logging** | Daily-rotated JSON logs, free of any secret value |
+| **Pro license** | User administration, teams and shared vaults, signed audit reports (Ed25519); without a license, full Community edition |
 
 ---
 
@@ -47,21 +59,23 @@ HeelonVault follows a security-first approach for GDPR-oriented data protection.
 
 ### License and transparency
 
-- Distributed under the Apache 2.0 License. See [LICENSE](LICENSE) for software terms and [LEGAL.md](docs/LEGAL.md) for trademark and Authenticity Seal terms.
 - **Dependency inventory**: complete third-party component list and licenses are documented in [THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md).
-- **Signed CycloneDX SBOM**: the SBOM is generated from the `heelonvault-premium` repository; `sbom.cyclonedx.json` and `sbom.cyclonedx.json.sha256` are published manually at release time.
-- **LGPL runtime linking**: GTK4/libadwaita are dynamically linked by the operating system.
+- **Signed CycloneDX SBOM**: with every version, the SBOM of the shipped binary (core + app + premium) is published on the [GitHub release](https://github.com/ppaperso/heelonvault-core/releases/latest) (`heelonvault-sbom-<version>.cyclonedx.json` + `.sha256`), with a Sigstore build-provenance attestation verifiable via `gh attestation verify heelonvault-sbom-<version>.cyclonedx.json --repo ppaperso/heelonvault-core`.
+- **Auditable proprietary component**: `heelonvault-premium` (licensing, administration, teams, audit report) is proprietary and its source is not public. A customer's security teams (IT department, CISO, appointed auditor) can be given read access for audit, under a non-disclosure agreement (NDA): see [SECURITY.md](SECURITY.md#13-supply-chain-security-and-sbom).
+- **No statically linked copyleft dependency** — the only LGPL libraries (GTK4, libadwaita) are dynamically linked.
 
 ### Cryptographic primitives
 
-- **AES-256-GCM** for authenticated encryption (`aes-gcm` crate).
-- **Argon2id** for password hashing.
+- **AES-256-GCM** for authenticated encryption (`aes-gcm` crate, RustCrypto).
+- **Argon2id** for deriving keys from the master password.
 - **HMAC-SHA1 / SHA256** for TOTP generation (`totp-rs`).
-- **CSPRNG** via `getrandom`.
+- **CSPRNG** via `getrandom` (kernel RNG) for salts, nonces and keys.
 
-### Error-handling policy
+### Code policy
 
-`clippy.toml` forbids panic-prone `unwrap()` / `expect()` calls on sensitive paths to reduce crash-leak risks.
+`clippy.toml` bans `unwrap()` / `expect()` on `Result` and `Option`, and the workspace rejects any
+`unsafe` block and any compiler warning: an unexpected panic cannot expose sensitive data in an
+error message.
 
 ### Vulnerability reporting
 
@@ -69,120 +83,47 @@ See [SECURITY.md](SECURITY.md).
 
 ---
 
-## Repository Structure
+## Development
 
 ```text
 heelonvault-core/
 ├── crates/
-│   ├── heelonvault-core/      # Public library (crates.io)
-│   ├── heelonvault-app/       # GTK4 / libadwaita binary
-│   └── sqlx-shim/             # Local SQLx shim
-├── migrations/            # SQL migrations
-├── assets/                # Bundled GTK assets (CSS, icons, images)
-├── resources/             # Non-migrated resources (fonts)
-├── tests/                 # Rust integration tests
-├── docs/                  # Technical documentation
-├── data/                  # Local dev database
-├── logs/                  # Runtime logs
-├── LICENSE                # Apache 2.0 license
-├── docs/THIRD_PARTY_LICENSES.md  # Third-party dependency licenses
-├── scripts/install.sh     # Unified installer (OS detection)
-├── scripts/install-ubuntu.sh      # Ubuntu / Debian installer
-├── scripts/install-rhel.sh        # Fedora / RHEL / Rocky Linux / AlmaLinux installer
-├── scripts/remove.sh      # Unified uninstaller (OS detection)
-├── scripts/remove-ubuntu.sh       # Ubuntu / Debian uninstaller
-└── scripts/remove-rhel.sh         # Fedora / RHEL / Rocky Linux / AlmaLinux uninstaller
+│   ├── heelonvault-core/   # Public library (crates.io)
+│   ├── heelonvault-app/    # GTK4 / libadwaita binary (migrations, assets, MSI installer)
+│   └── sqlx-shim/          # Local SQLx shim
+├── linux/  macos/          # AppImage launcher and macOS bundle files
+├── scripts/                # Dev launcher, Linux system install, SBOM
+└── docs/                   # Documentation (docs/internal/: maintainers)
 ```
 
-> **Premium**: `heelonvault-premium` lives in a separate private repository.
-> The community version of this repo never accesses it.
+```bash
+./scripts/run-dev.sh        # dev database: data/heelonvault-rust-dev.db
+cargo test --workspace
+```
+
+Prerequisites, quality gates and builds: [development guide](docs/internal/DEVELOPMENT.md).
+Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+> **Premium**: `heelonvault-premium` is a proprietary component kept in a separate private
+> repository, checked out next to this one to build the binary.
 
 ---
 
-## Quick Start
-
-### Development
-
-```bash
-./scripts/run-dev.sh
-```
-
-Dev database: `data/heelonvault-rust-dev.db`
-
-### Build and lint
-
-Expected toolchain: `rust-toolchain.toml` pinned to Rust `1.98.0`.
-
-```bash
-cargo check --workspace
-cargo clippy --workspace -- -D warnings
-```
-
-### Packaged Linux installation
-
-The installer asks for a deployment profile:
-
-- **Personal**: SQLite DB in `~/.local/share/heelonvault/heelonvault-rust.db`, logs in `~/.local/state/heelonvault/logs`.
-- **Enterprise**: SQLite DB in `/var/lib/heelonvault/heelonvault-rust.db`, logs in `/var/log/heelonvault`.
-
-```bash
-tar -xzf heelonvault-linux-x86_64.tar.gz
-cd heelonvault-linux-x86_64
-sudo ./scripts/install.sh
-```
-
-Preview mode without changing the system (dry-run):
-
-```bash
-sudo env HEELONVAULT_DRY_RUN=1 ./scripts/install.sh
-```
-
-If needed, you can still run `scripts/install-ubuntu.sh` or `scripts/install-rhel.sh` explicitly.
-
-Release security: if `heelonvault.sha256` is present in the archive, installer verifies binary integrity before installation.
-
-Enterprise mode note: installer only configures shared system paths.
-Network publication (RDS/VDI/RemoteApp, reverse proxy, bastion, etc.) must be handled manually.
-For optimal performance, Enterprise mode database should be hosted on low-latency storage, ideally local to the execution server.
-
-Uninstall:
-
-```bash
-sudo ./scripts/remove.sh
-```
-
-If needed, you can still run `scripts/remove-ubuntu.sh` or `scripts/remove-rhel.sh` explicitly.
-
-See [QUICKSTART.md](docs/QUICKSTART.md) and [QUICKSTART.fr.md](docs/QUICKSTART.fr.md).
-
-### Tests
-
-```bash
-cargo test
-```
-
----
-
-## Bilingual Documentation Index
-
-Central index: [docs/README.md](docs/README.md)
+## Documentation
 
 | Document | English | French |
 | -------- | ------- | ------ |
-| Changelog | [CHANGELOG.en.md](docs/CHANGELOG.en.md) | [CHANGELOG.md](docs/CHANGELOG.md) |
-| Overview | [README.en.md](README.en.md) | [README.md](README.md) |
-| Quickstart | [QUICKSTART.md](docs/QUICKSTART.md) | [QUICKSTART.fr.md](docs/QUICKSTART.fr.md) |
-| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) | [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) |
+| Installation and quickstart | [QUICKSTART.md](docs/QUICKSTART.md) | [QUICKSTART.fr.md](docs/QUICKSTART.fr.md) |
+| User guide | [USER_GUIDE.en.md](docs/USER_GUIDE.en.md) | [USER_GUIDE.md](docs/USER_GUIDE.md) |
+| Updating and deployment | [UPDATE_GUIDE.en.md](docs/UPDATE_GUIDE.en.md) | [UPDATE_GUIDE.md](docs/UPDATE_GUIDE.md) |
 | Security | [SECURITY.md](SECURITY.md) | [SECURITY.fr.md](SECURITY.fr.md) |
-| Code of Conduct | [CODE_OF_CONDUCT.en.md](CODE_OF_CONDUCT.en.md) | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
-| Architecture | [docs/ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md) | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| User Guide | [docs/USER_GUIDE.en.md](docs/USER_GUIDE.en.md) | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) |
-| Update Guide | [docs/UPDATE_GUIDE.en.md](docs/UPDATE_GUIDE.en.md) | [docs/UPDATE_GUIDE.md](docs/UPDATE_GUIDE.md) |
-| Data folder | [data/README.md](data/README.md) | [data/README.fr.md](data/README.fr.md) |
-| Scripts | [scripts/README.md](scripts/README.md) | [scripts/README.fr.md](scripts/README.fr.md) |
-| Tests | [tests/README.en.md](tests/README.en.md) | [tests/README.md](tests/README.md) |
+| Architecture | [ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md) | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Changelog | [CHANGELOG.en.md](docs/CHANGELOG.en.md) | [CHANGELOG.md](docs/CHANGELOG.md) |
 | Third-party licenses | [THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md) | [THIRD_PARTY_LICENSES.fr.md](docs/THIRD_PARTY_LICENSES.fr.md) |
+| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) | [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) |
+| Code of Conduct | [CODE_OF_CONDUCT.en.md](CODE_OF_CONDUCT.en.md) | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
+| Internal documentation (maintainers) | [docs/internal/](docs/internal/README.md) | |
 
 ---
 
-> **Current version**: 2.0.0 — Detailed release notes are in [CHANGELOG.en.md](docs/CHANGELOG.en.md).
+> **Current version**: 2.0.1 — detailed release notes in [CHANGELOG.en.md](docs/CHANGELOG.en.md).

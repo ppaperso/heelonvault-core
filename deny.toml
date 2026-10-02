@@ -29,6 +29,11 @@ allow = [
   "CDLA-Permissive-2.0",  # webpki-roots
 ]
 
+# Unpublished crates (`publish = false`) are our own: heelonvault-premium is proprietary
+# (LicenseRef-Heelonys-Proprietary) and deliberately outside the allow-list above.
+[licenses.private]
+ignore = true
+
 [bans]
 # Approche zero-debt : "deny" + skip explicites.
 # Toute nouvelle duplicate non documentée fait échouer le build.

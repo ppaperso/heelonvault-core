@@ -95,7 +95,7 @@ jobs:
 
       # ── 10. Garde-fou semver — l'API publique de heelonvault-core (publiée sur
       #       crates.io) est comparée à la dernière version publiée : une rupture
-      #       sans version majeure fait échouer la CI. Voir docs/RELEASING.md.
+      #       sans version majeure fait échouer la CI. Voir docs/internal/RELEASING.md.
       - name: Install cargo-semver-checks
         uses: taiki-e/install-action@v2
         with:

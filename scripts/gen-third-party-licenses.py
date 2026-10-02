@@ -183,7 +183,7 @@ def generate_md():
         "> **Machine-readable inventory:** The full SBOM (Software Bill of Materials) in"
     )
     lines.append(
-        "> CycloneDX 1.4 JSON format is available at [`sbom.cyclonedx.json`](sbom.cyclonedx.json)."
+        "> CycloneDX 1.4 JSON format is available at [`sbom.cyclonedx.json`](../sbom.cyclonedx.json) (signed copy attached to each [GitHub release](https://github.com/ppaperso/heelonvault-core/releases/latest))."
     )
     lines.append(
         "> It is regenerated automatically on every release and can be ingested by tools"
@@ -325,6 +325,10 @@ def generate_md():
     lines.append(f"| Zlib | {license_groups.get('Zlib', 0)} | Permissive |")
     lines.append(
         f"| CDLA-Permissive-2.0 | {license_groups.get('CDLA-Permissive-2.0', 0)} | `webpki-roots` data license |"
+    )
+    lines.append(
+        f"| LicenseRef-Heelonys-Proprietary | {license_groups.get('LicenseRef-Heelonys-Proprietary', 0)} "
+        "| `heelonvault-premium` — proprietary, source readable for audit under NDA |"
     )
 
     lines.append("")

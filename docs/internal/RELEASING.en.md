@@ -38,7 +38,7 @@ Pre-releases (`X.Y.Z-rc.N`) are tagged to build test packages; they are not publ
 
 1. **Versions** — in `crates/heelonvault-core/Cargo.toml`, `crates/heelonvault-app/Cargo.toml` and `heelonvault-premium/Cargo.toml` (`version` and `heelonvault-core = "X.Y"`).
 2. **Lockfiles** — `git diff Cargo.lock` (in both repositories) must only show the version lines of our crates. If Cargo also changed other dependencies, restore the file, edit those lines by hand, then check with `cargo check --workspace --locked`.
-3. **Documentation** — FR/EN changelogs of both repositories, README titles, `docs/UPDATE_GUIDE*.md`, `crates/heelonvault-core/README.md` (the `heelonvault-core = "X.Y"` line).
+3. **Documentation** — FR/EN changelogs of both repositories, README titles (`# HeelonVault X.Y.Z`), `crates/heelonvault-core/README.md` (the `heelonvault-core = "X.Y"` line). Other documents deliberately carry no version number: don't add one back. If user-visible behaviour changed, update `docs/QUICKSTART*.md`, `docs/USER_GUIDE*.md` or `docs/UPDATE_GUIDE*.md`, and run the [MANUAL_QA.md](MANUAL_QA.md) checklist.
 4. **SBOM** — `./scripts/generate-sbom.sh`, then commit `sbom.cyclonedx.json`.
 5. **Local checks** (from `heelonvault-core`):
    ```bash
@@ -53,3 +53,4 @@ Pre-releases (`X.Y.Z-rc.N`) are tagged to build test packages; they are not publ
 7. **Publish the crate** from an up-to-date `main`: `cargo publish -p heelonvault-core`. Publishing is permanent (a version can only be withdrawn with `cargo yank`, never deleted).
 8. **Tag** core's merge commit: `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag triggers the AppImage, DMG, MSI and SBOM workflows, which create the GitHub release.
 9. **Check** the GitHub release (artifacts and SHA-256 sums), the crates.io page and the documentation on [docs.rs](https://docs.rs/heelonvault-core).
+10. **Documentation site** — [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr) re-syncs daily from the latest release (`Heelonys_webdoc` repository, `sync-docs` workflow). Run that workflow manually to publish right away. Only `docs/` (minus `docs/internal/`) and the root `README`, `SECURITY`, `CONTRIBUTING`, `CODE_OF_CONDUCT` files are published.

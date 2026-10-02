@@ -1,13 +1,32 @@
-# HeelonVault 2.0.0
+# HeelonVault 2.0.1
 
-Langue: FR | [EN](README.en.md)
+Langue : FR | [EN](README.en.md)
 
 [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX%201.4-blue)](sbom.cyclonedx.json) [![Supply chain](https://img.shields.io/badge/supply--chain-cargo--deny-green)](.github/workflows/supply-chain.yml)
 
-HeelonVault est un gestionnaire de secrets desktop **local-first**, écrit en Rust et construit
-avec GTK4 / libadwaita et SQLite.
+HeelonVault est un gestionnaire de secrets desktop **local-first** : mots de passe, clés API,
+clés SSH et documents sensibles sont chiffrés et stockés sur votre poste, sans serveur ni compte
+en ligne. Écrit en Rust, avec une interface GTK4 / libadwaita, pour Windows, macOS et Linux.
 
 > Distribué sous licence Apache 2.0. Voir [LICENSE](LICENSE) pour le logiciel et [LEGAL.md](docs/LEGAL.md) pour les conditions relatives à la marque et au Sceau d'Authenticité.
+
+**Documentation complète : [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr)**
+
+---
+
+## Installation
+
+Téléchargez le paquet de votre système sur la page
+[Releases](https://github.com/ppaperso/heelonvault-core/releases/latest) :
+
+| Système | Paquet |
+| ------- | ------ |
+| Windows 10 / 11 (x64) | `heelonvault-windows-x86_64-vX.Y.Z.msi` |
+| macOS 13+ (Apple Silicon) | `heelonvault-macos-aarch64-vX.Y.Z.dmg` |
+| Linux (x86_64) | `heelonvault-linux-x86_64-vX.Y.Z.AppImage` |
+
+Vérification, installation pas à pas et premier lancement :
+[Installation et démarrage rapide](docs/QUICKSTART.fr.md).
 
 ---
 
@@ -16,29 +35,21 @@ avec GTK4 / libadwaita et SQLite.
 | Domaine | Détail |
 | ------- | ------ |
 | **Chiffrement** | AES-256-GCM côté application — les secrets ne quittent jamais la machine en clair |
-| **Authentification** | Hachage Argon2id (résistant aux GPU) + TOTP 2FA (RFC 6238) |
-| **Multi-utilisateur** | Comptes séparés avec coffres isolés par utilisateur |
-| **Bootstrap** | Assistant d'initialisation guidé en 3 étapes pour la création du premier compte administrateur avec **flux refactoré** (v2.0.0) |
-| **Clé de récupération** | Phrase mnémotechnique 24 mots (style BIP39) générée à l'initialisation ; exportable depuis le profil ; copie avec effacement presse-papier automatique (60 s) ; **système de récupération de compte complet** (v2.0.0) |
-| **Persistance** | SQLite local, versionné par migrations `sqlx` (19 migrations, sans interruption de service) |
-| **Import / Export** | **Import CSV en 3 étapes** (v2.0.0) avec tolérance aux erreurs, export `.hvb` avec contrôle d'accès RBAC |
-| **Journal d'audit** | Traçabilité des actions sensibles (création/modification/suppression de secrets, partages) avec **rate limiting par IP** (v2.0.0) |
+| **Authentification** | Dérivation Argon2id (résistante aux GPU) + double authentification TOTP (RFC 6238) |
+| **Premier lancement** | Assistant guidé de création du compte administrateur, puis connexion explicite |
+| **Clé de récupération** | Phrase de 24 mots générée à l'initialisation ; permet de redéfinir le mot de passe maître sans perdre les coffres ; réexportable depuis le profil |
+| **Coffres** | Plusieurs coffres par compte ; recherche dans le coffre actif ou dans tous (MultiCoffre) |
+| **Affichage** | Cartes ou liste compacte, tri par fréquence d'usage, badges (robustesse, doublon, incomplet, santé, partagé) |
+| **Presse-papiers** | Mot de passe déchiffré seulement au moment de la copie, effacement automatique (20 s, 60 s pour la phrase de récupération), indicateur d'exposition dans la barre d'en-tête |
+| **Recherche** | Titre, login, email, URL, notes, catégorie, tags, type ; syntaxe `champ:valeur`, normalisation Unicode, raccourci `#sante` |
+| **Clavier** | Sur la carte active : `Ctrl+C` (mot de passe), `Ctrl+L` (login), `Ctrl+U` (ouvrir l'URL) |
+| **Session** | Auto-verrouillage (1 à 30 minutes ou jamais), déverrouillage rapide par code PIN, protection contre la force brute |
+| **Import / Export** | Import CSV guidé en 3 étapes, tolérant aux erreurs ; export chiffré `.hvb` |
 | **Corbeille** | Suppression logique avec restauration et purge définitive |
-| **Auto-verrouillage** | Politique configurable : 1 / 5 / 15 / 30 minutes ou jamais avec **déverrouillage rapide par PIN** (v2.0.0) |
-| **Tableau de bord** | Cartes orientées productivité : tri par usage, sélection active claire, badges contextuels (force, incomplet, doublon, usage, santé) |
-| **Indicateur de force** | Évaluation `zxcvbn` en temps réel sur chaque mot de passe |
-| **Recherche avancée** | Multi-champs (titre, login, email, URL, notes, catégorie, tags, type, coffre) avec normalisation Unicode, **mode MultiCoffre via toggle** (v2.0.0) et raccourci `#sante` |
-| **Workflow d'édition** | Clic simple = sélection de carte, double-clic = ouverture de l'éditeur ; actions rapides clavier sur la carte active (`Ctrl+C`, `Ctrl+L`, `Ctrl+U`) |
-| **Marqueur santé** | Champ persistant « Accès données de santé » dans le formulaire create/edit + détection locale haute confiance |
-| **Licence** | Vérification Ed25519 de la licence signée ; badge visible avant et après login ; fallback Community automatique |
-| **Logs structurés** | Tracing JSON rotatif dans `~/.local/state/heelonvault/logs` |
-
-### Points UX récents
-
-- Navigation carte simplifiée : sélection au clic simple, édition au double-clic.
-- Productivité clavier renforcée sur la carte active avec `Ctrl+C`, `Ctrl+L`, `Ctrl+U`.
-- Repérage visuel accéléré via badges cartes (dont badge santé) et tri par fréquence d'usage.
-- Recherche enrichie avec mode MultiCoffre et filtre thématique `#sante`.
+| **Robustesse** | Évaluation `zxcvbn` en temps réel de chaque mot de passe |
+| **Marqueur santé** | Champ « Accès données de santé » pour isoler les secrets liés à des données médicales |
+| **Journalisation** | Journaux JSON à rotation quotidienne, sans aucune valeur secrète |
+| **Licence Pro** | Administration des utilisateurs, équipes et coffres partagés, rapports d'audit signés (Ed25519) ; sans licence, édition Community complète |
 
 ---
 
@@ -49,178 +60,74 @@ et la protection des données utilisateurs.
 
 ### Licence et transparence
 
-- Distribué sous licence Apache 2.0. Voir [LICENSE](LICENSE) pour le logiciel et [LEGAL.md](docs/LEGAL.md) pour les conditions relatives à la marque et au Sceau d'Authenticité.
 - **Inventaire des dépendances** : la totalité des bibliothèques tierces (Rust + système)
   et leurs licences exactes sont documentées dans [THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md).
-- **SBOM CycloneDX signé** : le SBOM est généré depuis le dépôt `heelonvault-premium` ; `sbom.cyclonedx.json` et `sbom.cyclonedx.json.sha256` sont publiés manuellement lors des releases.
+- **SBOM CycloneDX signé** : à chaque version, le SBOM du binaire livré (core + app + premium) est publié sur la [release GitHub](https://github.com/ppaperso/heelonvault-core/releases/latest) (`heelonvault-sbom-<version>.cyclonedx.json` + `.sha256`), avec une attestation de provenance Sigstore vérifiable via `gh attestation verify heelonvault-sbom-<version>.cyclonedx.json --repo ppaperso/heelonvault-core`.
+- **Composant propriétaire auditable** : `heelonvault-premium` (licence, administration, équipes, rapport d'audit) est propriétaire et son code n'est pas public. Les équipes sécurité d'un client (DSI, RSSI, auditeur mandaté) peuvent y accéder en lecture pour audit, sous accord de confidentialité (NDA) : voir [SECURITY.fr.md](SECURITY.fr.md#14-securite-de-la-chaine-dapprovisionnement-et-sbom).
 - **Aucune dépendance copyleft** compilée statiquement dans le binaire — les seules bibliothèques
-  LGPL (GTK4, libadwaita) sont liées dynamiquement par le système d'exploitation.
+  LGPL (GTK4, libadwaita) sont liées dynamiquement.
 
 ### Primitives cryptographiques
 
 - **AES-256-GCM** (authentifié) — chiffrement des secrets via crate `aes-gcm` (RustCrypto).
-- **Argon2id** — hachage des mots de passe utilisateur (résistant aux attaques par GPU/ASIC).
+- **Argon2id** — dérivation des clés à partir du mot de passe maître (résistant aux attaques par GPU/ASIC).
 - **HMAC-SHA1 / SHA256** — génération des codes TOTP (RFC 6238) via crate `totp-rs`.
-- **CSPRNG** — génération des sel/IV via `getrandom` (appel direct aux RNG du noyau).
+- **CSPRNG** — génération des sels, nonces et clés via `getrandom` (RNG du noyau).
 
 ### Politique de code
 
-Un fichier [`clippy.toml`](clippy.toml) applique globalement l'interdiction des appels
-`unwrap()` / `expect()` sur toutes les valeurs `Result` et `Option` :
-
-```toml
-# extrait de clippy.toml
-disallowed-methods = [
-  { path = "std::result::Result::unwrap",  reason = "Use typed errors (thiserror) on sensitive paths" },
-  { path = "std::result::Result::expect",  reason = "Avoid panics and secret-leaking failure messages" },
-  { path = "std::option::Option::unwrap",  reason = "Handle missing values explicitly" },
-  { path = "std::option::Option::expect",  reason = "Handle missing values explicitly" }
-]
-```
-
-Ceci garantit qu'aucune panique imprévue ne peut exposer de données sensibles en production.
+Un fichier [`clippy.toml`](clippy.toml) interdit globalement les appels `unwrap()` / `expect()`
+sur les valeurs `Result` et `Option`, et le workspace refuse tout bloc `unsafe` et tout
+avertissement de compilation. Une panique imprévue ne peut donc pas exposer de donnée sensible
+dans un message d'erreur.
 
 ### Signalement de vulnérabilités
 
-Consulter [SECURITY.md](SECURITY.md) pour la politique de divulgation responsable.
+Consulter [SECURITY.fr.md](SECURITY.fr.md) pour la politique de divulgation responsable.
 
 ---
 
-## Structure du dépôt
+## Développement
 
 ```text
 heelonvault-core/
 ├── crates/
-│   ├── heelonvault-core/      # Bibliothèque publique (crates.io)
-│   ├── heelonvault-app/       # Binaire GTK4 / libadwaita
-│   └── sqlx-shim/             # Shim local SQLx
-├── migrations/            # 14 migrations SQL (sqlx)
-├── assets/                # Assets GTK embarqués (CSS, icônes, images)
-├── resources/             # Ressources non délocalisées (fonts)
-├── tests/                 # Tests d'intégration Rust
-├── docs/                  # Documentation technique et architecture
-├── data/                  # Base de données dev locale
-├── logs/                  # Logs runtime
-├── Cargo.toml             # Workspace root
-├── clippy.toml            # Politique Clippy sécurité
-├── LICENSE                # Licence Apache 2.0
-├── docs/THIRD_PARTY_LICENSES.md  # Inventaire des bibliothèques tierces
-├── SECURITY.md            # Politique de divulgation
-├── scripts/run-dev.sh     # Lancement développement
-├── scripts/run.sh         # Lancement production (généré par les scripts d'installation)
-├── scripts/install.sh     # Installateur unifié (détection OS)
-├── scripts/install-ubuntu.sh      # Installateur Ubuntu / Debian
-├── scripts/install-rhel.sh        # Installateur Fedora / RHEL / Rocky / AlmaLinux
-├── scripts/remove.sh      # Désinstallateur unifié (détection OS)
-├── scripts/remove-ubuntu.sh       # Désinstallateur Ubuntu / Debian
-└── scripts/remove-rhel.sh         # Désinstallateur Fedora / RHEL / Rocky / AlmaLinux
+│   ├── heelonvault-core/   # Bibliothèque publique (crates.io)
+│   ├── heelonvault-app/    # Binaire GTK4 / libadwaita (migrations, assets, installeur MSI)
+│   └── sqlx-shim/          # Shim local SQLx
+├── linux/  macos/          # Lanceurs AppImage et bundle macOS
+├── scripts/                # Lancement dev, installation système Linux, SBOM
+└── docs/                   # Documentation (docs/internal/ : mainteneurs)
 ```
 
-> **Premium** : `heelonvault-premium` est maintenu dans un dépôt privé séparé.
-> La version communautaire de ce dépôt n'y accède pas.
+```bash
+./scripts/run-dev.sh        # base de dev : data/heelonvault-rust-dev.db
+cargo test --workspace
+```
+
+Prérequis, contrôles qualité et build : [guide de développement](docs/internal/DEVELOPMENT.fr.md).
+Règles de contribution : [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md).
+
+> **Premium** : `heelonvault-premium` est un composant propriétaire maintenu dans un dépôt privé
+> séparé, cloné à côté de ce dépôt pour construire le binaire.
 
 ---
-
-## Lancement rapide
-
-### Développement
-
-```bash
-./scripts/run-dev.sh
-```
-
-Base de données dev : `data/heelonvault-rust-dev.db`
-
-### Vérification build et lint
-
-Toolchain attendue: `rust-toolchain.toml` épinglé sur Rust `1.98.0`.
-
-```bash
-cargo check --workspace
-cargo clippy --workspace -- -D warnings
-```
-
-### Installation Linux packagée
-
-Le tarball de release (`heelonvault-linux-x86_64.tar.gz`) installe :
-
-- le binaire dans `/opt/heelonvault/`;
-- un lanceur GNOME `com.heelonvault.rust.desktop` (App ID GTK correspondant);
-- les icônes dans le thème hicolor système;
-- un profil de déploiement à choisir pendant l'installation :
-  - **Personnel** : base SQLite `~/.local/share/heelonvault/heelonvault-rust.db`, logs `~/.local/state/heelonvault/logs`;
-  - **Entreprise** : base SQLite `/var/lib/heelonvault/heelonvault-rust.db`, logs `/var/log/heelonvault`.
-
-```bash
-tar -xzf heelonvault-linux-x86_64.tar.gz
-cd heelonvault-linux-x86_64
-sudo ./scripts/install.sh
-```
-
-Prévisualisation sans modifier le système (dry-run) :
-
-```bash
-sudo env HEELONVAULT_DRY_RUN=1 ./scripts/install.sh
-```
-
-En cas de besoin (forçage explicite), vous pouvez lancer `scripts/install-ubuntu.sh` ou `scripts/install-rhel.sh`.
-
-Sécurité release : si le fichier `heelonvault.sha256` est présent dans l'archive, l'installateur vérifie automatiquement l'intégrité du binaire avant installation.
-
-Note mode Entreprise : l'installateur configure uniquement les chemins système partagés.
-La publication réseau (RDS/VDI/RemoteApp, reverse proxy, bastion, etc.) reste à réaliser manuellement.
-Pour des performances optimales, la base de données du mode Entreprise doit résider sur un stockage à faible latence, idéalement local au serveur d'exécution.
-
-Désinstallation :
-
-```bash
-sudo ./scripts/remove.sh
-```
-
-En cas de besoin, vous pouvez lancer `scripts/remove-ubuntu.sh` ou `scripts/remove-rhel.sh` explicitement.
-
-Consulter [QUICKSTART.md](docs/QUICKSTART.md) pour les détails post-installation.
-
-### Tests
-
-```bash
-cargo test
-```
-
----
-
-## 🌐 Documentation en ligne
-
-| Type | URL | Description |
-| ---- | --- | ----------- |
-| **Documentation officielle** | [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr) | Documentation complète (guides, API, tutoriels) |
-| **SBOM signés** | [sbom.heelonvault.heelonys.fr](https://sbom.heelonvault.heelonys.fr) | Inventaires CycloneDX vérifiés |
 
 ## Documentation
 
-| Fichier | Contenu |
-| ------- | ------- |
-| [CHANGELOG.md](docs/CHANGELOG.md) | Journal des modifications (FR) |
-| [CHANGELOG.en.md](docs/CHANGELOG.en.md) | Changelog (EN) |
-| [QUICKSTART.md](docs/QUICKSTART.md) | Installation et premiers pas |
-| [QUICKSTART.fr.md](docs/QUICKSTART.fr.md) | Guide de démarrage rapide (FR) |
-| [docs/README.md](docs/README.md) | Index central de la documentation bilingue |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture technique détaillée |
-| [docs/ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md) | Technical architecture (EN) |
-| [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | Guide utilisateur détaillé |
-| [docs/USER_GUIDE.en.md](docs/USER_GUIDE.en.md) | User guide (EN) |
-| [docs/UPDATE_GUIDE.md](docs/UPDATE_GUIDE.md) | Procédure de mise à jour |
-| [docs/UPDATE_GUIDE.en.md](docs/UPDATE_GUIDE.en.md) | Production update guide (EN) |
-| [SECURITY.md](SECURITY.md) | Politique de sécurité et divulgation |
-| [SECURITY.fr.md](SECURITY.fr.md) | Politique de sécurité (FR) |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guide (EN) |
-| [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) | Guide de contribution (FR) |
-| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Code de conduite (FR) |
-| [CODE_OF_CONDUCT.en.md](CODE_OF_CONDUCT.en.md) | Code of Conduct (EN) |
-| [LICENSE](LICENSE) | Licence Apache 2.0 |
-| [THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md) | Inventaire complet des dépendances tierces |
-| [THIRD_PARTY_LICENSES.fr.md](docs/THIRD_PARTY_LICENSES.fr.md) | Guide FR des licences tierces |
+| Document | Français | English |
+| -------- | -------- | ------- |
+| Installation et démarrage rapide | [QUICKSTART.fr.md](docs/QUICKSTART.fr.md) | [QUICKSTART.md](docs/QUICKSTART.md) |
+| Guide utilisateur | [USER_GUIDE.md](docs/USER_GUIDE.md) | [USER_GUIDE.en.md](docs/USER_GUIDE.en.md) |
+| Mise à jour et déploiement | [UPDATE_GUIDE.md](docs/UPDATE_GUIDE.md) | [UPDATE_GUIDE.en.md](docs/UPDATE_GUIDE.en.md) |
+| Sécurité | [SECURITY.fr.md](SECURITY.fr.md) | [SECURITY.md](SECURITY.md) |
+| Architecture | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | [ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md) |
+| Journal des modifications | [CHANGELOG.md](docs/CHANGELOG.md) | [CHANGELOG.en.md](docs/CHANGELOG.en.md) |
+| Licences tierces | [THIRD_PARTY_LICENSES.fr.md](docs/THIRD_PARTY_LICENSES.fr.md) | [THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md) |
+| Contribuer | [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Code de conduite | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | [CODE_OF_CONDUCT.en.md](CODE_OF_CONDUCT.en.md) |
+| Documentation interne (mainteneurs) | [docs/internal/](docs/internal/README.md) | |
 
 ---
 
-> **Version actuelle**: 2.0.0 — Les notes de version détaillées sont dans [CHANGELOG.md](docs/CHANGELOG.md).
+> **Version actuelle** : 2.0.1 — notes de version détaillées dans [CHANGELOG.md](docs/CHANGELOG.md).

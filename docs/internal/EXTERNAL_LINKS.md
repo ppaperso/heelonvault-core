@@ -7,7 +7,8 @@ This file centralizes all external URLs referenced in HeelonVault project.
 | Resource | URL | Description |
 |----------|-----|-------------|
 | **Official Documentation Site** | [https://doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr) | Complete documentation (guides, API, tutorials) |
-| **SBOM Repository** | [https://sbom.heelonvault.heelonys.fr](https://sbom.heelonvault.heelonys.fr) | CycloneDX SBOM inventory |
+| **Signed SBOM** | [https://github.com/ppaperso/heelonvault-core/releases/latest](https://github.com/ppaperso/heelonvault-core/releases/latest) | CycloneDX SBOM attached to each GitHub release (`heelonvault-sbom-<version>.cyclonedx.json` + `.sha256`) |
+| **SBOM attestations** | [https://github.com/ppaperso/heelonvault-core/attestations](https://github.com/ppaperso/heelonvault-core/attestations) | Sigstore build-provenance records (`gh attestation verify … --repo ppaperso/heelonvault-core`) |
 
 ## Development Resources
 

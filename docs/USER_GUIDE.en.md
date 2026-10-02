@@ -2,10 +2,6 @@
 
 Language: EN | [FR](USER_GUIDE.md)
 
-Documented target version: `1.2.0-rc.1`
-
-> Last updated: 2026-09-15
-
 ## Purpose
 
 This user manual describes HeelonVault from an end-user perspective. It is intended for people who need to access, secure, organize, and maintain secrets in the product without relying on internal technical documentation.
@@ -19,32 +15,6 @@ This user guide covers day-to-day HeelonVault usage on the desktop side:
 - creating, editing, and searching secrets;
 - import, export, and trash workflows;
 - security best practices.
-
-## Table of contents
-
-1. User journey overview
-2. Screen 1 - Bootstrap wizard
-3. Screen 2 - Sign-in
-4. Screen 3 - Main vault view
-5. Screen 4 - Create a secret
-6. Screen 5 - Edit, delete, and trash
-7. Screen 6 - Search and organization
-8. Screen 7 - Profile and security
-9. Screen 8 - Import and export
-10. Screen 9 - Dashboard and audit
-11. Best practices
-12. Quick troubleshooting
-13. Useful references
-
-## Screenshot placeholders
-
-Screenshots can be added later at the dedicated locations already prepared in this document. The numbering below makes it easier to align future visuals with the relevant product screens.
-
-Suggested naming convention:
-
-- `docs/images/user-guide/login-en.png`
-- `docs/images/user-guide/dashboard-en.png`
-- `docs/images/user-guide/editor-en.png`
 
 ## 1. User journey overview
 
@@ -84,15 +54,13 @@ Important notes:
 - the process should not be interrupted before the displayed recovery material is safely recorded;
 - mandatory verification of 2 random words is required before completion.
 
-Screenshot placeholder: Screen 1 - bootstrap wizard
+![Screen 1a - Bootstrap step 1](images/user-guide/hv_first_init_1.png)
 
-![Screen 1a - Bootstrap step 1](../assets/images/user-guide/hv_first_init_1.png)
+*Bootstrap wizard, step 1 (first administrator account creation).*
 
-Capture 01a - Bootstrap wizard, step 1 (first administrator account creation).
+![Screen 1b - Bootstrap step 2](images/user-guide/hv_first_init_2.png)
 
-![Screen 1b - Bootstrap step 2](../assets/images/user-guide/hv_first_init_2.png)
-
-Capture 01b - Bootstrap wizard, step 2 (24-word recovery key).
+*Bootstrap wizard, step 2 (24-word recovery key).*
 
 ## 3. Screen 2 - Sign-in
 
@@ -112,11 +80,9 @@ Best practices:
 - store the recovery key outside the workstation;
 - verify system time if TOTP codes are rejected.
 
-Screenshot placeholder: Screen 2 - sign-in
+![Screen 2 - Sign-in](images/user-guide/hv_login_screen_after_init.png)
 
-![Screen 2 - Sign-in](../assets/images/user-guide/hv_login_screen_after_init.png)
-
-Capture 02 - Sign-in screen with username, password, and database recovery entry point (.hvb).
+*Sign-in screen with username, password, and database recovery entry point (.hvb).*
 
 ## 4. Screen 3 - Main vault view
 
@@ -143,11 +109,9 @@ Screen role:
 - centralize vault navigation;
 - provide fast access to priority actions.
 
-Screenshot placeholder: Screen 3 - main window
+![Screen 3 - Main vault view](images/user-guide/hv_dashboard_empty.png)
 
-![Screen 3 - Main vault view](../assets/images/user-guide/hv_dashboard_empty.png)
-
-Capture 03 - Main vault view with search, categories, security audit filters, and central workspace.
+*Main vault view with search, categories, security audit filters, and central workspace.*
 
 ## 5. Screen 4 - Create a secret
 
@@ -167,33 +131,29 @@ Recommendations:
 - use the "Health data access" marker only for genuinely health-related secrets;
 - avoid unnecessary sensitive notes.
 
-From a product perspective, this is one of the key screens because it balances fast data entry with data quality and security requirements.
+![Screen 4a - Secret type selection](images/user-guide/hv_add_menu.png)
 
-Screenshot placeholder: Screen 4 - secret editor
+*Secret type selection (password, api_token, ssh_key, secure_document).*
 
-![Screen 4a - Secret type selection](../assets/images/user-guide/hv_add_menu.png)
+![Screen 4b - Password secret form](images/user-guide/hv_add_password1.png)
 
-Capture 04a - Secret type selection (password, api_token, ssh_key, secure_document).
+*Password secret creation form (main fields).*
 
-![Screen 4b - Password secret form](../assets/images/user-guide/hv_add_password1.png)
+![Screen 4c - Password secret advanced area](images/user-guide/hv_add_password2.png)
 
-Capture 04b - Password secret creation form (main fields).
+*Additional password-secret parameters (notes, validity, save actions).*
 
-![Screen 4c - Password secret advanced area](../assets/images/user-guide/hv_add_password2.png)
+![Screen 4d - API token form](images/user-guide/hv_add_apikey.png)
 
-Capture 04c - Additional password-secret parameters (notes, validity, save actions).
+*API token secret form.*
 
-![Screen 4d - API token form](../assets/images/user-guide/hv_add_apikey.png)
+![Screen 4e - SSH key form](images/user-guide/hv_add_sshkey.png)
 
-Capture 04d - API token secret form.
+*SSH key secret form.*
 
-![Screen 4e - SSH key form](../assets/images/user-guide/hv_add_sshkey.png)
+![Screen 4f - Secure document form](images/user-guide/hv_add_securedoc.png)
 
-Capture 04e - SSH key secret form.
-
-![Screen 4f - Secure document form](../assets/images/user-guide/hv_add_securedoc.png)
-
-Capture 04f - Secure document secret form.
+*Secure document secret form.*
 
 ## 6. Screen 5 - Edit, delete, and trash
 
@@ -217,11 +177,9 @@ Recommended flow:
 3. Restore it if deletion was accidental.
 4. Permanently purge only after confirmation.
 
-Screenshot placeholder: Screen 5 - trash
+![Screen 5 - Trash and restore](images/user-guide/hv_trash.png)
 
-![Screen 5 - Trash and restore](../assets/images/user-guide/hv_trash.png)
-
-Capture 05 - Trash view with restore and purge actions for deleted items.
+*Trash view with restore and purge actions for deleted items.*
 
 ## 7. Screen 6 - Search and organization
 
@@ -290,11 +248,9 @@ Improve search relevance with consistent organization:
 - use tags consistently;
 - group secrets by type, use case, or team when relevant.
 
-Screenshot placeholder: Screen 6 - search
+![Screen 6 - Search and navigation](images/user-guide/hv_dashboard_empty.png)
 
-![Screen 6 - Search and navigation](../assets/images/user-guide/hv_dashboard_empty.png)
-
-Capture 06 - Search bar with MultiVault toggle and help button, left-side navigation.
+*Search bar with MultiVault toggle and help button, left-side navigation.*
 
 ## 8. Screen 7 - Profile and security
 
@@ -354,7 +310,7 @@ General recommendations:
 - after changing the master password, quickly verify access to main vaults;
 - never leave an open session unattended.
 
-### Account Key Recovery (NEW in v1.2.0-rc.1)
+### Account Key Recovery
 
 HeelonVault now allows you to recover access to your account if you lose your master password, thanks to an **account recovery key** generated during initialization.
 
@@ -381,11 +337,9 @@ HeelonVault now allows you to recover access to your account if you lose your ma
 
 This screen is the core user trust area of the product. It contains the settings that most directly affect protection of the vault and session behavior.
 
-Screenshot placeholder: Screen 7 - profile and security
+![Screen 7 - Profile and security](images/user-guide/hv_userprofil.png)
 
-![Screen 7 - Profile and security](../assets/images/user-guide/hv_userprofil.png)
-
-Capture 07 - Profile settings, session security, TOTP controls, import/export, and preferences.
+*Profile settings, session security, TOTP controls, import/export, and preferences.*
 
 ## 9. Screen 8 - Import and export
 
@@ -415,11 +369,9 @@ Before exporting:
 - protect the exported file;
 - delete the artifact after use when possible.
 
-Screenshot placeholder: Screen 8 - import / export
+![Screen 8 - Import/Export from profile](images/user-guide/hv_userprofil.png)
 
-![Screen 8 - Import/Export from profile](../assets/images/user-guide/hv_userprofil.png)
-
-Capture 08 - Data management area (.hvb export and CSV import) from Profile & Security.
+*Data management area (.hvb export and CSV import) from Profile & Security.*
 
 ## 10. Screen 9 - Dashboard and audit
 
@@ -443,19 +395,17 @@ Common use cases:
 - review recent events;
 - track deletions, edits, and sharing operations.
 
-Screenshot placeholder: Screen 9 - security dashboard
+![Screen 9a - Security dashboard](images/user-guide/hv_dashboard_empty.png)
 
-![Screen 9a - Security dashboard](../assets/images/user-guide/hv_dashboard_empty.png)
+*Main dashboard and security audit indicators.*
 
-Capture 09a - Main dashboard and security audit indicators.
+![Screen 9b - Team management](images/user-guide/hv_team.png)
 
-![Screen 9b - Team management](../assets/images/user-guide/hv_team.png)
+*Team administration view (vault sharing and member management).*
 
-Capture 09b - Team administration view (vault sharing and member management).
+![Screen 9c - User management](images/user-guide/hv_users.png)
 
-![Screen 9c - User management](../assets/images/user-guide/hv_users.png)
-
-Capture 09c - User administration view (create users, roles, reset, delete).
+*User administration view (create users, roles, reset, delete).*
 
 ## 11. Best practices
 
@@ -491,7 +441,8 @@ Capture 09c - User administration view (create users, roles, reset, delete).
 
 ## Useful references
 
-- [QUICKSTART.md](QUICKSTART.md)
-- [ARCHITECTURE.en.md](ARCHITECTURE.en.md)
-- [UPDATE_GUIDE.en.md](UPDATE_GUIDE.en.md)
-- [CHANGELOG.en.md](CHANGELOG.en.md)
+- [Installation and quickstart](QUICKSTART.md)
+- [Updating and deployment](UPDATE_GUIDE.en.md)
+- [Security](../SECURITY.md)
+- [Architecture](ARCHITECTURE.en.md)
+- [Changelog](CHANGELOG.en.md)

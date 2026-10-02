@@ -1,11 +1,8 @@
-# Guide de securite (runtime Rust)
+# Guide de sécurité
 
 Langue : FR | [EN](SECURITY.md)
 
-Derniere mise a jour : 16 septembre 2026
-Perimetre : runtime actif dans `src/`
-
-Ce document reflete le code Rust actuel.
+Périmètre : l'application desktop HeelonVault (`crates/heelonvault-core`, `crates/heelonvault-app`).
 
 ## 1. Perimetre et modele de menace
 
@@ -107,12 +104,12 @@ Lorsque l'application demarre sans compte administrateur, un assistant en 3 etap
 
 1. **Etape identite** — saisie du nom d'utilisateur et du mot de passe (force minimale verifiee, confirmation requise) ;
 2. **Etape serment (oath)** — une phrase mnemotechnique de 24 mots (style BIP39) est generee via `BackupService::generate_recovery_key()`. L'utilisateur doit verifier deux mots tires au sort avant de confirmer, prouvant qu'il a bien note la phrase ;
-3. **Etape pending** — `AdminService::bootstrap_first_admin()` est appele en arriere-plan ; la session s'ouvre automatiquement apres succes.
+3. **Etape pending** — `admin_service::bootstrap_first_admin_with_recovery()` s'execute en arriere-plan : creation de la cle de compte, stockee chiffree sous le mot de passe et sous la phrase de recuperation, et enregistrement d'un verificateur de la phrase. Apres succes, **aucune session n'est ouverte** : la cle de compte est effacee de la memoire et l'ecran de connexion habituel s'affiche, identifiant pre-rempli.
 
 Proprietes de securite de la cle de recuperation :
 
 - generee par un RNG cryptographique (`getrandom`) ;
-- la phrase n'est jamais persistee en base de donnees ; l'utilisateur en est l'unique gardien ;
+- la phrase elle-meme n'est jamais persistee en base (seuls la cle de compte scellee par elle et un verificateur le sont) ; l'utilisateur en est l'unique gardien ;
 - la copie presse-papier declenche un effacement automatique apres 60 secondes ; le presse-papier est aussi vide a la fermeture du dialogue ;
 - sur Linux/macOS, le contenu du presse-papier est servi a la demande via un fournisseur personnalise qui se met lui-meme a renvoyer un texte vide une fois expire, sans copie non effacee du secret persistant en memoire au-dela de l'expiration. Sur **Windows**, le backend presse-papier de GDK (OLE/`IDataObject`) plante avec ce meme fournisseur (`STATUS_ACCESS_VIOLATION` dans `libgtk-4-1.dll`, reproduit systematiquement) ; Windows utilise a la place le fournisseur de contenu "eager" natif de GDK : le secret est copie en memoire geree par GDK des la copie, puis efface en ecrasant directement le presse-papier a l'expiration plutot que par auto-effacement du fournisseur a la lecture. Voir `crates/heelonvault-app/src/ui/sensitive_clipboard.rs`.
 - apres le bootstrap, la cle peut etre re-exportee depuis `Profil & Securite` (admin uniquement) ;
@@ -194,6 +191,16 @@ chaque push sur main, chaque pull request, et quotidiennement) :
   et commite sous `sbom.cyclonedx.json` a la racine du depot ; le job CI
   `check-sbom` le regenere a chaque push pertinent et fait echouer le build
   si le fichier commite a divergé du graphe de dependances reel.
+- **SBOM signe des releases** : a chaque tag `vX.Y.Z`, `.github/workflows/sbom-release.yml`
+  joint `heelonvault-sbom-<tag>.cyclonedx.json` et son `.sha256` a la
+  [release GitHub](https://github.com/ppaperso/heelonvault-core/releases/latest),
+  avec une attestation de provenance Sigstore :
+  `gh attestation verify heelonvault-sbom-<tag>.cyclonedx.json --repo ppaperso/heelonvault-core`.
+- **Composant proprietaire** : `heelonvault-premium` (verification de licence, administration,
+  equipes, rapport d'audit) est proprietaire et son code source n'est pas public. Il figure dans le
+  SBOM avec ses dependances. Sur demande, les equipes securite d'un client (DSI, RSSI, auditeur
+  mandate) peuvent obtenir un acces en lecture a ce code pour audit, sous accord de
+  confidentialite (NDA) ou equivalent : contacter `support@heelonys.fr`.
 
 Contexte reglementaire : le **Cyber Resilience Act (CRA)** de l'UE introduit
 des obligations de SBOM et de gestion des vulnerabilites pour les fabricants

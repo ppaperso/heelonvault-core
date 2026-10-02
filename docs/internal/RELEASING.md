@@ -38,7 +38,7 @@ Les pré-versions (`X.Y.Z-rc.N`) sont taguées pour produire les paquets de test
 
 1. **Versions** — dans `crates/heelonvault-core/Cargo.toml`, `crates/heelonvault-app/Cargo.toml` et `heelonvault-premium/Cargo.toml` (`version` et `heelonvault-core = "X.Y"`).
 2. **Lockfiles** — `git diff Cargo.lock` (dans les deux dépôts) ne doit montrer que les lignes de version de nos crates. Si Cargo a aussi changé d'autres dépendances, restaurer le fichier, modifier ces lignes à la main, puis vérifier avec `cargo check --workspace --locked`.
-3. **Documentation** — changelogs FR/EN des deux dépôts, titres des README, `docs/UPDATE_GUIDE*.md`, `crates/heelonvault-core/README.md` (ligne `heelonvault-core = "X.Y"`).
+3. **Documentation** — changelogs FR/EN des deux dépôts, titres des README (`# HeelonVault X.Y.Z`), `crates/heelonvault-core/README.md` (ligne `heelonvault-core = "X.Y"`). Les autres documents ne portent volontairement pas de numéro de version : ne pas en rajouter. Si un comportement visible change, mettre à jour `docs/QUICKSTART*.md`, `docs/USER_GUIDE*.md` ou `docs/UPDATE_GUIDE*.md`, et dérouler la recette [MANUAL_QA.md](MANUAL_QA.md).
 4. **SBOM** — `./scripts/generate-sbom.sh`, puis commiter `sbom.cyclonedx.json`.
 5. **Vérifications locales** (depuis `heelonvault-core`) :
    ```bash
@@ -53,3 +53,4 @@ Les pré-versions (`X.Y.Z-rc.N`) sont taguées pour produire les paquets de test
 7. **Publier la crate** depuis `main` à jour : `cargo publish -p heelonvault-core`. Une publication est définitive (on peut seulement la retirer avec `cargo yank`, sans la supprimer).
 8. **Taguer** le commit de merge de core : `git tag vX.Y.Z && git push origin vX.Y.Z`. Le tag déclenche les workflows AppImage, DMG, MSI et SBOM, qui créent la release GitHub.
 9. **Vérifier** la release GitHub (artefacts et sommes SHA-256), la page crates.io et la documentation sur [docs.rs](https://docs.rs/heelonvault-core).
+10. **Site de documentation** — [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr) se resynchronise chaque jour sur la dernière release (dépôt `Heelonys_webdoc`, workflow `sync-docs`). Pour publier tout de suite, lancer ce workflow à la main. Seuls `docs/` (hors `docs/internal/`) et les `README`, `SECURITY`, `CONTRIBUTING`, `CODE_OF_CONDUCT` racine sont publiés.

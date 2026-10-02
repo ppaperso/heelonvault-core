@@ -1,20 +1,23 @@
-# Project Architecture (Rust)
+# Project Architecture
 
 Language: EN | [FR](ARCHITECTURE.md)
 
-Documented target version: `1.2.0-rc.1`
+This document describes how HeelonVault works internally: code layout, startup, key model and
+runtime security guarantees. It is written for security reviewers, administrators and
+contributors. To install or use the application, see [QUICKSTART.md](QUICKSTART.md) and
+[USER_GUIDE.en.md](USER_GUIDE.en.md).
 
 ## Overview
 
-HeelonVault runs as a Rust-only desktop runtime. Version **1.2.0-rc.1** introduces major improvements in security, user flows, and infrastructure.
+HeelonVault is a **local-first** desktop application written in Rust:
 
-- Runtime: repository root
-- Desktop UI: GTK4 + libadwaita
-- Database: SQLite
-- SQL migrations: `sqlx::migrate!` at startup
-- Launchers: `scripts/run.sh` (prod), `scripts/run-dev.sh` (dev)
-- **MSRV**: Rust 1.98
-- **Edition**: Rust 2024
+- UI: GTK4 + libadwaita;
+- storage: local SQLite, schema versioned by SQLx migrations applied at startup;
+- encryption: application-side AES-256-GCM, Argon2id key derivation;
+- shipped platforms: Linux x86_64 (AppImage), macOS Apple Silicon (DMG), Windows x64 (MSI);
+- toolchain: Rust 1.98 (pinned by `rust-toolchain.toml`), 2024 edition.
+
+No server is required: secrets never leave the machine.
 
 ## Logical Layers
 
@@ -25,98 +28,86 @@ UI (gtk4/libadwaita)
       -> SQLite + migrations
 ```
 
-## Active Structure
-
-HeelonVault is organized as a **Cargo workspace** (Open Core model):
+## Code Layout (Open Core model)
 
 ```text
-HeelonVault/
+heelonvault-core/
 ├── crates/
-│   ├── heelonvault-core/          # Public library (crates.io v1.2.0-rc.1)
-│   ├── heelonvault-app/           # GTK4 binary (Open Core assembler)
-│   └── sqlx-shim/                 # Local SQLx shim (publish = false)
-├── migrations/                    # SQL migrations applied at startup (19 migrations)
-├── assets/                        # Embedded GTK assets (CSS, icons)
-├── resources/                     # Non-localized resources (fonts)
-├── tests/                         # Integration tests
-├── docs/                          # Technical documentation
-├── Cargo.toml                     # Workspace root (resolver = "2")
-├── clippy.toml                    # Clippy security policy
-├── rust-toolchain.toml            # Pinned toolchain at Rust 1.98.0
-├── .cargo/config.toml             # Compiler flags
-├── scripts/run.sh                 # Production launcher
-├── scripts/run-dev.sh             # Development launcher
-├── scripts/install.sh             # Unified installer (OS detection)
-├── scripts/install-core.sh        # Shared Linux install library
-├── scripts/install-ubuntu.sh      # Ubuntu / Debian installer
-├── scripts/install-rhel.sh        # Fedora / RHEL / Rocky Linux installer
-├── scripts/remove.sh              # Unified uninstaller (OS detection)
-├── scripts/remove-core.sh         # Shared Linux uninstall library
-├── scripts/remove-ubuntu.sh       # Ubuntu / Debian uninstaller
-├── scripts/remove-rhel.sh         # Fedora / RHEL / Rocky Linux uninstaller
-└── docs/
+│   ├── heelonvault-core/        # Public library (crates.io): models, repositories,
+│   │                            # services, i18n, errors — no UI, no licensing
+│   ├── heelonvault-app/         # GTK4 binary: assembles core + premium
+│   │   ├── src/                 # main.rs (composition root), ui/ (windows, dialogs, widgets)
+│   │   ├── migrations/          # SQL migrations applied at startup
+│   │   ├── assets/              # Embedded CSS, icons, images (GResource)
+│   │   └── wix/                 # Windows installer definition (MSI)
+│   └── sqlx-shim/               # Local SQLx shim (publish = false)
+├── linux/  macos/               # AppImage launcher and macOS bundle files
+├── scripts/                     # Dev launcher, Linux system install, SBOM
+├── docs/                        # Published documentation (docs/internal/: maintainers)
+├── Cargo.toml                   # Workspace
+├── clippy.toml                  # Security Clippy policy
+└── rust-toolchain.toml          # Pinned toolchain
 ```
 
-> **Premium**: `heelonvault-premium` lives in a separate private Git repository
-> (`ppaperso/heelonvault-premium`). It is referenced in `heelonvault-app`
-> as an optional git dependency (`features = ["licensing"]`). Community builds
-> never access the private repo.
+- `heelonvault-core` holds everything that depends neither on the UI nor on licensing. It never
+  initializes a `tracing` subscriber.
+- `heelonvault-app` is the **Open Core assembler**: the `premium` Cargo feature (on by default) is
+  the only place that chooses between community implementations and `heelonvault-premium` ones.
+- `heelonvault-premium` is a **proprietary** component in a separate private repository
+  (multi-user administration, teams, audit report, license verification). Its code ships in the
+  binary; it is activated at runtime by a verified signed license. Its source can be opened for
+  audit under a non-disclosure agreement (see [SECURITY.md](../SECURITY.md)).
 
 ## Startup Flow
 
-1. `main.rs` applies GTK rendering runtime variables (including `GSK_RENDERER`) **before** starting Tokio.
-2. `main.rs` starts the tokio runtime.
-3. Open SQLite with `HEELONVAULT_DB_PATH`.
-4. Apply SQL migrations (19 migrations in v1.2.0-rc.1).
-5. Build repositories and services.
-6. Initialize UI and authentication (with refactored bootstrap flow).
-7. Load secrets and session policy.
+1. `main.rs` sets the GTK rendering variables (including `GSK_RENDERER`) **before** starting Tokio.
+2. Tokio runtime and logging are initialized.
+3. The SQLite database is opened (path resolved as described in [Data Paths](#data-paths)).
+4. SQL migrations are applied. The directory is looked up in this order:
+   `HEELONVAULT_MIGRATIONS_DIR`, next to the executable, then the current directory. The
+   AppImage, DMG and MSI packages point this variable at their bundled migrations.
+5. Repositories and services are built (premium implementations when the feature is on).
+6. First run: setup wizard. Otherwise: sign-in screen, then main window.
 
-In packaged Linux installs, generated `run.sh` explicitly exports `HEELONVAULT_MIGRATIONS_DIR=/opt/heelonvault/migrations`.
-The installer validates copied migrations (filename parity + file content parity) and fails fast if the directory is missing or invalid.
+### End of the setup wizard
 
-### Bootstrap Flow Refactor (v1.2.0-rc.1)
+A successful first-run setup does **not** open a session. `bootstrap_flow.rs` wipes the account
+key (drop of `BootstrapResult`), sets the flag shared with the `close_request` handler (otherwise
+closing would be treated as a cancellation and quit the app), closes the wizard, then calls
+`on_bootstrap_completed(username)`. `main.rs` switches back to sign-in mode and shows a regular
+`LoginDialog`, on which `show_account_created()` pre-fills the username.
 
-The initialization flow has been completely refactored with the following components:
+## Key Model
 
-- **login_dialog/bootstrap_flow.rs**: 3-step initialization flow management
-- **login_dialog/restore_flow.rs**: Restoration flow with recovery key management
-- **account_key.rs**: Dedicated service for account key management
-- **recovery_service.rs**: Account recovery service with secure validation
-- **Migration 0019**: `0019_user_recovery_key_envelope.sql` for persistence of recovery key envelopes
+- **Account key** (`services/account_key.rs`): a random 32-byte key that wraps every vault key of
+  an account. It is only stored encrypted:
+  - under the master password (password envelope, `auth_service`);
+  - under the 24-word recovery phrase (domain-separated derivation).
+- **Vault keys**: one per vault, wrapped by the owner's account key and, for a shared vault, by
+  each member's.
+- **Secrets**: AES-256-GCM encrypted under their vault key.
 
-The new system enables:
-- Generation and secure storage of recovery key envelopes
-- Account restoration via recovery key with two-step validation
-- User key management with secure rotation
+Consequences:
 
-End of bootstrap: a successful initialization does **not** open a session. `bootstrap_flow.rs` wipes the account key (drops the `BootstrapResult`), sets the flag shared with the `close_request` handler (otherwise closing would be treated as a cancellation and quit the application), closes the wizard, then calls `on_bootstrap_completed(username)`. `main.rs` switches back to sign-in mode and presents a regular `LoginDialog`, on which `show_account_created()` pre-fills the username and shows the confirmation.
-
-### Account Key Recovery System
-
-Commit `7cc2556` introduces a complete recovery system:
-
-- **Services**: `AccountKeyService`, `RecoveryService`, `RekeyService`
-- **Repositories**: Extensions to `UserRepository` and `VaultRepository` for envelope management
-- **Tests**: Complete suite in `tests/account_rekey_integration.rs` (881 lines)
-- **Flow**:
-  1. Generation of recovery key envelope during bootstrap
-  2. Secure storage with AES-256-GCM encryption
-  3. Validation and restoration via dedicated dialog
+- **Master password change** (`UserService::change_master_password`): the account key does not
+  change, only the password envelope is rewritten. Vaults and secrets are not re-encrypted. An
+  older account (pre-account-key format) is migrated during this change: vault keys, TOTP secret
+  and recovery material are rewrapped in a single transaction (`rekey_service.rs`).
+- **Recovery**: the recovery phrase reopens the account key and lets the user set a new password
+  without losing any vault (`recovery_service.rs`, `login_dialog/restore_flow.rs`). A stored
+  verifier checks the phrase without keeping it.
 
 ## Main UI View
 
-The main window uses a root `GtkStack` for frequent flows:
+The main window uses a root `GtkStack` to avoid modal dialogs for the most frequent flows:
 
-- `entries_view`: main secrets list
-- `profile_view`: inline profile and security page
-- `secret_editor_view`: inline create/edit secret view
+- `entries_view`: main secret list;
+- `secret_editor_view`: inline create / edit;
+- `profile_view`: `Profile & Security` page;
+- `users_view` / `teams_view`: administration (premium).
 
-Effects:
-
-- sidebar remains visible during profile operations;
-- secret creation/editing stays in the center pane;
-- profile badge opens a read-only popover with recent login history.
+The sidebar stays visible during profile and edit operations. The profile badge opens a
+read-only popover with recent sign-in history.
 
 ### Secret display: cards or list
 
@@ -138,6 +129,8 @@ Filtering, sorting, search, counters and keyboard shortcuts are therefore mode-i
 
 Invariant: `SecretRowView` / `SecretRowData` **never** hold a secret value. Login and URL are not encrypted (`metadata_json`) and can therefore be copied directly. The per-copy overhead (a few SQLite queries + one AES decryption) is imperceptible.
 
+Known limitation: `get_secret()` re-reads each secret from the database although `list_by_vault()` just loaded it (N+1 queries). Fixing it needs a new method on the public `SecretService` trait of `heelonvault-core`: deferred to a dedicated change.
+
 ### Clipboard exposure indicator
 
 `ui/sensitive_clipboard.rs` publishes an `Exposure` (`Idle`, `Decrypting`, `InClipboard { kind, copied_at, expires_at }`) on every change: copy (`copy_sensitive(text, SensitiveKind, delay)`), expiry, `clear_now()`, clipboard replaced by another application (`changed` signal with `is_local() == false`: the value is wiped at once, leaving the new content alone), and decryption in flight (`begin_decrypting()` returns an RAII guard held by `PasswordCopier`).
@@ -146,208 +139,95 @@ Invariant: `SecretRowView` / `SecretRowData` **never** hold a secret value. Logi
 - `ui/widgets/clipboard_indicator.rs`: header bar button (icon + ring drawn with cairo in a `DrawingArea`). It only holds weak references, so the subscription ends with the main window rebuilt at each sign-in. The ring is animated (tick callback) only while something is exposed; idle, it costs nothing. Clicking calls `clear_now()`.
 - Labels only claim what the application controls: never "no secret in memory".
 
-Known limitation: `get_secret()` re-reads each secret from the database although `list_by_vault()` just loaded it (N+1 queries). Fixing it needs a new method on the public `SecretService` trait of `heelonvault-core`: deferred to a dedicated change.
-
 ## Runtime Session and Security
 
-### PIN Quick-Unlock (New in v1.2.0-rc.1)
+### PIN Quick-Unlock
 
-- New `pin_cache_service`: in-memory master-key cache protected by Argon2id (8 MiB, t=3) + AES-256-GCM, never persisted to disk.
-- `pin_setup_dialog`: PIN activation and deactivation from the user profile view (4-8 digits).
-- `pin_unlock_dialog`: PIN entry dialog displayed when the auto-lock fires.
-- Auto-lock integration: a logout now triggers a PIN lock (when a PIN is set) instead of a full disconnect, preserving the session in memory.
-- **Security**: 3 attempts maximum per cache, 12-hour hard timeout, `user_id` binding (prevents cross-session replay), random AES-GCM nonce per activation, `zeroize` wipe on `Drop`.
-- PIN badge in the title bar with session countdown timer (3 visual states: nominal, warning, critical).
+- `pin_cache_service`: in-memory cache of the master key, protected by Argon2id (8 MiB, t=3) +
+  AES-256-GCM, **never persisted to disk**.
+- `pin_setup_dialog`: enable / disable from the profile (4 to 8 digits).
+- `pin_unlock_dialog`: PIN entry when unlocking after auto-lock.
+- Safeguards: 3 attempts per cache, hard 12 h expiry, bound to `user_id`, random AES-GCM nonce per
+  activation, `zeroize` wipe on `Drop`.
+- PIN badge in the title bar with a session timer (nominal, warning, critical).
 
-### Master Key Rotation (Hardened)
+### Brute-force protection
 
-- `user_service`: hardened `rotate_master_key_hardened` flow enabled with pre/post rotation validation.
-- Owner/shared vault key-envelope rewrap now applied through an atomic SQL mutation.
-- Sample-secret validation is wired into `VaultAndSampleSecret` mode.
-- Manual verification confirmed: master key change succeeds in real application runtime.
+- Per username: progressive delay between failed sign-ins.
+- Per address (`ip_rate_limit_service`, `login_attempts_ip` table): default `IpRateLimitPolicy`
+  of 20 attempts per one-hour window, then a one-hour lock. Both policies are combined by
+  `CombinedRateLimitService`; `cleanup_expired()` purges expired locks.
+- TOTP: a valid code cannot be replayed immediately.
 
-### IP-based Brute-Force Protection (New in v1.2.0-rc.1)
+### End of session
 
-- **IP-based Rate Limiting**: New `login_attempts_ip` table to track login attempts by IP address.
-- **Configurable policy**: `IpRateLimitPolicy` with `max_attempts` (20 default), `lock_duration_secs` (3600s), and `window_duration_secs` (3600s).
-- **Combined service**: `CombinedRateLimitService` integrates username-based (existing) and IP-based (new) rate limiting to block systematic attacks.
-- **Automatic cleanup**: `cleanup_expired()` removes expired lock entries.
+- Closing the main window and auto-lock both trigger a clean logout back to the sign-in screen
+  (or to PIN unlock when enabled).
+- Sign-in history is stored in `login_history`.
 
-### Other Security Features
+### Memory hardening
 
-- closing main window performs secure logout and returns to login;
-- auto-lock uses the same secure logout path;
-- login history is persisted in `login_history`;
-- `show_passwords_in_edit` preference is persisted per user.
+- Keys travel in types that wipe themselves on drop (`SecretBox`, `Zeroizing`). `try_pin_unlock`
+  returns a `Zeroizing<Vec<u8>>`; the unlock callback receives `Option<Zeroizing<Vec<u8>>>`.
+- `clippy.toml` bans `unwrap()` / `expect()` on `Result` and `Option`: a panic must not be able
+  to expose sensitive data in an error message.
+- `.cargo/config.toml` enforces `-D warnings` and `-D unsafe_code` across the workspace.
 
-## CSV Import (Pipeline)
+## CSV Import
 
-The CSV import flow combines guided UX with fault-tolerant processing:
-
-- 3-phase UI: preview, progress, final summary;
-- dedicated `import_progress_dialog` for live progress;
-- row-by-row service processing with aggregated report (`imported`, `failed`, per-row details);
-- reject-report file `csv_import_rejects_*.txt` written in `HEELONVAULT_LOG_DIR` (or `./logs` fallback) when rows are rejected.
+- 3-phase UI: preview, progress (`import_progress_dialog`), final summary.
+- Row-by-row, error-tolerant processing with an aggregated report (imported, failed, per-row
+  details).
+- Rejected rows are written to `csv_import_rejects_*.txt` in the log directory.
 
 ## Search
 
-Indexed fields include:
+Indexed fields: title, login, email, URL, notes, category, tags, secret type.
 
-- title, login, email, URL, notes, category, tags, secret type.
-
-### MultiVault Mode (New in v1.2.0-rc.1)
-
-- Added **MultiVault** toggle button to the left of the search bar.
-- Allows searching across all vaults or only the active vault.
-- Replaces the previous auto-detection mode-switch.
-
-Engine behavior:
-
-- case/accent normalization;
-- fielded syntax (`email:`, `tag:`, `type:`...);
-- light typo tolerance on long tokens;
-- unified syntax: `field: value` == `field:value`.
+- case / accent normalization (Unicode);
+- field-scoped syntax (`email:`, `tag:`, `type:`…), `field: value` equals `field:value`;
+- light typo tolerance for long enough terms;
+- **MultiVault** toggle left of the search bar: search all vaults or only the active one.
 
 ## Data Paths
 
-- Dev: `data/heelonvault-rust-dev.db`
-- Packaged user DB: `~/.local/share/heelonvault/heelonvault-rust.db`
-- Legacy Python path (do not modify): `/var/lib/heelonvault-shared`
+The database path can always be forced with `HEELONVAULT_DB_PATH`, the log directory with
+`HEELONVAULT_LOG_DIR`. Without them:
+
+| Installation | Database | Logs |
+| ------------ | -------- | ---- |
+| Windows (MSI) | `%LOCALAPPDATA%\Heelonys\HeelonVault\data\heelonvault\data\heelonvault-rust.db` | `…\heelonvault\logs\` |
+| macOS (DMG) | `~/Library/Application Support/fr.Heelonys.HeelonVault/heelonvault/data/heelonvault-rust.db` | `…/heelonvault/logs/` |
+| Linux (AppImage, "Personal" system install) | `~/.local/share/heelonvault/heelonvault-rust.db` | `~/.local/state/heelonvault/logs/` |
+| Linux ("Enterprise" system install) | `/var/lib/heelonvault/heelonvault-rust.db` | `/var/log/heelonvault/` |
+| Development (`scripts/run-dev.sh`) | `data/heelonvault-rust-dev.db` | `./logs/` |
+
+On Linux, the launchers (the AppImage's AppRun, the system install's `run.sh`) set these
+variables; on Windows and macOS the application applies these defaults itself.
 
 ## Logs
 
-- daily rotation via `tracing-appender`;
-- log directory configurable with `HEELONVAULT_LOG_DIR`;
-- level configurable with `RUST_LOG`, then `HEELONVAULT_LOG_LEVEL`.
+- Daily rotation via `tracing-appender`; JSON files `heelonvault_YYYYMMDD.log`.
+- Level: `RUST_LOG` (takes priority), else `HEELONVAULT_LOG_LEVEL`. Default: `info` for a release
+  build, `debug` for a development build. Sensitive modules (crypto, secrets, authentication,
+  vaults) stay capped at `warn` unless explicitly named in the filter.
+- Logs contain no secret value (enforced by the `privacy_no_secret_in_logs` test suite).
 
-Examples:
+## Supply Chain
 
-```bash
-RUST_LOG=info,heelonvault_rust::ui=debug ./scripts/run-dev.sh
-HEELONVAULT_LOG_LEVEL=warn ./scripts/run.sh
-```
+- **Zero-warning** policy: `cargo audit` and `cargo deny check` must be clean before any merge,
+  with no permanent exception.
+- The former PDF chain (`genpdf`) was removed: the premium audit report uses a minimal internal
+  PDF writer that keeps the SHA-256 digest and the Ed25519 signature.
+- CycloneDX SBOM of the shipped binary, published and attested with every release: see
+  [SECURITY.md](../SECURITY.md#13-supply-chain-security-and-sbom).
+- The `heelonvault-core` crate follows semver: `cargo semver-checks` in CI rejects an API break
+  without a major version.
 
-## Validation
+## Tests
 
-```bash
-# Community build
-cargo check --workspace
-cargo test --workspace
-
-# Premium build (requires access to the private repo, or the local patch declared in Cargo.toml)
-cargo check -p heelonvault-app --features licensing
-```
-
-## Migration Notes
-
-- active runtime and operational scripts are Rust-only;
-- legacy artifacts may remain without affecting current execution;
-- docs and scripts must stay aligned with Rust-only flows.
-
-## Architecture Decision - Zero-warning supply chain (P2)
-
-Context:
-
-- `cargo audit` reported unmaintained/yanked crates in the legacy PDF dependency chain.
-- Project policy targets strict `0 warning` (no permanent allowlist).
-
-Current status (v1.2.0-rc.1):
-
-- ✅ **RUSTSEC-2023-0071 eliminated**: the `rsa` crate (PKCS#1 v1.5 timing side-channel) was removed from the dependency tree when sqlx was upgraded from 0.8 to 0.9 (Phase 5e).
-- ✅ **MSRV 1.98 Security Fixes**: `crossbeam-epoch` 0.9.18 → 0.9.20 (RUSTSEC-2026-0204), `webbrowser` 1.2.1 → 1.2.4 (RUSTSEC-2026-0257), `event-listener` 5.4.1 → 5.4.2 (RUSTSEC-2026-0221), replaced yanked versions `chacha20` and `spin`.
-- ✅ **`cargo audit` : 0 vulnerabilities, 0 warnings** across all dependencies.
-- ⏳ **PDF**: the legacy `genpdf` dependency is still pending replacement (no active advisory today, but poorly maintained chain). The decision to replace it with a minimal internal PDF writer remains in effect.
-
-Decision for PDF:
-
-1. Replace `genpdf` with a maintained PDF architecture or a minimal internal writer.
-2. Remove unnecessary transitive dependency features that introduce risky crates.
-3. Enforce a CI-blocking policy for advisories, yanked crates, and unmaintained crates.
-
-Implementation constraints:
-
-- keep PDF audit report generation (no feature regression);
-- preserve SHA-256 hash + Ed25519 signature in the generated document;
-- validate Linux/Fedora/macOS/Windows before merge.
-
-Definition of done (mandatory):
-
-- `cargo audit` => 0 warnings;
-- `cargo clippy --all-targets --all-features -- -D warnings` => pass;
-- multi-platform CI => green;
-- no permanent exception added to policy.
-
-## Memory Hardening (New in v1.2.0-rc.1)
-
-### Master Key Lifecycle (Memory PR #1)
-
-- `try_pin_unlock` now returns `Zeroizing<Vec<u8>>`: the zeroize guarantee is enforced by the type system.
-- `on_unlocked` callback redesigned as `Option<Zeroizing<Vec<u8>>>`: `Some(key)` on success, `None` on cache exhaustion — eliminates the `Vec::new()` sentinel-value idiom.
-- Removed the `key.to_vec()` in `try_pin_unlock` that silently stripped the zeroize guarantee.
-
-### Clippy Security Policy
-
-The [`clippy.toml`](clippy.toml) file globally forbids `unwrap()` / `expect()` calls on all `Result` and `Option` values:
-
-```toml
-# excerpt from clippy.toml
-disallowed-methods = [
-  { path = "std::result::Result::unwrap",  reason = "Use typed errors (thiserror) on sensitive paths" },
-  { path = "std::result::Result::expect",  reason = "Avoid panics and secret-leaking failure messages" },
-  { path = "std::option::Option::unwrap",  reason = "Handle missing values explicitly" },
-  { path = "std::option::Option::expect",  reason = "Handle missing values explicitly" }
-]
-```
-
-This ensures that no unexpected panic can expose sensitive data in production.
-
-## Open Core Infrastructure
-
-### crates.io Publication
-
-- `heelonvault-core v1.2.0-rc.1` published to [crates.io](https://crates.io/crates/heelonvault-core)
-- `heelonvault-premium` extracted into a separate private repository
-- `heelonvault-app` references premium via optional git dependency
-- Community build (`cargo check --workspace`) never fetches the private repo
-
-### Local Patches
-
-```toml
-# Cargo.toml (workspace root)
-[patch.crates-io]
-heelonvault-core = { path = "crates/heelonvault-core" }
-
-[patch.'ssh://git@github.com/ppaperso/heelonvault-premium.git']
-heelonvault-premium = { path = "../heelonvault-premium" }
-```
-
-## Operational Scripts
-
-All scripts are maintained in EN/FR:
-
-- `scripts/README.md` and `scripts/README.fr.md`: Script documentation
-- `scripts/install.sh`: Unified installer with OS detection
-- `scripts/run.sh` / `scripts/run-dev.sh`: Production/development launchers
-- `scripts/smoke-test.sh`: Smoke tests for post-installation validation
-- `scripts/generate-sbom.sh`: CycloneDX SBOM generation
-- `scripts/generate-license.sh`: License file generation
-- `scripts/export-legacy-v0.4-to-csv.py`: Migration from v0.4
-
-## Summary of Major Changes in v1.2.0-rc.1
-
-| Category | Change | Impact |
-|----------|--------|--------|
-| Infrastructure | MSRV Rust 1.96 → 1.98 | Consistent build/lint |
-| Infrastructure | Edition 2021 → 2024 | Future compatibility |
-| Security | PIN system + auto-lock | Enhanced UX |
-| Security | IP rate limiting | Brute-force protection |
-| Security | Hardened master key rotation | Compliance |
-| Security | cargo-deny integration | Supply-chain hardening |
-| Security | Zeroizing for keys | Memory protection |
-| UX | Bootstrap flow refactor | User experience |
-| UX | Account key recovery | Account recovery |
-| UX | MultiVault toggle | Global search |
-| UX | 3-step CSV import | Error tolerance |
-| UX | PIN badge + timer | Session visibility |
-| Architecture | 19 SQL migrations | Updated schema |
-| Tests | account_rekey suite | Complete validation |
+Integration tests live in `crates/heelonvault-core/tests/` and run against a real SQLite
+database. They cover cryptography, authentication and brute force, access control, SQL
+injection, absence of secrets in logs, GDPR (erasure, portability), backups and account-key
+migration (`account_rekey_integration`). To run them, see
+[DEVELOPMENT.md](internal/DEVELOPMENT.md).

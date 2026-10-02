@@ -1,5 +1,5 @@
 // The product, the heelonvault-core crate published on crates.io and heelonvault-premium share one
-// version number (see docs/RELEASING.md). These tests fail as soon as a bump forgets one of them.
+// version number (see docs/internal/RELEASING.md). These tests fail as soon as a bump forgets one of them.
 
 use std::path::{Path, PathBuf};
 
