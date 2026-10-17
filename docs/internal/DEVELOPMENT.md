@@ -81,8 +81,9 @@ otherwise):
 
 ```bash
 cargo build --release -p heelonvault-app
-cp target/release/heelonvault .
 sudo ./scripts/install.sh            # see docs/UPDATE_GUIDE.en.md
+# with CARGO_TARGET_DIR set:
+sudo env HEELONVAULT_BINARY="$CARGO_TARGET_DIR/release/heelonvault" ./scripts/install.sh
 ```
 
 Official packages (AppImage, DMG, MSI, SBOM) are built by CI on every `vX.Y.Z` tag: see

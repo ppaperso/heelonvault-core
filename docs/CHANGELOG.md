@@ -7,6 +7,19 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Non publié]
+
+### Installation système Linux (`scripts/install.sh`)
+
+- Mise à jour transactionnelle : la nouvelle version est préparée dans `/opt/heelonvault.new` puis échangée avec l'installation courante ; toute erreur après l'échange restaure automatiquement la version précédente. Les dépendances système sont installées avant toute modification.
+- Refus d'un binaire périmé (version différente des sources ou plus ancien qu'un fichier source modifié depuis le build) ; le binaire le plus récent entre `target/release` et la racine du dépôt est retenu, `HEELONVAULT_BINARY` permet d'en indiquer un autre (utile avec `CARGO_TARGET_DIR`).
+- Refus de mettre à jour pendant que HeelonVault est ouvert.
+- Sauvegardes cohérentes (`sqlite3 .backup`) avec contrôle d'intégrité, au lieu d'une copie brute du fichier ; `sqlite3` ajouté aux dépendances Ubuntu/Debian.
+- Le profil actuel (Personnel ou Entreprise) est proposé par défaut ; la version installée et la nouvelle sont affichées (fichier `/opt/heelonvault/VERSION`).
+- `heelonvault --version` affiche la version et quitte, sans démarrer l'application.
+
+---
+
 ## [2.0.1] — 2026-10-02
 
 > Version corrective : aucune modification de l'API publique de `heelonvault-core` ni du schéma de base de données.

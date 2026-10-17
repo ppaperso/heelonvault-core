@@ -153,6 +153,8 @@ hv_remove_desktop_integration() {
 hv_remove_install_dir() {
   echo "[INFO] Suppression de $HV_INSTALL_DIR..."
   rm -rf "$HV_INSTALL_DIR"
+  # Restes éventuels d'une mise à jour interrompue (voir install-core.sh).
+  rm -rf "$HV_INSTALL_DIR.new" "$HV_INSTALL_DIR.previous"
 }
 
 hv_remove_purge_data() {

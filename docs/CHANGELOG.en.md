@@ -7,6 +7,19 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased]
+
+### Linux system install (`scripts/install.sh`)
+
+- Transactional update: the new version is prepared in `/opt/heelonvault.new`, then swapped with the current install; any error after the swap automatically restores the previous version. System dependencies are installed before anything is modified.
+- Stale binaries are refused (version different from the sources or older than a source file changed since the build); the most recent binary between `target/release` and the repository root is used, `HEELONVAULT_BINARY` points to another one (useful with `CARGO_TARGET_DIR`).
+- Updating while HeelonVault is open is refused.
+- Consistent backups (`sqlite3 .backup`) with an integrity check, instead of a raw file copy; `sqlite3` added to the Ubuntu/Debian dependencies.
+- The current profile (Personal or Enterprise) is offered as the default; installed and new versions are shown (`/opt/heelonvault/VERSION` file).
+- `heelonvault --version` prints the version and exits without starting the application.
+
+---
+
 ## [2.0.1] — 2026-10-02
 
 > Patch release: no change to the public API of `heelonvault-core` nor to the database schema.
