@@ -15,7 +15,7 @@ HeelonVault is a **local-first** desktop application written in Rust:
 - storage: local SQLite, schema versioned by SQLx migrations applied at startup;
 - encryption: application-side AES-256-GCM, Argon2id key derivation;
 - shipped platforms: Linux x86_64 (AppImage), macOS Apple Silicon (DMG), Windows x64 (MSI);
-- toolchain: Rust 1.98 (pinned by `rust-toolchain.toml`), 2024 edition.
+- toolchain: Rust (pinned by `rust-toolchain.toml`, minimum supported version declared in Cargo manifests), 2024 edition.
 
 No server is required: secrets never leave the machine.
 

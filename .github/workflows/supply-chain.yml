@@ -8,12 +8,14 @@ on:
       - "Cargo.lock"
       - "**/Cargo.toml"
       - "deny.toml"
+      - ".github/workflows/supply-chain.yml"
   pull_request:
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "**/Cargo.toml"
       - "deny.toml"
+      - ".github/workflows/supply-chain.yml"
   schedule:
     # Runs on default branch only — PREMIUM_SSH_KEY available via repo secrets.
     # Daily at 07:00 UTC — catches new advisories published overnight.
@@ -32,14 +34,14 @@ jobs:
     steps:
       # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
       - name: Checkout heelonvault-core
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           path: heelonvault-core
           fetch-depth: 0
 
       # ── 2. Checkout heelonvault-premium (repo privé) ────────────────────────
       - name: Checkout heelonvault-premium
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           repository: ppaperso/heelonvault-premium
           ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
@@ -49,7 +51,7 @@ jobs:
       # ── 3. Cache cargo-deny data ────────────────────────────────────────────
       # Cache the cargo-deny database and git dependencies to speed up subsequent runs
       - name: Cache cargo-deny data
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: |
             ~/.cargo/registry/cache
@@ -59,16 +61,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-deny-
 
-      # ── 4. Exécuter cargo-deny depuis $GITHUB_WORKSPACE ─────────────────────
-      # Le path ../../../heelonvault-premium depuis heelonvault-core/crates/heelonvault-app/
-      # pointe vers $GITHUB_WORKSPACE/heelonvault-premium/ qui est sous le workspace root
-      - name: Run cargo deny check
-        uses: EmbarkStudios/cargo-deny-action@v2.1.1
+      - name: Install supply-chain tools
+        uses: taiki-e/install-action@v2
         with:
-          command: check
-          arguments: --all-features
-          log-level: warn
-          manifest-path: heelonvault-core/Cargo.toml
+          tool: cargo-audit@0.22.2,cargo-deny@0.20.2
+
+      - name: Run cargo deny check
+        working-directory: heelonvault-core
+        run: cargo deny --locked --all-features check --deny warnings
+
+      - name: Audit both lockfiles
+        working-directory: heelonvault-core
+        run: |
+          set -euo pipefail
+          cargo audit --deny warnings
+          cargo audit --file ../heelonvault-premium/Cargo.lock --deny warnings
+
+      - name: Check standalone Premium advisories
+        working-directory: heelonvault-premium
+        run: cargo deny --locked --all-features check advisories --deny warnings
 
   check-sbom:
     name: SBOM freshness gate
@@ -77,7 +88,7 @@ jobs:
     steps:
       # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
       - name: Checkout heelonvault-core
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           path: heelonvault-core
           fetch-depth: 0
@@ -86,7 +97,7 @@ jobs:
       # Requis : le SBOM décrit le binaire réellement livré (core+app+premium
       # assemblés), pas juste heelonvault-core seul — voir generate-sbom.sh.
       - name: Checkout heelonvault-premium
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           repository: ppaperso/heelonvault-premium
           ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
@@ -96,7 +107,7 @@ jobs:
       # ── 3. Cache cargo-cyclonedx (binaire installé, évite une recompilation
       #      à chaque run) ────────────────────────────────────────────────────
       - name: Cache cargo-cyclonedx binary
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cargo/bin/cargo-cyclonedx
           key: ${{ runner.os }}-cargo-cyclonedx-0.5.9

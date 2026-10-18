@@ -37,7 +37,7 @@ jobs:
     steps:
       # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
       - name: Checkout heelonvault-core
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           path: heelonvault-core
           fetch-depth: 0
@@ -47,7 +47,7 @@ jobs:
       # Requis : le SBOM décrit le binaire réellement livré (core+app+premium
       # assemblés), pas juste heelonvault-core seul — voir generate-sbom.sh.
       - name: Checkout heelonvault-premium
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           repository: ppaperso/heelonvault-premium
           ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
@@ -57,7 +57,7 @@ jobs:
       # ── 3. Cache cargo-cyclonedx (binaire installé, évite une recompilation
       #      à chaque run) ────────────────────────────────────────────────────
       - name: Cache cargo-cyclonedx binary
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cargo/bin/cargo-cyclonedx
           key: ${{ runner.os }}-cargo-cyclonedx-0.5.9
@@ -120,7 +120,7 @@ jobs:
       # séparément à l'étape suivante.
       - name: Attest SBOM build provenance
         if: steps.release_meta.outputs.should_publish == 'true'
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@v4.2.2
         with:
           subject-path: heelonvault-core/${{ env.SBOM_NAME }}
 
@@ -129,7 +129,7 @@ jobs:
       # s'applique qu'aux steps `run:`) — ses chemins sont résolus depuis
       # $GITHUB_WORKSPACE, pas heelonvault-core/, d'où le préfixe explicite.
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: heelonvault-sbom
           if-no-files-found: error

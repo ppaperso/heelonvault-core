@@ -1,6 +1,6 @@
 [package]
 name = "heelonvault-core"
-version = "2.0.1"
+version = "2.0.2"
 edition = "2024"
 rust-version = "1.98"
 authors = ["ppaperso <ppaperso@users.noreply.github.com>"]
@@ -25,7 +25,7 @@ sqlx = { version = "0.9", default-features = false, features = [
 aes-gcm       = "0.11"
 argon2        = "0.6"
 base64        = "0.23"
-bip39         = "2.2"
+bip39         = "3.0"
 getrandom     = "0.4"
 hex           = "0.4"
 secrecy       = "0.10"

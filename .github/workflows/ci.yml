@@ -22,7 +22,7 @@ jobs:
     steps:
       # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
       - name: Checkout heelonvault-core
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           path: heelonvault-core
           fetch-depth: 0
@@ -31,7 +31,7 @@ jobs:
       # default = ["premium"] dans heelonvault-app : même la build "communautaire"
       # compile le code premium (licence vérifiée au runtime), donc requis ici aussi.
       - name: Checkout heelonvault-premium
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           repository: ppaperso/heelonvault-premium
           ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
@@ -56,7 +56,7 @@ jobs:
             libsqlite3-dev
           echo "[OK] System dependencies installed"
 
-      # ── 4. Toolchain Rust — honore le pin rust-toolchain.toml (1.98.0) ──────
+      # ── 4. Toolchain Rust — honore le pin rust-toolchain.toml ───────────────
       - name: Setup Rust toolchain
         run: |
           set -euo pipefail
@@ -65,7 +65,7 @@ jobs:
 
       # ── 5. Cache Cargo ──────────────────────────────────────────────────────
       - name: Cache Cargo registry and build
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -83,7 +83,7 @@ jobs:
 
       # ── 7. Clippy (zéro warning, -D warnings vient aussi de .cargo/config.toml) ─
       - name: cargo clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
       # ── 8. Build check (workspace complet, toutes features) ────────────────
       - name: cargo check --workspace
@@ -91,7 +91,26 @@ jobs:
 
       # ── 9. Tests ─────────────────────────────────────────────────────────────
       - name: cargo test --workspace
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --all-features --locked
+
+      - name: Check standalone Premium
+        working-directory: heelonvault-premium
+        run: |
+          set -euo pipefail
+          cargo fmt --all -- --check
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          cargo check --locked --all-features
+          cargo test --locked --all-targets --all-features
+
+      - name: Check minimum supported Rust
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.98.0 --profile minimal
+          cargo +1.98.0 check --locked --workspace --all-targets --all-features
+
+      - name: Check standalone Premium minimum supported Rust
+        working-directory: heelonvault-premium
+        run: cargo +1.98.0 check --locked --all-targets --all-features
 
       # ── 10. Garde-fou semver — l'API publique de heelonvault-core (publiée sur
       #       crates.io) est comparée à la dernière version publiée : une rupture
@@ -99,7 +118,7 @@ jobs:
       - name: Install cargo-semver-checks
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-semver-checks@0.50.0
+          tool: cargo-semver-checks@0.51.0
 
       - name: cargo semver-checks (heelonvault-core)
         run: cargo semver-checks -p heelonvault-core

@@ -7,7 +7,7 @@ Building, running and testing HeelonVault from source. For contribution rules, s
 
 ## Prerequisites
 
-- **Rust**: install [rustup](https://rustup.rs/); the `1.98.0` toolchain pinned by
+- **Rust**: install [rustup](https://rustup.rs/); the `1.99.1` toolchain pinned by
   `rust-toolchain.toml` is picked up automatically.
 - **GTK4 and libadwaita development files**:
   - Ubuntu / Debian: `sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev`
@@ -19,8 +19,14 @@ Building, running and testing HeelonVault from source. For contribution rules, s
   at the same sibling directory.
 
 ```bash
-rustc --version   # 1.98.0
+rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+rustc --version   # 1.99.1
 ```
+
+The minimum supported Rust version remains 1.98 (`rust-version` in the manifests).
+CI also checks compilation under `1.98.0` with `--locked`. The pinned toolchain is
+used for development and releases; `rustup update stable` alone does not replace
+it. There is no need to change the global default compiler.
 
 ## Run in development
 

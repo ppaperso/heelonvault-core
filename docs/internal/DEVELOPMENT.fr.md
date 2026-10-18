@@ -8,7 +8,7 @@ voir [CONTRIBUTING.fr.md](../../CONTRIBUTING.fr.md) ; pour le fonctionnement int
 
 ## Prérequis
 
-- **Rust** : installez [rustup](https://rustup.rs/) ; la toolchain `1.98.0` épinglée par
+- **Rust** : installez [rustup](https://rustup.rs/) ; la toolchain `1.99.1` épinglée par
   `rust-toolchain.toml` est sélectionnée automatiquement.
 - **Fichiers de développement GTK4 et libadwaita** :
   - Ubuntu / Debian : `sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev`
@@ -20,8 +20,15 @@ voir [CONTRIBUTING.fr.md](../../CONTRIBUTING.fr.md) ; pour le fonctionnement int
   racine pointent vers ce même dossier.
 
 ```bash
-rustc --version   # 1.98.0
+rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+rustc --version   # 1.99.1
 ```
+
+La version minimale supportée reste Rust 1.98 (`rust-version` dans les manifestes).
+La CI vérifie aussi la compilation sous `1.98.0` avec `--locked`. La toolchain
+épinglée sert au développement et aux livraisons ; `rustup update stable` seul
+ne la remplace pas. Aucune modification du compilateur global par défaut n'est
+nécessaire.
 
 ## Lancer en développement
 

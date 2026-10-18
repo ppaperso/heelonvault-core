@@ -1,6 +1,6 @@
 [package]
 name = "heelonvault-app"
-version = "2.0.1"
+version = "2.0.2"
 edition = "2024"
 rust-version = "1.98"
 authors = ["ppaperso <ppaperso@users.noreply.github.com>"]
@@ -83,4 +83,3 @@ glib-build-tools = "0.22"
 # Embarque assets/icons/Heelonys.ico dans heelonvault.exe (icône Explorer,
 # barre des tâches, raccourci) — no-op sur les autres OS, voir build.rs.
 embed-resource = "3.0.11"
-
