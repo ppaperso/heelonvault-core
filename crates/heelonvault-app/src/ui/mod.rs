@@ -1,8 +1,9 @@
 pub mod dialogs;
-#[cfg(feature = "premium")]
+pub mod entitlements;
 pub mod license_badge;
 pub mod messages;
 pub mod sensitive_clipboard;
+pub mod theme;
 pub mod view_preferences;
 pub mod widgets;
 pub mod window_sizing;

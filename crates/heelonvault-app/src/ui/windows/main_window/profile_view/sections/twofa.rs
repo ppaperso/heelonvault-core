@@ -10,7 +10,6 @@ use crate::ui::windows::main_window::MainWindow;
 
 #[derive(Clone)]
 pub struct TwoFaSection {
-    pub group: adw::PreferencesGroup,
     pub expander: adw::ExpanderRow,
     pub state_badge: gtk4::Label,
     pub stack: gtk4::Stack,
@@ -36,10 +35,12 @@ pub struct TwoFaSection {
 }
 
 pub fn build() -> TwoFaSection {
-    let twofa_group = adw::PreferencesGroup::new();
-    twofa_group.set_hexpand(true);
     let twofa_expander = adw::ExpanderRow::new();
     twofa_expander.set_title(heelonvault_core::tr!("profile-section-2fa-title").as_str());
+    twofa_expander.set_subtitle(heelonvault_core::tr!("profile-section-2fa-subtitle").as_str());
+    let twofa_icon = gtk4::Image::from_icon_name("hv-shield-symbolic");
+    twofa_icon.add_css_class("profile-row-icon");
+    twofa_expander.add_prefix(&twofa_icon);
     twofa_expander.set_expanded(false);
     let twofa_badge_text = messages::twofa_badge_disabled();
     let twofa_state_badge = gtk4::Label::new(Some(twofa_badge_text.as_str()));
@@ -162,7 +163,8 @@ pub fn build() -> TwoFaSection {
     twofa_disable_confirm_row.add_css_class("profile-actions-row");
     let twofa_disable_confirm_button =
         gtk4::Button::with_label(heelonvault_core::tr!("profile-2fa-disable-confirm").as_str());
-    twofa_disable_confirm_button.add_css_class("suggested-action");
+    // Turning a protection off is destructive: never styled as the primary action.
+    twofa_disable_confirm_button.add_css_class("destructive-action");
     twofa_disable_confirm_button.add_css_class("profile-action-btn");
     let twofa_disable_cancel_button =
         gtk4::Button::with_label(heelonvault_core::tr!("profile-2fa-cancel").as_str());
@@ -201,10 +203,8 @@ pub fn build() -> TwoFaSection {
     twofa_box.append(&twofa_stack);
     twofa_box.append(&twofa_status_label);
     twofa_expander.add_row(&twofa_box);
-    twofa_group.add(&twofa_expander);
 
     TwoFaSection {
-        group: twofa_group,
         expander: twofa_expander,
         state_badge: twofa_state_badge,
         stack: twofa_stack,
@@ -234,6 +234,8 @@ impl TwoFaSection {
     pub fn refresh_i18n(&self) {
         self.expander
             .set_title(heelonvault_core::tr!("profile-section-2fa-title").as_str());
+        self.expander
+            .set_subtitle(heelonvault_core::tr!("profile-section-2fa-subtitle").as_str());
         self.disabled_copy
             .set_text(heelonvault_core::tr!("profile-2fa-disabled-copy").as_str());
         self.activate_button

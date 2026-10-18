@@ -269,7 +269,7 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
                 .build();
             icon_box.add_css_class("heelonys-seal-emblem");
 
-            let shield_icon = gtk4::Image::from_icon_name("security-high-symbolic");
+            let shield_icon = gtk4::Image::from_icon_name("hv-shield-symbolic");
             shield_icon.add_css_class("heelonys-seal-shield");
             let check_dot = gtk4::Label::new(Some("•"));
             check_dot.add_css_class("heelonys-seal-dot");

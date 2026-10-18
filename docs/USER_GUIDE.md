@@ -113,6 +113,47 @@ Rôle de l'écran :
 
 *Vue principale du coffre avec recherche, catégories, audit de sécurité et zone centrale.*
 
+### Centre de sécurité
+
+Sélectionnez **Centre de sécurité** dans la barre latérale pour analyser localement tous
+les coffres accessibles. La synthèse indique les éléments concernés, les coffres analysés,
+les coffres indisponibles et les mots de passe illisibles. Une analyse incomplète n'est
+jamais présentée comme un bilan sain.
+
+Les cartes filtrent les mots de passe réutilisés, faibles, l'expiration (dont les 30 prochains
+jours) et les liens à examiner. Un sélecteur restreint les résultats à un coffre. Les mots
+de passe communs sont regroupés ; dépliez un élément puis **Ouvrir l'élément** pour le corriger.
+L'affichage progresse par lots de 50. Le retour de l'éditeur actualise l'analyse.
+
+Changez le mot de passe sur le service concerné avant de mettre à jour le coffre : modifier
+HeelonVault seul ne change pas le compte distant. Les contrôles de robustesse/réutilisation
+concernent les mots de passe, pas les tokens API, clés SSH ou documents. L'absence de constat
+ne prouve pas l'absence de compromission.
+
+### Indicateurs URL et contrôles en ligne optionnels
+
+L'éditeur vérifie immédiatement le format, HTTP/HTTPS, les identifiants intégrés et les hôtes
+internes ou internationalisés, sans réseau. HTTPS demandé ne signifie **pas** certificat
+vérifié. Les adresses internes restent enregistrables ; le contrôle en ligne est facultatif.
+
+**Vérifier DNS / TLS…** demande l'autorisation pour une seule connexion. Le dialogue affiche
+l'origine technique contactée. Le résolveur DNS et le site peuvent observer le domaine et
+votre adresse IP. Le contrôle n'envoie ni chemin, paramètres, fragment, identifiants, mot de
+passe ou cookies, et ne charge aucune page. Seules les destinations publiques sont admises,
+avec validation du certificat par les racines de confiance embarquées. Les autorités privées
+d'entreprise ne sont pas prises en charge par ce contrôle.
+
+- Vert : TLS validé pour cet hôte à l'heure affichée, sans garantie de fiabilité du site.
+- Orange : attention requise, par exemple HTTP ou cible interne/internationalisée.
+- Rouge : URL invalide, identifiants intégrés ou échec de validation TLS.
+- Neutre : non vérifié, service injoignable, DNS indisponible ou délai dépassé ; aucune
+  conclusion de malveillance.
+
+La réputation/les listes de blocage et l'existence de la page exacte ne sont **pas vérifiées**.
+L'enregistrement fonctionne hors ligne. Modifier l'URL ou quitter l'éditeur invalide/annule
+le contrôle. Une résolution DNS système déjà engagée peut se terminer en arrière-plan,
+sans connexion ultérieure après annulation.
+
 ## 5. Écran 4 - Création d'un secret
 
 Pour ajouter un secret :
@@ -254,21 +295,25 @@ Renforcer la pertinence de la recherche avec une organisation cohérente :
 
 ## 8. Écran 7 - Profil et sécurité
 
-Depuis le profil, l'utilisateur peut consulter les réglages liés à la sécurité et à la session, notamment :
+La page se lit de haut en bas, une ligne par réglage :
 
-- l'activation TOTP ;
-- la politique d'auto-verrouillage ;
-- le changement de mot de passe maître avec rotation des enveloppes de clés de coffre ;
-- l'activation du code PIN de déverrouillage rapide ;
-- certaines préférences d'affichage selon le rôle et la configuration.
+- **En-tête** : nom, identifiant, rôle, édition (Community ou Professional) et **Protection du compte** — double authentification, code PIN et verrouillage automatique, avec ce qu'il reste à activer ;
+- **Compte** : nom affiché et adresse e-mail. L'identifiant de connexion n'est pas modifiable ; le mot de passe actuel n'est demandé que si l'adresse e-mail change. « Enregistrer » ne s'active qu'en cas de modification ;
+- **Connexion et protection** : mot de passe maître, double authentification (TOTP) et code PIN. Chaque ligne se déplie pour agir ;
+- **Session** : délai de verrouillage automatique (« Jamais » demande une confirmation avant d'être appliqué) et affichage du mot de passe actuel dans l'éditeur ;
+- **Préférences** : langue de l'interface, appliquée immédiatement ;
+- **Données** : sauvegarde chiffrée `.hvb` (administrateurs) et import CSV ;
+- **Administration** : gestion des utilisateurs et des équipes avec une licence Professional. En édition Community, un administrateur voit uniquement ce que la licence Professional ajoute.
+
+Le nouveau mot de passe maître doit contenir au moins 16 caractères ; il est enregistré exactement comme saisi, espaces compris. Après le changement, un code PIN actif doit être reconfiguré.
 
 ### Code PIN de déverrouillage rapide
 
 HeelonVault propose un déverrouillage rapide par code PIN pour éviter de ressaisir le mot de passe maître après chaque verrouillage automatique.
 
-**Activation** (section Profil → Sécurité de session) :
+**Activation** (Profil → Connexion et protection → Code PIN de déverrouillage) :
 
-1. Cliquer sur « Activer le code PIN ».
+1. Cliquer sur « Configurer… ».
 2. Saisir un code PIN de 4 à 8 chiffres.
 3. Confirmer le code PIN.
 4. Le PIN est actif immédiatement pour la session en cours.
@@ -283,7 +328,7 @@ HeelonVault propose un déverrouillage rapide par code PIN pour éviter de ressa
 
 **Désactivation** :
 
-- Depuis le profil, cliquer sur « Désactiver le code PIN » pour supprimer le cache immédiatement.
+- Depuis la même ligne, « Configurer… » permet de désactiver le code PIN et de supprimer le cache immédiatement.
 
 **Indicateur de temps de session dans la barre de titre** :
 
@@ -339,7 +384,7 @@ Cet écran correspond à l'espace de gestion de la confiance utilisateur. C'est 
 
 ![Écran 7 - Profil et sécurité](images/user-guide/hv_userprofil.png)
 
-*Paramètres de profil, sécurité de session, TOTP, import/export et préférences.*
+*En-tête de protection du compte, puis réglages par thème : compte, connexion et protection, session, préférences, données et administration.*
 
 ## 9. Écran 8 - Import et export
 

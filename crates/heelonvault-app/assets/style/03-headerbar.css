@@ -1,14 +1,14 @@
 /* Headerbar chrome, main window title bar, header badges, PIN badge, header seal */
 
     headerbar {
-        background: linear-gradient(135deg, #07393A, #0A5F5C);
-        color: #FFFFFF;
+        background: linear-gradient(135deg, @hv_brand_900, @hv_brand_800);
+        color: @hv_on_brand;
     }
 
     headerbar label,
     headerbar image,
     headerbar button {
-        color: #FFFFFF;
+        color: @hv_on_brand;
     }
 
     headerbar .title-1,
@@ -18,20 +18,20 @@
     headerbar .heading,
     headerbar .caption,
     headerbar .dim-label {
-        color: #FFFFFF;
+        color: @hv_on_brand;
     }
 
     headerbar .accent {
         background: rgba(255, 255, 255, 0.18);
-        color: #FFFFFF;
+        color: @hv_on_brand;
     }
 
     headerbar .warning {
-        color: #A4DFCF;
+        color: @hv_brand_200;
     }
 
     .header-date-label {
-        color: #FFFFFF;
+        color: @hv_on_brand;
         font-size: 0.96rem;
         font-weight: 640;
         letter-spacing: 0.04em;
@@ -41,7 +41,7 @@
     headerbar label.accent,
     headerbar .accent {
         background: rgba(255, 255, 255, 0.22);
-        color: #FFFFFF;
+        color: @hv_on_brand;
         border: 1px solid rgba(255, 255, 255, 0.35);
         border-radius: 999px;
         padding: 3px 10px;
@@ -50,7 +50,7 @@
     headerbar label.warning,
     headerbar .warning {
         background: rgba(255, 255, 255, 0.16);
-        color: #FFFFFF;
+        color: @hv_on_brand;
         border: 1px solid rgba(255, 255, 255, 0.28);
         border-radius: 999px;
         padding: 3px 10px;
@@ -75,14 +75,14 @@
     }
 
     headerbar button.header-pin-badge:hover label {
-        box-shadow: 0 2px 6px rgba(7, 57, 58, 0.20);
+        box-shadow: 0 2px 6px alpha(@hv_brand_900, 0.20);
         filter: brightness(0.95);
     }
 
     /* Override pill colors for the dark header background */
     headerbar button.header-pin-badge label.status-role-user {
         background: rgba(255, 255, 255, 0.20);
-        color: #ffffff;
+        color: @hv_on_brand;
         border: 1px solid rgba(255, 255, 255, 0.35);
     }
 
@@ -142,18 +142,18 @@
     }
 
 .main-window {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), #F3F6F3 42%);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), @hv_canvas 42%);
 }
 
 headerbar.main-headerbar {
-    background: linear-gradient(120deg, #07393A, #0A5F5C);
-    color: #FFFFFF;
+    background: linear-gradient(120deg, @hv_brand_900, @hv_brand_800);
+    color: @hv_on_brand;
     border-radius: 16px;
     padding: 4px 6px;
 }
 
 .main-title {
-    color: #FFFFFF;
+    color: @hv_on_brand;
     font-weight: 800;
 }
 
@@ -165,7 +165,7 @@ headerbar.main-headerbar {
     font-size: 0.66rem;
     margin-left: 2px;
     min-height: 20px;
-    box-shadow: 0 4px 12px rgba(7, 57, 58, 0.22);
+    box-shadow: 0 4px 12px alpha(@hv_brand_900, 0.22);
 }
 
 button.main-add-button {
@@ -175,8 +175,8 @@ button.main-add-button {
 
 entry.main-search-entry,
 searchentry.main-search-entry {
-    border-radius: 14px;
-    border: 1px solid rgba(164, 223, 207, 0.95);
+    border-radius: 12px;
+    border: 1px solid alpha(@hv_brand_200, 0.95);
     background: rgba(255, 255, 255, 0.95);
     padding: 10px 12px;
 }
@@ -189,18 +189,18 @@ button.header-clipboard-indicator {
     min-height: 34px;
     padding: 2px;
     border-radius: 999px;
-    color: #5A7072;
+    color: @hv_text_muted;
 }
 
 button.header-clipboard-indicator:hover {
-    background: rgba(19, 161, 161, 0.10);
+    background: alpha(@hv_brand_500, 0.10);
 }
 
 button.header-clipboard-indicator.exposed {
-    color: #B26A00;
-    background: rgba(217, 142, 4, 0.12);
+    color: @hv_warning;
+    background: alpha(@hv_warning_bright, 0.12);
 }
 
 button.header-clipboard-indicator.exposed:hover {
-    background: rgba(217, 142, 4, 0.20);
+    background: alpha(@hv_warning_bright, 0.20);
 }

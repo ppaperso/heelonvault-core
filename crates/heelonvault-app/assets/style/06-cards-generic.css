@@ -1,35 +1,35 @@
 /* Generic .card component, card sub-elements (icon badge, title, hint, actions, tag pills), Heelonys seal component */
 
     .card {
-        background: linear-gradient(135deg, #FFFFFF, #F3F6F3);
-        border: 1px solid #A4DFCF;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(7, 57, 58, 0.08);
+        background: linear-gradient(135deg, @hv_surface, @hv_canvas);
+        border: 1px solid alpha(@hv_brand_200, 0.85);
+        border-radius: 16px;
+        box-shadow: 0 1px 2px @hv_shadow_soft, 0 10px 28px @hv_shadow_key;
     }
 
     /* Badge icône */
     .card-icon-badge {
-        border-radius: 10px;
+        border-radius: 8px;
         padding: 6px;
         min-width: 32px;
         min-height: 32px;
     }
 
-    .card-icon-badge-success { background: rgba(31, 134, 120, 0.12); }
+    .card-icon-badge-success { background: alpha(@hv_brand_green, 0.12); }
     .card-icon-badge-warning { background: rgba(230, 184, 0,   0.12); }
-    .card-icon-badge-error   { background: rgba(231,  76, 60,  0.12); }
+    .card-icon-badge-error   { background: alpha(@hv_danger_bright, 0.12); }
 
     /* Titre de la card */
     .card-title {
         font-weight: 650;
         font-size: 0.95rem;
-        color: #07393A;
+        color: @hv_brand_900;
     }
 
     /* Catégorie */
     .card-category {
         font-size: 0.73rem;
-        color: #6B9EA3;
+        color: @hv_text_subtle;
         font-weight: 500;
     }
 
@@ -37,13 +37,13 @@
     .card-hint {
         font-family: "Space Mono", "JetBrains Mono", monospace;
         font-size: 0.72rem;
-        color: #8CACB0;
+        color: @hv_text_subtle;
         font-weight: 400;
     }
 
     /* Séparateur fin */
     .card-sep {
-        background: rgba(164, 223, 207, 0.5);
+        background: alpha(@hv_brand_200, 0.5);
         min-height: 1px;
         margin-top: 2px;
         margin-bottom: 2px;
@@ -86,29 +86,29 @@
 
     .card-alert-warning {
         background: rgba(230, 184, 0, 0.15);
-        color: #9A7A00;
+        color: @hv_warning_strong;
         border: 1px solid rgba(230, 184, 0, 0.4);
     }
 
     .card-alert-error {
-        background: rgba(231, 76, 60, 0.12);
-        color: #C0392B;
-        border: 1px solid rgba(231, 76, 60, 0.35);
+        background: alpha(@hv_danger_bright, 0.12);
+        color: @hv_danger;
+        border: 1px solid alpha(@hv_danger_bright, 0.35);
     }
 
     .card-usage-badge {
-        background: rgba(19, 161, 161, 0.14);
-        color: #0A5F5C;
-        border: 1px solid rgba(19, 161, 161, 0.32);
+        background: alpha(@hv_brand_500, 0.14);
+        color: @hv_brand_800;
+        border: 1px solid alpha(@hv_brand_500, 0.32);
     }
 
     /* Tag pills */
     .card-tag-pill {
         font-size: 0.65rem;
         font-weight: 600;
-        color: #0A5F5C;
-        background: rgba(19, 161, 161, 0.10);
-        border: 1px solid rgba(19, 161, 161, 0.28);
+        color: @hv_brand_800;
+        background: alpha(@hv_brand_500, 0.10);
+        border: 1px solid alpha(@hv_brand_500, 0.28);
         border-radius: 999px;
         padding: 1px 7px;
     }
@@ -116,11 +116,11 @@
     .card-tag-more {
         font-size: 0.63rem;
         font-weight: 600;
-        color: #6B9EA3;
+        color: @hv_text_subtle;
     }
 
 .heelonys-seal {
-    border-radius: 10px;
+    border-radius: 8px;
     border: 1px solid rgba(182, 141, 76, 0.88);
     background-image:
         linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.00) 28%),
@@ -146,12 +146,12 @@
 }
 
 .heelonys-seal-login {
-    border-radius: 11px;
+    border-radius: 12px;
     padding: 6px 10px;
 }
 
 .heelonys-seal-compact {
-    border-radius: 9px;
+    border-radius: 8px;
     padding: 4px 8px;
 }
 

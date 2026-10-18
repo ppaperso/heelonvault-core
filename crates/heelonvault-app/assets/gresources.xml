@@ -8,6 +8,37 @@
     <file>images/cps_card.png</file>
     <file>images/nis2-rgpd.png</file>
     <file>style.css</file>
+    <!-- Bundled symbolic icons: same look on every platform, whatever the system theme. -->
+    <file alias="scalable/actions/hv-add-symbolic.svg">icons/symbolic/hv-add-symbolic.svg</file>
+    <file alias="scalable/actions/hv-check-symbolic.svg">icons/symbolic/hv-check-symbolic.svg</file>
+    <file alias="scalable/actions/hv-clock-symbolic.svg">icons/symbolic/hv-clock-symbolic.svg</file>
+    <file alias="scalable/actions/hv-copy-symbolic.svg">icons/symbolic/hv-copy-symbolic.svg</file>
+    <file alias="scalable/actions/hv-globe-symbolic.svg">icons/symbolic/hv-globe-symbolic.svg</file>
+    <file alias="scalable/actions/hv-grid-symbolic.svg">icons/symbolic/hv-grid-symbolic.svg</file>
+    <file alias="scalable/actions/hv-info-symbolic.svg">icons/symbolic/hv-info-symbolic.svg</file>
+    <file alias="scalable/actions/hv-key-symbolic.svg">icons/symbolic/hv-key-symbolic.svg</file>
+    <file alias="scalable/actions/hv-link-symbolic.svg">icons/symbolic/hv-link-symbolic.svg</file>
+    <file alias="scalable/actions/hv-list-symbolic.svg">icons/symbolic/hv-list-symbolic.svg</file>
+    <file alias="scalable/actions/hv-lock-symbolic.svg">icons/symbolic/hv-lock-symbolic.svg</file>
+    <file alias="scalable/actions/hv-reuse-symbolic.svg">icons/symbolic/hv-reuse-symbolic.svg</file>
+    <file alias="scalable/actions/hv-save-symbolic.svg">icons/symbolic/hv-save-symbolic.svg</file>
+    <file alias="scalable/actions/hv-search-symbolic.svg">icons/symbolic/hv-search-symbolic.svg</file>
+    <file alias="scalable/actions/hv-shared-symbolic.svg">icons/symbolic/hv-shared-symbolic.svg</file>
+    <file alias="scalable/actions/hv-shield-ok-symbolic.svg">icons/symbolic/hv-shield-ok-symbolic.svg</file>
+    <file alias="scalable/actions/hv-shield-partial-symbolic.svg">icons/symbolic/hv-shield-partial-symbolic.svg</file>
+    <file alias="scalable/actions/hv-shield-symbolic.svg">icons/symbolic/hv-shield-symbolic.svg</file>
+    <file alias="scalable/actions/hv-shield-warning-symbolic.svg">icons/symbolic/hv-shield-warning-symbolic.svg</file>
+    <file alias="scalable/actions/hv-sparkle-symbolic.svg">icons/symbolic/hv-sparkle-symbolic.svg</file>
+    <file alias="scalable/actions/hv-team-symbolic.svg">icons/symbolic/hv-team-symbolic.svg</file>
+    <file alias="scalable/actions/hv-trash-symbolic.svg">icons/symbolic/hv-trash-symbolic.svg</file>
+    <file alias="scalable/actions/hv-user-symbolic.svg">icons/symbolic/hv-user-symbolic.svg</file>
+    <file alias="scalable/actions/hv-vault-symbolic.svg">icons/symbolic/hv-vault-symbolic.svg</file>
+    <file alias="scalable/actions/hv-warning-symbolic.svg">icons/symbolic/hv-warning-symbolic.svg</file>
+    <file alias="scalable/actions/hv-code-symbolic.svg">icons/symbolic/hv-code-symbolic.svg</file>
+    <file alias="scalable/actions/hv-terminal-symbolic.svg">icons/symbolic/hv-terminal-symbolic.svg</file>
+    <file alias="scalable/actions/hv-document-symbolic.svg">icons/symbolic/hv-document-symbolic.svg</file>
+    <file>style/accent-modern.css</file>
+    <file>style/00-tokens.css</file>
     <file>style/01-base.css</file>
     <file>style/02-buttons.css</file>
     <file>style/03-headerbar.css</file>
@@ -24,5 +55,6 @@
     <file>style/14-pin-unlock.css</file>
     <file>style/15-trust-console.css</file>
     <file>style/16-panic.css</file>
+    <file>style/17-security-center.css</file>
   </gresource>
 </gresources>

@@ -10,27 +10,27 @@
 
 .login-hero,
 .login-card {
-    border-radius: 20px;
-    border: 1px solid rgba(164, 223, 207, 0.95);
-    box-shadow: 0 20px 40px rgba(7, 57, 58, 0.08);
+    border-radius: 16px;
+    border: 1px solid alpha(@hv_brand_200, 0.95);
+    box-shadow: 0 20px 40px alpha(@hv_brand_900, 0.08);
 }
 
 .login-card {
-    background: linear-gradient(135deg, #FFFFFF, #F3F6F3);
+    background: linear-gradient(135deg, @hv_surface, @hv_canvas);
 }
 
 .login-hero {
-    background: linear-gradient(135deg, #07393A, #0A5F5C);
-    color: #FFFFFF;
+    background: linear-gradient(135deg, @hv_brand_900, @hv_brand_800);
+    color: @hv_on_brand;
 }
 
 .login-hero-icon {
-    color: #FFFFFF;
+    color: @hv_on_brand;
     opacity: 0.95;
 }
 
 .login-hero-title {
-    color: #FFFFFF;
+    color: @hv_on_brand;
 }
 
 .login-hero-copy,
@@ -49,16 +49,16 @@
 }
 
 .login-license-badge {
-    background: linear-gradient(120deg, #A4DFCF, #57B9B1);
+    background: linear-gradient(120deg, @hv_brand_200, @hv_brand_300);
     border: 1px solid rgba(255, 255, 255, 0.42);
-    color: #07393A;
+    color: @hv_brand_900;
     font-weight: 800;
-    box-shadow: 0 8px 18px rgba(7, 57, 58, 0.26);
+    box-shadow: 0 8px 18px alpha(@hv_brand_900, 0.26);
 }
 
 .login-badge {
     background: rgba(255, 255, 255, 0.14);
-    color: #A4DFCF;
+    color: @hv_brand_200;
     border-radius: 999px;
     padding: 6px 14px;
     font-weight: 700;
@@ -81,20 +81,20 @@
 }
 
 frame.login-cps-teaser {
-    border: 1px solid rgba(164, 223, 207, 0.85);
+    border: 1px solid alpha(@hv_brand_200, 0.85);
     border-radius: 12px;
-    background: rgba(164, 223, 207, 0.14);
+    background: alpha(@hv_brand_200, 0.14);
     opacity: 1.0;
 }
 
 .login-cps-image {
-    border-radius: 6px;
+    border-radius: 8px;
 }
 
 .login-cps-badge {
-    background: rgba(19, 161, 161, 0.18);
-    border: 1px solid rgba(19, 161, 161, 0.45);
-    color: #07393A;
+    background: alpha(@hv_brand_500, 0.18);
+    border: 1px solid alpha(@hv_brand_500, 0.45);
+    color: @hv_brand_900;
     border-radius: 999px;
     padding: 3px 10px;
     font-size: 0.72rem;
@@ -104,12 +104,12 @@ frame.login-cps-teaser {
 .login-cps-title {
     font-size: 0.84rem;
     font-weight: 700;
-    color: #07393A;
+    color: @hv_brand_900;
 }
 
 .login-cps-copy {
     font-size: 0.76rem;
-    color: #4A6572;
+    color: @hv_text_muted;
 }
 
 .login-field-label {
@@ -117,7 +117,7 @@ frame.login-cps-teaser {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #07393A;
+    color: @hv_brand_900;
 }
 
 .login-field-label-caps {
@@ -129,19 +129,19 @@ button.login-lang-flag {
     min-height: 30px;
     padding: 4px 8px;
     border-radius: 999px;
-    border: 1px solid rgba(7, 57, 58, 0.24);
+    border: 1px solid alpha(@hv_brand_900, 0.24);
     background: rgba(255, 255, 255, 0.78);
     font-size: 1.0rem;
 }
 
 button.login-lang-flag:hover {
-    background: rgba(164, 223, 207, 0.22);
+    background: alpha(@hv_brand_200, 0.22);
 }
 
 button.login-lang-flag:checked {
-    border-color: #13A1A1;
-    background: rgba(19, 161, 161, 0.18);
-    box-shadow: 0 0 0 1px rgba(19, 161, 161, 0.22);
+    border-color: @hv_brand_500;
+    background: alpha(@hv_brand_500, 0.18);
+    box-shadow: 0 0 0 1px alpha(@hv_brand_500, 0.22);
 }
 
 .login-support-copy,
@@ -153,16 +153,16 @@ entry.login-entry,
 passwordentry.login-entry {
     background: rgba(255, 255, 255, 0.92);
     border-radius: 16px;
-    border: 1px solid rgba(164, 223, 207, 0.95);
+    border: 1px solid alpha(@hv_brand_200, 0.95);
     padding: 12px 14px;
-    color: #2C3E50;
+    color: @hv_text;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 entry.login-entry:focus,
 passwordentry.login-entry:focus {
-    border-color: #13A1A1;
-    box-shadow: 0 0 0 2px rgba(19, 161, 161, 0.18);
+    border-color: @hv_brand_500;
+    box-shadow: 0 0 0 2px alpha(@hv_brand_500, 0.18);
 }
 
 entry.login-totp-entry {
@@ -172,7 +172,7 @@ entry.login-totp-entry {
 }
 
 .login-totp-icon {
-    color: #13A1A1;
+    color: @hv_brand_500;
     margin-top: 8px;
     margin-bottom: 4px;
 }
@@ -186,38 +186,38 @@ button.secondary-pill {
 }
 
 button.primary-pill {
-    background: linear-gradient(120deg, #13A1A1, #1F8678);
-    color: #FFFFFF;
-    box-shadow: 0 8px 20px rgba(19, 161, 161, 0.28);
+    background: linear-gradient(120deg, @hv_brand_500, @hv_brand_green);
+    color: @hv_on_brand;
+    box-shadow: 0 8px 20px alpha(@hv_brand_500, 0.28);
 }
 
 button.primary-pill:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 26px rgba(19, 161, 161, 0.38);
+    box-shadow: 0 12px 26px alpha(@hv_brand_500, 0.38);
 }
 
 .login-sec-dot {
-    color: #13A1A1;
+    color: @hv_brand_500;
     font-weight: 900;
 }
 
 button.secondary-pill {
     background: transparent;
-    color: #07393A;
-    border: 1px solid rgba(7, 57, 58, 0.28);
+    color: @hv_brand_900;
+    border: 1px solid alpha(@hv_brand_900, 0.28);
 }
 
 button.secondary-pill:hover {
-    background: rgba(164, 223, 207, 0.22);
+    background: alpha(@hv_brand_200, 0.22);
     transform: translateY(-2px);
 }
 
 label.login-error {
-    color: #E74C3C;
+    color: @hv_danger_bright;
     font-weight: 600;
 }
 
 label.login-error.login-success {
-    color: #1E8E5A;
+    color: @hv_success;
 }
 

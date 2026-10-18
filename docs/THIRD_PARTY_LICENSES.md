@@ -236,9 +236,10 @@ equivalent). The full license texts are available via
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 |
 | hashlink | 0.11.1 | MIT OR Apache-2.0 |
 | heck | 0.5.0 | MIT OR Apache-2.0 |
-| heelonvault-app | 2.0.2 | Apache-2.0 |
-| heelonvault-core | 2.0.2 | Apache-2.0 |
-| heelonvault-premium | 2.0.2 | LicenseRef-Heelonys-Proprietary |
+| heelonvault-app | 2.1.0 | Apache-2.0 |
+| heelonvault-core | 2.1.0 | Apache-2.0 |
+| heelonvault-premium | 2.1.0 | LicenseRef-Heelonys-Proprietary |
+| heelonvault-url-check | 2.1.0 | Apache-2.0 |
 | hex | 0.4.3 | MIT OR Apache-2.0 |
 | hex-conservative | 0.2.3 | CC0-1.0 |
 | hkdf | 0.13.0 | MIT OR Apache-2.0 |
@@ -533,8 +534,8 @@ equivalent). The full license texts are available via
 
 | License | Count | Notes |
 | ------- | ----- | ----- |
-| MIT OR Apache-2.0 (and variants) | ~227 | Fully permissive |
-| MIT only | ~113 | Fully permissive |
+| MIT OR Apache-2.0 (and variants) | ~228 | Fully permissive |
+| MIT only | ~114 | Fully permissive |
 | Unicode-3.0 | 20 | Permissive (Unicode data) |
 | BSD-2-Clause / BSD-3-Clause | 7 | Permissive |
 | Apache-2.0 WITH LLVM-exception | 4 | Permissive (LLVM exception) |

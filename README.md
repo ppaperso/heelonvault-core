@@ -1,4 +1,4 @@
-# HeelonVault 2.0.2
+# HeelonVault 2.1.0
 
 Langue : FR | [EN](README.en.md)
 
@@ -49,6 +49,8 @@ Vérification, installation pas à pas et premier lancement :
 | **Robustesse** | Évaluation `zxcvbn` en temps réel de chaque mot de passe |
 | **Marqueur santé** | Champ « Accès données de santé » pour isoler les secrets liés à des données médicales |
 | **Journalisation** | Journaux JSON à rotation quotidienne, sans aucune valeur secrète |
+| **Centre de sécurité** | Diagnostics locaux multi-coffres : mots de passe faibles/réutilisés, expiration, liens à examiner, couverture explicite et correction guidée |
+| **Contrôle des URL** | Contrôles locaux immédiats ; connexion DNS/TLS optionnelle sur consentement pour chaque contrôle. Sans chargement de page ni contrôle de réputation |
 | **Licence Pro** | Administration des utilisateurs, équipes et coffres partagés, rapports d'audit signés (Ed25519) ; sans licence, édition Community complète |
 
 ---
@@ -130,4 +132,4 @@ Règles de contribution : [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md).
 
 ---
 
-> **Version des sources** : 2.0.2 (en préparation) — notes détaillées dans [CHANGELOG.md](docs/CHANGELOG.md). Les paquets publiés restent disponibles sur la page Releases.
+> **Version des sources** : 2.1.0 (en préparation) — notes détaillées dans [CHANGELOG.md](docs/CHANGELOG.md). Les paquets publiés restent disponibles sur la page Releases.

@@ -19,6 +19,33 @@ HeelonVault est une application desktop **local-first** écrite en Rust :
 
 Aucun serveur n'est requis : les secrets ne quittent pas la machine.
 
+### Diagnostics locaux et frontière réseau optionnelle
+
+Le Centre de sécurité utilise le module indépendant de l'UI `services::security_center`
+dans un worker. Il ouvre uniquement les coffres accessibles, charge les éléments chiffrés
+une fois par coffre et déchiffre uniquement les mots de passe pour dériver les constats de
+robustesse et de réutilisation. Les empreintes restent dans le worker, sont effacées à leur
+destruction et n'apparaissent jamais dans les rapports. Les résultats contiennent des
+identifiants, métadonnées d'affichage et constats typés ; ils ne sont pas persistés.
+L'horloge est fournie au moteur, avec une fenêtre d'expiration inclusive de 30 jours.
+L'annulation est vérifiée entre les opérations. Le verrouillage invalide les résultats
+et efface le Centre/l'éditeur ; une réponse tardive ne peut pas repeupler la vue.
+
+Core reste sans réseau, propriété vérifiée par les tests de confidentialité. Les contrôles
+syntaxiques d'URL sont locaux. La crate workspace non publiée `heelonvault-url-check`
+constitue une frontière séparée, appelée par l'éditeur seulement après consentement pour
+ce contrôle individuel. Elle reçoit uniquement l'origine technique, jamais les clés,
+mots de passe ou chemin/paramètres de l'URL. Filtrage des IP publiques, validation de toutes
+les réponses DNS, connexion à l'IP validée et négociations TLS bornées limitent les accès
+involontaires au réseau interne. TLS utilise les racines WebPKI embarquées ; ni autorité
+personnalisée, requête HTTP, redirection, contenu web ou service de réputation.
+L'abandon du contrôle empêche les travaux de connexion/négociation suivants ; une résolution
+DNS système déjà engagée peut finir dans le pool bloquant Tokio, son résultat étant ignoré.
+
+Les contrôles en ligne révèlent au minimum le domaine et l'IP du client au résolveur/site.
+Ils ne modifient ni le fonctionnement hors ligne du coffre ni son format de sauvegarde.
+Un certificat TLS valide ne prouve pas la légitimité ou la fiabilité du site.
+
 ## Couches logiques
 
 ```text

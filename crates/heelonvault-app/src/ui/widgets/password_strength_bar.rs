@@ -1,25 +1,11 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use gtk4::prelude::*;
 use heelonvault_core::i18n::{I18nArg, tr, tr_args};
+use heelonvault_core::services::security_center::assess_password;
 use libadwaita as adw;
 use libadwaita::prelude::*;
-use zxcvbn::zxcvbn;
-
-/// App-specific terms that zxcvbn must penalise.
-const APP_BLOCKLIST: &[&str] = &[
-    "heelon",
-    "vault",
-    "heelonvault",
-    "test",
-    "azerty",
-    "qwerty",
-    "qwertz",
-    "123456",
-    "password",
-    "motdepasse",
-];
 
 // ─── ANSSI complexity criteria ──────────────────────────────────────────────
 
@@ -58,31 +44,8 @@ impl Criteria {
     }
 }
 
-/// ANSSI-aligned policy cap on the score (0–4).
-///
-/// | Length | Categories | Score |
-/// |--------|------------|-------|
-/// | < 12   | any        | 1     |
-/// | 12–13  | < 3        | 2     |
-/// | 12–13  | 3          | 2     |
-/// | 12–13  | 4          | 3     |
-/// | 14     | 3          | 3     |
-/// | 14     | 4          | 3     |
-/// | ≥ 15   | ≥ 3        | 4 (limited by zxcvbn) |
-fn anssi_cap(len: usize, categories: usize) -> i32 {
-    if len < 12 {
-        return 1;
-    }
-    if len < 14 {
-        // 12–13 chars
-        return if categories >= 4 { 3 } else { 2 };
-    }
-    if len == 14 {
-        return if categories >= 3 { 3 } else { 2 };
-    }
-    // len >= 15
-    if categories >= 3 { 4 } else { 2 }
-}
+// The ANSSI-aligned policy cap (length × character classes) lives in
+// `heelonvault_core::services::security_center`, shared with the security center and the list.
 
 /// Human-readable label for the ANSSI policy score.
 fn anssi_hint(len: usize, categories: usize, zxcvbn_score: i32) -> String {
@@ -131,6 +94,7 @@ struct StrengthState {
     badge_digit: gtk4::Label,
     badge_spec: gtk4::Label,
     username: RefCell<String>,
+    trim_input: Cell<bool>,
     /// Score observed at the last update — written by update_view, read by gate_button.
     last_score: RefCell<i32>,
 }
@@ -215,6 +179,7 @@ impl PasswordStrengthBar {
                 badge_digit,
                 badge_spec,
                 username: RefCell::new(String::new()),
+                trim_input: Cell::new(true),
                 last_score: RefCell::new(0),
             }),
         }
@@ -223,6 +188,12 @@ impl PasswordStrengthBar {
     /// Current policy score (0–4). Useful to gate a button externally.
     pub fn last_score(&self) -> i32 {
         *self.state.last_score.borrow()
+    }
+
+    pub fn for_stored_passwords() -> Self {
+        let bar = Self::new();
+        bar.state.trim_input.set(false);
+        bar
     }
 
     /// Feed the current username so zxcvbn penalises it in the password.
@@ -308,7 +279,11 @@ impl PasswordStrengthBar {
     // ── Core logic ────────────────────────────────────────────────────────
 
     fn update_view(state: &StrengthState, password: &str, username: &str) {
-        let trimmed = password.trim();
+        let trimmed = if state.trim_input.get() {
+            password.trim()
+        } else {
+            password
+        };
         if trimmed.is_empty() {
             state.root.set_visible(false);
             state.level.set_value(0.0);
@@ -329,16 +304,12 @@ impl PasswordStrengthBar {
         let cats = crit.category_count();
 
         // 2 — zxcvbn with full blocklist
-        let mut user_inputs: Vec<&str> = APP_BLOCKLIST.to_vec();
-        if !username.is_empty() {
-            user_inputs.push(username);
-        }
-        let entropy = Some(zxcvbn(trimmed, &user_inputs));
-        let zxcvbn_score = entropy.as_ref().map(|e| e.score() as i32).unwrap_or(0);
+        let assessment = assess_password(trimmed, username);
+        let zxcvbn_score = i32::from(assessment.estimator_score);
 
         // 3 — Final score: min(ANSSI cap, zxcvbn)
-        let cap = anssi_cap(len, cats);
-        let score = zxcvbn_score.min(cap);
+        let cap = i32::from(assessment.policy_cap);
+        let score = i32::from(assessment.score);
         state.level.set_value(f64::from(score));
         *state.last_score.borrow_mut() = score;
 
@@ -346,24 +317,8 @@ impl PasswordStrengthBar {
         let hint = anssi_hint(len, cats, zxcvbn_score);
         // Append a zxcvbn warning on top of the ANSSI hint when criteria are met
         let hint = if cap >= 4 {
-            if let Some(e) = &entropy {
-                if let Some(fb) = e.feedback().as_ref() {
-                    let extra = fb
-                        .warning()
-                        .map(|w| Self::localize(&w.to_string()))
-                        .or_else(|| {
-                            fb.suggestions()
-                                .first()
-                                .map(|s| Self::localize(&s.to_string()))
-                        });
-                    if let Some(extra) = extra {
-                        format!("{hint} — {extra}")
-                    } else {
-                        hint
-                    }
-                } else {
-                    hint
-                }
+            if let Some(extra) = &assessment.feedback {
+                format!("{hint} — {}", Self::localize(extra))
             } else {
                 hint
             }

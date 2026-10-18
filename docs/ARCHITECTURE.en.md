@@ -19,6 +19,31 @@ HeelonVault is a **local-first** desktop application written in Rust:
 
 No server is required: secrets never leave the machine.
 
+### Local diagnostics and the optional network boundary
+
+The security center runs in a background worker using the UI-independent
+`services::security_center` module. It opens only accessible vaults, fetches encrypted items
+once per vault and decrypts only password payloads to derive strength and reuse findings.
+Password fingerprints are worker-local, zeroized on drop and never included in reports.
+Reports contain identifiers, display metadata and typed findings; they are not persisted.
+The clock is supplied to the engine, with an inclusive 30-day expiration window.
+Cancellation is checked between operations. Session lock invalidates results and clears
+the center/editor; a result arriving after lock cannot repopulate the view.
+
+Core remains network-free, enforced by the privacy tests. URL syntax checks are local.
+The unpublished `heelonvault-url-check` workspace crate is a separate network boundary,
+invoked by the editor only after consent for that individual check. It receives only the
+technical origin, never vault keys, passwords or the URL path/query. Public IP filtering,
+validation of every DNS answer, connection to the validated IP and bounded TLS handshakes
+limit unintended internal-network access. TLS uses bundled WebPKI roots; no custom CA
+override, HTTP request, redirect, browser content or reputation service is involved.
+Dropping the check prevents further connection/handshake work; an already-started OS DNS
+lookup can finish in Tokio's blocking pool and its result is discarded.
+
+Online checks reveal at least the hostname and client IP to the resolver/destination.
+They do not change the offline behavior of the vault or its backup format. A valid TLS
+certificate does not prove site ownership legitimacy or safety.
+
 ## Logical Layers
 
 ```text
@@ -35,6 +60,7 @@ heelonvault-core/
 ├── crates/
 │   ├── heelonvault-core/        # Public library (crates.io): models, repositories,
 │   │                            # services, i18n, errors — no UI, no licensing
+│   ├── heelonvault-url-check/   # Unpublished, isolated consent-based DNS/TLS checker
 │   ├── heelonvault-app/         # GTK4 binary: assembles core + premium
 │   │   ├── src/                 # main.rs (composition root), ui/ (windows, dialogs, widgets)
 │   │   ├── migrations/          # SQL migrations applied at startup

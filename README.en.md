@@ -1,4 +1,4 @@
-# HeelonVault 2.0.2
+# HeelonVault 2.1.0
 
 Language: EN | [FR](README.md)
 
@@ -47,6 +47,8 @@ Verification, step-by-step install and first launch:
 | **Import / Export** | Guided 3-step CSV import, error-tolerant; encrypted `.hvb` export |
 | **Trash** | Soft delete with restore and permanent purge |
 | **Strength meter** | Real-time `zxcvbn` evaluation of every password |
+| **Security center** | Local cross-vault diagnostics: weak/reused passwords, expiration, links to review, explicit analysis coverage and guided correction |
+| **URL checks** | Immediate local checks; optional DNS/TLS handshake with consent for each check. No page loading or reputation lookup |
 | **Health marker** | "Health data access" field to single out secrets tied to medical data |
 | **Logging** | Daily-rotated JSON logs, free of any secret value |
 | **Pro license** | User administration, teams and shared vaults, signed audit reports (Ed25519); without a license, full Community edition |
@@ -126,4 +128,4 @@ Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-> **Source version**: 2.0.2 (in preparation) — detailed notes in [CHANGELOG.en.md](docs/CHANGELOG.en.md). Published packages remain available on the Releases page.
+> **Source version**: 2.1.0 (in preparation) — detailed notes in [CHANGELOG.en.md](docs/CHANGELOG.en.md). Published packages remain available on the Releases page.

@@ -1,0 +1,8 @@
+/* Token CSS Variables for HeelonVault */
+:root {
+    --hv-color-primary: #008080;
+    --hv-color-success: #28a745;
+    --hv-color-warning: #ffc107;
+    --hv-color-danger: #dc3545;
+    --hv-color-info: #17a2b8;
+}

@@ -7,6 +7,37 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.1.0] — Non publiée
+
+### Centre de sécurité
+
+- Centre de sécurité Community : analyse locale multi-coffres, regroupement des mots de passe réutilisés, diagnostic de robustesse partagé, expiration à 30 jours, données invalides et alertes URL. Les résultats distinguent éléments concernés et constats, avec couverture incomplète explicite.
+- Page GTK native : cartes filtrantes, sélection de coffre, constats priorisés et dépliables, affichage progressif par 50. L'ouverture d'un élément revérifie l'accès au coffre ; le retour de l'éditeur actualise le diagnostic.
+- Estimateur commun basé sur zxcvbn pour les diagnostics des mots de passe stockés et la jauge. Tokens API, clés SSH et documents exclus des contrôles de robustesse/réutilisation. Politique d'acceptation du mot de passe maître inchangée.
+- Contrôle local du format/protocole des URL dans l'éditeur. Chaque contrôle DNS/TLS en ligne requiert un consentement explicite et contacte uniquement un hôte public validé, sans chemin, paramètres, identifiants ni requête HTTP. Un certificat valide ne garantit pas la fiabilité du site ; aucun fournisseur de réputation activé.
+- Crate interne non publiée `heelonvault-url-check`. Core reste sans réseau. Aucune migration de base ni modification des formats chiffrés/de sauvegarde ; ajouts à l'API publique Core compatibles avec semver.
+- Tests de diagnostic, SQLite réel avec droits/révocation, fixtures TLS et recette GTK native. Le verrouillage annule l'analyse, invalide les résultats tardifs et efface l'éditeur et la vue de diagnostic.
+
+### Profil & Sécurité
+
+- **Correctif de sécurité.** Sans licence Professional, un administrateur pouvait ouvrir la gestion des utilisateurs et des équipes depuis le profil (la barre latérale, elle, vérifiait la licence). Les droits viennent désormais d'une source unique (édition issue de la licence × rôle) : les pages Utilisateurs et Équipes ne sont plus construites sans licence, et les services Premium refusent eux-mêmes les opérations qui accordent un accès. Les révocations restent possibles.
+- **Correctif.** Le changement de mot de passe maître supprimait les espaces en début et fin de saisie, contrairement à l'écran de connexion : un mot de passe se terminant par une espace pouvait devenir impossible à saisir. Les mots de passe sont désormais utilisés tels quels, et la longueur minimale (16 caractères) est vérifiée avant l'envoi.
+- Refonte de la page : une colonne lue de haut en bas, une ligne par réglage. En-tête « Protection du compte » (2FA, code PIN, verrouillage automatique), puis Compte, Connexion et protection, Session, Préférences, Données et Administration. Un seul bouton principal par action ; les actions complexes se déplient sur place.
+- Langue appliquée dès sa sélection ; mot de passe actuel demandé seulement si l'adresse e-mail change ; « Jamais » pour le verrouillage automatique confirmé avant d'être appliqué ; export `.hvb` affiché aux seuls administrateurs, qui sont les seuls à pouvoir l'utiliser.
+- En édition Community, un administrateur voit ce qu'apporte la licence Professional, sans aucune action menant à ces fonctions.
+- Texte d'aide de l'assistant initial corrigé : « 12 caractères et 4 catégories, ou 14 caractères et 3 catégories ».
+
+### Interface
+
+- Identité visuelle affinée : palette unifiée autour du teal HeelonVault, couleurs de sens distinctes (succès, avertissement, danger, information) et échelle d'arrondis harmonisée. Un avertissement n'emprunte plus la couleur de la marque.
+- Profondeur et finition : ombres douces sur deux niveaux pour les cartes et panneaux, transitions courtes au survol, anneau de focus visible uniquement à la navigation clavier.
+- Jeu d'icônes HeelonVault intégré à l'application : rendu identique sur Linux, Windows et macOS, quel que soit le thème système.
+- Barre latérale : élément actif signalé par une barre d'accent ; entrée « Centre de sécurité » avec icône, compteur d'éléments à examiner et pastille « Nouveau » jusqu'à la première ouverture. La sélection suit la couleur de la marque plutôt que l'accent du système.
+- Centre de sécurité : bouclier coloré selon l'état de la dernière analyse, cartes avec icône et compteur, constats avec icône et étiquettes de gravité. Badges de la liste alignés sur la même échelle (« Faible » en rouge, « Doublon » en ambre).
+- Textes français entièrement accentués et corrigés.
+
+---
+
 ## [2.0.2] — Non publiée
 
 > Version corrective en préparation : aucune modification de l'API publique, du schéma de base de données ou des formats de sauvegarde.

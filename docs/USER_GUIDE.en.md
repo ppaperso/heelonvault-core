@@ -113,6 +113,45 @@ Screen role:
 
 *Main vault view with search, categories, security audit filters, and central workspace.*
 
+### Security center
+
+Select **Security center** in the sidebar to analyze all vaults you can access, locally.
+The summary shows affected items, analyzed vaults, unavailable vaults and unreadable
+passwords. An incomplete analysis is never presented as a clean bill of health.
+
+Use the cards to filter reused passwords, weak passwords, expiration (including the next
+30 days) and links to review. A vault selector narrows the results. Reused passwords are
+grouped; expand an item to read its findings, then **Open item** to correct it. Results are
+displayed progressively in batches of 50. Return from the editor to refresh the analysis.
+
+Change the password on the actual service before updating the vault: editing HeelonVault
+alone does not change the remote account. Strength/reuse checks apply only to passwords,
+not API tokens, SSH keys or documents. A result without findings does not prove absence
+of compromise.
+
+### URL indicators and optional online checks
+
+The editor immediately checks URL syntax, HTTP/HTTPS, embedded credentials and internal
+or internationalized hosts, without network access. HTTPS requested is **not** a verified
+certificate. Internal addresses can be saved; online checking is not required.
+
+**Check DNS / TLS…** asks permission for one connection. The consent dialog displays
+the technical origin being contacted. Your DNS resolver and the destination may observe
+the hostname and your IP address. The check does not send the URL path, query, fragment,
+login, password or cookies and does not load a web page. Only public destinations are
+allowed, with certificate validation against bundled trusted roots. Enterprise private
+certificate authorities are not supported by this checker.
+
+- Green: TLS validated for this host at the displayed time, not a safety guarantee.
+- Orange: attention required, such as HTTP or an internal/internationalized target.
+- Red: invalid URL, embedded credentials or failed TLS validation.
+- Neutral: not checked, unreachable, DNS unavailable or timeout; not evidence of malice.
+
+Reputation/blocklists and the existence of the exact page are **not checked**. Saving
+works offline. Editing the URL or leaving the editor invalidates/cancels the online check.
+An in-flight system DNS lookup may finish in the background, but no subsequent connection
+is made after cancellation.
+
 ## 5. Screen 4 - Create a secret
 
 To add a new secret:
@@ -254,21 +293,25 @@ Improve search relevance with consistent organization:
 
 ## 8. Screen 7 - Profile and security
 
-From the profile area, users can review security- and session-related settings, including:
+The page reads top to bottom, one row per setting:
 
-- TOTP activation;
-- auto-lock policy;
-- master password change with vault key-envelope rotation;
-- PIN Quick-Unlock activation;
-- some display preferences depending on role and configuration.
+- **Header**: name, username, role, edition (Community or Professional) and **Account protection** — two-factor authentication, PIN and automatic lock, with what is left to turn on;
+- **Account**: display name and email address. The sign-in username cannot be changed; the current password is only asked for when the email address changes. "Save" is only enabled when something changed;
+- **Sign-in and protection**: master password, two-factor authentication (TOTP) and PIN. Each row expands to act on it;
+- **Session**: automatic lock delay ("Never" asks for confirmation before it is applied) and showing the current password in the editor;
+- **Preferences**: interface language, applied immediately;
+- **Data**: encrypted `.hvb` backup (administrators) and CSV import;
+- **Administration**: user and team management with a Professional license. On the Community edition, an administrator only sees what the Professional license adds.
+
+The new master password must contain at least 16 characters; it is stored exactly as typed, spaces included. After the change, an active PIN must be set up again.
 
 ### PIN Quick-Unlock
 
 HeelonVault provides a PIN-based quick-unlock to avoid retyping the master password after every auto-lock event.
 
-**Activation** (Profile → Session security section):
+**Activation** (Profile → Sign-in and protection → Unlock PIN):
 
-1. Click "Enable PIN".
+1. Click "Configure…".
 2. Enter a 4-to-8 digit PIN code.
 3. Confirm the PIN.
 4. The PIN is active immediately for the current session.
@@ -283,7 +326,7 @@ HeelonVault provides a PIN-based quick-unlock to avoid retyping the master passw
 
 **Deactivation**:
 
-- From the profile, click "Disable PIN" to wipe the cache immediately.
+- From the same row, "Configure…" turns the PIN off and wipes the cache immediately.
 
 **Session-time indicator in the title bar**:
 
@@ -339,7 +382,7 @@ This screen is the core user trust area of the product. It contains the settings
 
 ![Screen 7 - Profile and security](images/user-guide/hv_userprofil.png)
 
-*Profile settings, session security, TOTP controls, import/export, and preferences.*
+*Account protection header, then settings by topic: account, sign-in and protection, session, preferences, data and administration.*
 
 ## 9. Screen 8 - Import and export
 

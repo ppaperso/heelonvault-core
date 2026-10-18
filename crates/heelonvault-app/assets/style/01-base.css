@@ -7,31 +7,32 @@
     window,
     dialog,
     .background {
-        background: #F3F6F3;
-        color: #2C3E50;
+        background: @hv_canvas;
+        color: @hv_text;
     }
 
     .accent,
     label.accent {
-        background: rgba(19, 161, 161, 0.12);
-        color: #0A5F5C;
+        background: alpha(@hv_brand_500, 0.12);
+        color: @hv_brand_800;
         border-radius: 999px;
         padding: 6px 14px;
     }
 
     label.success,
     .success {
-        color: #1F8678;
+        color: @hv_success;
     }
 
+    /* Semantic colours only: a warning must never look like the brand accent. */
     label.warning,
     .warning {
-        color: #13A1A1;
+        color: @hv_warning;
     }
 
     label.error,
     .error {
-        color: #E74C3C;
+        color: @hv_danger;
     }
 
     label.heading,
@@ -40,24 +41,31 @@
     .title-2,
     .title-3,
     .title-4 {
-        color: #07393A;
+        color: @hv_brand_900;
     }
 
     entry,
     textview,
     spinbutton {
         border-radius: 12px;
-        border: 1px solid #57B9B1;
-        background: #FFFFFF;
-           color: #13A1A1;
+        border: 1px solid @hv_brand_300;
+        background: @hv_surface;
+        color: @hv_brand_900;
+        transition: border-color 150ms ease, box-shadow 150ms ease;
     }
 
-    entry:focus,
-    textview:focus,
-    spinbutton:focus,
-    button:focus,
-    row:focus {
-        outline: 2px solid #13A1A1;
+    entry:focus-within,
+    textview:focus-within,
+    spinbutton:focus-within {
+        border-color: @hv_brand_600;
+        box-shadow: 0 0 0 3px alpha(@hv_brand_500, 0.16);
+    }
+
+    /* Keyboard focus only: mouse clicks do not leave a ring behind. */
+    button:focus-visible,
+    row:focus-visible,
+    flowboxchild:focus-visible {
+        outline: 2px solid alpha(@hv_brand_600, 0.75);
         outline-offset: 2px;
     }
 
@@ -71,31 +79,31 @@
 window.app-window,
 window {
     background:
-        radial-gradient(circle at top left, rgba(164, 223, 207, 0.55), transparent 42%),
+        radial-gradient(circle at top left, alpha(@hv_brand_200, 0.55), transparent 42%),
         radial-gradient(circle at top right, rgba(111, 211, 180, 0.22), transparent 36%),
-        #F3F6F3;
-    color: #2C3E50;
+        @hv_canvas;
+    color: @hv_text;
 }
 
 label.inline-status {
     font-weight: 600;
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 6px 10px;
 }
 
 label.inline-status-loading {
-    background: rgba(19, 161, 161, 0.12);
-    color: #0A5F5C;
+    background: alpha(@hv_brand_500, 0.12);
+    color: @hv_brand_800;
 }
 
 label.inline-status-success {
-    background: rgba(31, 134, 120, 0.14);
-    color: #1F8678;
+    background: alpha(@hv_brand_green, 0.14);
+    color: @hv_brand_green;
 }
 
 label.inline-status-error {
-    background: rgba(192, 28, 40, 0.12);
-    color: #C01C28;
+    background: alpha(@hv_danger, 0.12);
+    color: @hv_danger;
 }
 
 /* Badge styles for status indicators */
@@ -108,13 +116,13 @@ label.inline-status-error {
 }
 
 .badge-disabled {
-    background: #e02424;
-    color: white;
+    background: @hv_danger_bright;
+    color: @hv_on_brand;
 }
 
 .badge-enabled {
-    background: #33d417;
-    color: white;
+    background: @hv_success;
+    color: @hv_on_brand;
 }
 
 /* Reduce vertical spacing in PreferencesGroup */

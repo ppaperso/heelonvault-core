@@ -1,0 +1,84 @@
+.security-center {
+    padding: 24px;
+}
+
+.security-subtitle,
+.security-coverage,
+.security-privacy {
+    color: #456567;
+}
+
+.security-hero {
+    padding: 26px;
+    border-radius: 24px;
+    background: linear-gradient(125deg, #D9F4E9, #ECF8F7 65%, #FFFFFF);
+    border: 1px solid rgba(19, 161, 161, 0.28);
+    box-shadow: 0 8px 24px rgba(7, 57, 58, 0.08);
+}
+
+.security-hero image {
+    color: #08786F;
+}
+
+.security-metric {
+    padding: 16px 10px;
+    border-radius: 16px;
+    background: #FFFFFF;
+    border: 1px solid #C7DEDA;
+    font-weight: 700;
+}
+
+.security-metric-selected,
+.security-navigation {
+    background: #D6F1E9;
+    border-color: #168577;
+    color: #07393A;
+}
+
+.security-finding,
+.security-group {
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid #D4E5DF;
+    background: #FFFFFF;
+}
+
+.security-group {
+    background: #EDF5F2;
+}
+
+.security-finding-detail {
+    padding: 16px 0 0 24px;
+}
+
+.security-notice,
+.security-attention-icon {
+    color: #925500;
+}
+
+.security-empty {
+    padding: 32px;
+    color: #176C53;
+}
+
+.url-security-status {
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #EDF3F2;
+    color: #456567;
+}
+
+.url-security-ok {
+    background: #DBF3E8;
+    color: #176C53;
+}
+
+.url-security-warning {
+    background: #FFF0D3;
+    color: #805000;
+}
+
+.url-security-error {
+    background: #FFE5E3;
+    color: #A42625;
+}

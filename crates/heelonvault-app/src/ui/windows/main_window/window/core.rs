@@ -18,6 +18,8 @@ use sqlx::SqlitePool;
 use tokio::runtime::Handle;
 use uuid::Uuid;
 
+use crate::ui::entitlements::{Edition, Entitlements};
+
 use heelonvault_core::repositories::user_repository::SqlxUserRepository;
 use heelonvault_core::services::crypto_service::CryptoServiceImpl;
 use heelonvault_core::services::pin_cache_service::PinCache;
@@ -95,6 +97,20 @@ where
     TImport: heelonvault_core::services::import_service::ImportService + Send + Sync + 'static,
 {
     // ── 1. Session and UI state ───────────────────────────────────────────────
+    // Edition comes from the verified license at runtime: the `premium` feature is compiled
+    // into every shipped binary, so it never decides on its own.
+    #[cfg(feature = "premium")]
+    let edition = if license_service
+        .get_cached()
+        .is_some_and(|license| license.tier == heelonvault_core::models::LicenseTier::Professional)
+    {
+        Edition::Professional
+    } else {
+        Edition::Community
+    };
+    #[cfg(not(feature = "premium"))]
+    let edition = Edition::Community;
+    let entitlements = Entitlements::new(edition, is_admin);
     let auto_lock_source: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
     let auto_lock_armed = Rc::new(Cell::new(false));
     let auto_lock_timeout_secs = Rc::new(Cell::new(DEFAULT_AUTO_LOCK_TIMEOUT_SECS));
@@ -117,6 +133,7 @@ where
     let editor_launcher: Rc<RefCell<Option<Rc<dyn Fn(DialogMode)>>>> = Rc::new(RefCell::new(None));
     let refresh_after_mutation: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
     let i18n_refresh_holder: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
+    let security_invalidate: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
 
     let user_repo = Arc::new(SqlxUserRepository::new(database_pool.clone()));
     let crypto_service = Arc::new(CryptoServiceImpl::default());
@@ -216,6 +233,15 @@ where
         refresh_secrets: Rc::clone(&refresh_secrets),
         refresh_after_mutation: Rc::clone(&refresh_after_mutation),
     });
+    let refresh_entries: Rc<dyn Fn()> = {
+        let invalidate = Rc::clone(&security_invalidate);
+        Rc::new(move || {
+            refresh_entries();
+            if let Some(callback) = invalidate.borrow().as_ref() {
+                callback();
+            }
+        })
+    };
     *refresh_after_mutation.borrow_mut() = Some(Rc::clone(&refresh_entries));
 
     *editor_launcher.borrow_mut() = Some(editor::build_editor_launcher(editor::EditorDeps {
@@ -235,6 +261,30 @@ where
         .as_ref()
         .map(Rc::clone)
         .unwrap_or_else(|| Rc::new(|_mode| {}));
+
+    let security = crate::ui::windows::main_window::security_center::build(
+        crate::ui::windows::main_window::security_center::CenterDeps {
+            runtime: runtime_handle.clone(),
+            secrets: Arc::clone(&secret_service),
+            vaults: Arc::clone(&vault_service),
+            user_id: admin_user_id,
+            key: Rc::clone(&session_master_key),
+            stack: center_panel.main_stack.clone(),
+            navigation: sidebar_panel.security_nav.clone(),
+            open_editor: Rc::clone(&open_editor),
+            toast: toast_overlay.clone(),
+        },
+    );
+    *security_invalidate.borrow_mut() = Some(Rc::clone(&security.invalidate));
+    let clear_security: Rc<dyn Fn()> = {
+        let editor_host = editor_host.clone();
+        Rc::new(move || {
+            (security.clear)();
+            while let Some(child) = editor_host.first_child() {
+                editor_host.remove(&child);
+            }
+        })
+    };
 
     // ── 4. Event handlers ─────────────────────────────────────────────────────
     events::setup_window_close_handler(
@@ -403,8 +453,9 @@ where
     };
 
     // ── 5. Secondary navigation pages ─────────────────────────────────────────
+    // Not even built without the rights: no other page can then lead to them.
     #[cfg(feature = "premium")]
-    let admin_pages = if is_admin {
+    let admin_pages = if entitlements.can_manage_users() {
         Some(navigation::setup_admin_pages(
             application,
             &window,
@@ -424,27 +475,12 @@ where
         None
     };
 
-    // Users and teams management is a premium capability: the entries stay hidden in the
-    // community build, where the services they would drive are unused — and, even in a
-    // premium-compiled binary, hidden without an active Professional license. is_admin is a
-    // per-user account role, not a license tier: an admin-role user on an unlicensed
-    // Community install must not see these (was previously gated on cfg!(feature =
-    // "premium") alone, a compile-time constant that is always true in the shipped binary
-    // regardless of license state — reported showing Teams/Users on a Community-tier login).
-    #[cfg(feature = "premium")]
-    let is_professional_license = license_service
-        .get_cached()
-        .map(|license| license.tier == heelonvault_core::models::LicenseTier::Professional)
-        .unwrap_or(false);
-    #[cfg(not(feature = "premium"))]
-    let is_professional_license = false;
-
     sidebar_panel
         .administration_button
-        .set_visible(is_admin && is_professional_license);
+        .set_visible(entitlements.can_manage_users());
     sidebar_panel
         .teams_button
-        .set_visible(is_admin && is_professional_license);
+        .set_visible(entitlements.can_manage_teams());
     #[cfg(not(feature = "premium"))]
     let _ = (&admin_service, &team_service);
 
@@ -474,7 +510,7 @@ where
             vault_service: Arc::clone(&vault_service),
             database_path,
             user_id: admin_user_id,
-            is_admin,
+            entitlements,
             profile_badge: profile_button.clone(),
             critical_ops_in_flight: Rc::clone(&critical_ops_in_flight),
             auto_lock_timeout_secs: Rc::clone(&auto_lock_timeout_secs),
@@ -512,6 +548,7 @@ where
             editor_host,
             extra_refreshers: std::iter::once(header_license_refresh)
                 .chain(certification_refresh)
+                .chain(std::iter::once(security.refresh_i18n))
                 .collect(),
         },
         #[cfg(feature = "premium")]
@@ -574,6 +611,7 @@ where
         on_logout,
         on_pin_state_cb,
         session_user_id: admin_user_id,
+        clear_security,
     }
 }
 

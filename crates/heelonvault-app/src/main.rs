@@ -89,6 +89,8 @@ use heelonvault_premium::services::audit_log_service_impl::AuditLogServiceImpl;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
 #[cfg(feature = "premium")]
+use heelonvault_premium::services::professional_gate::ProfessionalGate;
+#[cfg(feature = "premium")]
 use heelonvault_premium::services::psc_auth_service_impl::PscAuthServiceImpl;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::psc_config::PscConfig;
@@ -185,6 +187,9 @@ struct PrimaryServices {
     federated_auth_service: Arc<FederatedAuthServiceHandle>,
     admin_service: Arc<AdminServiceHandle>,
     team_service: Arc<TeamServiceHandle>,
+    /// Closed until the verified license is known (see `initialize_app_context`).
+    #[cfg(feature = "premium")]
+    professional_gate: ProfessionalGate,
 }
 
 struct SecondaryServices {
@@ -902,22 +907,11 @@ fn register_resources() -> Result<()> {
 
 fn setup_icon_theme() {
     gtk4::Window::set_default_icon_name("heelonvault");
-    if let Some(display) = gdk::Display::default() {
-        let theme = gtk4::IconTheme::for_display(&display);
-        theme.add_resource_path("/com/heelonvault/rust");
-    }
 }
 
 fn install_application_css() {
-    let provider = gtk4::CssProvider::new();
-    provider.load_from_resource("/com/heelonvault/rust/style.css");
-
     if let Some(display) = gdk::Display::default() {
-        gtk4::style_context_add_provider_for_display(
-            &display,
-            &provider,
-            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
-        );
+        ui::theme::install(&display);
     }
 }
 
@@ -1116,6 +1110,10 @@ fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
                 })
             }),
     );
+    // Premium services are built before the license is loaded: they share a gate that stays
+    // closed (granting operations refused) until a verified Professional license opens it.
+    #[cfg(feature = "premium")]
+    let professional_gate = ProfessionalGate::new();
     #[cfg(not(feature = "premium"))]
     let admin_service = Arc::new(CommunityAdminService);
     #[cfg(feature = "premium")]
@@ -1123,6 +1121,7 @@ fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
         SqlxUserRepository::new(pool.clone()),
         Arc::clone(&auth_service),
         Arc::clone(&audit_log_service),
+        professional_gate.clone(),
     ));
     #[cfg(not(feature = "premium"))]
     let team_service = Arc::new(CommunityTeamService);
@@ -1133,6 +1132,7 @@ fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
         SqlxVaultRepository::new(pool.clone()),
         CryptoServiceImpl::default(),
         Arc::clone(&audit_log_service),
+        professional_gate.clone(),
     ));
 
     PrimaryServices {
@@ -1146,6 +1146,8 @@ fn build_primary_services(pool: &SqlitePool) -> PrimaryServices {
         federated_auth_service,
         admin_service,
         team_service,
+        #[cfg(feature = "premium")]
+        professional_gate,
     }
 }
 
@@ -1256,6 +1258,10 @@ async fn initialize_app_context() -> Result<AppStartMode> {
     }
 
     let secondary = build_secondary_services(&pool, Arc::clone(&primary.auth_service)).await;
+    #[cfg(feature = "premium")]
+    primary
+        .professional_gate
+        .apply_license(secondary.license_service.get_cached());
 
     info!("all services are initialized and ready");
 

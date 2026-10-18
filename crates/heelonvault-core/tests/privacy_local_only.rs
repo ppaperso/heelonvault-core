@@ -2,7 +2,8 @@
 
 //! Privacy by design: the core library keeps every secret on the machine. It must not pull an
 //! HTTP client, a telemetry/analytics SDK or a crash reporter, even transitively, and its code
-//! must not open a socket. The dependency check walks the resolved graph in `Cargo.lock`, so a
+//! must not open a socket. Optional consent-based TLS checks live in heelonvault-url-check,
+//! never in Core. The dependency check walks the resolved graph in `Cargo.lock`, so a
 //! new transitive dependency is caught even if no `Cargo.toml` line mentions it.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -112,6 +113,10 @@ fn heelonvault_core_pulls_no_network_client_nor_telemetry_even_transitively() {
         offending.is_empty(),
         "heelonvault-core must stay local-only, but depends on {offending:?}"
     );
+    assert!(
+        !core.contains("heelonvault-url-check"),
+        "Core must not depend on the online checker"
+    );
 }
 
 fn rust_sources(dir: &Path, found: &mut Vec<std::path::PathBuf>) {
@@ -167,7 +172,7 @@ fn the_code_opens_no_socket_and_calls_no_remote_endpoint() {
 
     assert!(
         violations.is_empty(),
-        "network access outside the reviewed premium modules:\n{}",
+        "network access outside the isolated URL checker or reviewed premium modules:\n{}",
         violations.join("\n")
     );
 }

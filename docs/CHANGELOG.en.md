@@ -7,6 +7,37 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.1.0] — Unreleased
+
+### Security center
+
+- Added a Community security center with local cross-vault analysis, grouped password reuse, shared strength diagnostics, expiration within 30 days, invalid data and URL warnings. Results distinguish affected items from findings and expose incomplete coverage.
+- Added a native GTK page with metric filters, vault selection, prioritized expandable findings and progressive display in batches of 50. Opening an item rechecks vault access; returning from the editor refreshes diagnostics.
+- The shared zxcvbn-based estimator now drives stored-password diagnostics and the strength widget. API tokens, SSH keys and documents are excluded from password strength/reuse checks. Master-password acceptance policy is unchanged.
+- The editor assesses URL syntax/protocol locally. Each optional online DNS/TLS check requires explicit consent and connects only to a validated public host, without sending paths, queries, credentials or HTTP requests. Certificate validation is not a site-safety verdict; no reputation provider is enabled.
+- Added the internal, unpublished `heelonvault-url-check` crate. Core remains network-free. No database migration, encrypted payload or backup format changes; public Core additions are semver-additive.
+- Added diagnostic, real SQLite permission/revocation, TLS fixture and native GTK smoke tests. Locking cancels analysis, invalidates pending results and clears the editor/diagnostic view.
+
+### Profile & Security
+
+- **Security fix.** Without a Professional license, an administrator could open user and team management from the profile (the sidebar did check the license). Rights now come from a single source (edition from the license × role): the Users and Teams pages are no longer built without a license, and the Premium services themselves refuse access-granting operations. Revocations remain possible.
+- **Fix.** Changing the master password trimmed leading and trailing spaces, unlike the login screen: a password ending with a space could become impossible to type. Passwords are now used as typed, and the 16-character minimum is checked before submitting.
+- Redesigned page: one column read top to bottom, one row per setting. "Account protection" header (2FA, PIN, automatic lock), then Account, Sign-in and protection, Session, Preferences, Data and Administration. One primary button per action; complex actions expand in place.
+- Language applied as soon as it is selected; current password only asked for when the email address changes; "Never" for automatic lock confirmed before it is applied; `.hvb` export only shown to administrators, the only ones allowed to use it.
+- On the Community edition, an administrator sees what the Professional license adds, with no action leading to those features.
+- Fixed the first-run wizard hint: "12 characters and 4 categories, or 14 characters and 3 categories".
+
+### Interface
+
+- Refined visual identity: one palette built around the HeelonVault teal, distinct semantic colours (success, warning, danger, info) and a consistent corner-radius scale. Warnings no longer use the brand colour.
+- Depth and finish: soft two-layer shadows on cards and panels, short hover transitions, focus ring shown for keyboard navigation only.
+- Bundled HeelonVault icon set: identical rendering on Linux, Windows and macOS whatever the system theme.
+- Sidebar: the active entry is marked with an accent bar; the "Security center" entry shows an icon, the number of items to review and a "New" pill until first opened. Selection follows the brand colour instead of the system accent.
+- Security center: shield coloured by the state of the last analysis, metric cards with icon and counter, findings with icon and severity chips. List badges use the same scale ("Weak" in red, "Duplicate" in amber).
+- French texts fully accented and proofread.
+
+---
+
 ## [2.0.2] — Unreleased
 
 > Patch release in preparation: no changes to the public API, database schema or backup formats.

@@ -26,7 +26,7 @@ pub(crate) fn build_profile_view<
     vault_service: Arc<TVault>,
     database_path: PathBuf,
     user_id: Uuid,
-    is_admin: bool,
+    entitlements: crate::ui::entitlements::Entitlements,
     on_open_users_view: Rc<dyn Fn()>,
     on_open_teams_view: Rc<dyn Fn()>,
     profile_badge: gtk4::MenuButton,
@@ -58,15 +58,23 @@ where
         .hscrollbar_policy(gtk4::PolicyType::Never)
         .build();
 
+    // One centred column read top to bottom: identity, protection, session, preferences,
+    // data, administration. Each setting is one row; complex actions expand in place.
     let content = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(18)
-        .margin_top(16)
-        .margin_bottom(16)
-        .margin_start(16)
-        .margin_end(16)
+        .spacing(24)
+        .margin_top(20)
+        .margin_bottom(32)
+        .margin_start(20)
+        .margin_end(20)
         .build();
     content.add_css_class("profile-view-content");
+    let clamp = adw::Clamp::builder()
+        .maximum_size(760)
+        .tightening_threshold(600)
+        .child(&content)
+        .build();
+    container.set_child(Some(&clamp));
 
     let header = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
@@ -77,102 +85,72 @@ where
     back_button.add_css_class("flat");
     back_button.set_halign(Align::Start);
     let title = gtk4::Label::new(Some(heelonvault_core::tr!("profile-view-title").as_str()));
-    title.add_css_class("title-3");
-    title.add_css_class("heading");
+    title.add_css_class("title-2");
     title.set_hexpand(true);
-    title.set_halign(Align::Center);
+    title.set_xalign(0.0);
     header.append(&back_button);
     header.append(&title);
     content.append(&header);
 
-    let profile_intro =
-        gtk4::Label::new(Some(heelonvault_core::tr!("profile-view-intro").as_str()));
-    profile_intro.set_halign(Align::Start);
-    profile_intro.set_wrap(true);
-    profile_intro.add_css_class("dim-label");
-    content.append(&profile_intro);
-
-    let sections_columns = gtk4::Box::builder()
-        .orientation(Orientation::Horizontal)
-        .spacing(18)
-        .hexpand(true)
-        .homogeneous(true)
-        .margin_start(6)
-        .margin_end(6)
-        .margin_top(6)
-        .margin_bottom(0)
-        .build();
-    sections_columns.add_css_class("profile-sections-columns");
-
-    let sections_left = gtk4::Box::builder()
-        .orientation(Orientation::Vertical)
-        .spacing(12)
-        .hexpand(true)
-        .build();
-    sections_left.add_css_class("profile-sections-column");
-
-    let sections_right = gtk4::Box::builder()
-        .orientation(Orientation::Vertical)
-        .spacing(12)
-        .hexpand(true)
-        .build();
-    sections_right.add_css_class("profile-sections-column");
-
-    sections_columns.append(&sections_left);
-    sections_columns.append(&sections_right);
-    content.append(&sections_columns);
+    let summary_section = sections::summary::build(entitlements);
+    content.append(&summary_section.frame);
 
     let identity_section = sections::identity::build();
-    sections_left.append(&identity_section.frame);
+    content.append(&identity_section.frame);
 
     let password_section = sections::password::build();
-    sections_right.append(&password_section.frame);
-
     let security_section = sections::security_prefs::build(pin_cache.borrow().is_some());
-    sections_right.append(&security_section.frame);
-
     let twofa_section = sections::twofa::build();
-    sections_right.append(&twofa_section.group);
+    let protection_group = adw::PreferencesGroup::new();
+    protection_group.add_css_class("profile-group");
+    protection_group.add(&password_section.expander);
+    protection_group.add(&twofa_section.expander);
+    protection_group.add(&security_section.pin_row);
+    content.append(&protection_group);
 
-    let data_section = sections::data::build();
-    sections_left.append(&data_section.frame);
+    content.append(&security_section.frame);
 
-    let admin_section = is_admin.then(|| {
-        let section = sections::admin::build(
-            Rc::clone(&on_open_users_view),
-            Rc::clone(&on_open_teams_view),
-        );
-        sections_right.append(&section.frame);
-        section
-    });
+    let preferences_section = sections::preferences::build();
+    content.append(&preferences_section.frame);
 
-    container.set_child(Some(&content));
+    let data_section = sections::data::build(entitlements.can_export_backup());
+    content.append(&data_section.frame);
+
+    let admin_section = sections::admin::build(
+        entitlements,
+        Rc::clone(&on_open_users_view),
+        Rc::clone(&on_open_teams_view),
+    );
+    if let Some(section) = admin_section.as_ref() {
+        content.append(&section.frame);
+    }
 
     let admin_section_for_i18n = admin_section.clone();
     let back_button_for_i18n = back_button.clone();
     let title_for_i18n = title.clone();
-    let intro_for_i18n = profile_intro.clone();
-
+    let protection_group_for_i18n = protection_group.clone();
+    let summary_section_for_i18n = summary_section.clone();
     let data_section_for_i18n = data_section.clone();
     let identity_section_for_i18n = identity_section.clone();
     let password_section_for_i18n = password_section.clone();
     let security_section_for_i18n = security_section.clone();
     let twofa_section_for_i18n = twofa_section.clone();
+    let preferences_section_for_i18n = preferences_section.clone();
 
     let on_language_changed_for_i18n = Rc::clone(&on_language_changed);
     let apply_profile_i18n: Rc<dyn Fn()> = Rc::new(move || {
         back_button_for_i18n.set_label(heelonvault_core::tr!("profile-view-back").as_str());
         title_for_i18n.set_text(heelonvault_core::tr!("profile-view-title").as_str());
-        intro_for_i18n.set_text(heelonvault_core::tr!("profile-view-intro").as_str());
+        protection_group_for_i18n
+            .set_title(heelonvault_core::tr!("profile-section-protection").as_str());
 
+        summary_section_for_i18n.refresh_i18n();
         identity_section_for_i18n.refresh_i18n();
         password_section_for_i18n.refresh_i18n();
         security_section_for_i18n.refresh_i18n();
-
         twofa_section_for_i18n.refresh_i18n();
-
+        preferences_section_for_i18n.refresh_i18n();
         data_section_for_i18n.refresh_i18n();
-
         if let Some(admin_section) = admin_section_for_i18n.as_ref() {
             admin_section.refresh_i18n();
         }
@@ -181,57 +159,31 @@ where
     });
     apply_profile_i18n();
 
-    let content_for_compact = content.clone();
-    let sections_columns_for_compact = sections_columns.clone();
-    let save_row_for_compact = identity_section.save_row.clone();
-    let security_actions_for_compact = password_section.actions_row.clone();
-    let save_btn_for_compact = identity_section.save_button.clone();
-    let change_btn_for_compact = password_section.change_button.clone();
-    let rotate_btn_for_compact = password_section.rotate_button.clone();
-    let export_btn_for_compact = data_section.export_button.clone();
-    let import_btn_for_compact = data_section.import_button.clone();
-    container.add_tick_callback(move |widget, _clock| {
-        if widget.allocated_width() < 760 {
-            content_for_compact.add_css_class("profile-compact");
-            sections_columns_for_compact.set_orientation(Orientation::Vertical);
-            sections_columns_for_compact.set_homogeneous(false);
-            save_row_for_compact.set_orientation(Orientation::Vertical);
-            save_row_for_compact.set_halign(Align::Fill);
-            security_actions_for_compact.set_orientation(Orientation::Vertical);
-            security_actions_for_compact.set_halign(Align::Fill);
-
-            for button in [
-                save_btn_for_compact.clone(),
-                change_btn_for_compact.clone(),
-                rotate_btn_for_compact.clone(),
-                export_btn_for_compact.clone(),
-                import_btn_for_compact.clone(),
-            ] {
-                button.set_hexpand(true);
-                button.set_halign(Align::Fill);
-            }
-        } else {
-            content_for_compact.remove_css_class("profile-compact");
-            sections_columns_for_compact.set_orientation(Orientation::Horizontal);
-            sections_columns_for_compact.set_homogeneous(true);
-            save_row_for_compact.set_orientation(Orientation::Horizontal);
-            save_row_for_compact.set_halign(Align::End);
-            security_actions_for_compact.set_orientation(Orientation::Horizontal);
-            security_actions_for_compact.set_halign(Align::End);
-
-            for button in [
-                save_btn_for_compact.clone(),
-                change_btn_for_compact.clone(),
-                rotate_btn_for_compact.clone(),
-                export_btn_for_compact.clone(),
-                import_btn_for_compact.clone(),
-            ] {
-                button.set_hexpand(false);
-                button.set_halign(Align::End);
-            }
-        }
-        glib::ControlFlow::Continue
-    });
+    // Protection checklist of the header, recomputed from the widgets that own each state.
+    let refresh_protection: Rc<dyn Fn()> = {
+        let summary = summary_section.clone();
+        let twofa_stack = twofa_section.stack.clone();
+        let pin_cache = Rc::clone(&pin_cache);
+        let security = security_section.clone();
+        Rc::new(move || {
+            summary.set_protection([
+                twofa_stack.visible_child_name().as_deref() == Some("enabled"),
+                pin_cache.borrow().is_some(),
+                security.auto_lock_enabled(),
+            ]);
+        })
+    };
+    {
+        let refresh = Rc::clone(&refresh_protection);
+        twofa_section
+            .stack
+            .connect_visible_child_name_notify(move |_| refresh());
+        let refresh = Rc::clone(&refresh_protection);
+        security_section
+            .pin_status_badge
+            .connect_label_notify(move |_| refresh());
+    }
+    refresh_protection();
 
     let begin_critical_operation: Rc<dyn Fn()> = {
         let counter = Rc::clone(&critical_ops_in_flight);
@@ -277,11 +229,16 @@ where
         let _ = sender.send(result);
     });
 
-    let username_entry_for_load = identity_section.username_entry.clone();
-    let display_entry_for_load = identity_section.display_entry.clone();
-    let email_entry_for_load = identity_section.email_entry.clone();
+    // Last persisted values: setting a widget programmatically must not persist it again.
+    let applied_auto_lock: Rc<Cell<Option<i64>>> = Rc::new(Cell::new(None));
+    let applied_language: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
+    let identity_for_load = identity_section.clone();
+    let summary_for_load = summary_section.clone();
+    let preferences_for_load = preferences_section.clone();
+    let applied_auto_lock_for_load = Rc::clone(&applied_auto_lock);
+    let applied_language_for_load = Rc::clone(&applied_language);
+    let refresh_protection_for_load = Rc::clone(&refresh_protection);
     let auto_lock_for_load = security_section.auto_lock_dropdown.clone();
-    let language_dropdown_for_load = identity_section.language_dropdown.clone();
     let show_edit_passwords_for_load = security_section.show_passwords_switch.clone();
     let show_passwords_pref_for_load = Rc::clone(&show_passwords_in_edit_pref);
     let twofa_stack_for_load = twofa_section.stack.clone();
@@ -296,22 +253,35 @@ where
                 let language = user.preferred_language.trim().to_ascii_lowercase();
                 let _ = heelonvault_core::i18n::set_language(language.as_str());
                 apply_profile_i18n_for_load();
-                username_entry_for_load.set_text(user.username.as_str());
-                display_entry_for_load.set_text(user.display_name.as_deref().unwrap_or_default());
-                email_entry_for_load.set_text(user.email.as_deref().unwrap_or_default());
-                language_dropdown_for_load.set_selected(if language.starts_with("en") {
-                    1
-                } else {
-                    0
-                });
-                let selected = match delay {
-                    1 => 0,
-                    5 => 1,
-                    30 => 2,
-                    0 => 3,
-                    _ => 1,
-                };
-                auto_lock_for_load.set_selected(selected);
+                let display_name = user.display_name.clone().unwrap_or_default();
+                let email = user.email.clone().unwrap_or_default();
+                identity_for_load
+                    .username_entry
+                    .set_text(user.username.as_str());
+                identity_for_load
+                    .display_entry
+                    .set_text(display_name.as_str());
+                identity_for_load.email_entry.set_text(email.as_str());
+                identity_for_load.mark_saved(display_name.as_str(), email.as_str());
+                summary_for_load.set_identity(
+                    user.username.as_str(),
+                    user.display_name.as_deref(),
+                    user.email.as_deref(),
+                );
+                *applied_language_for_load.borrow_mut() = language.clone();
+                preferences_for_load.select_language(language.as_str());
+                // Unknown stored delays fall back to the 5-minute default.
+                let selected = sections::security_prefs::AUTO_LOCK_MINUTES
+                    .iter()
+                    .position(|minutes| *minutes == delay)
+                    .unwrap_or(1);
+                applied_auto_lock_for_load.set(
+                    sections::security_prefs::AUTO_LOCK_MINUTES
+                        .get(selected)
+                        .copied(),
+                );
+                auto_lock_for_load.set_selected(selected as u32);
+                refresh_protection_for_load();
                 show_edit_passwords_for_load.set_active(user.show_passwords_in_edit);
                 show_passwords_pref_for_load.set(user.show_passwords_in_edit);
                 twofa_stack_for_load.set_visible_child_name(if totp_enabled {
@@ -341,6 +311,10 @@ where
     let window_for_delay = window.clone();
     let security_status_for_delay = security_section.status_label.clone();
     let session_for_delay = Rc::clone(&session_master_key);
+    let applied_auto_lock_for_delay = Rc::clone(&applied_auto_lock);
+    let refresh_protection_for_delay = Rc::clone(&refresh_protection);
+    // Set once the user explicitly accepted "never"; consumed by the next selection.
+    let never_confirmed = Rc::new(Cell::new(false));
     security_section
         .auto_lock_dropdown
         .connect_selected_notify(move |dropdown| {
@@ -353,20 +327,56 @@ where
                 return;
             }
 
-            let mins = match dropdown.selected() {
-                0 => 1,
-                1 => 5,
-                2 => 30,
-                3 => 0,
-                _ => 5,
+            let Some(mins) = sections::security_prefs::AUTO_LOCK_MINUTES
+                .get(dropdown.selected() as usize)
+                .copied()
+            else {
+                return;
             };
-            if mins == 0 {
-                MainWindow::show_feedback_dialog(
-                    &window_for_delay,
-                    heelonvault_core::tr!("profile-auto-lock-never-warning-title").as_str(),
-                    heelonvault_core::tr!("profile-auto-lock-never-warning-body").as_str(),
-                );
+            // Model rebuilds (language change) re-select the same value: nothing to persist.
+            if applied_auto_lock_for_delay.get() == Some(mins) {
+                return;
             }
+            // Disabling auto-lock is confirmed before it is applied, not reported afterwards.
+            if mins == 0 && !never_confirmed.replace(false) {
+                let previous = applied_auto_lock_for_delay
+                    .get()
+                    .and_then(|applied| {
+                        sections::security_prefs::AUTO_LOCK_MINUTES
+                            .iter()
+                            .position(|minutes| *minutes == applied)
+                    })
+                    .unwrap_or(1);
+                let dialog = adw::MessageDialog::new(
+                    Some(&window_for_delay),
+                    Some(heelonvault_core::tr!("profile-auto-lock-never-warning-title").as_str()),
+                    Some(heelonvault_core::tr!("profile-auto-lock-never-warning-body").as_str()),
+                );
+                dialog.add_response("cancel", heelonvault_core::tr!("common-cancel").as_str());
+                dialog.add_response(
+                    "disable",
+                    heelonvault_core::tr!("profile-auto-lock-never-confirm").as_str(),
+                );
+                dialog.set_response_appearance("disable", adw::ResponseAppearance::Destructive);
+                dialog.set_default_response(Some("cancel"));
+                dialog.set_close_response("cancel");
+                let dropdown = dropdown.clone();
+                let never_confirmed = Rc::clone(&never_confirmed);
+                // Show the previous value while the user decides.
+                dropdown.set_selected(previous as u32);
+                dialog.connect_response(None, move |_, response| {
+                    if response == "disable" {
+                        never_confirmed.set(true);
+                        dropdown.set_selected(
+                            (sections::security_prefs::AUTO_LOCK_MINUTES.len() - 1) as u32,
+                        );
+                    }
+                });
+                dialog.present();
+                return;
+            }
+            applied_auto_lock_for_delay.set(Some(mins));
+            refresh_protection_for_delay();
             let status_message = if mins == 0 {
                 heelonvault_core::tr!("profile-status-lock-delay-warning")
             } else {
@@ -397,6 +407,7 @@ where
             let on_auto_lock_for_result = Rc::clone(&on_auto_lock);
             let session_for_result = Rc::clone(&session_for_delay);
             let window_for_result = window_for_delay.clone();
+            let applied_auto_lock_for_result = Rc::clone(&applied_auto_lock_for_delay);
             glib::MainContext::default().spawn_local(async move {
                 match receiver.await {
                     Ok((updated_mins, Ok(()))) => {
@@ -424,6 +435,7 @@ where
                         );
                     }
                     _ => {
+                        applied_auto_lock_for_result.set(None);
                         MainWindow::set_inline_status(
                             &security_status_for_result,
                             heelonvault_core::tr!("profile-status-lock-delay-failed").as_str(),
@@ -438,7 +450,9 @@ where
     let runtime_for_profile_save = runtime_handle.clone();
     let display_for_save = identity_section.display_entry.clone();
     let email_for_save = identity_section.email_entry.clone();
-    let language_dropdown_for_save = identity_section.language_dropdown.clone();
+    let preferences_for_save = preferences_section.clone();
+    let identity_for_save = identity_section.clone();
+    let summary_for_save = summary_section.clone();
     let current_email_pw_for_save = identity_section.current_email_pw_entry.clone();
     let show_edit_passwords_for_save = security_section.show_passwords_switch.clone();
     let show_passwords_pref_for_save = Rc::clone(&show_passwords_in_edit_pref);
@@ -493,6 +507,68 @@ where
                 }
             });
         });
+    // ── Language: applied as soon as it is chosen ────────────────────────────
+    // Only the language changes: the payload carries the *saved* identity, not unsaved edits
+    // of the account form (an empty field would otherwise clear the stored value).
+    let service_for_language = Arc::clone(&user_service);
+    let runtime_for_language = runtime_handle.clone();
+    let loading_lock_for_language = Rc::clone(&loading_lock);
+    let applied_language_for_change = Rc::clone(&applied_language);
+    let identity_for_language = identity_section.clone();
+    let show_passwords_for_language = security_section.show_passwords_switch.clone();
+    let apply_i18n_for_language = Rc::clone(&apply_profile_i18n);
+    let preferences_for_language = preferences_section.clone();
+    let window_for_language = window.clone();
+    preferences_section
+        .language_row
+        .connect_selected_notify(move |_| {
+            if loading_lock_for_language.get() {
+                return;
+            }
+            let language = preferences_for_language.selected_language();
+            if applied_language_for_change.borrow().starts_with(language) {
+                return;
+            }
+            *applied_language_for_change.borrow_mut() = language.to_string();
+            let saved = identity_for_language.saved.borrow().clone();
+            let payload = heelonvault_core::services::user_service::UserProfileUpdate {
+                email: Some(saved.email),
+                display_name: Some(saved.display_name),
+                preferred_language: Some(language.to_string()),
+                show_passwords_in_edit: Some(show_passwords_for_language.is_active()),
+                current_password: None,
+            };
+            let (sender, receiver) = tokio::sync::oneshot::channel();
+            let runtime_for_task = runtime_for_language.clone();
+            let service_for_task = Arc::clone(&service_for_language);
+            std::thread::spawn(move || {
+                let result = runtime_for_task.block_on(async move {
+                    service_for_task.update_user_profile(user_id, payload).await
+                });
+                let _ = sender.send(result);
+            });
+            let apply_i18n = Rc::clone(&apply_i18n_for_language);
+            let applied_language = Rc::clone(&applied_language_for_change);
+            let window = window_for_language.clone();
+            glib::MainContext::default().spawn_local(async move {
+                match receiver.await {
+                    Ok(Ok(user)) => {
+                        let _ =
+                            heelonvault_core::i18n::set_language(user.preferred_language.as_str());
+                        apply_i18n();
+                    }
+                    _ => {
+                        applied_language.borrow_mut().clear();
+                        MainWindow::show_feedback_dialog(
+                            &window,
+                            heelonvault_core::tr!("profile-status-save-failed").as_str(),
+                            heelonvault_core::tr!("profile-language-save-failed").as_str(),
+                        );
+                    }
+                }
+            });
+        });
+
     // ── PIN setup button handler ─────────────────────────────────────────────
     let win_for_pin = window.clone();
     let session_for_pin = Rc::clone(&session_master_key);
@@ -551,14 +627,11 @@ where
                 let value = display_for_save.text().trim().to_string();
                 if value.is_empty() { None } else { Some(value) }
             },
-            preferred_language: Some(if language_dropdown_for_save.selected() == 1 {
-                "en".to_string()
-            } else {
-                "fr".to_string()
-            }),
+            preferred_language: Some(preferences_for_save.selected_language().to_string()),
             show_passwords_in_edit: Some(show_edit_passwords_for_save.is_active()),
+            // Passwords are used exactly as typed, like on the login screen.
             current_password: {
-                let value = current_email_pw_for_save.text().trim().to_string();
+                let value = current_email_pw_for_save.text().to_string();
                 if value.is_empty() {
                     None
                 } else {
@@ -581,11 +654,22 @@ where
         let profile_status_for_result = profile_status_for_save.clone();
         let show_passwords_pref_for_result = Rc::clone(&show_passwords_pref_for_save);
         let apply_profile_i18n_for_result = Rc::clone(&apply_profile_i18n_for_save);
+        let identity_for_result = identity_for_save.clone();
+        let summary_for_result = summary_for_save.clone();
         glib::MainContext::default().spawn_local(async move {
             match receiver.await {
                 Ok(Ok(user)) => {
                     let _ = heelonvault_core::i18n::set_language(user.preferred_language.as_str());
                     apply_profile_i18n_for_result();
+                    identity_for_result.mark_saved(
+                        user.display_name.as_deref().unwrap_or_default(),
+                        user.email.as_deref().unwrap_or_default(),
+                    );
+                    summary_for_result.set_identity(
+                        user.username.as_str(),
+                        user.display_name.as_deref(),
+                        user.email.as_deref(),
+                    );
                     let display = user
                         .display_name
                         .clone()
@@ -621,17 +705,6 @@ where
 
     let service_for_pw_change = Arc::clone(&user_service);
     let runtime_for_pw_change = runtime_handle.clone();
-    let current_pw_for_change = password_section.current_entry.clone();
-    let security_status_for_pw_change = password_section.status_label.clone();
-    password_section.change_button.connect_clicked(move |_| {
-        MainWindow::set_inline_status(
-            &security_status_for_pw_change,
-            heelonvault_core::tr!("profile-status-password-change-ready").as_str(),
-            "success",
-        );
-        current_pw_for_change.grab_focus();
-    });
-
     let service_for_rotate = Arc::clone(&service_for_pw_change);
     let runtime_for_rotate = runtime_for_pw_change.clone();
     let current_pw_for_rotate = password_section.current_entry.clone();
@@ -643,13 +716,32 @@ where
     let pin_badge_for_rotate = security_section.pin_status_badge.clone();
     let on_pin_state_for_rotate = Rc::clone(&on_pin_state_changed);
     password_section.rotate_button.connect_clicked(move |_| {
-        let current_raw = current_pw_for_rotate.text().trim().to_string();
-        let new_raw = new_pw_for_rotate.text().trim().to_string();
-        let confirm_raw = confirm_pw_for_rotate.text().trim().to_string();
+        // Exactly as typed: the login screen does not trim, so trimming here could store a
+        // password the user can no longer type.
+        let current_raw = current_pw_for_rotate.text().to_string();
+        let new_raw = new_pw_for_rotate.text().to_string();
+        let confirm_raw = confirm_pw_for_rotate.text().to_string();
         if current_raw.is_empty() || new_raw.is_empty() || confirm_raw.is_empty() {
             MainWindow::set_inline_status(
                 &security_status_for_rotate,
                 heelonvault_core::tr!("profile-status-password-fields-required").as_str(),
+                "error",
+            );
+            return;
+        }
+        if new_raw.chars().count() < sections::password::MIN_MASTER_PASSWORD_CHARS {
+            MainWindow::set_inline_status(
+                &security_status_for_rotate,
+                heelonvault_core::i18n::tr_args(
+                    "profile-status-password-too-short",
+                    &[(
+                        "min",
+                        heelonvault_core::i18n::I18nArg::Num(
+                            sections::password::MIN_MASTER_PASSWORD_CHARS as i64,
+                        ),
+                    )],
+                )
+                .as_str(),
                 "error",
             );
             return;
@@ -766,7 +858,7 @@ where
             crypto_service: Arc::clone(&crypto_service),
             database_path: database_path.clone(),
             user_id,
-            is_admin,
+            can_export_backup: entitlements.can_export_backup(),
             session_master_key: Rc::clone(&session_master_key),
             on_import_completed_refresh: Rc::clone(&on_import_completed_refresh),
             begin_critical_operation: Rc::clone(&begin_critical_operation),

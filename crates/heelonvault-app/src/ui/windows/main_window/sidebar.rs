@@ -4,7 +4,7 @@ use gtk4::prelude::*;
 use gtk4::{Align, Orientation};
 use uuid::Uuid;
 
-use super::SidebarWidgets;
+use super::{SecurityNavigation, SidebarWidgets};
 
 pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     let sidebar_frame = gtk4::Frame::new(None);
@@ -24,9 +24,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     my_vaults_title.add_css_class("main-section-title");
     my_vaults_title.set_halign(Align::Start);
 
-    let create_vault_button = gtk4::Button::builder()
-        .icon_name("list-add-symbolic")
-        .build();
+    let create_vault_button = gtk4::Button::builder().icon_name("hv-add-symbolic").build();
     create_vault_button.add_css_class("flat");
     create_vault_button.add_css_class("accent");
     create_vault_button.set_tooltip_text(Some(
@@ -69,6 +67,8 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     audit_title.add_css_class("main-section-title");
     audit_title.set_halign(Align::Start);
     sidebar_box.append(&audit_title);
+    let security_nav = build_security_navigation();
+    sidebar_box.append(&security_nav.button);
 
     let audit_list = gtk4::ListBox::new();
     audit_list.add_css_class("boxed-list");
@@ -77,16 +77,16 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
 
     let (audit_all_row, audit_all_label, audit_all_badge) = build_audit_sidebar_row(
         heelonvault_core::tr!("main-audit-all").as_str(),
-        "view-grid-symbolic",
+        "hv-grid-symbolic",
     );
     let (audit_weak_row, audit_weak_label, audit_weak_badge) = build_audit_sidebar_row(
         heelonvault_core::tr!("main-audit-weak").as_str(),
-        "dialog-warning-symbolic",
+        "hv-warning-symbolic",
     );
     let (audit_duplicate_row, audit_duplicate_label, audit_duplicate_badge) =
         build_audit_sidebar_row(
             heelonvault_core::tr!("main-audit-duplicates").as_str(),
-            "edit-copy-symbolic",
+            "hv-reuse-symbolic",
         );
     audit_list.append(&audit_all_row);
     audit_list.append(&audit_weak_row);
@@ -99,7 +99,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     certification_menu_button.add_css_class("sidebar-profile-entry");
     certification_menu_button.set_halign(Align::Fill);
     certification_menu_button.set_hexpand(true);
-    certification_menu_button.set_icon_name("emblem-ok-symbolic");
+    certification_menu_button.set_icon_name("hv-shield-ok-symbolic");
     certification_menu_button.set_label(heelonvault_core::tr!("certification-menu-label").as_str());
     certification_menu_button.set_tooltip_text(Some(
         heelonvault_core::tr!("certification-menu-label").as_str(),
@@ -121,23 +121,23 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     let rows = [
         (
             heelonvault_core::tr!("main-category-all"),
-            "view-grid-symbolic",
+            "hv-grid-symbolic",
         ),
         (
             heelonvault_core::tr!("main-category-passwords"),
-            "dialog-password-symbolic",
+            "hv-key-symbolic",
         ),
         (
             heelonvault_core::tr!("main-category-api-tokens"),
-            "application-x-addon-symbolic",
+            "hv-code-symbolic",
         ),
         (
             heelonvault_core::tr!("main-category-ssh-keys"),
-            "network-wired-symbolic",
+            "hv-terminal-symbolic",
         ),
         (
             heelonvault_core::tr!("main-category-documents"),
-            "folder-documents-symbolic",
+            "hv-document-symbolic",
         ),
     ];
 
@@ -197,7 +197,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
         .margin_start(10)
         .margin_end(10)
         .build();
-    let teams_icon = gtk4::Image::from_icon_name("system-users-symbolic");
+    let teams_icon = gtk4::Image::from_icon_name("hv-team-symbolic");
     teams_icon.set_pixel_size(18);
     teams_icon.add_css_class("main-sidebar-icon");
     let teams_label = gtk4::Label::new(Some(heelonvault_core::tr!("main-teams-nav").as_str()));
@@ -221,7 +221,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
         .margin_start(10)
         .margin_end(10)
         .build();
-    let administration_icon = gtk4::Image::from_icon_name("avatar-default-symbolic");
+    let administration_icon = gtk4::Image::from_icon_name("hv-user-symbolic");
     administration_icon.set_pixel_size(18);
     administration_icon.add_css_class("main-sidebar-icon");
     let administration_label =
@@ -238,6 +238,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     sidebar_frame.set_child(Some(&sidebar_box));
     SidebarWidgets {
         frame: sidebar_frame,
+        security_nav,
         my_vaults_title,
         create_vault_button,
         my_vaults_list,
@@ -274,6 +275,14 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
 /// Vault rows are excluded on purpose: they carry user data and are rebuilt by the vault
 /// list refresh instead.
 pub(super) fn refresh_i18n(sidebar: &SidebarWidgets) {
+    sidebar
+        .security_nav
+        .label
+        .set_text(heelonvault_core::tr!("security-center-title").as_str());
+    sidebar
+        .security_nav
+        .new_pill
+        .set_text(heelonvault_core::tr!("security-center-new").as_str());
     sidebar
         .audit_title
         .set_text(heelonvault_core::tr!("main-audit-title").as_str());
@@ -331,6 +340,38 @@ pub(super) fn refresh_i18n(sidebar: &SidebarWidgets) {
     sidebar.certification_menu_button.set_tooltip_text(Some(
         heelonvault_core::tr!("certification-menu-label").as_str(),
     ));
+}
+
+fn build_security_navigation() -> SecurityNavigation {
+    let content = gtk4::Box::new(Orientation::Horizontal, 10);
+    let icon = gtk4::Image::from_icon_name("hv-shield-symbolic");
+    icon.set_pixel_size(18);
+    icon.add_css_class("security-navigation-icon");
+    content.append(&icon);
+    let label = gtk4::Label::new(Some(
+        heelonvault_core::tr!("security-center-title").as_str(),
+    ));
+    label.set_halign(Align::Start);
+    label.set_hexpand(true);
+    label.set_xalign(0.0);
+    content.append(&label);
+    let new_pill = gtk4::Label::new(Some(heelonvault_core::tr!("security-center-new").as_str()));
+    new_pill.add_css_class("security-new-pill");
+    new_pill.set_visible(!crate::ui::view_preferences::load_security_center_seen());
+    content.append(&new_pill);
+    let count = gtk4::Label::new(None);
+    count.add_css_class("security-navigation-count");
+    count.set_visible(false);
+    content.append(&count);
+    let button = gtk4::Button::new();
+    button.set_child(Some(&content));
+    button.add_css_class("security-navigation");
+    SecurityNavigation {
+        button,
+        label,
+        count,
+        new_pill,
+    }
 }
 
 pub(super) fn build_audit_sidebar_row(
@@ -421,7 +462,7 @@ pub(super) fn build_vault_sidebar_row(
     ));
     content.append(&drag_handle);
 
-    let icon = gtk4::Image::from_icon_name("folder-symbolic");
+    let icon = gtk4::Image::from_icon_name("hv-vault-symbolic");
     icon.set_pixel_size(18);
     icon.add_css_class("main-sidebar-icon");
     content.append(&icon);
@@ -433,7 +474,7 @@ pub(super) fn build_vault_sidebar_row(
     content.append(&label);
 
     if shared_role.is_some() || is_shared_with_others {
-        let shared_icon = gtk4::Image::from_icon_name("emblem-shared-symbolic");
+        let shared_icon = gtk4::Image::from_icon_name("hv-shared-symbolic");
         shared_icon.set_pixel_size(14);
         shared_icon.add_css_class("main-sidebar-icon");
         shared_icon.add_css_class("vault-shared-indicator");
@@ -464,7 +505,7 @@ pub(super) fn build_vault_sidebar_row(
 
     if can_delete {
         let delete_button = gtk4::Button::builder()
-            .icon_name("user-trash-symbolic")
+            .icon_name("hv-trash-symbolic")
             .build();
         delete_button.add_css_class("flat");
         delete_button.set_valign(Align::Center);

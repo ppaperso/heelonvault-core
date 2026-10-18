@@ -152,7 +152,7 @@ impl AddEditDialog {
         password_row.append(&password_entry);
         password_row.append(&generate_button);
 
-        let strength_bar = PasswordStrengthBar::new();
+        let strength_bar = PasswordStrengthBar::for_stored_passwords();
         strength_bar.connect_to_password_entry(&password_entry);
 
         box_widget.append(&password_label);
@@ -168,7 +168,7 @@ impl AddEditDialog {
                 .build();
             hint_wrap.add_css_class("dialog-password-edit-hint-wrap");
 
-            let hint_icon = gtk4::Image::from_icon_name("dialog-information-symbolic");
+            let hint_icon = gtk4::Image::from_icon_name("hv-info-symbolic");
             hint_icon.set_pixel_size(16);
             hint_icon.add_css_class("dialog-password-edit-hint-icon");
 

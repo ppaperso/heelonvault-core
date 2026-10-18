@@ -9,7 +9,7 @@
     }
 
     .panic-badge-label {
-        color: #FFFFFF;
+        color: @hv_on_brand;
         font-weight: 820;
         letter-spacing: 0.05em;
         margin-right: 3px;
@@ -17,7 +17,7 @@
 
     .panic-soft-btn,
     .panic-soft-btn image {
-        color: #FFFFFF;
+        color: @hv_on_brand;
         opacity: 0.98;
     }
 
@@ -29,13 +29,13 @@
 
     .panic-hard-btn,
     .panic-hard-btn image {
-        color: #FFFFFF;
+        color: @hv_on_brand;
         opacity: 1;
     }
 
     .panic-hard-btn:hover,
     .panic-hard-btn:hover image {
-        color: #FFFFFF;
+        color: @hv_on_brand;
         background: rgba(0, 0, 0, 0.22);
         opacity: 1;
     }

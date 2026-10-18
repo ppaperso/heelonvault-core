@@ -2,15 +2,15 @@
 
     .sidebar-card,
     .sidebar-expander {
-        border-color: rgba(87, 185, 177, 0.40);
-        box-shadow: 0 6px 18px rgba(7, 57, 58, 0.07);
+        border-color: alpha(@hv_brand_300, 0.40);
+        box-shadow: 0 6px 18px alpha(@hv_brand_900, 0.07);
     }
 
     .sidebar-branding {
-        border-color: rgba(87, 185, 177, 0.55);
-        border-radius: 18px;
-        background: linear-gradient(135deg, #FFFFFF 0%, #EEF8F7 100%);
-        box-shadow: 0 10px 24px rgba(7, 57, 58, 0.10);
+        border-color: alpha(@hv_brand_300, 0.55);
+        border-radius: 16px;
+        background: linear-gradient(135deg, @hv_surface 0%, @hv_brand_50 100%);
+        box-shadow: 0 10px 24px alpha(@hv_brand_900, 0.10);
         padding: 8px 12px;
     }
 
@@ -25,7 +25,7 @@
         font-weight: 820;
         letter-spacing: 0.03em;
         font-family: "Space Grotesk", "Inter", "Cantarell", sans-serif;
-        color: #0A5F5C;
+        color: @hv_brand_800;
     }
 
     /* ─── VAULT ROWS PREMIUM ─────────────────────────────────────────────── */
@@ -37,67 +37,83 @@
     .vault-accent-bar {
         min-width: 4px;
         border-radius: 12px 0 0 12px;
-        background: linear-gradient(180deg, #13A1A1, #07393A);
+        background: linear-gradient(180deg, @hv_brand_500, @hv_brand_900);
     }
 
     .vault-row-icon {
-        color: #0A5F5C;
+        color: @hv_brand_800;
         opacity: 0.85;
     }
 
     .vault-row:selected {
-        background: linear-gradient(135deg, rgba(19, 161, 161, 0.16), rgba(87, 185, 177, 0.14));
-        border-color: #13A1A1;
-        box-shadow: 0 4px 12px rgba(7, 57, 58, 0.08);
+        background: linear-gradient(135deg, alpha(@hv_brand_500, 0.16), alpha(@hv_brand_300, 0.14));
+        border-color: @hv_brand_500;
+        box-shadow: 0 4px 12px alpha(@hv_brand_900, 0.08);
     }
 
     .vault-row:selected .vault-accent-bar {
-        background: linear-gradient(180deg, #1F8678, #0A5F5C);
+        background: linear-gradient(180deg, @hv_brand_green, @hv_brand_800);
     }
 
     .vault-row:selected .vault-row-icon {
-        color: #07393A;
+        color: @hv_brand_900;
         opacity: 1;
     }
 
     .vault-entry-chip {
-        background: rgba(19, 161, 161, 0.14);
-        color: #0A5F5C;
+        background: alpha(@hv_brand_500, 0.14);
+        color: @hv_brand_800;
     }
 
     .vault-row:selected .vault-entry-chip {
-        background: rgba(19, 161, 161, 0.22);
-        color: #07393A;
+        background: alpha(@hv_brand_500, 0.22);
+        color: @hv_brand_900;
     }
 
 frame.main-sidebar,
 frame.main-center-panel {
-    background: #FFFFFF;
-    border: 1px solid rgba(164, 223, 207, 0.95);
-    border-radius: 18px;
-    box-shadow: 0 14px 28px rgba(7, 57, 58, 0.08);
+    background: @hv_surface;
+    border: 1px solid alpha(@hv_brand_200, 0.70);
+    border-radius: 16px;
+    box-shadow: 0 1px 2px @hv_shadow_soft, 0 12px 32px @hv_shadow_key;
 }
 
 .main-section-title {
-    color: #07393A;
+    color: @hv_brand_900;
     font-weight: 800;
 }
 
-list.main-category-list row {
+list.main-category-list row,
+list.main-audit-list row {
     border-radius: 12px;
     margin: 2px 0;
+    transition: background-color 150ms ease, box-shadow 150ms ease;
 }
 
-list.main-category-list row:selected {
-    background: rgba(19, 161, 161, 0.16);
+list.main-category-list row:hover,
+list.main-audit-list row:hover {
+    background: alpha(@hv_brand_500, 0.07);
+}
+
+/* Selected row: brand tint plus an accent bar, never the system (blue) accent. */
+list.main-category-list row:selected,
+list.main-audit-list row:selected {
+    background: alpha(@hv_brand_500, 0.15);
+    box-shadow: inset 3px 0 0 @hv_brand_600;
+}
+
+list.main-category-list row:selected .main-sidebar-label,
+list.main-audit-list row:selected .main-sidebar-label {
+    color: @hv_brand_900;
+    font-weight: 700;
 }
 
 .main-sidebar-icon {
-    color: #0A5F5C;
+    color: @hv_brand_800;
 }
 
 .vault-shared-indicator {
-    color: #1B7D78;
+    color: @hv_brand_700;
     opacity: 0.95;
 }
 
@@ -111,9 +127,9 @@ list.main-category-list row:selected {
 
 .vault-share-role-badge {
     border-radius: 999px;
-    border: 1px solid rgba(19, 161, 161, 0.32);
-    background: rgba(19, 161, 161, 0.12);
-    color: #0A5F5C;
+    border: 1px solid alpha(@hv_brand_500, 0.32);
+    background: alpha(@hv_brand_500, 0.12);
+    color: @hv_brand_800;
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.4px;
@@ -121,7 +137,7 @@ list.main-category-list row:selected {
 }
 
 .main-sidebar-label {
-    color: #2C3E50;
+    color: @hv_text;
     font-weight: 600;
 }
 
@@ -133,20 +149,20 @@ button.sidebar-profile-entry {
 }
 
 button.sidebar-profile-entry:hover {
-    background: rgba(19, 161, 161, 0.12);
-    border-color: rgba(19, 161, 161, 0.26);
+    background: alpha(@hv_brand_500, 0.12);
+    border-color: alpha(@hv_brand_500, 0.26);
 }
 
 button.main-inline-back-button {
-    border-radius: 10px;
-    border: 1px solid rgba(19, 161, 161, 0.28);
-    background: rgba(19, 161, 161, 0.08);
-    color: #0A5F5C;
+    border-radius: 8px;
+    border: 1px solid alpha(@hv_brand_500, 0.28);
+    background: alpha(@hv_brand_500, 0.08);
+    color: @hv_brand_800;
     padding: 5px 10px;
 }
 
 button.main-inline-back-button:hover {
-    background: rgba(19, 161, 161, 0.14);
-    border-color: rgba(19, 161, 161, 0.40);
+    background: alpha(@hv_brand_500, 0.14);
+    border-color: alpha(@hv_brand_500, 0.40);
 }
 

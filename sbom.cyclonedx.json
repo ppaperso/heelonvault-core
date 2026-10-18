@@ -2,9 +2,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.4",
   "version": 1,
-  "serialNumber": "urn:uuid:05045167-fdec-4392-bad9-f5ced7ebaa88",
+  "serialNumber": "urn:uuid:557976ed-a695-430f-b389-16b1a22b9240",
   "metadata": {
-    "timestamp": "2026-10-18T07:26:56.526914202Z",
+    "timestamp": "2026-10-18T08:43:29.577337702Z",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -20,10 +20,10 @@
     ],
     "component": {
       "type": "application",
-      "bom-ref": "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-app#2.0.2",
+      "bom-ref": "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-app#2.1.0",
       "author": "ppaperso <ppaperso@users.noreply.github.com>",
       "name": "heelonvault",
-      "version": "2.0.2",
+      "version": "2.1.0",
       "description": "HeelonVault — Binaire GTK4/Libadwaita (assembleur Open Core)",
       "scope": "required",
       "licenses": [
@@ -31,7 +31,7 @@
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/heelonvault-app@2.0.2?download_url=file://.#src/main.rs",
+      "purl": "pkg:cargo/heelonvault-app@2.1.0?download_url=file://.#src/main.rs",
       "externalReferences": [
         {
           "type": "vcs",
@@ -49,10 +49,10 @@
   "components": [
     {
       "type": "library",
-      "bom-ref": "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-core#2.0.2",
+      "bom-ref": "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-core#2.1.0",
       "author": "ppaperso <ppaperso@users.noreply.github.com>",
       "name": "heelonvault-core",
-      "version": "2.0.2",
+      "version": "2.1.0",
       "description": "Core cryptography and storage library for HeelonVault",
       "scope": "required",
       "licenses": [
@@ -60,12 +60,33 @@
           "expression": "Apache-2.0"
         }
       ],
-      "purl": "pkg:cargo/heelonvault-core@2.0.2?download_url=file://../heelonvault-core",
+      "purl": "pkg:cargo/heelonvault-core@2.1.0?download_url=file://../heelonvault-core",
       "externalReferences": [
         {
           "type": "documentation",
           "url": "https://docs.rs/heelonvault-core"
         },
+        {
+          "type": "vcs",
+          "url": "https://github.com/ppaperso/heelonvault-core"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-url-check#2.1.0",
+      "author": "ppaperso <ppaperso@users.noreply.github.com>",
+      "name": "heelonvault-url-check",
+      "version": "2.1.0",
+      "description": "Optional, bounded HTTPS reachability check (DNS + TLS handshake only) for HeelonVault",
+      "scope": "required",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/heelonvault-url-check@2.1.0?download_url=file://../heelonvault-url-check",
+      "externalReferences": [
         {
           "type": "vcs",
           "url": "https://github.com/ppaperso/heelonvault-core"
@@ -87,10 +108,10 @@
     },
     {
       "type": "library",
-      "bom-ref": "path+file:///NORMALIZED/heelonvault-premium#2.0.2",
+      "bom-ref": "path+file:///NORMALIZED/heelonvault-premium#2.1.0",
       "author": "ppaperso <ppaperso@users.noreply.github.com>",
       "name": "heelonvault-premium",
-      "version": "2.0.2",
+      "version": "2.1.0",
       "description": "HeelonVault — Implémentations Premium (admin multi-utilisateurs, équipes, audit)",
       "scope": "required",
       "licenses": [
@@ -98,7 +119,7 @@
           "expression": "LicenseRef-Heelonys-Proprietary"
         }
       ],
-      "purl": "pkg:cargo/heelonvault-premium@2.0.2?download_url=file:///NORMALIZED/heelonvault-premium",
+      "purl": "pkg:cargo/heelonvault-premium@2.1.0?download_url=file:///NORMALIZED/heelonvault-premium",
       "externalReferences": [
         {
           "type": "vcs",
@@ -12600,7 +12621,7 @@
   ],
   "dependencies": [
     {
-      "ref": "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-app#2.0.2",
+      "ref": "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-app#2.1.0",
       "dependsOn": [
         "registry+https://github.com/rust-lang/crates.io-index#anyhow@1.0.104",
         "registry+https://github.com/rust-lang/crates.io-index#chrono@0.4.45",
@@ -12610,8 +12631,9 @@
         "registry+https://github.com/rust-lang/crates.io-index#gio@0.22.10",
         "registry+https://github.com/rust-lang/crates.io-index#glib-build-tools@0.22.8",
         "registry+https://github.com/rust-lang/crates.io-index#gtk4@0.11.5",
-        "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-core#2.0.2",
-        "path+file:///NORMALIZED/heelonvault-premium#2.0.2",
+        "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-core#2.1.0",
+        "path+file:///NORMALIZED/heelonvault-premium#2.1.0",
+        "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-url-check#2.1.0",
         "registry+https://github.com/rust-lang/crates.io-index#hex@0.4.3",
         "registry+https://github.com/rust-lang/crates.io-index#libadwaita@0.9.2",
         "registry+https://github.com/rust-lang/crates.io-index#secrecy@0.10.3",
@@ -12624,14 +12646,14 @@
         "registry+https://github.com/rust-lang/crates.io-index#tracing@0.1.44",
         "registry+https://github.com/rust-lang/crates.io-index#tracing-appender@0.2.5",
         "registry+https://github.com/rust-lang/crates.io-index#tracing-subscriber@0.3.23",
+        "registry+https://github.com/rust-lang/crates.io-index#url@2.5.8",
         "registry+https://github.com/rust-lang/crates.io-index#uuid@1.28.0",
         "registry+https://github.com/rust-lang/crates.io-index#webbrowser@1.2.4",
-        "registry+https://github.com/rust-lang/crates.io-index#zeroize@1.9.1",
-        "registry+https://github.com/rust-lang/crates.io-index#zxcvbn@3.1.1"
+        "registry+https://github.com/rust-lang/crates.io-index#zeroize@1.9.1"
       ]
     },
     {
-      "ref": "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-core#2.0.2",
+      "ref": "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-core#2.1.0",
       "dependsOn": [
         "registry+https://github.com/rust-lang/crates.io-index#aes-gcm@0.11.1",
         "registry+https://github.com/rust-lang/crates.io-index#argon2@0.6.0",
@@ -12660,7 +12682,18 @@
         "registry+https://github.com/rust-lang/crates.io-index#unic-langid@0.9.6",
         "registry+https://github.com/rust-lang/crates.io-index#url@2.5.8",
         "registry+https://github.com/rust-lang/crates.io-index#uuid@1.28.0",
-        "registry+https://github.com/rust-lang/crates.io-index#zeroize@1.9.1"
+        "registry+https://github.com/rust-lang/crates.io-index#zeroize@1.9.1",
+        "registry+https://github.com/rust-lang/crates.io-index#zxcvbn@3.1.1"
+      ]
+    },
+    {
+      "ref": "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-url-check#2.1.0",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#thiserror@2.0.21",
+        "registry+https://github.com/rust-lang/crates.io-index#tokio@1.53.3",
+        "registry+https://github.com/rust-lang/crates.io-index#tokio-rustls@0.26.6",
+        "registry+https://github.com/rust-lang/crates.io-index#url@2.5.8",
+        "registry+https://github.com/rust-lang/crates.io-index#webpki-roots@1.0.9"
       ]
     },
     {
@@ -12671,14 +12704,14 @@
       ]
     },
     {
-      "ref": "path+file:///NORMALIZED/heelonvault-premium#2.0.2",
+      "ref": "path+file:///NORMALIZED/heelonvault-premium#2.1.0",
       "dependsOn": [
         "registry+https://github.com/rust-lang/crates.io-index#base64@0.23.1",
         "registry+https://github.com/rust-lang/crates.io-index#chrono@0.4.45",
         "registry+https://github.com/rust-lang/crates.io-index#directories@6.0.0",
         "registry+https://github.com/rust-lang/crates.io-index#ed25519-dalek@3.0.0",
         "registry+https://github.com/rust-lang/crates.io-index#getrandom@0.4.3",
-        "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-core#2.0.2",
+        "path+file:///NORMALIZED/heelonvault-core/crates/heelonvault-core#2.1.0",
         "registry+https://github.com/rust-lang/crates.io-index#hex@0.4.3",
         "registry+https://github.com/rust-lang/crates.io-index#reqwest@0.13.5",
         "registry+https://github.com/rust-lang/crates.io-index#secrecy@0.10.3",

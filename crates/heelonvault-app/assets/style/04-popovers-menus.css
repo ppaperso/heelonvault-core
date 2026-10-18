@@ -15,22 +15,22 @@
 
     popover menu,
     popover box {
-        background: #FFFFFF;
-        color: #2C3E50;
+        background: @hv_surface;
+        color: @hv_text;
         border-radius: 16px;
-        border: 1px solid #A4DFCF;
-        box-shadow: 0 20px 40px rgba(7, 57, 58, 0.12);
+        border: 1px solid @hv_brand_200;
+        box-shadow: 0 20px 40px alpha(@hv_brand_900, 0.12);
     }
 
     popover modelbutton,
     popover menuitem,
     popover label {
-        color: #2C3E50;
+        color: @hv_text;
     }
 
     popover modelbutton:hover,
     popover menuitem:hover {
-        background: #F3F6F3;
+        background: @hv_canvas;
     }
 
     .app-menu-popover box {
@@ -39,24 +39,24 @@
 
     .profile-login-history-popover label,
     headerbar .profile-login-history-popover label {
-        color: #2C3E50;
+        color: @hv_text;
     }
 
     .profile-login-history-title,
     headerbar .profile-login-history-title {
-        color: #07393A;
+        color: @hv_brand_900;
         font-weight: 700;
     }
 
     .profile-login-history-row,
     headerbar .profile-login-history-row {
-        color: #2C3E50;
+        color: @hv_text;
         font-size: 0.86rem;
     }
 
     .profile-login-history-muted,
     headerbar .profile-login-history-muted {
-        color: #5F7E80;
+        color: @hv_text_muted;
         font-size: 0.82rem;
     }
 
@@ -69,8 +69,8 @@
     button.app-menu-item {
         min-height: 34px;
         padding: 5px 8px;
-        border-radius: 10px;
-        color: #2C3E50;
+        border-radius: 8px;
+        color: @hv_text;
         background: transparent;
         border: 1px solid transparent;
         box-shadow: none;
@@ -78,12 +78,12 @@
 
     button.app-menu-item label,
     button.app-menu-item image {
-        color: #2C3E50;
+        color: @hv_text;
     }
 
     button.app-menu-item:hover {
-        background: #EAF3F1;
-        border-color: rgba(87, 185, 177, 0.35);
+        background: @hv_brand_50;
+        border-color: alpha(@hv_brand_300, 0.35);
         transform: none;
         box-shadow: none;
     }
@@ -92,23 +92,23 @@
     button.app-menu-item:hover image,
     button.app-menu-item:focus-visible label,
     button.app-menu-item:focus-visible image {
-        color: #07393A;
+        color: @hv_brand_900;
     }
 
     button.app-menu-item:focus-visible {
-        background: #EAF3F1;
-        border-color: rgba(87, 185, 177, 0.45);
+        background: @hv_brand_50;
+        border-color: alpha(@hv_brand_300, 0.45);
         outline: none;
     }
 
     button.app-menu-item-destructive,
     button.app-menu-item-destructive label,
     button.app-menu-item-destructive image {
-        color: #C01C28;
+        color: @hv_danger;
     }
 
     button.nav-drawer-scrim {
-        background: rgba(7, 57, 58, 0.18);
+        background: alpha(@hv_brand_900, 0.18);
         border: none;
         border-radius: 0;
         box-shadow: none;
@@ -116,21 +116,21 @@
     }
 
     .nav-drawer {
-        background: linear-gradient(170deg, #FFFFFF 0%, #EEF8F7 100%);
-        border: 1px solid rgba(87, 185, 177, 0.42);
-        border-radius: 18px;
-        box-shadow: 0 22px 46px rgba(7, 57, 58, 0.22);
+        background: linear-gradient(170deg, @hv_surface 0%, @hv_brand_50 100%);
+        border: 1px solid alpha(@hv_brand_300, 0.42);
+        border-radius: 16px;
+        box-shadow: 0 22px 46px alpha(@hv_brand_900, 0.22);
         padding: 8px;
     }
 
     .nav-drawer-title {
-        color: #07393A;
+        color: @hv_brand_900;
         font-weight: 780;
         letter-spacing: 0.02em;
     }
 
     .nav-drawer-section {
-        color: #5F7E80;
+        color: @hv_text_muted;
         font-weight: 680;
         letter-spacing: 0.06em;
         margin-top: 8px;
@@ -144,42 +144,42 @@
     }
 
     button.nav-drawer-btn:hover {
-        border-color: rgba(87, 185, 177, 0.48);
-        background: rgba(234, 243, 241, 0.96);
-        box-shadow: 0 8px 18px rgba(7, 57, 58, 0.12);
+        border-color: alpha(@hv_brand_300, 0.48);
+        background: alpha(@hv_brand_50, 0.96);
+        box-shadow: 0 8px 18px alpha(@hv_brand_900, 0.12);
     }
 
     .secret-card-manage-popover box {
         min-width: 148px;
         border-radius: 12px;
-        background: #FFFFFF;
-        border: 1px solid rgba(164, 223, 207, 0.70);
-        box-shadow: 0 10px 24px rgba(7, 57, 58, 0.14);
+        background: @hv_surface;
+        border: 1px solid alpha(@hv_brand_200, 0.70);
+        box-shadow: 0 10px 24px alpha(@hv_brand_900, 0.14);
         padding: 4px;
     }
 
     .secret-card-manage-btn {
         min-height: 30px;
         border-radius: 8px;
-        color: #2C3E50;
+        color: @hv_text;
         background: transparent;
         border: 1px solid transparent;
     }
 
     .secret-card-manage-btn:hover {
-        background: #EAF3F1;
-        color: #07393A;
+        background: @hv_brand_50;
+        color: @hv_brand_900;
     }
 
     .secret-card-manage-btn-destructive,
     .secret-card-manage-btn-destructive label,
     .secret-card-manage-btn-destructive image {
-        color: #C01C28;
+        color: @hv_danger;
     }
 
     .secret-card-manage-btn-destructive:hover {
-        background: rgba(192, 28, 40, 0.10);
-        color: #A4131E;
+        background: alpha(@hv_danger, 0.10);
+        color: @hv_danger_strong;
     }
 
 .profile-login-history-popover {

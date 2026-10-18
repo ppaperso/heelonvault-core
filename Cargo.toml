@@ -3,6 +3,7 @@ members = [
     "crates/heelonvault-core",
     "crates/heelonvault-app",
     "crates/sqlx-shim",
+    "crates/heelonvault-url-check",
 ]
 resolver = "2"
 

@@ -8,6 +8,23 @@ Périmètre : l'application desktop HeelonVault (`crates/heelonvault-core`, `cra
 
 HeelonVault est un gestionnaire de secrets desktop local-first.
 
+### Limites du Centre de sécurité et des contrôles de liens
+
+Le Centre est local : robustesse/réutilisation pour les mots de passe, expiration et format
+d'URL pour les métadonnées. Les données absentes/corrompues sont signalées, jamais assimilées
+à un résultat sain. Les rapports ne contiennent ni clair ni empreinte de mot de passe et
+sont effacés au verrouillage. Ils ne certifient pas l'absence de compromission.
+
+Les contrôles réseau des URL restent désactivés jusqu'au consentement pour un contrôle
+individuel dans l'éditeur. La crate séparée `heelonvault-url-check` résout et contacte
+uniquement des destinations publiques et valide une négociation TLS par les racines de
+confiance embarquées. Elle n'envoie ni requête HTTP, chemin, paramètres, identifiants ou
+cookies. Le résolveur DNS et le site peuvent observer le domaine et l'IP du client. Les
+destinations internes sont bloquées. Un succès TLS signifie seulement que le certificat
+était valide pour cet hôte lors du contrôle ; ni réputation, révocation via OCSP/CRL en
+ligne, existence de page ou légitimité du site ne sont évaluées. Aucun fournisseur de
+réputation activé. L'invariant Core sans réseau reste testé.
+
 Objectifs securite :
 
 - proteger les secrets au repos ;

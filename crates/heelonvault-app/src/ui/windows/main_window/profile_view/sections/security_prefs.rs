@@ -1,164 +1,150 @@
-//! Auto-lock delay, password visibility and PIN quick-unlock.
+//! Session settings (auto-lock delay, password visibility in the editor) and the PIN
+//! quick-unlock row, which the page shows with the other sign-in protections.
 
 use gtk4::prelude::*;
 use gtk4::{Align, Orientation};
 use libadwaita as adw;
 use libadwaita::prelude::*;
 
+/// Auto-lock choices, in display order; the last one disables auto-lock.
+pub const AUTO_LOCK_MINUTES: [i64; 4] = [1, 5, 30, 0];
+const AUTO_LOCK_KEYS: [&str; 4] = [
+    "profile-auto-lock-1",
+    "profile-auto-lock-5",
+    "profile-auto-lock-30",
+    "profile-auto-lock-never",
+];
+
 #[derive(Clone)]
 pub struct SecurityPrefsSection {
     pub frame: adw::PreferencesGroup,
-    pub auto_lock_label: gtk4::Label,
     pub auto_lock_items: gtk4::StringList,
-    pub auto_lock_dropdown: gtk4::DropDown,
+    pub auto_lock_dropdown: adw::ComboRow,
     pub show_passwords_switch: adw::SwitchRow,
-    pub show_passwords_hint: gtk4::Label,
+    pub pin_row: adw::ActionRow,
     pub pin_status_badge: gtk4::Label,
     pub pin_setup_button: gtk4::Button,
     pub status_label: gtk4::Label,
 }
 
+fn translated_auto_lock_items() -> Vec<String> {
+    AUTO_LOCK_KEYS
+        .iter()
+        .map(|key| heelonvault_core::i18n::tr(key))
+        .collect()
+}
+
 pub fn build(pin_active: bool) -> SecurityPrefsSection {
-    let security_prefs_frame = adw::PreferencesGroup::new();
-    security_prefs_frame
-        .set_title(heelonvault_core::tr!("profile-section-security-prefs").as_str());
-    security_prefs_frame.add_css_class("profile-section-frame");
-    let security_prefs_box = gtk4::Box::builder()
-        .orientation(Orientation::Vertical)
-        .spacing(10)
-        .margin_top(12)
-        .margin_bottom(12)
-        .margin_start(12)
-        .margin_end(12)
-        .build();
+    let frame = adw::PreferencesGroup::new();
+    frame.add_css_class("profile-group");
 
-    let auto_lock_label = gtk4::Label::new(Some(
-        heelonvault_core::tr!("profile-auto-lock-title").as_str(),
-    ));
-    auto_lock_label.set_halign(Align::Start);
-    auto_lock_label.add_css_class("profile-field-label");
-    let auto_lock_items = gtk4::StringList::new(&[
-        heelonvault_core::tr!("profile-auto-lock-1").as_str(),
-        heelonvault_core::tr!("profile-auto-lock-5").as_str(),
-        heelonvault_core::tr!("profile-auto-lock-30").as_str(),
-        heelonvault_core::tr!("profile-auto-lock-never").as_str(),
-    ]);
-    let auto_lock_dropdown =
-        gtk4::DropDown::new(Some(auto_lock_items.clone()), None::<gtk4::Expression>);
-    auto_lock_dropdown.add_css_class("profile-field-entry");
+    let labels = translated_auto_lock_items();
+    let auto_lock_items =
+        gtk4::StringList::new(&labels.iter().map(String::as_str).collect::<Vec<_>>());
+    let auto_lock_dropdown = adw::ComboRow::new();
+    auto_lock_dropdown.set_model(Some(&auto_lock_items));
+    let lock_icon = gtk4::Image::from_icon_name("hv-lock-symbolic");
+    lock_icon.add_css_class("profile-row-icon");
+    auto_lock_dropdown.add_prefix(&lock_icon);
+    let show_passwords_switch = adw::SwitchRow::new();
+    frame.add(&auto_lock_dropdown);
+    frame.add(&show_passwords_switch);
 
-    let show_edit_passwords_switch = adw::SwitchRow::new();
-    show_edit_passwords_switch
-        .set_title(heelonvault_core::tr!("profile-show-edit-passwords-title").as_str());
-    show_edit_passwords_switch.add_css_class("profile-field-entry");
-    let show_edit_passwords_hint = gtk4::Label::new(Some(
-        heelonvault_core::tr!("profile-show-edit-passwords-hint").as_str(),
-    ));
-    show_edit_passwords_hint.set_halign(Align::Start);
-    show_edit_passwords_hint.set_wrap(true);
-    show_edit_passwords_hint.add_css_class("dim-label");
-    show_edit_passwords_hint.add_css_class("profile-section-subtitle");
+    let status_label = gtk4::Label::new(None);
+    status_label.set_halign(Align::Start);
+    status_label.set_wrap(true);
+    status_label.add_css_class("inline-status");
+    status_label.add_css_class("profile-inline-status");
+    status_label.set_visible(false);
+    let status_box = gtk4::Box::new(Orientation::Vertical, 0);
+    status_box.append(&status_label);
+    frame.add(&status_box);
 
-    // ── PIN quick-unlock section ─────────────────────────────────────────
-    let pin_separator = gtk4::Separator::new(gtk4::Orientation::Horizontal);
-    pin_separator.add_css_class("profile-section-separator");
-
-    let pin_row = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .spacing(12)
-        .hexpand(true)
-        .build();
-    let pin_label_box = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .spacing(2)
-        .hexpand(true)
-        .build();
-    let pin_title = gtk4::Label::new(Some(heelonvault_core::tr!("profile-pin-title").as_str()));
-    pin_title.set_halign(Align::Start);
-    pin_title.add_css_class("profile-field-label");
-    let pin_hint = gtk4::Label::new(Some(heelonvault_core::tr!("profile-pin-hint").as_str()));
-    pin_hint.set_halign(Align::Start);
-    pin_hint.set_wrap(true);
-    pin_hint.add_css_class("dim-label");
-    pin_hint.add_css_class("caption");
-    pin_label_box.append(&pin_title);
-    pin_label_box.append(&pin_hint);
+    let pin_row = adw::ActionRow::new();
+    let pin_icon = gtk4::Image::from_icon_name("hv-lock-symbolic");
+    pin_icon.add_css_class("profile-row-icon");
+    pin_row.add_prefix(&pin_icon);
     let pin_status_badge = gtk4::Label::new(None);
     pin_status_badge.add_css_class("status-role-pill");
     pin_status_badge.set_valign(Align::Center);
-    if pin_active {
-        pin_status_badge.set_text(heelonvault_core::tr!("pin-status-active").as_str());
-        pin_status_badge.add_css_class("status-role-user");
+    pin_status_badge.add_css_class(if pin_active {
+        "status-role-user"
     } else {
-        pin_status_badge.set_text(heelonvault_core::tr!("pin-status-inactive").as_str());
-        pin_status_badge.add_css_class("status-role-disabled");
-    }
-    pin_row.append(&pin_label_box);
-    pin_row.append(&pin_status_badge);
-    let pin_setup_button =
-        gtk4::Button::with_label(heelonvault_core::tr!("profile-pin-configure").as_str());
-    pin_setup_button.add_css_class("profile-action-btn");
+        "status-role-disabled"
+    });
+    let pin_setup_button = gtk4::Button::new();
     pin_setup_button.add_css_class("flat");
-    pin_row.append(&pin_setup_button);
+    pin_setup_button.add_css_class("profile-row-button");
+    pin_setup_button.set_valign(Align::Center);
+    pin_row.add_suffix(&pin_status_badge);
+    pin_row.add_suffix(&pin_setup_button);
+    pin_row.set_activatable_widget(Some(&pin_setup_button));
 
-    let security_prefs_status_label = gtk4::Label::new(None);
-    security_prefs_status_label.set_halign(Align::Start);
-    security_prefs_status_label.set_wrap(true);
-    security_prefs_status_label.add_css_class("inline-status");
-    security_prefs_status_label.add_css_class("profile-inline-status");
-    security_prefs_status_label.set_visible(false);
-
-    for widget in [
-        auto_lock_label.upcast_ref::<gtk4::Widget>(),
-        auto_lock_dropdown.upcast_ref::<gtk4::Widget>(),
-        show_edit_passwords_switch.upcast_ref::<gtk4::Widget>(),
-        show_edit_passwords_hint.upcast_ref::<gtk4::Widget>(),
-        pin_separator.upcast_ref::<gtk4::Widget>(),
-        pin_row.upcast_ref::<gtk4::Widget>(),
-        security_prefs_status_label.upcast_ref::<gtk4::Widget>(),
-    ] {
-        security_prefs_box.append(widget);
-    }
-    security_prefs_frame.add(&security_prefs_box);
-    security_prefs_frame.set_hexpand(true);
-
-    // 2FA section: AdwPreferencesGroup + collapsed ExpanderRow (progressive disclosure)
-    SecurityPrefsSection {
-        frame: security_prefs_frame,
-        auto_lock_label,
+    let section = SecurityPrefsSection {
+        frame,
         auto_lock_items,
         auto_lock_dropdown,
-        show_passwords_switch: show_edit_passwords_switch,
-        show_passwords_hint: show_edit_passwords_hint,
+        show_passwords_switch,
+        pin_row,
         pin_status_badge,
         pin_setup_button,
-        status_label: security_prefs_status_label,
-    }
+        status_label,
+    };
+    section.set_pin_active(pin_active);
+    section.refresh_i18n();
+    section
 }
 
 impl SecurityPrefsSection {
+    pub fn set_pin_active(&self, active: bool) {
+        self.pin_status_badge.set_text(
+            heelonvault_core::tr!(if active {
+                "pin-status-active"
+            } else {
+                "pin-status-inactive"
+            })
+            .as_str(),
+        );
+        let (add, remove) = if active {
+            ("status-role-user", "status-role-disabled")
+        } else {
+            ("status-role-disabled", "status-role-user")
+        };
+        self.pin_status_badge.remove_css_class(remove);
+        self.pin_status_badge.add_css_class(add);
+    }
+
+    pub fn auto_lock_enabled(&self) -> bool {
+        AUTO_LOCK_MINUTES
+            .get(self.auto_lock_dropdown.selected() as usize)
+            .is_some_and(|minutes| *minutes != 0)
+    }
+
     pub fn refresh_i18n(&self) {
         self.frame
             .set_title(heelonvault_core::tr!("profile-section-security-prefs").as_str());
-        self.auto_lock_label
-            .set_text(heelonvault_core::tr!("profile-auto-lock-title").as_str());
+        self.auto_lock_dropdown
+            .set_title(heelonvault_core::tr!("profile-auto-lock-title").as_str());
+        self.auto_lock_dropdown
+            .set_subtitle(heelonvault_core::tr!("profile-auto-lock-subtitle").as_str());
         self.show_passwords_switch
             .set_title(heelonvault_core::tr!("profile-show-edit-passwords-title").as_str());
-        self.show_passwords_hint
-            .set_text(heelonvault_core::tr!("profile-show-edit-passwords-hint").as_str());
+        self.show_passwords_switch
+            .set_subtitle(heelonvault_core::tr!("profile-show-edit-passwords-hint").as_str());
+        self.pin_row
+            .set_title(heelonvault_core::tr!("profile-pin-title").as_str());
+        self.pin_row
+            .set_subtitle(heelonvault_core::tr!("profile-pin-hint").as_str());
+        self.pin_setup_button
+            .set_label(heelonvault_core::tr!("profile-pin-configure").as_str());
 
-        // Re-labelling the model resets the selection, so restore it afterwards.
         let selected = self.auto_lock_dropdown.selected();
+        let labels = translated_auto_lock_items();
         self.auto_lock_items.splice(
             0,
             self.auto_lock_items.n_items(),
-            &[
-                heelonvault_core::tr!("profile-auto-lock-1").as_str(),
-                heelonvault_core::tr!("profile-auto-lock-5").as_str(),
-                heelonvault_core::tr!("profile-auto-lock-30").as_str(),
-                heelonvault_core::tr!("profile-auto-lock-never").as_str(),
-            ],
+            &labels.iter().map(String::as_str).collect::<Vec<_>>(),
         );
-        self.auto_lock_dropdown.set_selected(selected.min(3));
+        self.auto_lock_dropdown.set_selected(selected);
     }
 }
