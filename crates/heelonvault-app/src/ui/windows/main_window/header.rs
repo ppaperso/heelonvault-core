@@ -18,7 +18,7 @@ pub(super) fn build_header_license_badge(license: &LicenseDisplay) -> (gtk4::Wid
         seal.add_css_class("heelonys-seal");
         seal.add_css_class("heelonys-seal-compact");
 
-        let shield_icon = gtk4::Image::from_icon_name("security-high-symbolic");
+        let shield_icon = gtk4::Image::from_icon_name("hv-shield-symbolic");
         shield_icon.add_css_class("heelonys-seal-shield");
 
         let cert_label = gtk4::Label::new(Some(

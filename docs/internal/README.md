@@ -30,5 +30,6 @@ réécrit en lien GitHub.
 | Rotation durcie de la clé maître (spécification) | — | [MASTER_KEY_ROTATION_HARDENING_SPEC.md](MASTER_KEY_ROTATION_HARDENING_SPEC.md) |
 | Plan d'optimisation CI (mai 2026, non appliqué tel quel) | — | [CI_OPTIMIZATION_PLAN.md](CI_OPTIMIZATION_PLAN.md) |
 | Plan de mise à jour des dépendances et validations | [DEPENDENCY_UPDATE_PLAN.md](DEPENDENCY_UPDATE_PLAN.md) | — |
+| Centre de sécurité : implémentation et validation | — | [SECURITY_CENTER_PLAN.md](SECURITY_CENTER_PLAN.md) |
 | Liens externes du projet | — | [EXTERNAL_LINKS.md](EXTERNAL_LINKS.md) |
 | Charte graphique | [charte/CHARTE_GRAPHIQUE.md](charte/CHARTE_GRAPHIQUE.md) | [charte/CHARTE_GRAPHIQUE.en.md](charte/CHARTE_GRAPHIQUE.en.md) |

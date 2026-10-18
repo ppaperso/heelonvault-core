@@ -179,16 +179,14 @@ pub fn build_user_identity_box(
     user_identity_box.append(profile_button);
 
     // Add and trash buttons
-    let add_button = gtk4::Button::builder()
-        .icon_name("list-add-symbolic")
-        .build();
+    let add_button = gtk4::Button::builder().icon_name("hv-add-symbolic").build();
     add_button.add_css_class("flat");
     add_button.add_css_class("accent");
     add_button.add_css_class("main-add-button");
     add_button.set_tooltip_text(Some(heelonvault_core::tr!("main-add-tooltip").as_str()));
 
     let trash_button = gtk4::Button::builder()
-        .icon_name("user-trash-symbolic")
+        .icon_name("hv-trash-symbolic")
         .build();
     trash_button.add_css_class("flat");
     trash_button.add_css_class("main-add-button");

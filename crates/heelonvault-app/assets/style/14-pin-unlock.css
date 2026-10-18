@@ -42,7 +42,7 @@
 
 /* ANSSI badge pills (abc / ABC / 123 / #?!) */
 .psb-badge {
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 2px 6px;
     font-size: 0.76rem;
     font-weight: 700;
@@ -120,12 +120,12 @@
 
 /* Feedback visuel pour les entrées de vérification de la recovery phrase */
 entry.success {
-    background-color: alpha(#1F8678, 0.15);
-    border-color: #1F8678;
+    background-color: alpha(@hv_brand_green, 0.15);
+    border-color: @hv_brand_green;
 }
 
 entry.error {
-    background-color: alpha(#E74C3C, 0.15);
-    border-color: #E74C3C;
+    background-color: alpha(@hv_danger_bright, 0.15);
+    border-color: @hv_danger_bright;
 }
 

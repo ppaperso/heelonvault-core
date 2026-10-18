@@ -613,7 +613,7 @@ impl ManageUsersDialog {
                 dialog.connect_response(None, move |d, response| {
                     if response == "upgrade" {
                         let _ = gio::AppInfo::launch_default_for_uri(
-                            "https://heelonys.fr/solutions/heelonvault",
+                            crate::constants::PRODUCT_URL,
                             None::<&gio::AppLaunchContext>,
                         );
                     }

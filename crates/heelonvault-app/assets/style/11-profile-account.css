@@ -1,14 +1,14 @@
 /* Profile & account page, manage-account dialog */
 
     .account-page-title {
-        color: #07393A;
+        color: @hv_brand_900;
         font-size: 1.18rem;
         font-weight: 760;
         letter-spacing: 0.02em;
     }
 
     .account-page-subtitle {
-        color: #6B9EA3;
+        color: @hv_text_subtle;
         font-size: 0.86rem;
         font-weight: 500;
     }
@@ -35,7 +35,7 @@
     .manage-account-dialog .account-intro {
         font-size: 0.88rem;
         font-weight: 500;
-        color: #6B9EA3;
+        color: @hv_text_subtle;
         margin-bottom: 2px;
     }
 
@@ -75,29 +75,17 @@
         min-height: 38px;
     }
 
-.profile-view-content {
-    padding: 2px;
-}
-
-.profile-sections-columns {
-    margin-top: 2px;
-}
-
-.profile-sections-column {
-    min-width: 0;
-}
-
 .profile-view-header {
     margin-bottom: 2px;
 }
 
 frame.profile-section-frame,
 preferencesgroup.profile-section-frame {
-    border-radius: 14px;
+    border-radius: 12px;
     padding: 2px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(243, 246, 243, 0.98));
-    border: 1px solid rgba(164, 223, 207, 0.62);
-    box-shadow: 0 8px 20px rgba(7, 57, 58, 0.08);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), alpha(@hv_canvas, 0.98));
+    border: 1px solid alpha(@hv_brand_200, 0.62);
+    box-shadow: 0 8px 20px alpha(@hv_brand_900, 0.08);
 }
 
 .profile-field-label {
@@ -123,7 +111,7 @@ entryrow.profile-field-entry,
 passwordentryrow.profile-field-entry,
 comborow.profile-field-entry,
 switchrow.profile-field-entry {
-    border-radius: 10px;
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.88);
 }
 
@@ -141,27 +129,121 @@ button.profile-action-btn {
     margin-top: 2px;
 }
 
-.profile-view-content preferencesgroup {
-    transition: box-shadow 160ms ease, border-color 160ms ease;
+/* ── Profile page (single column, settings rows) ───────────────────────── */
+
+/* Header card: identity, role, edition and protection checklist. */
+.profile-summary {
+    padding: 20px 22px;
+    border-radius: 16px;
+    background: linear-gradient(125deg, @hv_brand_100, @hv_brand_50 60%, @hv_surface);
+    border: 1px solid alpha(@hv_brand_500, 0.22);
+    box-shadow: 0 1px 2px @hv_shadow_soft, 0 10px 28px @hv_shadow_key;
 }
 
-.profile-view-content preferencesgroup:hover {
-    border-color: rgba(126, 206, 188, 0.78);
-    box-shadow: 0 10px 22px rgba(7, 57, 58, 0.10);
+.profile-summary-name {
+    color: @hv_brand_900;
 }
 
-.profile-compact frame.profile-section-frame,
-.profile-compact preferencesgroup.profile-section-frame {
-    padding: 0;
+.profile-protection {
+    padding-top: 14px;
+    border-top: 1px solid alpha(@hv_brand_500, 0.16);
 }
 
-.profile-compact .profile-sections-columns {
-    margin-top: 0;
+.profile-protection-on {
+    color: @hv_success;
 }
 
-.profile-compact button.profile-action-btn {
-    min-height: 32px;
-    padding-left: 12px;
-    padding-right: 12px;
+.profile-protection-off {
+    color: @hv_warning;
 }
 
+levelbar.profile-protection-level block.filled {
+    background: @hv_brand_600;
+}
+
+levelbar.profile-protection-level block.empty {
+    background: alpha(@hv_brand_500, 0.14);
+}
+
+.profile-pill {
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.profile-pill-admin {
+    background: alpha(@hv_brand_500, 0.14);
+    color: @hv_brand_800;
+}
+
+.profile-pill-user {
+    background: alpha(@hv_text_muted, 0.10);
+    color: @hv_text_muted;
+}
+
+.profile-pill-community {
+    background: @hv_surface;
+    color: @hv_text_muted;
+    border: 1px solid @hv_border;
+}
+
+.profile-pill-professional {
+    background-image: linear-gradient(120deg, @hv_brand_500, @hv_brand_green);
+    color: @hv_on_brand;
+}
+
+/* Settings groups: libadwaita boxed lists with the HeelonVault elevation. */
+.profile-group > box > list.boxed-list,
+.profile-group list.boxed-list {
+    border-radius: 12px;
+    box-shadow: 0 1px 2px @hv_shadow_soft, 0 4px 14px @hv_shadow_soft;
+}
+
+.profile-row-icon {
+    color: @hv_brand_700;
+}
+
+button.profile-row-button {
+    padding: 4px 12px;
+    color: @hv_brand_800;
+    font-weight: 650;
+}
+
+.profile-row-footer {
+    padding: 12px 14px 14px 14px;
+}
+
+.profile-readonly-row {
+    background: alpha(@hv_brand_500, 0.04);
+}
+
+/* Read-only value: no pencil suggesting it can be edited. */
+.profile-readonly-row image.edit-icon {
+    opacity: 0;
+}
+
+.profile-offer-row .profile-row-icon {
+    color: @hv_text_subtle;
+}
+
+/* Inside the profile, primary buttons stay compact: one per group at most. */
+.profile-view-content button.suggested-action,
+.profile-view-content button.destructive-action {
+    padding: 6px 16px;
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+.profile-view-content button.suggested-action:hover {
+    transform: none;
+    box-shadow: 0 2px 6px @hv_shadow_soft;
+}
+
+button.profile-save-button {
+    padding: 4px 14px;
+}
+
+.profile-inline-status {
+    margin: 8px 12px 4px 12px;
+}

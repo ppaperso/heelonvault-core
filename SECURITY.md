@@ -21,6 +21,22 @@ Security goals:
 - reduce accidental leaks in UI and logs;
 - preserve session safety (auto-lock and explicit logout).
 
+### Security-center and link-check boundaries
+
+The security center is local: strength/reuse checks concern password items only;
+expiration and URL syntax concern item metadata. Missing/corrupt data is reported
+explicitly, not counted as healthy. Reports do not contain plaintext or password
+fingerprints and are cleared on session lock. They do not certify absence of compromise.
+
+URL network checks are disabled until the user consents to an individual check in the
+editor. The separate `heelonvault-url-check` crate resolves and contacts only public
+destinations and validates a TLS handshake using bundled trusted roots. It sends no HTTP
+request, path, query, credential or cookie. The DNS resolver and destination can observe
+the hostname and client IP. Local/intranet destinations are blocked. A successful TLS
+check means only that the certificate validated for that host at that time; reputation,
+revocation status via online OCSP/CRL, page existence and site legitimacy are not assessed.
+No reputation provider is enabled. Core's no-network invariant remains tested.
+
 Main assumptions:
 
 - if the OS account is fully compromised while the app is unlocked, attacker impact remains high;

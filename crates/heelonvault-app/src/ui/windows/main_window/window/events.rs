@@ -801,18 +801,12 @@ pub fn setup_certification_handlers(
     certification_menu_box.add_css_class("profile-login-history-popover");
 
     use crate::ui::windows::main_window::certification::build_certification_menu_item;
-    let (report_24h_menu_button, report_24h_label) = build_certification_menu_item(
-        "document-save-symbolic",
-        tr("certification-report-24h").as_str(),
-    );
-    let (report_7d_menu_button, report_7d_label) = build_certification_menu_item(
-        "document-save-symbolic",
-        tr("certification-report-7d").as_str(),
-    );
-    let (report_30d_menu_button, report_30d_label) = build_certification_menu_item(
-        "document-save-symbolic",
-        tr("certification-report-30d").as_str(),
-    );
+    let (report_24h_menu_button, report_24h_label) =
+        build_certification_menu_item("hv-save-symbolic", tr("certification-report-24h").as_str());
+    let (report_7d_menu_button, report_7d_label) =
+        build_certification_menu_item("hv-save-symbolic", tr("certification-report-7d").as_str());
+    let (report_30d_menu_button, report_30d_label) =
+        build_certification_menu_item("hv-save-symbolic", tr("certification-report-30d").as_str());
     let (diagnostics_menu_button, diagnostics_label) = build_certification_menu_item(
         "emblem-system-symbolic",
         tr("certification-diagnostics").as_str(),

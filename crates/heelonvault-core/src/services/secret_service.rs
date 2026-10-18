@@ -9,6 +9,22 @@ use crate::repositories::secret_repository::SecretRepository;
 use crate::services::audit_log_service::AuditLogService;
 use crate::services::crypto_service::{CryptoService, EncryptedPayload, NONCE_LEN};
 
+pub(crate) fn decode_secret_payload(
+    bytes: &SecretBox<Vec<u8>>,
+) -> Result<EncryptedPayload, AppError> {
+    if bytes.expose_secret().len() < NONCE_LEN {
+        return Err(AppError::Storage(
+            "secret blob envelope is invalid".to_string(),
+        ));
+    }
+    let mut nonce = [0_u8; NONCE_LEN];
+    nonce.copy_from_slice(&bytes.expose_secret()[..NONCE_LEN]);
+    Ok(EncryptedPayload {
+        nonce,
+        ciphertext: SecretBox::new(Box::new(bytes.expose_secret()[NONCE_LEN..].to_vec())),
+    })
+}
+
 #[derive(Debug)]
 pub struct DecryptedSecret {
     /// Secret identifier.
@@ -145,20 +161,7 @@ where
     }
 
     fn deserialize_payload(bytes: &SecretBox<Vec<u8>>) -> Result<EncryptedPayload, AppError> {
-        if bytes.expose_secret().len() < NONCE_LEN {
-            return Err(AppError::Storage(
-                "secret blob envelope is invalid".to_string(),
-            ));
-        }
-
-        let mut nonce = [0_u8; NONCE_LEN];
-        nonce.copy_from_slice(&bytes.expose_secret()[0..NONCE_LEN]);
-        let ciphertext = bytes.expose_secret()[NONCE_LEN..].to_vec();
-
-        Ok(EncryptedPayload {
-            nonce,
-            ciphertext: SecretBox::new(Box::new(ciphertext)),
-        })
+        decode_secret_payload(bytes)
     }
 
     fn validate_plaintext_secret(plaintext_secret: &SecretBox<Vec<u8>>) -> Result<(), AppError> {

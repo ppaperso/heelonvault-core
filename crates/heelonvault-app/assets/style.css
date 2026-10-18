@@ -2,6 +2,7 @@
    Order matters: later imports can override earlier ones for identical
    selectors, so keep base/reset first and screen-specific overrides last. */
 
+@import url("resource:///com/heelonvault/rust/style/00-tokens.css");
 @import url("resource:///com/heelonvault/rust/style/01-base.css");
 @import url("resource:///com/heelonvault/rust/style/02-buttons.css");
 @import url("resource:///com/heelonvault/rust/style/03-headerbar.css");
@@ -18,3 +19,4 @@
 @import url("resource:///com/heelonvault/rust/style/14-pin-unlock.css");
 @import url("resource:///com/heelonvault/rust/style/15-trust-console.css");
 @import url("resource:///com/heelonvault/rust/style/16-panic.css");
+@import url("resource:///com/heelonvault/rust/style/17-security-center.css");

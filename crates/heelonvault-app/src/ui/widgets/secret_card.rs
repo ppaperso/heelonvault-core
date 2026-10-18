@@ -118,6 +118,7 @@ pub struct SecretRowData {
     pub url: String,
     /// The secret has a value to copy. The value itself is never handed to the widget.
     pub has_secret: bool,
+    pub is_password: bool,
     pub color_class: String,
     // Mock fields for badges (will be linked to DB later)
     /// Password strength verdict; the badge label is translated at display time.
@@ -241,7 +242,7 @@ impl SecretCard {
         info_box.add_css_class("secret-card-info-box");
         if !data.login.is_empty() {
             info_box.append(&build_info_row(
-                "avatar-default-symbolic",
+                "hv-user-symbolic",
                 &data.login,
                 "secret-card-login",
                 None,
@@ -249,7 +250,7 @@ impl SecretCard {
         }
         if !domain.is_empty() {
             info_box.append(&build_info_row(
-                "applications-internet-symbolic",
+                "hv-globe-symbolic",
                 domain,
                 "secret-card-domain",
                 None,
@@ -300,13 +301,13 @@ impl SecretCard {
         row_box.append(&title_label);
 
         row_box.append(&build_info_row(
-            "avatar-default-symbolic",
+            "hv-user-symbolic",
             &data.login,
             "secret-card-login",
             Some(LIST_INFO_CHARS),
         ));
         row_box.append(&build_info_row(
-            "applications-internet-symbolic",
+            "hv-globe-symbolic",
             domain,
             "secret-card-domain",
             Some(LIST_INFO_CHARS),
@@ -343,15 +344,24 @@ impl SecretCard {
         badges_box.add_css_class("secret-card-badges");
 
         // Health badge
-        let health_badge = Label::new(Some(strength_label(data.is_weak).as_str()));
+        let strength_text = if data.has_secret {
+            strength_label(data.is_weak)
+        } else {
+            heelonvault_core::tr!("security-password-unavailable")
+        };
+        let health_badge = Label::new(Some(&strength_text));
         health_badge.set_single_line_mode(true);
         health_badge.add_css_class("secret-badge");
-        health_badge.add_css_class(if data.is_weak {
+        health_badge.add_css_class(if !data.has_secret {
+            "dim-label"
+        } else if data.is_weak {
             "badge-weak"
         } else {
             "badge-strong"
         });
-        badges_box.append(&health_badge);
+        if data.is_password {
+            badges_box.append(&health_badge);
+        }
 
         if data.is_health_access && !compact {
             let access_badge = Label::new(Some(
@@ -432,7 +442,7 @@ impl SecretCard {
 
         // 🔑 Copy password — always present; disabled only if secret_value is empty.
         let copy_button = build_action_button(
-            &["edit-copy-symbolic", "document-duplicate-symbolic"],
+            &["hv-copy-symbolic", "document-duplicate-symbolic"],
             "⧉",
             heelonvault_core::tr!("secret-card-copy-password-tooltip").as_str(),
         );
@@ -442,7 +452,7 @@ impl SecretCard {
         // 👤 Copy login — visible only when a login is stored.
         let copy_login_button: Option<Button> = if !data.login.is_empty() {
             let btn = build_action_button(
-                &["avatar-default-symbolic", "system-users-symbolic"],
+                &["hv-user-symbolic", "hv-user-symbolic"],
                 "@",
                 heelonvault_core::tr!("secret-card-copy-login-tooltip").as_str(),
             );
@@ -455,11 +465,7 @@ impl SecretCard {
         // 🌐 Open URL — visible only when a URL is stored.
         let open_url_button: Option<Button> = if !data.url.is_empty() {
             let btn = build_action_button(
-                &[
-                    "help-browser-symbolic",
-                    "web-browser-symbolic",
-                    "edit-find-symbolic",
-                ],
+                &["hv-globe-symbolic", "web-browser-symbolic"],
                 "↗",
                 heelonvault_core::tr!("secret-card-open-url-tooltip").as_str(),
             );

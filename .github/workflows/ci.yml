@@ -53,6 +53,8 @@ jobs:
             libgraphene-1.0-dev \
             libharfbuzz-dev \
             pkg-config \
+            xvfb \
+            xauth \
             libsqlite3-dev
           echo "[OK] System dependencies installed"
 
@@ -79,7 +81,7 @@ jobs:
       #      formaterait aussi heelonvault-premium (dépendance locale patchée),
       #      un repo privé distinct que ce workflow ne doit pas juger.
       - name: cargo fmt --check
-        run: cargo fmt -p heelonvault-core -p heelonvault-app -p sqlx -- --check
+        run: cargo fmt -p heelonvault-core -p heelonvault-app -p heelonvault-url-check -p sqlx -- --check
 
       # ── 7. Clippy (zéro warning, -D warnings vient aussi de .cargo/config.toml) ─
       - name: cargo clippy
@@ -89,9 +91,21 @@ jobs:
       - name: cargo check --workspace
         run: cargo check --workspace --all-features --locked
 
+      - name: Check Community assembly
+        run: cargo check --locked -p heelonvault-app --no-default-features
+
       # ── 9. Tests ─────────────────────────────────────────────────────────────
       - name: cargo test --workspace
         run: cargo test --workspace --all-features --locked
+
+      - name: Native GTK smoke tests (security center, profile)
+        env:
+          GSK_RENDERER: cairo
+          GDK_BACKEND: x11
+        run: >-
+          dbus-run-session -- xvfb-run --auto-servernum
+          cargo test --locked -p heelonvault-app --bin heelonvault
+          native_ -- --ignored --nocapture
 
       - name: Check standalone Premium
         working-directory: heelonvault-premium

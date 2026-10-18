@@ -63,7 +63,7 @@ pub(super) fn build_center_panel(view_mode: SecretViewMode) -> CenterPanelWidget
     let filtered_status_page = adw::StatusPage::builder()
         .title(heelonvault_core::tr!("main-filtered-empty-title").as_str())
         .description(heelonvault_core::tr!("main-filtered-empty-description").as_str())
-        .icon_name("edit-find-symbolic")
+        .icon_name("hv-search-symbolic")
         .build();
     filtered_status_page.set_visible(false);
     filtered_status_page.set_can_target(false);
@@ -89,13 +89,13 @@ pub(super) fn build_center_panel(view_mode: SecretViewMode) -> CenterPanelWidget
         .build();
 
     let (status_total_chip, status_total_badge) =
-        build_status_metric_chip("view-grid-symbolic", "0", false);
+        build_status_metric_chip("hv-grid-symbolic", "0", false);
     let (status_non_compliant_chip, status_non_compliant_badge) =
-        build_status_metric_chip("dialog-warning-symbolic", "0", true);
+        build_status_metric_chip("hv-warning-symbolic", "0", true);
     let (status_incomplete_chip, status_incomplete_badge) =
-        build_status_metric_chip("dialog-information-symbolic", "0", true);
+        build_status_metric_chip("hv-info-symbolic", "0", true);
     let (status_never_used_chip, status_never_used_badge) =
-        build_status_metric_chip("media-playlist-repeat-symbolic", "0", false);
+        build_status_metric_chip("hv-clock-symbolic", "0", false);
     metrics_box.append(&status_total_chip);
     metrics_box.append(&status_non_compliant_chip);
     metrics_box.append(&status_incomplete_chip);
@@ -110,7 +110,7 @@ pub(super) fn build_center_panel(view_mode: SecretViewMode) -> CenterPanelWidget
 
     let sort_recent_button = build_status_sort_button("view-sort-descending-symbolic");
     let sort_title_button = build_status_sort_button("insert-text-symbolic");
-    let sort_risk_button = build_status_sort_button("dialog-warning-symbolic");
+    let sort_risk_button = build_status_sort_button("hv-warning-symbolic");
     sort_switch.append(&sort_recent_button);
     sort_switch.append(&sort_title_button);
     sort_switch.append(&sort_risk_button);
@@ -123,8 +123,8 @@ pub(super) fn build_center_panel(view_mode: SecretViewMode) -> CenterPanelWidget
     view_switch.add_css_class("vault-secret-sort-switch");
     view_switch.add_css_class("vault-secret-view-switch");
 
-    let view_grid_button = build_status_sort_button("view-grid-symbolic");
-    let view_list_button = build_status_sort_button("view-list-symbolic");
+    let view_grid_button = build_status_sort_button("hv-grid-symbolic");
+    let view_list_button = build_status_sort_button("hv-list-symbolic");
     view_switch.append(&view_grid_button);
     view_switch.append(&view_list_button);
 

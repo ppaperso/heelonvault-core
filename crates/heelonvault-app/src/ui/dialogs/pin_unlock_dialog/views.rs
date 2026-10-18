@@ -47,7 +47,7 @@ pub fn build_pin_unlock_view(parent: &adw::ApplicationWindow) -> PinUnlockDialog
         .build();
 
     // Lock icon
-    let lock_icon = gtk4::Image::from_icon_name("changes-prevent-symbolic");
+    let lock_icon = gtk4::Image::from_icon_name("hv-lock-symbolic");
     lock_icon.set_pixel_size(48);
     lock_icon.add_css_class("pin-unlock-icon");
     body.append(&lock_icon);

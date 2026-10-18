@@ -19,6 +19,7 @@ pub mod pin_cache_service;
 pub mod recovery_service;
 pub mod rekey_service;
 pub mod secret_service;
+pub mod security_center;
 pub mod team_service;
 pub mod totp_service;
 pub mod user_service;

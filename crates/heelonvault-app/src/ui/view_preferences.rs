@@ -1,4 +1,5 @@
-//! Display preferences of the main window that survive restarts (secret list layout).
+//! Display preferences of the main window that survive restarts (secret list layout, whether
+//! the security center has already been discovered).
 //!
 //! Stored next to the window size state, per installation. A missing or unreadable file
 //! silently falls back to the defaults: these are conveniences, never security settings.
@@ -27,6 +28,9 @@ pub enum SecretViewMode {
 struct ViewPreferences {
     #[serde(default)]
     secret_view_mode: SecretViewMode,
+    /// The security center was opened at least once: its "New" pill is no longer shown.
+    #[serde(default)]
+    security_center_seen: bool,
 }
 
 fn load() -> ViewPreferences {
@@ -43,7 +47,23 @@ pub fn load_secret_view_mode() -> SecretViewMode {
 pub fn persist_secret_view_mode(mode: SecretViewMode) {
     let mut preferences = load();
     preferences.secret_view_mode = mode;
+    save(&preferences);
+}
 
+pub fn load_security_center_seen() -> bool {
+    load().security_center_seen
+}
+
+pub fn persist_security_center_seen() {
+    let mut preferences = load();
+    if preferences.security_center_seen {
+        return;
+    }
+    preferences.security_center_seen = true;
+    save(&preferences);
+}
+
+fn save(preferences: &ViewPreferences) {
     let path = ui_state_file_path(FILE_NAME);
     if let Some(parent) = path.parent()
         && let Err(error) = fs::create_dir_all(parent)
@@ -52,7 +72,7 @@ pub fn persist_secret_view_mode(mode: SecretViewMode) {
         return;
     }
 
-    let payload = match serde_json::to_string_pretty(&preferences) {
+    let payload = match serde_json::to_string_pretty(preferences) {
         Ok(payload) => payload,
         Err(error) => {
             warn!(%error, "failed to serialize view preferences");

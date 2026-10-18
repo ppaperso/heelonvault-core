@@ -252,6 +252,7 @@
             heelonvault_core::tr!("add-edit-field-url-placeholder").as_str(),
             "dialog-url-entry",
         );
+        crate::ui::widgets::url_security::attach(&url_entry, &url_row, runtime_handle.clone());
 
         let notes_label = gtk4::Label::new(Some(heelonvault_core::tr!("add-edit-field-notes-label").as_str()));
         notes_label.add_css_class("login-field-label");
@@ -375,7 +376,7 @@
             .orientation(Orientation::Horizontal)
             .spacing(6)
             .build();
-        let delete_icon = gtk4::Image::from_icon_name("user-trash-symbolic");
+        let delete_icon = gtk4::Image::from_icon_name("hv-trash-symbolic");
         delete_icon.set_pixel_size(16);
         let delete_label = gtk4::Label::new(Some(heelonvault_core::tr!("add-edit-delete-button").as_str()));
         delete_content.append(&delete_icon);

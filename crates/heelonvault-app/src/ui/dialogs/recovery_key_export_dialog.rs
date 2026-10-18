@@ -478,7 +478,7 @@ impl RecoveryKeyExportDialog {
         };
 
         let copy_button = make_action_button(
-            "edit-copy-symbolic",
+            "hv-copy-symbolic",
             heelonvault_core::tr!("profile-export-copy").as_str(),
         );
         // GTK's print backends are loaded as GIOModule plugins (dlopen'd at runtime, not
@@ -495,7 +495,7 @@ impl RecoveryKeyExportDialog {
             heelonvault_core::tr!("profile-export-print").as_str(),
         );
         let save_button = make_action_button(
-            "document-save-symbolic",
+            "hv-save-symbolic",
             heelonvault_core::tr!("profile-export-save-txt").as_str(),
         );
 

@@ -27,20 +27,7 @@ use super::{FilterRuntime, SecretFilterMeta, SecretKind, SecretRowView, search_f
 
 /// Strength verdict, language-independent: the label is only translated for display.
 pub(super) fn is_weak_password(secret_value: &str) -> bool {
-    if secret_value.len() >= 12 {
-        let has_uppercase = secret_value.chars().any(|c| c.is_uppercase());
-        let has_lowercase = secret_value.chars().any(|c| c.is_lowercase());
-        let has_digit = secret_value.chars().any(|c| c.is_numeric());
-        let has_special = secret_value.chars().any(|c| !c.is_alphanumeric());
-        let complexity = [has_uppercase, has_lowercase, has_digit, has_special]
-            .iter()
-            .filter(|&&v| v)
-            .count();
-        if complexity >= 3 {
-            return false;
-        }
-    }
-    true
+    heelonvault_core::services::security_center::is_weak_password(secret_value)
 }
 
 /// SHA-256 of a secret value, used only to detect reused passwords during a list load.
@@ -91,6 +78,7 @@ async fn build_secret_row<TSecret>(
     vault_key: &secrecy::SecretBox<Vec<u8>>,
     vault_name: String,
     vault_access: (bool, bool, bool),
+    weak_verdicts: &mut HashMap<SecretFingerprint, bool>,
 ) -> Option<(SecretRowView, Option<SecretFingerprint>)>
 where
     TSecret: SecretService + Send + Sync + 'static,
@@ -104,14 +92,28 @@ where
     let (has_secret, is_weak, fingerprint) = match &secret_result {
         Ok(secret) => {
             let bytes = secret.secret_value.expose_secret().as_slice();
-            let text = std::str::from_utf8(bytes).unwrap_or_default();
-            (
-                !bytes.is_empty(),
-                is_weak_password(text),
-                secret_fingerprint(bytes),
-            )
+            let text = std::str::from_utf8(bytes).ok();
+            let is_password = matches!(
+                item.secret_type,
+                heelonvault_core::models::SecretType::Password
+            );
+            let has_secret = !bytes.is_empty() && (!is_password || text.is_some());
+            let fingerprint = if is_password && has_secret {
+                secret_fingerprint(bytes)
+            } else {
+                None
+            };
+            // The estimator runs once per distinct password of this load; the verdicts are
+            // dropped with the loader, like the fingerprints.
+            let is_weak = match (text, fingerprint) {
+                (Some(text), Some(fingerprint)) => *weak_verdicts
+                    .entry(fingerprint)
+                    .or_insert_with(|| is_weak_password(text)),
+                _ => false,
+            };
+            (has_secret, is_weak, fingerprint)
         }
-        Err(_) => (false, true, None),
+        Err(_) => (false, false, None),
     };
     drop(secret_result);
 
@@ -171,19 +173,19 @@ where
 
     let (icon_name, type_label_text) = match item.secret_type {
         heelonvault_core::models::SecretType::Password => (
-            "dialog-password-symbolic",
+            "hv-key-symbolic",
             heelonvault_core::tr!("secret-type-password"),
         ),
         heelonvault_core::models::SecretType::ApiToken => (
-            "dialog-key-symbolic",
+            "hv-code-symbolic",
             heelonvault_core::tr!("secret-type-api-token"),
         ),
         heelonvault_core::models::SecretType::SshKey => (
-            "network-wired-symbolic",
+            "hv-terminal-symbolic",
             heelonvault_core::tr!("secret-type-ssh-key"),
         ),
         heelonvault_core::models::SecretType::SecureDocument => (
-            "folder-documents-symbolic",
+            "hv-document-symbolic",
             heelonvault_core::tr!("secret-type-secure-document"),
         ),
     };
@@ -318,6 +320,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                 // ── Global cross-vault search ─────────────────────────────────
                 let vaults = vault_for_loader.list_user_vaults(admin_user_id).await?;
                 let mut all_rows: Vec<(SecretRowView, Option<SecretFingerprint>)> = Vec::new();
+                let mut weak_verdicts = HashMap::new();
                 for vault in vaults {
                     let access = match vault_for_loader
                         .get_vault_access_for_user(admin_user_id, vault.id)
@@ -351,6 +354,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                             &vault_key,
                             vault.name.clone(),
                             (is_shared, can_write, can_admin),
+                            &mut weak_verdicts,
                         )
                         .await;
                         if let Some(r) = row {
@@ -396,6 +400,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
 
                 let items = secret_for_loader.list_by_vault(selected_vault.id).await?;
                 let mut rows = Vec::with_capacity(items.len());
+                let mut weak_verdicts = HashMap::new();
                 for item in items {
                     if let Some(r) = build_secret_row(
                         item,
@@ -403,6 +408,7 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         &vault_key,
                         String::new(),
                         (is_shared, can_write, can_admin),
+                        &mut weak_verdicts,
                     )
                     .await
                     {
@@ -695,12 +701,15 @@ fn render_secret_rows<TSecret, TVault>(
             login: item.login.clone(),
             url: item.url.clone(),
             has_secret: item.has_secret,
+            is_password: item.kind == SecretKind::Password,
             color_class: item.color_class.clone(),
             is_weak: item.is_weak,
             is_health_access: item.is_health_access,
             usage_count: usage_of(item).get(),
             is_duplicate,
-            is_incomplete: item.login.trim().is_empty() || item.url.trim().is_empty(),
+            is_incomplete: !item.has_secret
+                || item.login.trim().is_empty()
+                || item.url.trim().is_empty(),
             is_shared_vault: item_shared,
             can_edit: !item_shared || item_can_write,
             can_delete: !item_shared || item_can_admin,
@@ -992,7 +1001,13 @@ fn render_secret_rows<TSecret, TVault>(
                         item.category.clone(),
                         item.tags.clone(),
                         item.created_at.clone(),
-                        strength_label(item.is_weak),
+                        if item.kind != SecretKind::Password {
+                            String::new()
+                        } else if item.has_secret {
+                            strength_label(item.is_weak)
+                        } else {
+                            heelonvault_core::tr!("security-password-unavailable")
+                        },
                         item.vault_name.clone(),
                     ]
                     .join(" ")
@@ -1024,7 +1039,9 @@ fn render_secret_rows<TSecret, TVault>(
                 is_weak: item.is_weak,
                 is_duplicate,
                 is_health: item.is_health_access,
-                is_incomplete: item.login.trim().is_empty() || item.url.trim().is_empty(),
+                is_incomplete: !item.has_secret
+                    || item.login.trim().is_empty()
+                    || item.url.trim().is_empty(),
                 is_never_used: usage_count.get() == 0,
             },
         );

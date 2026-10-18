@@ -52,6 +52,7 @@ mod impl_preamble;
 mod profile_view;
 mod search_filter;
 mod secret_flow;
+mod security_center;
 mod shell;
 mod sidebar;
 mod types;
@@ -104,6 +105,7 @@ pub struct MainWindow {
     on_logout: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
     on_pin_state_cb: Rc<RefCell<Option<Rc<dyn Fn(bool)>>>>,
     session_user_id: uuid::Uuid,
+    clear_security: Rc<dyn Fn()>,
 }
 
 #[derive(Clone)]
@@ -137,9 +139,20 @@ struct ProfileViewWidgets {
     back_button: gtk4::Button,
 }
 
+/// Sidebar entry of the security center: label, pending-findings counter and the "New" pill
+/// shown until the page has been opened once.
+#[derive(Clone)]
+struct SecurityNavigation {
+    button: gtk4::Button,
+    label: gtk4::Label,
+    count: gtk4::Label,
+    new_pill: gtk4::Label,
+}
+
 #[derive(Clone)]
 struct SidebarWidgets {
     frame: gtk4::Frame,
+    security_nav: SecurityNavigation,
     my_vaults_title: gtk4::Label,
     create_vault_button: gtk4::Button,
     my_vaults_list: gtk4::ListBox,
@@ -168,4 +181,19 @@ struct SidebarWidgets {
     teams_button: gtk4::Button,
     administration_label: gtk4::Label,
     administration_button: gtk4::Button,
+}
+
+/// GTK can only be initialised once per process, from one thread, and libtest runs every test
+/// on its own thread: the native scenarios therefore share this single entry point.
+#[cfg(test)]
+mod native_gtk_tests {
+    #[test]
+    #[ignore = "requires a graphical display; run explicitly for native GTK validation"]
+    fn native_gtk_smoke() -> Result<(), Box<dyn std::error::Error>> {
+        libadwaita::init()?;
+        gtk4::gio::resources_register_include!("heelonvault.gresource")?;
+        super::security_center::tests::native_security_center_scenario()?;
+        super::profile_view::smoke_tests::native_profile_scenario()?;
+        Ok(())
+    }
 }

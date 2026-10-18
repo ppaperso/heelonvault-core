@@ -72,6 +72,13 @@ where
         }
 
         let stack_for_cancel = deps.main_stack.clone();
+        let return_page =
+            if deps.main_stack.visible_child_name().as_deref() == Some("security_center_view") {
+                "security_center_view"
+            } else {
+                "entries_view"
+            };
+        let refresh_on_return = Rc::clone(&deps.refresh_entries);
         let inline_view = AddEditDialog::build_inline(
             deps.runtime_handle.clone(),
             Arc::clone(&deps.secret_service),
@@ -81,7 +88,10 @@ where
             deps.show_passwords_in_edit.get(),
             mode,
             move || {
-                stack_for_cancel.set_visible_child_name("entries_view");
+                stack_for_cancel.set_visible_child_name(return_page);
+                if return_page == "security_center_view" {
+                    refresh_on_return();
+                }
             },
             {
                 let refresh_after_save = Rc::clone(&deps.refresh_entries);

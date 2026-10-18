@@ -71,7 +71,7 @@ pub(super) fn build_content_shell(
         .spacing(8)
         .margin_bottom(10)
         .build();
-    let header_icon = gtk4::Image::from_icon_name("edit-find-symbolic");
+    let header_icon = gtk4::Image::from_icon_name("hv-search-symbolic");
     header_icon.add_css_class("dim-label");
     let help_title_lbl = gtk4::Label::builder()
         .label(heelonvault_core::tr!("main-search-help-title").as_str())

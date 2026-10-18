@@ -45,7 +45,7 @@ pub struct DataHandlerDeps<TBackup, TBackupApp, TImport, TSecret, TVault> {
     pub crypto_service: Arc<CryptoServiceImpl>,
     pub database_path: PathBuf,
     pub user_id: Uuid,
-    pub is_admin: bool,
+    pub can_export_backup: bool,
     pub session_master_key: Rc<RefCell<Vec<u8>>>,
     pub on_import_completed_refresh: Rc<dyn Fn()>,
     pub begin_critical_operation: Rc<dyn Fn()>,
@@ -75,7 +75,7 @@ pub fn setup<TBackup, TBackupApp, TImport, TSecret, TVault>(
         crypto_service,
         database_path,
         user_id,
-        is_admin,
+        can_export_backup,
         session_master_key,
         on_import_completed_refresh,
         begin_critical_operation,
@@ -87,7 +87,7 @@ pub fn setup<TBackup, TBackupApp, TImport, TSecret, TVault>(
     let backup_for_export = Arc::clone(&backup_service);
     let database_path_for_export = database_path.clone();
     let actor_user_id_for_export: Uuid = user_id;
-    let is_admin_for_export = is_admin;
+    let is_admin_for_export = can_export_backup;
     let begin_critical_for_export = Rc::clone(&begin_critical_operation);
     let end_critical_for_export = Rc::clone(&end_critical_operation);
     let session_for_export = Rc::clone(&session_master_key);
