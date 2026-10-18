@@ -48,7 +48,7 @@ Reproduit l'environnement CI (`windows-msi-rc.yml`) :
 | --- | --- |
 | MSYS2 | installé, puis `pacman -S mingw-w64-x86_64-{toolchain,gtk4,libadwaita,pkgconf}` |
 | pkg-config | copier `pkgconf.exe` → `pkg-config.exe` dans `mingw64\bin` — la crate Rust `pkg-config` ne cherche que ce nom |
-| Rust | `rustup set default-host x86_64-pc-windows-gnu` ; la version est épinglée à 1.98.0 par `rust-toolchain.toml` |
+| Rust | `rustup set default-host x86_64-pc-windows-gnu` ; la version est épinglée à 1.99.1 par `rust-toolchain.toml` (MSRV conservée à 1.98) |
 | WiX | v3.14 — zip `wix314-binaries.zip` de la release `wix3141rtm` du dépôt `wixtoolset/wix3`, extrait puis passé via `-WixBin` |
 | heelonvault-premium | checkout **en dossier frère** du repo (le workspace le résout en `../heelonvault-premium`), sinon builder avec `--no-default-features` |
 

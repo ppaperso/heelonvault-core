@@ -6,11 +6,7 @@
 # Bloc toutes les vulnérabilités connues (CVE) — zéro tolérance
 version = 2
 yanked = "deny"
-# Only error on unmaintained advisories for direct workspace deps.
-# Using "all" would also flag unmaintained transitive deps of third-party
-# crates (heelonvault-premium included) and cause false positives on RUSTSEC
-# entries we cannot control. Re-evaluate if a direct dep becomes unmaintained.
-unmaintained = "workspace"
+unmaintained = "all"
 
 [licenses]
 # Politique de licences : autoriser uniquement les licences permissives approuvées
@@ -19,7 +15,6 @@ allow = [
   "MIT",
   "Apache-2.0",
   "Apache-2.0 WITH LLVM-exception",
-  "BSD-2-Clause",
   "BSD-3-Clause",
   "ISC",
   "Unicode-3.0",
@@ -37,7 +32,7 @@ ignore = true
 [bans]
 # Approche zero-debt : "deny" + skip explicites.
 # Toute nouvelle duplicate non documentée fait échouer le build.
-# Les 20 exceptions ci-dessous ont été revues et acceptées — mettre à jour
+# Les exceptions ci-dessous ont été revues et acceptées — mettre à jour
 # lorsque les crates upstream alignent leurs séries de versions.
 multiple-versions = "deny"
 skip = [
@@ -50,18 +45,18 @@ skip = [
   { name = "sha2",              reason = "sqlx-core → sha2 0.10 ; argon2/ed25519-dalek/totp-rs → sha2 0.11" },
   # même split que digest, côté détection CPU (sha2/aes-gcm/argon2/curve25519-dalek)
   { name = "cpufeatures",       reason = "pairé avec le split sha2 0.10/0.11 (sqlx-core vs argon2/ed25519-dalek/totp-rs)" },
-  # fluent-templates 0.9 est encore sur flume 0.11 ; sqlx 0.9 est sur 0.12
-  { name = "flume",             reason = "fluent-templates 0.9 → 0.11, sqlx 0.9 → 0.12 ; migration upstream en attente" },
-  # trois séries semver-incompatibles coexistent : ring/argon2 → 0.2, rand → 0.3, uuid/tempfile → 0.4
-  { name = "getrandom",         reason = "ring/argon2 sur 0.2 ; rand sur 0.3 ; uuid/tempfile sur 0.4 — séries incompatibles" },
+  # fluent-templates et sqlx utilisent des séries flume incompatibles
+  { name = "flume",             reason = "fluent-templates → 0.11, sqlx → 0.12 ; migration upstream en attente" },
+  # ring utilise encore 0.2 ; rand/uuid/tempfile utilisent 0.4
+  { name = "getrandom",         reason = "ring sur 0.2 ; rand/uuid/tempfile sur 0.4 — séries incompatibles" },
   # hashbrown : split de version dans l'écosystème indexmap/hashbrown
   { name = "hashbrown",         reason = "split de version dans l'écosystème indexmap/hashbrown" },
   # image/png → miniz_oxide 0.8 (direct) ; png → flate2 → miniz_oxide 0.9
   { name = "miniz_oxide",       reason = "png → miniz_oxide 0.8 (direct) ; png → flate2 → miniz_oxide 0.9" },
-  # heelonvault-app et heelonvault-core déclarent des feature sets différents → deux entrées lock
-  { name = "sqlx",              reason = "deux crates workspace utilisent des features sqlx 0.9 différentes → deux entrées lock" },
-  # proc-macros fluent-templates encore sur syn 1.x ; sqlx/autres sur syn 2.x
-  { name = "syn",               reason = "fluent-templates proc-macros → syn 1.x ; sqlx/autres → syn 2.x" },
+  # le shim local et la crate registry sont deux packages distincts
+  { name = "sqlx",              reason = "shim local sqlx et crate registry sqlx — sources distinctes" },
+  # les proc-macros utilisent encore plusieurs séries syn incompatibles
+  { name = "syn",               reason = "split de versions majeures syn entre les proc-macros upstream" },
   # gtk4-rs 0.11 (gdk4-sys) → system-deps 7 ; cairo/gio/glib/pango-sys 0.22 → system-deps 9
   { name = "system-deps",       reason = "gdk4-sys 0.11 → system-deps 7 ; cairo/gio/glib/pango-sys 0.22 → system-deps 9" },
   # windows-sys : split des bindings Windows SDK entre ring/rustls et les autres
@@ -69,9 +64,7 @@ skip = [
 ]
 
 [sources]
-# Autoriser uniquement crates.io et le repo premium privé (pas de sources inconnues)
+# Premium est une dépendance locale ; aucune source Git n'est nécessaire.
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-# heelonvault-premium : dépendance privée SSH, seul repo git autorisé
-allow-git = ["ssh://git@github.com/ppaperso/heelonvault-premium.git"]

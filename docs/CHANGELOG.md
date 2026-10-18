@@ -7,7 +7,17 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [Non publié]
+## [2.0.2] — Non publiée
+
+> Version corrective en préparation : aucune modification de l'API publique, du schéma de base de données ou des formats de sauvegarde.
+
+### Dépendances et chaîne d'approvisionnement
+
+- Toolchain de développement et de livraison épinglée sur Rust 1.99.1 dans les deux dépôts. La version minimale supportée reste Rust 1.98 ; la CI vérifie séparément la compilation de toutes les cibles et fonctionnalités sous 1.98.0.
+- `rustls` mis à jour en 0.23.46 et `quinn-proto` en 0.11.19 dans les deux graphes Cargo : correction des avis RUSTSEC-2026-0338, 0340, 0343 et 0346 à 0349, sans liste d'exclusion.
+- Dépendances compatibles actualisées, puis migration BIP39 2.2.2 vers 3.0.0. Des vecteurs connus et une sauvegarde chiffrée avec son vérificateur, figés avant migration, protègent la compatibilité des phrases de récupération existantes. Aucun changement du format de sauvegarde ou de l'API publique.
+- CI : actions GitHub et outils actualisés ; audits des deux fichiers de verrouillage, contrôles Premium avec toutes ses fonctionnalités et avertissements supply-chain bloquants. Le contrôle utilise les outils natifs plutôt qu'un conteneur nécessitant sa propre installation Rust.
+- SBOM régénéré et reproductibilité vérifiée ; plan et résultats dans la documentation interne.
 
 ### Installation système Linux (`scripts/install.sh`)
 

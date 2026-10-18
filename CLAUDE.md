@@ -45,7 +45,8 @@ cargo audit
 cargo deny check advisories
 ```
 
-Toolchain is pinned via `rust-toolchain.toml` to Rust `1.98.0`. `.cargo/config.toml` sets
+Toolchain is pinned via `rust-toolchain.toml` to Rust `1.99.1`, while the minimum
+supported Rust version remains `1.98` and is checked separately in CI. `.cargo/config.toml` sets
 `-Dwarnings` and `-Dunsafe_code` globally, so any warning or `unsafe` block fails the build.
 
 Integration tests live under `crates/heelonvault-core/tests/` (plus a few repo-consistency tests in

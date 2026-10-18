@@ -41,7 +41,7 @@ jobs:
     steps:
       # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
       - name: Checkout heelonvault-core
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           path: heelonvault-core
           fetch-depth: 0
@@ -49,7 +49,7 @@ jobs:
 
       # ── 2. Checkout heelonvault-premium (repo privé) ────────────────────────
       - name: Checkout heelonvault-premium
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
         with:
           repository: ppaperso/heelonvault-premium
           ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
@@ -126,7 +126,7 @@ jobs:
           }
 
       # ── 5. Toolchain Rust — hôte GNU (requis pour lier les DLL MinGW GTK4),
-      #      honore le pin rust-toolchain.toml (1.98.0) ─────────────────────
+      #      honore le pin rust-toolchain.toml ────────────────────────────
       - name: Setup Rust toolchain (x86_64-pc-windows-gnu)
         run: |
           rustup set default-host x86_64-pc-windows-gnu
@@ -135,7 +135,7 @@ jobs:
 
       # ── 6. Cache Cargo ──────────────────────────────────────────────────────
       - name: Cache Cargo registry and build
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -246,7 +246,7 @@ jobs:
       # s'applique qu'aux steps `run:`) — ses chemins sont résolus depuis
       # $GITHUB_WORKSPACE, pas heelonvault-core/, d'où le préfixe explicite.
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: heelonvault-windows-msi
           if-no-files-found: error

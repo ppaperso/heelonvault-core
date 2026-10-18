@@ -7,7 +7,17 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [Unreleased]
+## [2.0.2] — Unreleased
+
+> Patch release in preparation: no changes to the public API, database schema or backup formats.
+
+### Dependencies and supply chain
+
+- Pinned the development and release toolchain to Rust 1.99.1 in both repositories. The minimum supported Rust version remains 1.98; CI separately checks compilation of all targets and features under 1.98.0.
+- Updated `rustls` to 0.23.46 and `quinn-proto` to 0.11.19 in both Cargo graphs: fixes RUSTSEC-2026-0338, 0340, 0343 and 0346 through 0349 without advisory exclusions.
+- Updated compatible dependencies, then migrated BIP39 from 2.2.2 to 3.0.0. Known vectors and an encrypted backup with its verifier, captured before migration, protect compatibility with existing recovery phrases. No backup format or public API changes.
+- CI: refreshed GitHub actions and tools; audits of both lockfiles, all-feature Premium checks and supply-chain warnings treated as errors. Checks use native tools rather than a container requiring its own Rust installation.
+- Regenerated the SBOM and verified reproducibility; the plan and results are documented internally.
 
 ### Linux system install (`scripts/install.sh`)
 

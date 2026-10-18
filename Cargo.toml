@@ -22,5 +22,4 @@ heelonvault-premium = { path = "../heelonvault-premium" }
 
 [workspace.dependencies]
 # Outils de développement
-cargo-deny = "0.15"
-
+cargo-deny = "0.20.2"
