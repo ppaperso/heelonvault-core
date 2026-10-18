@@ -8,7 +8,7 @@
     3. heat.exe  -> staging.wxs   (no -b, no path rewriting)
     4. candle.exe + light.exe     -> HeelonVault-<version>.msi
 .EXAMPLE
-    .\build-msi.ps1 -GtkRoot "C:\msys64\mingw64"
+    .\build-msi.ps1 -GtkRoot "C:\msys64\ucrt64"
 #>
 
 # --- Paramètres ---
@@ -39,8 +39,8 @@ if (-not $BaseDir -or $BaseDir -eq "") {
 }
 
 if (-not $GtkRoot -or $GtkRoot -eq "") {
-    if (Test-Path "C:\msys64\mingw64\bin") {
-        $GtkRoot = "C:\msys64\mingw64"
+    if (Test-Path "C:\msys64\ucrt64\bin") {
+        $GtkRoot = "C:\msys64\ucrt64"
     } else {
         $gtkPath = (Get-Command gtk4-node.exe -ErrorAction SilentlyContinue).Source
         if ($gtkPath) {
@@ -148,7 +148,7 @@ function Get-RequiredDlls {
 }
 
 # 2b. Uniquement les DLL r�ellement requises (fermeture transitive des imports
-# PE), et non tout mingw64\bin (qui contient aussi l'outillage de dev MSYS2
+# PE), et non tout ucrt64\bin (qui contient aussi l'outillage de dev MSYS2
 # sans rapport avec l'app). Reduit fortement le nombre de fichiers embarques.
 $requiredDlls = Get-RequiredDlls -ExePath $exe -SearchDir (Join-Path $GtkRoot "bin")
 foreach ($dll in $requiredDlls) {

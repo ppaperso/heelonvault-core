@@ -75,31 +75,34 @@ jobs:
           Check-Path "crates\heelonvault-core\locales"             "crates/heelonvault-core/locales"
           Write-Host "[OK] Repository layout validated"
 
-      # ── 4. MSYS2 / MinGW64 — GTK4, libadwaita, toolchain (gcc + windres) ────
+      # ── 4. MSYS2 / UCRT64 — GTK4, libadwaita, toolchain (gcc + windres) ────
+      # MSYS2 no longer builds GTK4 for the legacy MINGW64 (msvcrt) environment:
+      # only UCRT64/CLANG64 have it. x86_64-pc-windows-gnu links fine against
+      # the UCRT64 toolchain (MSYS2's own Rust package uses that target there).
       # The action's own default install path (D:\a\_temp\msys64) does NOT
       # match build-msi.ps1's GtkRoot auto-detect, which hardcodes
-      # C:\msys64\mingw64\bin — that path already has a separate, stock
+      # C:\msys64\ucrt64\bin — that path already has a separate, stock
       # MSYS2 pre-installed by the runner image itself, without our
       # requested packages. Rather than fight that default, capture the
       # action's own msys2-location output and pass -GtkRoot explicitly.
-      - name: Setup MSYS2 (MinGW64 GTK4/libadwaita)
+      - name: Setup MSYS2 (UCRT64 GTK4/libadwaita)
         id: msys2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-gtk4
-            mingw-w64-x86_64-libadwaita
-            mingw-w64-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-gtk4
+            mingw-w64-ucrt-x86_64-libadwaita
+            mingw-w64-ucrt-x86_64-pkgconf
 
       - name: Resolve GtkRoot
         env:
           MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
         run: |
           $ErrorActionPreference = "Stop"
-          $gtkRoot = Join-Path $env:MSYS2_LOCATION "mingw64"
+          $gtkRoot = Join-Path $env:MSYS2_LOCATION "ucrt64"
           if (-not (Test-Path (Join-Path $gtkRoot "bin"))) {
             Write-Host "[ERROR] $gtkRoot\bin not found"
             exit 1

@@ -46,8 +46,8 @@ Reproduit l'environnement CI (`windows-msi-rc.yml`) :
 
 | Composant | Détail |
 | --- | --- |
-| MSYS2 | installé, puis `pacman -S mingw-w64-x86_64-{toolchain,gtk4,libadwaita,pkgconf}` |
-| pkg-config | copier `pkgconf.exe` → `pkg-config.exe` dans `mingw64\bin` — la crate Rust `pkg-config` ne cherche que ce nom |
+| MSYS2 | installé, puis `pacman -S mingw-w64-ucrt-x86_64-{toolchain,gtk4,libadwaita,pkgconf}` (shell UCRT64 : MSYS2 ne fournit plus GTK4 pour MINGW64) |
+| pkg-config | copier `pkgconf.exe` → `pkg-config.exe` dans `ucrt64\bin` — la crate Rust `pkg-config` ne cherche que ce nom |
 | Rust | `rustup set default-host x86_64-pc-windows-gnu` ; la version est épinglée à 1.99.1 par `rust-toolchain.toml` (MSRV conservée à 1.98) |
 | WiX | v3.14 — zip `wix314-binaries.zip` de la release `wix3141rtm` du dépôt `wixtoolset/wix3`, extrait puis passé via `-WixBin` |
 | heelonvault-premium | checkout **en dossier frère** du repo (le workspace le résout en `../heelonvault-premium`), sinon builder avec `--no-default-features` |
@@ -55,11 +55,11 @@ Reproduit l'environnement CI (`windows-msi-rc.yml`) :
 Build local :
 
 ```powershell
-# mingw64\bin doit être dans le PATH de ce shell
+# ucrt64\bin doit être dans le PATH de ce shell
 .\scripts\build-msi.ps1 -WixBin "C:\chemin\vers\wix314" -Version "1.2.0-rc.1"
 ```
 
-`-GtkRoot` et `-WixBin` sont auto-détectés (`C:\msys64\mingw64`, `C:\Program Files (x86)\WiX
+`-GtkRoot` et `-WixBin` sont auto-détectés (`C:\msys64\ucrt64`, `C:\Program Files (x86)\WiX
 Toolset v3.14\bin`) ; les passer explicitement si l'installation est ailleurs.
 
 ---
@@ -124,7 +124,7 @@ données et journaux vont dans `%LOCALAPPDATA%\Heelonys\HeelonVault\data\heelonv
 
 `target\release\heelonvault.exe` n'est pas dans un dossier `bin\`, donc les ressources sont
 cherchées **à côté de lui**. Il faut y recopier `share\`, `lib\` et `migrations\` (et avoir
-`mingw64\bin` dans le PATH pour les DLL), sinon l'application s'arrête sur une recherche de
+`ucrt64\bin` dans le PATH pour les DLL), sinon l'application s'arrête sur une recherche de
 schéma GSettings.
 
 ---
@@ -173,7 +173,7 @@ invisibles au double-clic. Trois sources, dans cet ordre :
   le binaire non signé : cela explique quelques secondes de latence au tout premier démarrage.
 - **Validation MSI minimale en CI** : le workflow vérifie la signature OLE et la taille du
   fichier, pas le contenu du staging.
-- **Ne pas installer MSYS2 sur une VM de test.** Avec `mingw64\bin` dans le PATH, une DLL
+- **Ne pas installer MSYS2 sur une VM de test.** Avec `ucrt64\bin` dans le PATH, une DLL
   manquante du paquet serait silencieusement chargée depuis MSYS2 : le test validerait un
   packaging incomplet. Garder une VM de test vierge (ou un snapshot propre) pour la
   validation finale.
