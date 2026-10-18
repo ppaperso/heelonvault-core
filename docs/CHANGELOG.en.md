@@ -7,7 +7,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [2.1.0] — Unreleased
+## [2.1.0] — 2026-10-18
 
 ### Security center
 
@@ -38,9 +38,9 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [2.0.2] — Unreleased
+## [2.0.2] — Shipped with 2.1.0
 
-> Patch release in preparation: no changes to the public API, database schema or backup formats.
+> Not released separately: these fixes ship with 2.1.0. No changes to the public API, database schema or backup formats.
 
 ### Dependencies and supply chain
 

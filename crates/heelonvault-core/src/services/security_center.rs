@@ -39,19 +39,23 @@ impl Drop for Fingerprint {
 }
 
 /// Shared estimator for stored passwords and the editor. Master-password acceptance is separate.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct PasswordAssessment {
+    /// Final 0–4 score: the estimator score bounded by [`Self::policy_cap`].
     pub score: u8,
     pub estimator_score: u8,
+    /// Upper bound set by the length/character-class policy, whatever the estimator says.
+    pub policy_cap: u8,
+    /// Untranslated zxcvbn feedback (English); callers localize it before display.
     pub feedback: Option<String>,
 }
 
-pub fn assess_password(password: &str, username: &str) -> PasswordAssessment {
-    let mut inputs = APP_TERMS.to_vec();
-    if !username.is_empty() {
-        inputs.push(username);
-    }
-    let estimate = zxcvbn::zxcvbn(password, &inputs);
-    let estimator_score = estimate.score() as u8;
+/// Scores below this value are reported as weak.
+pub const WEAK_SCORE_THRESHOLD: u8 = 3;
+
+/// Length/character-class cap (ANSSI-aligned), independent of the estimator.
+fn policy_cap(password: &str) -> u8 {
     let categories = [
         password.chars().any(char::is_uppercase),
         password.chars().any(char::is_lowercase),
@@ -62,7 +66,7 @@ pub fn assess_password(password: &str, username: &str) -> PasswordAssessment {
     .filter(|present| *present)
     .count();
     let len = password.chars().count();
-    let cap = if len < 12 {
+    if len < 12 {
         1
     } else if len < 14 {
         if categories >= 4 { 3 } else { 2 }
@@ -72,7 +76,17 @@ pub fn assess_password(password: &str, username: &str) -> PasswordAssessment {
         4
     } else {
         2
-    };
+    }
+}
+
+pub fn assess_password(password: &str, username: &str) -> PasswordAssessment {
+    let mut inputs = APP_TERMS.to_vec();
+    if !username.is_empty() {
+        inputs.push(username);
+    }
+    let estimate = zxcvbn::zxcvbn(password, &inputs);
+    let estimator_score = estimate.score() as u8;
+    let cap = policy_cap(password);
     let feedback = estimate.feedback().as_ref().and_then(|feedback| {
         feedback
             .warning()
@@ -82,8 +96,17 @@ pub fn assess_password(password: &str, username: &str) -> PasswordAssessment {
     PasswordAssessment {
         score: estimator_score.min(cap),
         estimator_score,
+        policy_cap: cap,
         feedback,
     }
+}
+
+/// Same verdict as `assess_password(password, "").score < WEAK_SCORE_THRESHOLD`, but skips the
+/// estimator (about 0.2–1.5 ms per password in release builds) when the policy cap alone
+/// already makes the password weak. Use it for bulk scans.
+pub fn is_weak_password(password: &str) -> bool {
+    policy_cap(password) < WEAK_SCORE_THRESHOLD
+        || assess_password(password, "").score < WEAK_SCORE_THRESHOLD
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -156,7 +179,8 @@ pub enum Finding {
     InvalidMetadata,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
+#[non_exhaustive]
 pub struct SecurityEntry {
     pub secret_id: Uuid,
     pub vault_id: Uuid,
@@ -168,6 +192,7 @@ pub struct SecurityEntry {
 }
 
 #[derive(Clone, Debug, Default)]
+#[non_exhaustive]
 pub struct SecurityReport {
     pub entries: Vec<SecurityEntry>,
     pub vaults_analyzed: usize,
@@ -196,10 +221,10 @@ impl SecurityReport {
 }
 
 /// Cancellation is checked between operations; callers must invalidate pending UI results on lock.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ScanControl {
-    pub cancelled: AtomicBool,
-    pub processed: AtomicUsize,
+    cancelled: AtomicBool,
+    processed: AtomicUsize,
 }
 
 impl ScanControl {
@@ -207,8 +232,17 @@ impl ScanControl {
         self.cancelled.store(true, Ordering::Release);
     }
 
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Acquire)
+    }
+
+    /// Items analyzed so far; readable from another thread for progress display.
+    pub fn processed(&self) -> usize {
+        self.processed.load(Ordering::Acquire)
+    }
+
     fn check(&self) -> Result<(), AppError> {
-        if self.cancelled.load(Ordering::Acquire) {
+        if self.is_cancelled() {
             Err(AppError::Validation(
                 "security analysis cancelled".to_string(),
             ))
@@ -309,10 +343,9 @@ where
                     Ok(value) => match std::str::from_utf8(value.expose_secret()) {
                         Ok(text) if !text.is_empty() => {
                             let fingerprint = Fingerprint(Sha256::digest(text.as_bytes()).into());
-                            let (indices, weak) =
-                                fingerprints.entry(fingerprint).or_insert_with(|| {
-                                    (Vec::new(), assess_password(text, "").score < 3)
-                                });
+                            let (indices, weak) = fingerprints
+                                .entry(fingerprint)
+                                .or_insert_with(|| (Vec::new(), is_weak_password(text)));
                             if *weak {
                                 findings.push(Finding::WeakPassword);
                             }
@@ -389,6 +422,27 @@ mod tests {
         assert!(assess_password("Password123!", "").score < 3);
         assert_eq!(assess_password("", "").score, 0);
         assert!(assess_password("eW8!rK2#qL7$vN4@zT9", "").score >= 3);
+    }
+
+    #[test]
+    fn fast_weak_verdict_matches_full_assessment() {
+        for password in [
+            "",
+            "short",
+            "Password123!",
+            "onlylowercaseletters",
+            "Correct-Horse-42",
+            "Éléphant-Rose-2026",
+            "eW8!rK2#qL7$vN4@zT9",
+            " leading and trailing ",
+            "àÉ8!xyz",
+        ] {
+            assert_eq!(
+                is_weak_password(password),
+                assess_password(password, "").score < WEAK_SCORE_THRESHOLD,
+                "{password:?}"
+            );
+        }
     }
 
     #[test]

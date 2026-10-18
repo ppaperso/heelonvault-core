@@ -168,10 +168,7 @@ fn batch_scan_reports_reuse_expiry_invalid_data_and_type_boundaries() -> TestRes
         assert!(invalid.findings.contains(&Finding::InvalidExpiry));
         assert!(invalid.findings.contains(&Finding::Unreadable));
         assert!(!format!("{report:?}").contains(shared_password));
-        assert_eq!(
-            control.processed.load(std::sync::atomic::Ordering::Acquire),
-            4
-        );
+        assert_eq!(control.processed(), 4);
         Ok(())
     })
 }

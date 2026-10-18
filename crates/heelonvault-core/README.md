@@ -28,7 +28,7 @@ Requires Rust 1.98 or later.
 
 ```toml
 [dependencies]
-heelonvault-core = "2.0"
+heelonvault-core = "2.1"
 ```
 
 ## Security Policy

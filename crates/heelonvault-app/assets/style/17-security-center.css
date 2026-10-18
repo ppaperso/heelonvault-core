@@ -1,84 +1,224 @@
+/* Security center: sidebar entry, hero, metric cards, findings, editor URL status */
+
+/* ── Sidebar entry ─────────────────────────────────────────────────────── */
+button.security-navigation {
+    padding: 9px 12px;
+    border-radius: 12px;
+    border: 1px solid alpha(@hv_brand_500, 0.22);
+    background: alpha(@hv_brand_500, 0.06);
+    color: @hv_brand_900;
+    font-weight: 650;
+    box-shadow: none;
+}
+
+button.security-navigation:hover {
+    background: alpha(@hv_brand_500, 0.12);
+    border-color: alpha(@hv_brand_500, 0.36);
+}
+
+/* Current page: filled pill plus an accent bar on the leading edge. */
+button.security-navigation.security-navigation-active {
+    background: linear-gradient(120deg, alpha(@hv_brand_500, 0.20), alpha(@hv_brand_300, 0.12));
+    border-color: alpha(@hv_brand_600, 0.55);
+    box-shadow: inset 3px 0 0 @hv_brand_600, 0 1px 2px @hv_shadow_soft;
+}
+
+.security-navigation-icon {
+    color: @hv_brand_700;
+}
+
+.security-navigation-count {
+    min-width: 22px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: @hv_warning_bg;
+    color: @hv_warning_strong;
+    border: 1px solid alpha(@hv_warning, 0.30);
+    font-size: 0.78rem;
+    font-weight: 750;
+    font-feature-settings: "tnum";
+}
+
+.security-new-pill {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background-image: linear-gradient(120deg, @hv_brand_500, @hv_brand_green);
+    color: @hv_on_brand;
+    font-size: 0.70rem;
+    font-weight: 750;
+    letter-spacing: 0.03em;
+}
+
+/* ── Page ──────────────────────────────────────────────────────────────── */
 .security-center {
-    padding: 24px;
+    padding: 28px;
 }
 
 .security-subtitle,
 .security-coverage,
 .security-privacy {
-    color: #456567;
+    color: @hv_text_muted;
 }
 
+.security-privacy {
+    font-size: 0.86rem;
+    padding-top: 4px;
+}
+
+/* Hero: neutral by default, amber when findings need attention, green when clear. */
 .security-hero {
-    padding: 26px;
-    border-radius: 24px;
-    background: linear-gradient(125deg, #D9F4E9, #ECF8F7 65%, #FFFFFF);
-    border: 1px solid rgba(19, 161, 161, 0.28);
-    box-shadow: 0 8px 24px rgba(7, 57, 58, 0.08);
-}
-
-.security-hero image {
-    color: #08786F;
-}
-
-.security-metric {
-    padding: 16px 10px;
+    padding: 26px 28px;
     border-radius: 16px;
-    background: #FFFFFF;
-    border: 1px solid #C7DEDA;
-    font-weight: 700;
+    background: linear-gradient(125deg, @hv_brand_100, @hv_brand_50 60%, @hv_surface);
+    border: 1px solid alpha(@hv_brand_500, 0.24);
+    box-shadow: 0 1px 2px @hv_shadow_soft, 0 12px 32px @hv_shadow_key;
 }
 
-.security-metric-selected,
-.security-navigation {
-    background: #D6F1E9;
-    border-color: #168577;
-    color: #07393A;
+.security-hero-shield {
+    color: @hv_brand_700;
 }
 
+.security-hero.security-hero-attention {
+    background: linear-gradient(125deg, alpha(@hv_warning_bg, 0.95), @hv_brand_50 65%, @hv_surface);
+    border-color: alpha(@hv_warning, 0.30);
+}
+
+.security-hero.security-hero-attention .security-hero-shield {
+    color: @hv_warning;
+}
+
+.security-hero.security-hero-ok {
+    background: linear-gradient(125deg, @hv_success_bg, @hv_brand_50 65%, @hv_surface);
+    border-color: alpha(@hv_success, 0.30);
+}
+
+.security-hero.security-hero-ok .security-hero-shield {
+    color: @hv_success;
+}
+
+/* ── Metric cards ──────────────────────────────────────────────────────── */
+button.security-metric {
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: @hv_surface;
+    border: 1px solid @hv_border;
+    box-shadow: 0 1px 2px @hv_shadow_soft;
+}
+
+button.security-metric:hover {
+    border-color: alpha(@hv_brand_500, 0.45);
+    box-shadow: 0 2px 4px @hv_shadow_soft, 0 8px 20px @hv_shadow_soft;
+}
+
+button.security-metric.security-metric-selected {
+    background: linear-gradient(135deg, @hv_brand_100, @hv_brand_50);
+    border-color: @hv_brand_600;
+    box-shadow: inset 0 0 0 1px alpha(@hv_brand_600, 0.35), 0 6px 18px @hv_shadow_soft;
+}
+
+.security-metric-icon {
+    color: @hv_text_subtle;
+}
+
+.security-metric-attention .security-metric-icon {
+    color: @hv_warning;
+}
+
+.security-metric-selected .security-metric-icon {
+    color: @hv_brand_700;
+}
+
+.security-metric-count {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: @hv_brand_900;
+    font-feature-settings: "tnum";
+}
+
+.security-metric-caption {
+    color: @hv_text_muted;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+/* ── Findings ──────────────────────────────────────────────────────────── */
 .security-finding,
 .security-group {
-    padding: 16px;
+    padding: 14px 16px;
     border-radius: 16px;
-    border: 1px solid #D4E5DF;
-    background: #FFFFFF;
+    border: 1px solid @hv_border;
+    background: @hv_surface;
+    box-shadow: 0 1px 2px @hv_shadow_soft;
 }
 
 .security-group {
-    background: #EDF5F2;
+    background: alpha(@hv_warning_bg, 0.55);
+    border-color: alpha(@hv_warning, 0.22);
 }
 
 .security-finding-detail {
-    padding: 16px 0 0 24px;
+    padding: 14px 0 2px 30px;
 }
 
-.security-notice,
-.security-attention-icon {
-    color: #925500;
+.security-finding-icon {
+    padding: 7px;
+    border-radius: 999px;
+}
+
+.security-chip {
+    padding: 1px 9px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 650;
+}
+
+/* Severity scale shared by row icons and chips. */
+.security-severity-high {
+    background: @hv_danger_bg;
+    color: @hv_danger_strong;
+}
+
+.security-severity-medium {
+    background: @hv_warning_bg;
+    color: @hv_warning_strong;
+}
+
+.security-severity-low {
+    background: alpha(@hv_brand_500, 0.10);
+    color: @hv_brand_800;
+}
+
+.security-notice {
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: @hv_warning_bg;
+    color: @hv_warning_strong;
 }
 
 .security-empty {
     padding: 32px;
-    color: #176C53;
+    color: @hv_success_strong;
 }
 
+/* ── Editor URL status ─────────────────────────────────────────────────── */
 .url-security-status {
-    padding: 8px 10px;
-    border-radius: 10px;
-    background: #EDF3F2;
-    color: #456567;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: alpha(@hv_brand_500, 0.06);
+    color: @hv_text_muted;
 }
 
 .url-security-ok {
-    background: #DBF3E8;
-    color: #176C53;
+    background: @hv_success_bg;
+    color: @hv_success_strong;
 }
 
 .url-security-warning {
-    background: #FFF0D3;
-    color: #805000;
+    background: @hv_warning_bg;
+    color: @hv_warning_strong;
 }
 
 .url-security-error {
-    background: #FFE5E3;
-    color: #A42625;
+    background: @hv_danger_bg;
+    color: @hv_danger_strong;
 }

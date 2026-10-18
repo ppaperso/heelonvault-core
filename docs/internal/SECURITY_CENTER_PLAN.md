@@ -109,6 +109,13 @@ Repeated-password analysis measurements (debug build, same machine; not portable
 100 items: 53 ms; 1,000: 67 ms; 10,000: 841 ms. Distinct-password workloads and peak RSS
 still require dedicated profiling before making performance claims beyond this fixture.
 
+Distinct passwords are dominated by zxcvbn (micro-benchmark, zxcvbn 3.1.1, same machine):
+release ≈ 0.2 ms (16-char phrase) / 0.7 ms (random 20+) / 1.5 ms (64 chars) per password,
+debug ≈ 10× slower. The estimator therefore runs once per distinct password (security center
+and list loader), and `is_weak_password` skips it when the length/class cap alone already
+makes the password weak. The list loader shares that verdict path, so a vault of 10,000
+distinct strong passwords still costs seconds per list reload in release builds.
+
 The binary SBOM and third-party inventory were regenerated. Core's new dependency on
 zxcvbn also changes Premium's standalone lock graph; no existing dependency was upgraded.
 Community-only compilation exposed a pre-existing misplaced feature gate around the

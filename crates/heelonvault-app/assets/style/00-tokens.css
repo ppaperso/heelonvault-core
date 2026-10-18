@@ -1,8 +1,50 @@
-/* Token CSS Variables for HeelonVault */
-:root {
-    --hv-color-primary: #008080;
-    --hv-color-success: #28a745;
-    --hv-color-warning: #ffc107;
-    --hv-color-danger: #dc3545;
-    --hv-color-info: #17a2b8;
-}
+/* Design tokens: the only place where the palette is defined. Every other stylesheet refers
+   to these names, so a colour change (or a future dark variant) happens here only.
+   @define-color is used rather than CSS custom properties: it works on every GTK 4 runtime
+   bundled by the packages, including older Windows/macOS builds. */
+
+/* Brand: one teal scale, deep to light. */
+@define-color hv_brand_900 #07393A;
+@define-color hv_brand_800 #0A5F5C;
+@define-color hv_brand_700 #0E706B;
+@define-color hv_brand_600 #0D8F8A;
+@define-color hv_brand_500 #13A1A1;
+@define-color hv_brand_green #1F8678;
+@define-color hv_brand_300 #57B9B1;
+@define-color hv_brand_200 #A4DFCF;
+@define-color hv_brand_100 #D6F1E9;
+@define-color hv_brand_50 #EEF8F7;
+
+/* Neutrals. */
+@define-color hv_text #2C3E50;
+@define-color hv_text_muted #5A7072;
+@define-color hv_text_subtle #8CACB0;
+@define-color hv_on_brand #FFFFFF;
+@define-color hv_surface #FFFFFF;
+@define-color hv_canvas #F3F6F3;
+@define-color hv_border #D4E5DF;
+
+/* Semantic colours: never reuse the brand teal for a warning. */
+@define-color hv_success #178A64;
+@define-color hv_success_strong #176C53;
+@define-color hv_success_bg #DBF3E8;
+@define-color hv_warning #B26A00;
+@define-color hv_warning_strong #805000;
+@define-color hv_warning_bright #FB8C00;
+@define-color hv_warning_bg #FFF0D3;
+@define-color hv_danger #C01C28;
+@define-color hv_danger_strong #A42625;
+@define-color hv_danger_bright #E53935;
+@define-color hv_danger_bg #FFE5E3;
+@define-color hv_info #2F6FDE;
+@define-color hv_info_strong #1F4FA8;
+@define-color hv_info_bg #E3EDFF;
+
+/* Elevation: two-layer shadows, tinted with the deep brand colour. */
+@define-color hv_shadow_soft alpha(#07393A, 0.06);
+@define-color hv_shadow_key alpha(#07393A, 0.10);
+
+/* libadwaita widgets (switches, checks, progress bars, selections) follow the brand. */
+@define-color accent_bg_color @hv_brand_600;
+@define-color accent_fg_color @hv_on_brand;
+@define-color accent_color @hv_brand_800;

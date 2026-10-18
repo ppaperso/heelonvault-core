@@ -1,4 +1,8 @@
-/* Modern accent styles for HeelonVault */
-accent {
-    color: var(--hv-color-primary);
+/* Loaded only on libadwaita >= 1.6 (see ui/theme.rs). Those versions style their widgets from
+   CSS variables and follow the system accent colour (blue by default), which overrides the
+   @accent_* named colours of 00-tokens.css. Values mirror @hv_brand_600 / @hv_brand_800. */
+:root {
+    --accent-bg-color: #0D8F8A;
+    --accent-fg-color: #FFFFFF;
+    --accent-color: #0A5F5C;
 }

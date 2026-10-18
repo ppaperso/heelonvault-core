@@ -1,7 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
 use std::rc::Rc;
-use std::sync::{Arc, atomic::Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use gtk4::{Align, Orientation, glib, prelude::*};
@@ -37,7 +37,10 @@ struct View {
     refresh: gtk4::Button,
     cancel: gtk4::Button,
     spinner: gtk4::Spinner,
-    cards: Vec<gtk4::Button>,
+    hero: gtk4::Box,
+    shield: gtk4::Image,
+    nav: super::SecurityNavigation,
+    cards: Vec<MetricCard>,
     vaults: gtk4::DropDown,
     results: gtk4::Box,
     more: gtk4::Button,
@@ -45,7 +48,7 @@ struct View {
     report: RefCell<Option<SecurityReport>>,
     control: RefCell<Option<Arc<ScanControl>>>,
     generation: Cell<u64>,
-    selected: Cell<usize>,
+    selected: Cell<Filter>,
     selected_vault: Cell<Option<Uuid>>,
     updating_vaults: Cell<bool>,
     expanded: Rc<RefCell<BTreeSet<Uuid>>>,
@@ -65,16 +68,151 @@ fn label(key: &str, class: &str) -> gtk4::Label {
     label
 }
 
-fn matches_filter(entry: &SecurityEntry, filter: usize) -> bool {
+/// Summary card: icon and counter on the first line, caption below.
+struct MetricCard {
+    filter: Filter,
+    button: gtk4::Button,
+    count: gtk4::Label,
+    caption: gtk4::Label,
+}
+
+impl MetricCard {
+    fn new(filter: Filter) -> Self {
+        let icon = gtk4::Image::from_icon_name(filter.icon());
+        icon.set_pixel_size(20);
+        icon.add_css_class("security-metric-icon");
+        let count = gtk4::Label::new(Some("0"));
+        count.add_css_class("security-metric-count");
+        let top = gtk4::Box::new(Orientation::Horizontal, 10);
+        top.append(&icon);
+        top.append(&count);
+        let caption = label(filter.label_key(), "security-metric-caption");
+        let content = gtk4::Box::new(Orientation::Vertical, 6);
+        content.append(&top);
+        content.append(&caption);
+        let button = gtk4::Button::new();
+        button.set_child(Some(&content));
+        button.add_css_class("security-metric");
+        Self {
+            filter,
+            button,
+            count,
+            caption,
+        }
+    }
+
+    fn update(&self, count: usize, selected: bool) {
+        let caption = tr(self.filter.label_key());
+        self.count.set_text(&count.to_string());
+        self.caption.set_text(&caption);
+        // Also read by screen readers: the card content is split across two labels.
+        self.button
+            .set_tooltip_text(Some(&format!("{count} {caption}")));
+        toggle_class(&self.button, "security-metric-selected", selected);
+        toggle_class(&self.button, "security-metric-attention", count > 0);
+    }
+}
+
+fn toggle_class(widget: &impl IsA<gtk4::Widget>, class: &str, enabled: bool) {
+    if enabled {
+        widget.add_css_class(class);
+    } else {
+        widget.remove_css_class(class);
+    }
+}
+
+/// How urgent a finding is; drives its colour, never its wording.
+#[derive(Clone, Copy)]
+enum Severity {
+    High,
+    Medium,
+    Low,
+}
+
+impl Severity {
+    fn class(self) -> &'static str {
+        match self {
+            Self::High => "security-severity-high",
+            Self::Medium => "security-severity-medium",
+            Self::Low => "security-severity-low",
+        }
+    }
+}
+
+fn severity(finding: Finding) -> Severity {
+    match finding {
+        // Same colours as the list badges: weak is red there, reused is amber.
+        Finding::Expired | Finding::WeakPassword => Severity::High,
+        Finding::ReusedPassword => Severity::Medium,
+        _ => Severity::Low,
+    }
+}
+
+fn finding_icon(finding: Finding) -> &'static str {
+    match finding {
+        Finding::WeakPassword => "hv-key-symbolic",
+        Finding::ReusedPassword => "hv-reuse-symbolic",
+        Finding::Expired | Finding::ExpiringSoon | Finding::InvalidExpiry => "hv-clock-symbolic",
+        Finding::Url(_) => "hv-link-symbolic",
+        _ => "hv-info-symbolic",
+    }
+}
+
+/// One summary card per filter, in display order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Filter {
+    All,
+    Reused,
+    Weak,
+    Expiry,
+    Urls,
+}
+
+impl Filter {
+    const ALL: [Self; 5] = [
+        Self::All,
+        Self::Reused,
+        Self::Weak,
+        Self::Expiry,
+        Self::Urls,
+    ];
+
+    fn icon(self) -> &'static str {
+        match self {
+            Self::All => "hv-shield-symbolic",
+            Self::Reused => "hv-reuse-symbolic",
+            Self::Weak => "hv-key-symbolic",
+            Self::Expiry => "hv-clock-symbolic",
+            Self::Urls => "hv-link-symbolic",
+        }
+    }
+
+    fn label_key(self) -> &'static str {
+        match self {
+            Self::All => "security-card-all",
+            Self::Reused => "security-card-reused",
+            Self::Weak => "security-card-weak",
+            Self::Expiry => "security-card-expiry",
+            Self::Urls => "security-card-urls",
+        }
+    }
+
+    /// Reuse groups are only meaningful when every member of a group is listed.
+    fn groups_reuse(self) -> bool {
+        matches!(self, Self::All | Self::Reused)
+    }
+}
+
+fn matches_filter(entry: &SecurityEntry, filter: Filter) -> bool {
     entry.findings.iter().any(|finding| match filter {
-        1 => *finding == Finding::ReusedPassword,
-        2 => *finding == Finding::WeakPassword,
-        3 => matches!(
+        Filter::All => true,
+        Filter::Reused => *finding == Finding::ReusedPassword,
+        Filter::Weak => *finding == Finding::WeakPassword,
+        Filter::Expiry => matches!(
             finding,
             Finding::Expired | Finding::ExpiringSoon | Finding::InvalidExpiry
         ),
-        4 => matches!(finding, Finding::Url(_)),
-        _ => true,
+        Filter::Urls => matches!(finding, Finding::Url(_)),
     })
 }
 
@@ -87,24 +225,34 @@ fn finding_key(finding: Finding) -> &'static str {
         Finding::InvalidExpiry => "security-finding-invalid-expiry",
         Finding::Url(status) => url_status_key(status),
         Finding::InvalidMetadata => "security-finding-metadata",
+        Finding::Unreadable => "security-finding-unreadable",
+        // `Finding` is non-exhaustive: an unknown future finding is never shown as healthy.
         _ => "security-finding-unreadable",
     }
 }
 
-fn priority(entry: &SecurityEntry) -> u8 {
+fn rank(finding: Finding) -> u8 {
+    match finding {
+        Finding::Unreadable | Finding::InvalidMetadata => 0,
+        Finding::Expired => 1,
+        Finding::ReusedPassword => 2,
+        Finding::WeakPassword => 3,
+        Finding::Url(_) => 4,
+        _ => 5,
+    }
+}
+
+/// The finding that sorts the entry and gives its row icon.
+fn main_finding(entry: &SecurityEntry) -> Option<Finding> {
     entry
         .findings
         .iter()
-        .map(|finding| match finding {
-            Finding::Unreadable | Finding::InvalidMetadata => 0,
-            Finding::Expired => 1,
-            Finding::ReusedPassword => 2,
-            Finding::WeakPassword => 3,
-            Finding::Url(_) => 4,
-            _ => 5,
-        })
-        .min()
-        .unwrap_or(6)
+        .copied()
+        .min_by_key(|&finding| rank(finding))
+}
+
+fn priority(entry: &SecurityEntry) -> u8 {
+    main_finding(entry).map_or(6, rank)
 }
 
 fn short_finding_key(finding: Finding) -> &'static str {
@@ -130,6 +278,37 @@ impl View {
         self.refresh.set_sensitive(true);
     }
 
+    /// Hero shield and sidebar counter: the at-a-glance state of the last analysis.
+    fn render_status(&self, report: Option<&SecurityReport>) {
+        let affected = report.map_or(0, SecurityReport::affected);
+        let (icon, attention, healthy) = match report {
+            _ if self.busy.get() => ("hv-shield-symbolic", false, false),
+            _ if self.failed.get() => ("hv-shield-warning-symbolic", true, false),
+            None => ("hv-shield-symbolic", false, false),
+            Some(_) if affected > 0 => ("hv-shield-warning-symbolic", true, false),
+            Some(report) if !report.is_complete() => ("hv-shield-partial-symbolic", true, false),
+            Some(_) => ("hv-shield-ok-symbolic", false, true),
+        };
+        self.shield.set_icon_name(Some(icon));
+        toggle_class(&self.hero, "security-hero-attention", attention);
+        toggle_class(&self.hero, "security-hero-ok", healthy);
+        self.nav.count.set_text(&affected.to_string());
+        self.nav.count.set_visible(affected > 0);
+    }
+
+    /// Progress tick while a scan runs: only the counter changes, no widget is rebuilt.
+    fn render_progress(&self) {
+        let count = self
+            .control
+            .borrow()
+            .as_ref()
+            .map_or(0, |control| control.processed());
+        self.summary.set_text(&tr_args(
+            "security-center-progress",
+            &[("count", I18nArg::Str(&count.to_string()))],
+        ));
+    }
+
     fn render(&self) {
         self.title.set_text(&tr("security-center-title"));
         self.subtitle.set_text(&tr("security-center-subtitle"));
@@ -144,38 +323,19 @@ impl View {
             self.results.remove(&child);
         }
         let stored = self.report.borrow();
-        let keys = [
-            "security-card-all",
-            "security-card-reused",
-            "security-card-weak",
-            "security-card-expiry",
-            "security-card-urls",
-        ];
-        for (index, (button, key)) in self.cards.iter().zip(keys).enumerate() {
+        for card in &self.cards {
             let count = stored.as_ref().map_or(0, |report| {
                 report
                     .entries
                     .iter()
-                    .filter(|entry| matches_filter(entry, index))
+                    .filter(|entry| matches_filter(entry, card.filter))
                     .count()
             });
-            button.set_label(&format!("{count}\n{}", tr(key)));
-            if index == self.selected.get() {
-                button.add_css_class("security-metric-selected");
-            } else {
-                button.remove_css_class("security-metric-selected");
-            }
+            card.update(count, card.filter == self.selected.get());
         }
+        self.render_status(stored.as_ref());
         if self.busy.get() {
-            let count = self
-                .control
-                .borrow()
-                .as_ref()
-                .map_or(0, |c| c.processed.load(Ordering::Acquire));
-            self.summary.set_text(&tr_args(
-                "security-center-progress",
-                &[("count", I18nArg::Str(&count.to_string()))],
-            ));
+            self.render_progress();
             self.coverage.set_text(&tr("security-center-local"));
             return;
         }
@@ -235,7 +395,7 @@ impl View {
         let visible = &selected[..selected.len().min(self.limit.get())];
         for entry in visible {
             if let Some(group) = entry.reuse_group
-                && matches!(self.selected.get(), 0 | 1)
+                && self.selected.get().groups_reuse()
             {
                 if !rendered_groups.insert(group) {
                     continue;
@@ -266,8 +426,12 @@ impl View {
         let expander = gtk4::Expander::new(None);
         expander.add_css_class("security-finding");
         let header = gtk4::Box::new(Orientation::Horizontal, 12);
-        let icon = gtk4::Image::from_icon_name("dialog-warning-symbolic");
-        icon.add_css_class("security-attention-icon");
+        let main = main_finding(entry);
+        let icon = gtk4::Image::from_icon_name(main.map_or("hv-info-symbolic", finding_icon));
+        icon.set_pixel_size(18);
+        icon.set_valign(Align::Center);
+        icon.add_css_class("security-finding-icon");
+        icon.add_css_class(main.map_or(Severity::Low, severity).class());
         header.append(&icon);
         let text = gtk4::Box::new(Orientation::Vertical, 4);
         text.set_hexpand(true);
@@ -276,20 +440,18 @@ impl View {
         title.set_wrap(true);
         title.add_css_class("heading");
         text.append(&title);
-        let kinds: Vec<_> = entry
-            .findings
-            .iter()
-            .map(|&finding| tr(short_finding_key(finding)))
-            .collect();
-        let vault = gtk4::Label::new(Some(&format!(
-            "{} · {}",
-            entry.vault_name,
-            kinds.join(" · ")
-        )));
+        let meta = gtk4::Box::new(Orientation::Horizontal, 6);
+        let vault = gtk4::Label::new(Some(&entry.vault_name));
         vault.set_xalign(0.0);
-        vault.set_wrap(true);
         vault.add_css_class("dim-label");
-        text.append(&vault);
+        meta.append(&vault);
+        for &finding in &entry.findings {
+            let chip = gtk4::Label::new(Some(&tr(short_finding_key(finding))));
+            chip.add_css_class("security-chip");
+            chip.add_css_class(severity(finding).class());
+            meta.append(&chip);
+        }
+        text.append(&meta);
         header.append(&text);
         expander.set_label_widget(Some(&header));
         let details = gtk4::Box::new(Orientation::Vertical, 10);
@@ -366,7 +528,7 @@ pub(super) struct CenterDeps<TSecret, TVault> {
     pub user_id: Uuid,
     pub key: Rc<RefCell<Vec<u8>>>,
     pub stack: gtk4::Stack,
-    pub navigation: gtk4::Button,
+    pub navigation: super::SecurityNavigation,
     pub open_editor: Rc<dyn Fn(DialogMode)>,
     pub toast: adw::ToastOverlay,
 }
@@ -431,7 +593,10 @@ where
         refresh: gtk4::Button::with_label(&tr("security-center-refresh")),
         cancel: gtk4::Button::with_label(&tr("security-center-cancel")),
         spinner: gtk4::Spinner::new(),
-        cards: (0..5).map(|_| gtk4::Button::new()).collect(),
+        hero: gtk4::Box::new(Orientation::Horizontal, 20),
+        shield: gtk4::Image::from_icon_name("hv-shield-symbolic"),
+        nav: deps.navigation.clone(),
+        cards: Filter::ALL.into_iter().map(MetricCard::new).collect(),
         vaults: gtk4::DropDown::from_strings(&[&tr("security-center-vaults")]),
         results: gtk4::Box::new(Orientation::Vertical, 12),
         more: gtk4::Button::with_label(&tr("security-center-more")),
@@ -439,7 +604,7 @@ where
         report: RefCell::new(None),
         control: RefCell::new(None),
         generation: Cell::new(0),
-        selected: Cell::new(0),
+        selected: Cell::new(Filter::All),
         selected_vault: Cell::new(None),
         updating_vaults: Cell::new(false),
         expanded: Rc::new(RefCell::new(BTreeSet::new())),
@@ -452,11 +617,11 @@ where
     });
     view.root.append(&view.title);
     view.root.append(&view.subtitle);
-    let hero = gtk4::Box::new(Orientation::Horizontal, 20);
+    let hero = view.hero.clone();
     hero.add_css_class("security-hero");
-    let shield = gtk4::Image::from_icon_name("security-high-symbolic");
-    shield.set_pixel_size(64);
-    hero.append(&shield);
+    view.shield.set_pixel_size(64);
+    view.shield.add_css_class("security-hero-shield");
+    hero.append(&view.shield);
     let hero_text = gtk4::Box::new(Orientation::Vertical, 10);
     hero_text.set_hexpand(true);
     hero_text.append(&view.summary);
@@ -477,13 +642,13 @@ where
         .column_spacing(10)
         .row_spacing(10)
         .build();
-    for (index, button) in view.cards.iter().enumerate() {
-        button.add_css_class("security-metric");
-        cards.insert(button, -1);
+    for card in &view.cards {
+        cards.insert(&card.button, -1);
+        let filter = card.filter;
         let weak = Rc::downgrade(&view);
-        button.connect_clicked(move |_| {
+        card.button.connect_clicked(move |_| {
             if let Some(view) = weak.upgrade() {
-                view.selected.set(index);
+                view.selected.set(filter);
                 view.limit.set(50);
                 view.render();
             }
@@ -578,7 +743,7 @@ where
                 if !view.busy.get() || view.generation.get() != generation {
                     return glib::ControlFlow::Break;
                 }
-                view.render();
+                view.render_progress();
                 glib::ControlFlow::Continue
             });
             let weak = Rc::downgrade(&view);
@@ -613,7 +778,12 @@ where
     let stack = deps.stack.clone();
     let start = Rc::clone(&scan);
     let weak = Rc::downgrade(&view);
-    deps.navigation.connect_clicked(move |_| {
+    let new_pill = deps.navigation.new_pill.clone();
+    deps.navigation.button.connect_clicked(move |_| {
+        if new_pill.is_visible() {
+            new_pill.set_visible(false);
+            crate::ui::view_preferences::persist_security_center_seen();
+        }
         stack.set_visible_child_name("security_center_view");
         if let Some(view) = weak.upgrade()
             && !view.busy.get()
@@ -621,20 +791,27 @@ where
             start();
         }
     });
+    let nav_button = deps.navigation.button.clone();
+    deps.stack.connect_visible_child_name_notify(move |stack| {
+        let active = stack.visible_child_name().as_deref() == Some("security_center_view");
+        toggle_class(&nav_button, "security-navigation-active", active);
+    });
     let weak = Rc::downgrade(&view);
     page.connect_unmap(move |_| {
-        if let Some(view) = weak.upgrade() {
+        if let Some(view) = weak.upgrade()
+            && view.busy.get()
+        {
+            // A cancelled scan leaves no report: show the idle state, not a frozen counter.
             view.stop();
+            view.render();
         }
     });
     view.render();
     let refresh_i18n = {
         let view = Rc::clone(&view);
         let stack = deps.stack.clone();
-        let navigation = deps.navigation.clone();
         let page = page.clone();
         Rc::new(move || {
-            navigation.set_label(&tr("security-center-title"));
             stack.page(&page).set_title(&tr("security-center-title"));
             view.render();
             if let Some(model) = view.vaults.model().and_downcast::<gtk4::StringList>() {
@@ -677,7 +854,7 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use heelonvault_core::repositories::{
         secret_repository::SqlxSecretRepository, team_repository::SqlxTeamRepository,
@@ -688,42 +865,68 @@ mod tests {
         secret_service::SecretServiceImpl, vault_service::VaultServiceImpl,
     };
 
+    fn fixture_entry(
+        title: &str,
+        vault_id: Uuid,
+        vault_name: &str,
+        findings: Vec<Finding>,
+        reuse_group: Option<usize>,
+    ) -> SecurityEntry {
+        let mut entry = SecurityEntry::default();
+        entry.secret_id = Uuid::new_v4();
+        entry.vault_id = vault_id;
+        entry.title = title.to_string();
+        entry.vault_name = vault_name.to_string();
+        entry.findings = findings;
+        entry.reuse_group = reuse_group;
+        entry
+    }
+
     #[test]
     fn filters_and_priorities_are_explicit() {
-        let mut entry = SecurityEntry {
-            secret_id: Uuid::nil(),
-            vault_id: Uuid::nil(),
-            title: String::new(),
-            vault_name: String::new(),
-            findings: vec![Finding::WeakPassword, Finding::ReusedPassword],
-            reuse_group: Some(0),
-        };
-        assert!(matches_filter(&entry, 0));
-        assert!(matches_filter(&entry, 1));
-        assert!(matches_filter(&entry, 2));
-        assert!(!matches_filter(&entry, 3));
-        assert!(!matches_filter(&entry, 4));
+        let mut entry = fixture_entry(
+            "",
+            Uuid::nil(),
+            "",
+            vec![Finding::WeakPassword, Finding::ReusedPassword],
+            Some(0),
+        );
+        assert!(matches_filter(&entry, Filter::All));
+        assert!(matches_filter(&entry, Filter::Reused));
+        assert!(matches_filter(&entry, Filter::Weak));
+        assert!(!matches_filter(&entry, Filter::Expiry));
+        assert!(!matches_filter(&entry, Filter::Urls));
         assert_eq!(priority(&entry), 2);
         entry.findings.push(Finding::Unreadable);
         assert_eq!(priority(&entry), 0);
     }
 
-    #[test]
-    #[ignore = "requires a graphical display; run explicitly for native GTK validation"]
-    fn native_security_center_smoke() -> Result<(), Box<dyn std::error::Error>> {
-        adw::init()?;
-        gio::resources_register_include!("heelonvault.gresource")?;
+    /// Run by `native_gtk_smoke` (main_window/mod.rs), on the thread that initialised GTK.
+    pub(in crate::ui::windows::main_window) fn native_security_center_scenario()
+    -> Result<(), Box<dyn std::error::Error>> {
         let display = gtk4::gdk::Display::default().ok_or("no graphical display")?;
-        let css = gtk4::CssProvider::new();
-        css.connect_parsing_error(|_, section, error| {
-            eprintln!("CSS error at {section:?}: {error}");
-        });
-        css.load_from_resource("/com/heelonvault/rust/style.css");
-        gtk4::style_context_add_provider_for_display(
-            &display,
-            &css,
-            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
-        );
+        // Every stylesheet must parse cleanly: GTK silently drops a rule it cannot read.
+        let css_errors = Rc::new(RefCell::new(Vec::new()));
+        for path in ["style.css", "style/accent-modern.css"] {
+            let probe = gtk4::CssProvider::new();
+            let errors = Rc::clone(&css_errors);
+            probe.connect_parsing_error(move |_, section, error| {
+                errors
+                    .borrow_mut()
+                    .push(format!("{path}: {section}: {error}"));
+            });
+            probe.load_from_resource(&format!("/com/heelonvault/rust/{path}"));
+        }
+        assert!(css_errors.borrow().is_empty(), "{:?}", css_errors.borrow());
+        crate::ui::theme::install(&display);
+        let icons = gtk4::IconTheme::for_display(&display);
+        for name in [
+            "hv-shield-ok-symbolic",
+            "hv-reuse-symbolic",
+            "hv-link-symbolic",
+        ] {
+            assert!(icons.has_icon(name), "bundled icon {name} not found");
+        }
         let runtime = tokio::runtime::Runtime::new()?;
         let _entered = runtime.enter();
         let password_entry = gtk4::PasswordEntry::new();
@@ -763,7 +966,7 @@ mod tests {
             user_id: Uuid::nil(),
             key: Rc::new(RefCell::new(vec![1; 32])),
             stack: panel.main_stack.clone(),
-            navigation: sidebar.security_center_button.clone(),
+            navigation: sidebar.security_nav.clone(),
             open_editor: Rc::new(|_| {}),
             toast: toast.clone(),
         });
@@ -787,21 +990,15 @@ mod tests {
             ),
         ]
         .into_iter()
-        .map(|(title, findings, reuse_group)| SecurityEntry {
-            secret_id: Uuid::new_v4(),
-            vault_id,
-            title: title.to_string(),
-            vault_name: "Personnel".to_string(),
-            findings,
-            reuse_group,
+        .map(|(title, findings, reuse_group)| {
+            fixture_entry(title, vault_id, "Personnel", findings, reuse_group)
         })
         .collect();
-        center.view.set_report(SecurityReport {
-            entries,
-            analyzed: 124,
-            vaults_analyzed: 3,
-            ..SecurityReport::default()
-        });
+        let mut report = SecurityReport::default();
+        report.entries = entries;
+        report.analyzed = 124;
+        report.vaults_analyzed = 3;
+        center.view.set_report(report);
         assert_eq!(
             center
                 .view
@@ -811,8 +1008,8 @@ mod tests {
                 .map(SecurityReport::affected),
             Some(4)
         );
-        center.view.cards[4].emit_clicked();
-        assert_eq!(center.view.selected.get(), 4);
+        center.view.cards[4].button.emit_clicked();
+        assert_eq!(center.view.selected.get(), Filter::Urls);
         assert!(
             center
                 .view
@@ -820,7 +1017,7 @@ mod tests {
                 .first_child()
                 .is_some_and(|c| c.next_sibling().is_none())
         );
-        center.view.cards[0].emit_clicked();
+        center.view.cards[0].button.emit_clicked();
         center.view.vaults.set_selected(1);
         assert_eq!(center.view.selected_vault.get(), Some(vault_id));
         let original = center
@@ -883,13 +1080,14 @@ mod tests {
         }
         let mut large = original;
         large.entries = (0..10_000)
-            .map(|_| SecurityEntry {
-                secret_id: Uuid::new_v4(),
-                vault_id,
-                title: "Synthetic repeated item".to_string(),
-                vault_name: "Fixture".to_string(),
-                findings: vec![Finding::ReusedPassword],
-                reuse_group: Some(0),
+            .map(|_| {
+                fixture_entry(
+                    "Synthetic repeated item",
+                    vault_id,
+                    "Fixture",
+                    vec![Finding::ReusedPassword],
+                    Some(0),
+                )
             })
             .collect();
         large.analyzed = large.entries.len();

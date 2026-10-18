@@ -126,7 +126,8 @@ pub(crate) fn attach(entry: &gtk4::Entry, row: &gtk4::Box, runtime: Handle) {
         let (Some(state), Some(entry)) = (weak.upgrade(), entry.upgrade()) else {
             return;
         };
-        let Ok(parsed) = url::Url::parse(entry.text().as_str()) else {
+        // Same trimming as `assess_url`, which enabled the button.
+        let Ok(parsed) = url::Url::parse(entry.text().trim()) else {
             return;
         };
         let origin = parsed.origin().ascii_serialization();

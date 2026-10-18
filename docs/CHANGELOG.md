@@ -7,7 +7,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [2.1.0] — Non publiée
+## [2.1.0] — 2026-10-18
 
 ### Centre de sécurité
 
@@ -38,9 +38,9 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [2.0.2] — Non publiée
+## [2.0.2] — Livrée avec la 2.1.0
 
-> Version corrective en préparation : aucune modification de l'API publique, du schéma de base de données ou des formats de sauvegarde.
+> Pas de publication séparée : ces corrections sont livrées avec la 2.1.0. Aucune modification de l'API publique, du schéma de base de données ou des formats de sauvegarde.
 
 ### Dépendances et chaîne d'approvisionnement
 
