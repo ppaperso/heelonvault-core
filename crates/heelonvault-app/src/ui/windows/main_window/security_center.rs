@@ -907,7 +907,14 @@ pub(super) mod tests {
         let display = gtk4::gdk::Display::default().ok_or("no graphical display")?;
         // Every stylesheet must parse cleanly: GTK silently drops a rule it cannot read.
         let css_errors = Rc::new(RefCell::new(Vec::new()));
-        for path in ["style.css", "style/accent-modern.css"] {
+        // accent-modern.css is only loaded on libadwaita >= 1.6 (see ui/theme.rs).
+        let modern = adw::major_version() > 1 || adw::minor_version() >= 6;
+        let stylesheets: &[&str] = if modern {
+            &["style.css", "style/accent-modern.css"]
+        } else {
+            &["style.css"]
+        };
+        for &path in stylesheets {
             let probe = gtk4::CssProvider::new();
             let errors = Rc::clone(&css_errors);
             probe.connect_parsing_error(move |_, section, error| {
