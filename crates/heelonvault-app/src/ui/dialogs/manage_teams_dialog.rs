@@ -167,6 +167,7 @@ impl ManageTeamsDialog {
                                 let runtime_for_members = runtime_for_recv.clone();
                                 let team_for_members = Arc::clone(&team_for_recv);
                                 let window_for_members = window_for_recv.clone();
+                                let on_members_changed = Rc::clone(&on_state_changed_for_rows);
                                 members_btn.connect_clicked(move |_| {
                                     let members_window = gtk4::Window::builder()
                                         .title(heelonvault_core::tr!("manage-teams-members-window-title").as_str())
@@ -226,6 +227,7 @@ impl ManageTeamsDialog {
                                         let picker_for_refresh = user_picker.clone();
                                         let picker_ids_for_refresh = Rc::clone(&picker_ids);
                                         let refresh_members_holder_for_rows = Rc::clone(&refresh_members_holder);
+                                        let on_members_changed = Rc::clone(&on_members_changed);
                                         Rc::new(move || {
                                             while let Some(child) = members_list_for_refresh.first_child() {
                                                 members_list_for_refresh.remove(&child);
@@ -251,6 +253,7 @@ impl ManageTeamsDialog {
                                             let picker_ids_for_recv = Rc::clone(&picker_ids_for_refresh);
                                             let refresh_members_holder_for_rows_async =
                                                 Rc::clone(&refresh_members_holder_for_rows);
+                                            let on_members_changed = Rc::clone(&on_members_changed);
                                             glib::MainContext::default().spawn_local(async move {
                                                 match receiver.await {
                                                     Ok(Ok((members, users))) => {
@@ -297,6 +300,7 @@ impl ManageTeamsDialog {
                                                             let window_for_remove = window_for_recv_inner.clone();
                                                             let refresh_holder_for_remove =
                                                                 Rc::clone(&refresh_members_holder_for_rows_async);
+                                                            let on_member_removed = Rc::clone(&on_members_changed);
                                                             remove_btn.connect_clicked(move |_| {
                                                                 let (sender, receiver) = tokio::sync::oneshot::channel();
                                                                 let runtime_for_task = runtime_for_remove.clone();
@@ -309,9 +313,11 @@ impl ManageTeamsDialog {
                                                                 });
                                                                 let window_for_result = window_for_remove.clone();
                                                                 let refresh_holder_for_result = Rc::clone(&refresh_holder_for_remove);
+                                                                let on_member_removed = Rc::clone(&on_member_removed);
                                                                 glib::MainContext::default().spawn_local(async move {
                                                                     match receiver.await {
                                                                         Ok(Ok(())) => {
+                                                                            on_member_removed();
                                                                             if let Some(refresh_cb) = refresh_holder_for_result.borrow().as_ref() {
                                                                                 refresh_cb();
                                                                             }
@@ -335,6 +341,7 @@ impl ManageTeamsDialog {
                                     let window_for_add = members_window.clone();
                                     let picker_ids_for_add = Rc::clone(&picker_ids);
                                     let refresh_members_for_add = Rc::clone(&refresh_members_holder);
+                                    let on_member_added = Rc::clone(&on_members_changed);
                                     add_btn.connect_clicked(move |_| {
                                         let selected = user_picker.selected();
                                         if selected == 0 {
@@ -365,9 +372,11 @@ impl ManageTeamsDialog {
                                         });
                                         let window_for_result = window_for_add.clone();
                                         let refresh_after_result = Rc::clone(&refresh_members_for_add);
+                                        let on_member_added = Rc::clone(&on_member_added);
                                         glib::MainContext::default().spawn_local(async move {
                                             match receiver.await {
                                                 Ok(Ok(())) => {
+                                                    on_member_added();
                                                     if let Some(refresh_cb) = refresh_after_result.borrow().as_ref() {
                                                         refresh_cb();
                                                     }
@@ -596,6 +605,7 @@ impl ManageTeamsDialog {
                                 let team_for_delete = Arc::clone(&team_for_recv);
                                 let window_for_delete = window_for_recv.clone();
                                 let refresh_after_delete = Rc::clone(&refresh_holder_for_rows_async);
+                                let on_team_deleted = Rc::clone(&on_state_changed_for_rows);
                                 delete_btn.connect_clicked(move |_| {
                                     let confirm = adw::MessageDialog::new(
                                         Some(&window_for_delete),
@@ -609,6 +619,7 @@ impl ManageTeamsDialog {
                                     let runtime_for_resp = runtime_for_delete.clone();
                                     let window_for_resp = window_for_delete.clone();
                                     let refresh_after_resp = Rc::clone(&refresh_after_delete);
+                                    let on_team_deleted = Rc::clone(&on_team_deleted);
                                     confirm.connect_response(Some("delete"), move |d, _| {
                                         d.close();
                                         let (sender, receiver) = tokio::sync::oneshot::channel();
@@ -623,9 +634,11 @@ impl ManageTeamsDialog {
 
                                         let window_for_result = window_for_resp.clone();
                                         let refresh_after_result = Rc::clone(&refresh_after_resp);
+                                        let on_team_deleted = Rc::clone(&on_team_deleted);
                                         glib::MainContext::default().spawn_local(async move {
                                             match receiver.await {
                                                 Ok(Ok(())) => {
+                                                    on_team_deleted();
                                                     if let Some(refresh_cb) = refresh_after_result.borrow().as_ref() {
                                                         refresh_cb();
                                                     }

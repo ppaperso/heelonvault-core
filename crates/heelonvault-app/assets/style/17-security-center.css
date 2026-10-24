@@ -39,6 +39,18 @@ button.security-navigation.security-navigation-active {
     font-feature-settings: "tnum";
 }
 
+.security-navigation-count.security-count-pending {
+    background: @hv_surface;
+    color: @hv_text_muted;
+    border-color: alpha(@hv_text_muted, 0.30);
+}
+
+.security-navigation-count.security-count-ok {
+    background: @hv_success_bg;
+    color: @hv_success;
+    border-color: alpha(@hv_success, 0.30);
+}
+
 .security-new-pill {
     padding: 1px 8px;
     border-radius: 999px;

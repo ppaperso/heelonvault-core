@@ -821,6 +821,7 @@ fn run_application(
                                     return;
                                 };
                                 main_for_on_unlocked.set_session_master_key(key.to_vec());
+                                main_for_on_unlocked.refresh_entries();
                                 main_for_on_unlocked.activate_auto_lock();
                                 info!("PIN unlock successful — session restored");
                             },

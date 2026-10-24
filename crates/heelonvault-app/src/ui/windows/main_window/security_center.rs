@@ -47,6 +47,7 @@ struct View {
     limit: Cell<usize>,
     report: RefCell<Option<SecurityReport>>,
     control: RefCell<Option<Arc<ScanControl>>>,
+    pending: RefCell<Option<glib::SourceId>>,
     generation: Cell<u64>,
     selected: Cell<Filter>,
     selected_vault: Cell<Option<Uuid>>,
@@ -268,6 +269,9 @@ fn short_finding_key(finding: Finding) -> &'static str {
 
 impl View {
     fn stop(&self) {
+        if let Some(source) = self.pending.borrow_mut().take() {
+            source.remove();
+        }
         self.generation.set(self.generation.get().wrapping_add(1));
         if let Some(control) = self.control.borrow_mut().take() {
             control.cancel();
@@ -281,8 +285,9 @@ impl View {
     /// Hero shield and sidebar counter: the at-a-glance state of the last analysis.
     fn render_status(&self, report: Option<&SecurityReport>) {
         let affected = report.map_or(0, SecurityReport::affected);
+        let pending = self.pending.borrow().is_some() || self.busy.get();
         let (icon, attention, healthy) = match report {
-            _ if self.busy.get() => ("hv-shield-symbolic", false, false),
+            _ if pending => ("hv-shield-symbolic", false, false),
             _ if self.failed.get() => ("hv-shield-warning-symbolic", true, false),
             None => ("hv-shield-symbolic", false, false),
             Some(_) if affected > 0 => ("hv-shield-warning-symbolic", true, false),
@@ -292,8 +297,39 @@ impl View {
         self.shield.set_icon_name(Some(icon));
         toggle_class(&self.hero, "security-hero-attention", attention);
         toggle_class(&self.hero, "security-hero-ok", healthy);
-        self.nav.count.set_text(&affected.to_string());
-        self.nav.count.set_visible(affected > 0);
+        let (badge, tooltip) = if pending {
+            ("...".to_string(), tr("security-center-updating"))
+        } else if self.failed.get() {
+            ("!".to_string(), tr("security-center-error-detail"))
+        } else {
+            match report {
+                None => ("?".to_string(), tr("security-center-ready")),
+                Some(report) if !report.is_complete() => (
+                    if affected > 0 {
+                        affected.to_string()
+                    } else {
+                        "!".to_string()
+                    },
+                    tr("security-center-partial"),
+                ),
+                Some(_) => (
+                    affected.to_string(),
+                    tr_args(
+                        "security-center-summary",
+                        &[("count", I18nArg::Str(&affected.to_string()))],
+                    ),
+                ),
+            }
+        };
+        self.nav.count.set_text(&badge);
+        self.nav.count.set_visible(true);
+        self.nav.button.set_tooltip_text(Some(&tooltip));
+        toggle_class(
+            &self.nav.count,
+            "security-count-pending",
+            pending || (report.is_none() && !self.failed.get()),
+        );
+        toggle_class(&self.nav.count, "security-count-ok", healthy);
     }
 
     /// Progress tick while a scan runs: only the counter changes, no widget is rebuilt.
@@ -334,6 +370,11 @@ impl View {
             card.update(count, card.filter == self.selected.get());
         }
         self.render_status(stored.as_ref());
+        if self.pending.borrow().is_some() {
+            self.summary.set_text(&tr("security-center-updating"));
+            self.coverage.set_text(&tr("security-center-local"));
+            return;
+        }
         if self.busy.get() {
             self.render_progress();
             self.coverage.set_text(&tr("security-center-local"));
@@ -603,6 +644,7 @@ where
         limit: Cell::new(50),
         report: RefCell::new(None),
         control: RefCell::new(None),
+        pending: RefCell::new(None),
         generation: Cell::new(0),
         selected: Cell::new(Filter::All),
         selected_vault: Cell::new(None),
@@ -703,6 +745,9 @@ where
         let key = Rc::clone(&deps.key);
         Rc::new(move || {
             let Some(view) = view.upgrade() else { return };
+            if view.busy.get() {
+                return;
+            }
             view.restore_scroll.set(view.scroll.value());
             view.stop();
             let Some(snapshot) = super::MainWindow::snapshot_session_master_key(&key) else {
@@ -757,7 +802,13 @@ where
                 view.stop();
                 match result {
                     Ok(Ok(report)) => view.set_report(report),
-                    _ => {
+                    Ok(Err(error)) => {
+                        tracing::warn!(%error, "Security center analysis failed");
+                        view.failed.set(true);
+                        view.render();
+                    }
+                    Err(error) => {
+                        tracing::warn!(%error, "Security center analysis worker failed");
                         view.failed.set(true);
                         view.render();
                     }
@@ -785,8 +836,9 @@ where
             crate::ui::view_preferences::persist_security_center_seen();
         }
         stack.set_visible_child_name("security_center_view");
-        if let Some(view) = weak.upgrade()
-            && !view.busy.get()
+        if weak
+            .upgrade()
+            .is_some_and(|view| !view.busy.get() && view.report.borrow().is_none())
         {
             start();
         }
@@ -795,16 +847,6 @@ where
     deps.stack.connect_visible_child_name_notify(move |stack| {
         let active = stack.visible_child_name().as_deref() == Some("security_center_view");
         toggle_class(&nav_button, "security-navigation-active", active);
-    });
-    let weak = Rc::downgrade(&view);
-    page.connect_unmap(move |_| {
-        if let Some(view) = weak.upgrade()
-            && view.busy.get()
-        {
-            // A cancelled scan leaves no report: show the idle state, not a frozen counter.
-            view.stop();
-            view.render();
-        }
     });
     view.render();
     let refresh_i18n = {
@@ -821,15 +863,27 @@ where
     };
     let invalidate = {
         let view = Rc::downgrade(&view);
-        let stack = deps.stack.clone();
+        let key = Rc::clone(&deps.key);
         Rc::new(move || {
             let Some(view) = view.upgrade() else { return };
-            if stack.visible_child_name().as_deref() == Some("security_center_view") {
-                scan();
-            } else {
-                view.stop();
-                *view.report.borrow_mut() = None;
+            view.stop();
+            *view.report.borrow_mut() = None;
+            view.failed.set(false);
+            if !key.borrow().is_empty() {
+                // Coalesce import/refresh bursts without delaying invalidation of old results.
+                let weak = Rc::downgrade(&view);
+                let scan = Rc::clone(&scan);
+                *view.pending.borrow_mut() = Some(glib::timeout_add_local_once(
+                    Duration::from_millis(250),
+                    move || {
+                        if let Some(view) = weak.upgrade() {
+                            view.pending.borrow_mut().take();
+                            scan();
+                        }
+                    },
+                ));
             }
+            view.render();
         }) as Rc<dyn Fn()>
     };
     let view_for_clear = Rc::clone(&view);
@@ -837,6 +891,8 @@ where
         let view = &view_for_clear;
         view.stop();
         *view.report.borrow_mut() = None;
+        view.failed.set(false);
+        *view.completed_at.borrow_mut() = None;
         view.selected_vault.set(None);
         view.expanded.borrow_mut().clear();
         view.vaults.set_model(Some(&gtk4::StringList::new(&[&tr(
@@ -856,6 +912,8 @@ where
 #[cfg(test)]
 pub(super) mod tests {
     use super::*;
+    use heelonvault_core::models::{SecretType, UserRole};
+    use heelonvault_core::repositories::user_repository::UserRepository;
     use heelonvault_core::repositories::{
         secret_repository::SqlxSecretRepository, team_repository::SqlxTeamRepository,
         user_repository::SqlxUserRepository, vault_repository::SqlxVaultRepository,
@@ -947,7 +1005,20 @@ pub(super) mod tests {
                 i32::from(security_center::assess_password(value, "").score)
             );
         }
-        let pool = sqlx::sqlite::SqlitePoolOptions::new().connect_lazy("sqlite::memory:")?;
+        let pool = runtime.block_on(async {
+            let pool = sqlx::sqlite::SqlitePoolOptions::new()
+                .max_connections(1)
+                .connect("sqlite::memory:")
+                .await?;
+            sqlx::migrate::Migrator::new(std::path::Path::new(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/migrations"
+            )))
+            .await?
+            .run(&pool)
+            .await?;
+            Ok::<_, Box<dyn std::error::Error>>(pool)
+        })?;
         let panel = super::super::center::build_center_panel(
             crate::ui::view_preferences::SecretViewMode::Grid,
         );
@@ -962,16 +1033,23 @@ pub(super) mod tests {
             SqlxVaultRepository::new(pool.clone()),
             SqlxVaultRepository::new(pool.clone()),
             SqlxUserRepository::new(pool.clone()),
-            SqlxTeamRepository::new(pool),
+            SqlxTeamRepository::new(pool.clone()),
             Arc::new(NoOpAuditLogService),
             CryptoServiceImpl::default(),
         ));
+        let user_id = Uuid::new_v4();
+        runtime.block_on(SqlxUserRepository::new(pool.clone()).create_user_db(
+            user_id,
+            "security-test",
+            &UserRole::Admin,
+        ))?;
+        let key = Rc::new(RefCell::new(vec![1; 32]));
         let center = build(CenterDeps {
             runtime: runtime.handle().clone(),
-            secrets: secret_service,
-            vaults: vault_service,
-            user_id: Uuid::nil(),
-            key: Rc::new(RefCell::new(vec![1; 32])),
+            secrets: Arc::clone(&secret_service),
+            vaults: Arc::clone(&vault_service),
+            user_id,
+            key: Rc::clone(&key),
             stack: panel.main_stack.clone(),
             navigation: sidebar.security_nav.clone(),
             open_editor: Rc::new(|_| {}),
@@ -1118,9 +1196,168 @@ pub(super) mod tests {
         );
         center.view.more.emit_clicked();
         assert_eq!(center.view.limit.get(), 100);
+        let mut partial = SecurityReport::default();
+        partial.unavailable_vaults = 1;
+        center.view.set_report(partial);
+        assert_eq!(sidebar.security_nav.count.text(), "!");
+        assert!(
+            !sidebar
+                .security_nav
+                .count
+                .has_css_class("security-count-ok")
+        );
+
+        // The same invalidation used by login and mutation refreshes must work off-page.
+        panel.main_stack.set_visible_child_name("entries_view");
+        (center.invalidate)();
+        assert_eq!(sidebar.security_nav.count.text(), "...");
+        assert!(center.view.report.borrow().is_none());
+        let wait_for_report = || -> Result<(), Box<dyn std::error::Error>> {
+            let deadline = std::time::Instant::now() + Duration::from_secs(5);
+            while center.view.pending.borrow().is_some() || center.view.busy.get() {
+                if std::time::Instant::now() >= deadline {
+                    return Err("security analysis did not finish within five seconds".into());
+                }
+                context.iteration(false);
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            assert!(!center.view.failed.get());
+            Ok(())
+        };
+        wait_for_report()?;
+        assert_eq!(sidebar.security_nav.count.text(), "0");
+        assert!(
+            sidebar
+                .security_nav
+                .count
+                .has_css_class("security-count-ok")
+        );
+        assert_eq!(
+            panel.main_stack.visible_child_name().as_deref(),
+            Some("entries_view")
+        );
+
+        let (real_vault, secret) = runtime.block_on(async {
+            let vault = vault_service
+                .create_vault(user_id, "Live vault", SecretBox::new(Box::new(vec![1; 32])))
+                .await?;
+            let vault_key = vault_service
+                .open_vault_for_user(user_id, vault.id, SecretBox::new(Box::new(vec![1; 32])))
+                .await?;
+            let secret = secret_service
+                .create_secret(
+                    vault.id,
+                    SecretType::Password,
+                    Some("Weak password".to_string()),
+                    None,
+                    None,
+                    None,
+                    SecretBox::new(Box::new(b"Password123!".to_vec())),
+                    vault_key,
+                )
+                .await?;
+            Ok::<_, Box<dyn std::error::Error>>((vault, secret))
+        })?;
+        for _ in 0..5 {
+            (center.invalidate)();
+        }
+        let scheduled_generation = center.view.generation.get();
+        assert!(
+            !center.view.busy.get(),
+            "refresh bursts should be debounced"
+        );
+        wait_for_report()?;
+        assert_eq!(
+            center.view.generation.get(),
+            scheduled_generation + 2,
+            "one scan start and one completion, not five scans"
+        );
+        assert_eq!(sidebar.security_nav.count.text(), "1");
+        assert!(
+            !sidebar
+                .security_nav
+                .count
+                .has_css_class("security-count-ok")
+        );
+        let generation = center.view.generation.get();
+        sidebar.security_nav.button.emit_clicked();
+        assert_eq!(
+            center.view.generation.get(),
+            generation,
+            "fresh results are reused"
+        );
+        center.view.refresh.emit_clicked();
+        assert!(center.view.busy.get());
+        panel.main_stack.set_visible_child_name("entries_view");
+        drain();
+        wait_for_report()?;
+        assert!(
+            center.view.report.borrow().is_some(),
+            "leaving the page must not cancel analysis"
+        );
+
+        runtime.block_on(secret_service.soft_delete(secret.id))?;
+        (center.invalidate)();
+        wait_for_report()?;
+        assert_eq!(sidebar.security_nav.count.text(), "0");
+        runtime.block_on(secret_service.restore_secret(secret.id, real_vault.id))?;
+        (center.invalidate)();
+        wait_for_report()?;
+        assert_eq!(sidebar.security_nav.count.text(), "1");
+
+        // Cancellation/locking must invalidate results, including a queued scan.
+        (center.invalidate)();
+        assert!(center.view.pending.borrow().is_some());
         (center.clear)();
+        drain();
         assert!(center.view.report.borrow().is_none());
         assert!(!center.view.busy.get());
+        assert!(center.view.pending.borrow().is_none());
+        assert_eq!(sidebar.security_nav.count.text(), "?");
+        sidebar.security_nav.button.emit_clicked();
+        assert!(
+            center.view.busy.get(),
+            "opening without a report starts analysis"
+        );
+        center.view.cancel.emit_clicked();
+        drain();
+        assert!(center.view.report.borrow().is_none());
+        assert!(!center.view.busy.get());
+        assert_eq!(sidebar.security_nav.count.text(), "?");
+        center.view.refresh.emit_clicked();
+        assert!(center.view.busy.get());
+        key.borrow_mut().clear();
+        (center.clear)();
+        drain();
+        assert!(
+            center.view.report.borrow().is_none(),
+            "late results after locking are ignored"
+        );
+        (center.invalidate)();
+        assert!(
+            center.view.pending.borrow().is_none(),
+            "locked sessions never schedule scans"
+        );
+
+        *key.borrow_mut() = vec![1; 32];
+        runtime.block_on(sqlx::query("DROP TABLE vaults").execute(&pool))?;
+        (center.invalidate)();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while !center.view.failed.get() {
+            if std::time::Instant::now() >= deadline {
+                return Err("analysis error was not surfaced".into());
+            }
+            context.iteration(false);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(sidebar.security_nav.count.text(), "!");
+        assert!(
+            !sidebar
+                .security_nav
+                .count
+                .has_css_class("security-count-ok")
+        );
+        (center.clear)();
         window.close();
         drain();
         Ok(())
