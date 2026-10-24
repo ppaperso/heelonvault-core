@@ -1,3 +1,6 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! CWE-532: no secret may reach the logs. Every flow that handles a password, a recovery
@@ -6,6 +9,7 @@
 //! `AppError` values the application logs with `error = %error`. The captured output is then
 //! searched for every secret, in clear and in its usual encodings.
 
+use anyhow::Context as _;
 mod support;
 
 use std::io::Write;
@@ -62,26 +66,34 @@ impl<'a> MakeWriter<'a> for Capture {
 
 /// One global TRACE subscriber for the whole binary: tests run in parallel and a secret from
 /// any of them must be absent from everything captured.
-fn capture() -> &'static Capture {
-    static CAPTURE: OnceLock<Capture> = OnceLock::new();
-    CAPTURE.get_or_init(|| {
-        let capture = Capture::default();
-        let subscriber = tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::TRACE)
-            .with_writer(capture.clone())
-            .with_ansi(false)
-            .finish();
-        tracing::subscriber::set_global_default(subscriber).expect("global subscriber");
-        capture
-    })
+fn capture() -> anyhow::Result<&'static Capture> {
+    static CAPTURE: OnceLock<Result<Capture, String>> = OnceLock::new();
+    CAPTURE
+        .get_or_init(|| {
+            let capture = Capture::default();
+            let subscriber = tracing_subscriber::fmt()
+                .with_max_level(tracing::Level::TRACE)
+                .with_writer(capture.clone())
+                .with_ansi(false)
+                .finish();
+            tracing::subscriber::set_global_default(subscriber)
+                .map(|()| capture)
+                .map_err(|error| error.to_string())
+        })
+        .as_ref()
+        .map_err(|error| anyhow::anyhow!("global subscriber: {error}"))
 }
 
 fn log_error(context: &str, error: &dyn std::fmt::Debug) {
     tracing::error!(context, error = ?error, "flow failed");
 }
 
-fn assert_logs_never_contain(label: &str, secret: &[u8]) {
-    let logs = capture().0.lock().expect("capture").clone();
+fn assert_logs_never_contain(label: &str, secret: &[u8]) -> anyhow::Result<()> {
+    let logs = capture()?
+        .0
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     let encodings = [
         secret.to_vec(),
         hex::encode(secret).into_bytes(),
@@ -98,24 +110,25 @@ fn assert_logs_never_contain(label: &str, secret: &[u8]) {
             logs.len()
         );
     }
+    Ok(())
 }
 
 // ─── flows ──────────────────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn authentication_and_password_change_never_log_a_secret() {
-    capture();
+async fn authentication_and_password_change_never_log_a_secret() -> anyhow::Result<()> {
+    capture()?;
     tracing::info!("capture-marker-authentication");
-    let account = bootstrap_account().await;
+    let account = bootstrap_account().await?;
     let auth = Arc::new(AuthServiceImpl::new(fast_crypto()));
     let envelope = SqlxUserRepository::new(account.pool.clone())
         .get_password_envelope_by_user_id(account.user_id)
         .await
-        .expect("query")
-        .expect("envelope");
+        .context("query")?
+        .context("envelope")?;
     auth.upsert_password_envelope(USERNAME, envelope)
         .await
-        .expect("load credentials");
+        .context("load credentials")?;
 
     let wrong = auth
         .derive_key_if_valid(USERNAME, secret(WRONG_PASSWORD))
@@ -141,7 +154,7 @@ async fn authentication_and_password_change_never_log_a_secret() {
         log_error("change password with a wrong current password", &error);
         tracing::error!(error = %error, "displayed error");
     } else {
-        panic!("a wrong current password must be refused");
+        anyhow::bail!("a wrong current password must be refused");
     }
     if let Err(error) = service
         .change_master_password(account.user_id, secret(PASSWORD), secret("short"))
@@ -152,28 +165,33 @@ async fn authentication_and_password_change_never_log_a_secret() {
     let new_key = service
         .change_master_password(account.user_id, secret(PASSWORD), secret(NEW_PASSWORD))
         .await
-        .expect("password change");
+        .context("password change")?;
 
-    assert_logs_never_contain("the password", PASSWORD.as_bytes());
-    assert_logs_never_contain("a mistyped password", WRONG_PASSWORD.as_bytes());
-    assert_logs_never_contain("the new password", NEW_PASSWORD.as_bytes());
-    assert_logs_never_contain("the account key", &account.account_key);
-    assert_logs_never_contain("the session key", new_key.expose_secret());
+    assert_logs_never_contain("the password", PASSWORD.as_bytes())?;
+    assert_logs_never_contain("a mistyped password", WRONG_PASSWORD.as_bytes())?;
+    assert_logs_never_contain("the new password", NEW_PASSWORD.as_bytes())?;
+    assert_logs_never_contain("the account key", &account.account_key)?;
+    assert_logs_never_contain("the session key", new_key.expose_secret())?;
     assert_logs_never_contain(
         "the recovery phrase",
         account.recovery_phrase.expose_secret().as_bytes(),
-    );
-    let logs = capture().0.lock().expect("capture").clone();
+    )?;
+    let logs = capture()?
+        .0
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     assert!(
         support::contains(&logs, b"capture-marker-authentication"),
         "the subscriber must actually capture events, or this test proves nothing"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn backup_and_recovery_failures_never_log_a_secret() {
-    capture();
-    let account = bootstrap_account().await;
+async fn backup_and_recovery_failures_never_log_a_secret() -> anyhow::Result<()> {
+    capture()?;
+    let account = bootstrap_account().await?;
     let vault_key = [3_u8; 32];
     let vault_id = create_vault(
         &account.pool,
@@ -181,19 +199,19 @@ async fn backup_and_recovery_failures_never_log_a_secret() {
         &account.account_key,
         &vault_key,
     )
-    .await;
+    .await?;
     let (_, ciphertext) =
-        insert_secret(&account.pool, vault_id, &vault_key, SECRET_VALUE.as_bytes()).await;
+        insert_secret(&account.pool, vault_id, &vault_key, SECRET_VALUE.as_bytes()).await?;
     account.pool.close().await;
 
     let backup = BackupServiceImpl::new();
     let hvb = account.dir.path().join("export.hvb");
     backup
         .export_hvb_with_recovery_key(&account.db_path, &hvb, &account.recovery_phrase)
-        .expect("export");
+        .context("export")?;
     let other_phrase = backup
         .generate_recovery_key()
-        .expect("phrase")
+        .context("phrase")?
         .recovery_phrase;
 
     let wrong_phrase = backup.import_hvb_with_recovery_key(
@@ -209,11 +227,11 @@ async fn backup_and_recovery_failures_never_log_a_secret() {
     );
     log_error("import with an invalid phrase", &invalid_phrase);
 
-    let mut tampered = std::fs::read(&hvb).expect("read export");
+    let mut tampered = std::fs::read(&hvb).context("read export")?;
     let middle = tampered.len() / 2;
     tampered[middle] ^= 0x55;
     let tampered_path = account.dir.path().join("tampered.hvb");
-    std::fs::write(&tampered_path, tampered).expect("write tampered");
+    std::fs::write(&tampered_path, tampered).context("write tampered")?;
     let altered = backup.import_hvb_with_recovery_key(
         &tampered_path,
         &account.recovery_phrase,
@@ -221,7 +239,7 @@ async fn backup_and_recovery_failures_never_log_a_secret() {
     );
     log_error("import of an altered file", &altered);
 
-    let pool = support::open_pool(&account.db_path).await;
+    let pool = support::open_pool(&account.db_path).await?;
     let reset = reset_master_password_from_backup(
         &pool,
         &fast_crypto(),
@@ -235,34 +253,35 @@ async fn backup_and_recovery_failures_never_log_a_secret() {
     assert_logs_never_contain(
         "the recovery phrase",
         account.recovery_phrase.expose_secret().as_bytes(),
-    );
+    )?;
     assert_logs_never_contain(
         "a rejected recovery phrase",
         other_phrase.expose_secret().as_bytes(),
-    );
-    assert_logs_never_contain("a secret value", SECRET_VALUE.as_bytes());
-    assert_logs_never_contain("a stored ciphertext", &ciphertext);
-    assert_logs_never_contain("the vault key", &vault_key);
-    assert_logs_never_contain("the account key", &account.account_key);
-    assert_logs_never_contain("a new password", NEW_PASSWORD.as_bytes());
+    )?;
+    assert_logs_never_contain("a secret value", SECRET_VALUE.as_bytes())?;
+    assert_logs_never_contain("a stored ciphertext", &ciphertext)?;
+    assert_logs_never_contain("the vault key", &vault_key)?;
+    assert_logs_never_contain("the account key", &account.account_key)?;
+    assert_logs_never_contain("a new password", NEW_PASSWORD.as_bytes())?;
+    Ok(())
 }
 
 #[tokio::test]
-async fn second_factor_verification_never_logs_the_totp_secret() {
-    capture();
-    let account = bootstrap_account().await;
+async fn second_factor_verification_never_logs_the_totp_secret() -> anyhow::Result<()> {
+    capture()?;
+    let account = bootstrap_account().await?;
     let auth = Arc::new(AuthServiceImpl::new(fast_crypto()));
     let envelope = SqlxUserRepository::new(account.pool.clone())
         .get_password_envelope_by_user_id(account.user_id)
         .await
-        .expect("query")
-        .expect("envelope");
+        .context("query")?
+        .context("envelope")?;
     auth.upsert_password_envelope(USERNAME, envelope)
         .await
-        .expect("load credentials");
+        .context("load credentials")?;
     let totp: SqliteTotpService<AuthServiceImpl<CryptoServiceImpl>, CryptoServiceImpl> =
         SqliteTotpService::new(account.pool.clone(), auth, fast_crypto(), "HeelonVault");
-    let payload = totp.create_setup_payload(USERNAME).expect("setup");
+    let payload = totp.create_setup_payload(USERNAME).context("setup")?;
 
     let refused = totp
         .enable_totp(
@@ -279,15 +298,16 @@ async fn second_factor_verification_never_logs_the_totp_secret() {
         .await;
     log_error("login TOTP with a wrong password", &login);
 
-    assert_logs_never_contain("the TOTP secret", payload.base32_secret.as_bytes());
-    assert_logs_never_contain("the otpauth URL", payload.otpauth_url.as_bytes());
-    assert_logs_never_contain("a mistyped password", WRONG_PASSWORD.as_bytes());
+    assert_logs_never_contain("the TOTP secret", payload.base32_secret.as_bytes())?;
+    assert_logs_never_contain("the otpauth URL", payload.otpauth_url.as_bytes())?;
+    assert_logs_never_contain("a mistyped password", WRONG_PASSWORD.as_bytes())?;
+    Ok(())
 }
 
 #[tokio::test]
-async fn csv_import_preview_never_logs_imported_passwords() {
-    capture();
-    let dir = tempfile::tempdir().expect("temp dir");
+async fn csv_import_preview_never_logs_imported_passwords() -> anyhow::Result<()> {
+    capture()?;
+    let dir = tempfile::tempdir().context("temp dir")?;
     let csv = dir.path().join("import.csv");
     std::fs::write(
         &csv,
@@ -298,13 +318,14 @@ async fn csv_import_preview_never_logs_imported_passwords() {
              Ftp,ftp://nope.example.org,bob,{CSV_PASSWORD},,,\n"
         ),
     )
-    .expect("write csv");
+    .context("write csv")?;
 
     let preview = ImportServiceImpl::preview_csv(&csv);
     log_error("csv preview", &preview);
-    let preview = preview.expect("preview");
+    let preview = preview.context("preview")?;
     assert_eq!(preview.importable_rows, 1);
     assert_eq!(preview.failed_rows, 2);
 
-    assert_logs_never_contain("an imported password", CSV_PASSWORD.as_bytes());
+    assert_logs_never_contain("an imported password", CSV_PASSWORD.as_bytes())?;
+    Ok(())
 }

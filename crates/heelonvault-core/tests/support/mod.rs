@@ -3,8 +3,8 @@
 //!
 //! Each test binary includes this module with `mod support;` and uses only part of it.
 #![allow(dead_code)] // shared across test binaries, each one uses a different subset
-#![allow(clippy::disallowed_methods)] // test fixtures: a failed setup must abort the test
 
+use anyhow::Context as _;
 use std::path::{Path, PathBuf};
 
 use heelonvault_core::models::Vault;
@@ -42,7 +42,7 @@ pub fn secret(value: &str) -> SecretBox<Vec<u8>> {
 }
 
 /// Same hardening pragmas as the application (`hardened_sqlite_options` in heelonvault-app).
-pub async fn open_pool(path: &Path) -> SqlitePool {
+pub async fn open_pool(path: &Path) -> anyhow::Result<SqlitePool> {
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect_with(
@@ -53,27 +53,27 @@ pub async fn open_pool(path: &Path) -> SqlitePool {
                 .pragma("temp_store", "MEMORY"),
         )
         .await
-        .expect("open sqlite pool");
+        .context("open sqlite pool")?;
     let migrations = Path::new(env!("CARGO_MANIFEST_DIR")).join("../heelonvault-app/migrations");
     sqlx::migrate::Migrator::new(migrations.as_path())
         .await
-        .expect("load migrations")
+        .context("load migrations")?
         .run(&pool)
         .await
-        .expect("run migrations");
-    pool
+        .context("run migrations")?;
+    Ok(pool)
 }
 
 /// Vault keys and secret blobs are stored as `nonce || ciphertext` in production.
-pub async fn encrypt_with(key: &[u8], plaintext: &[u8]) -> SecretBox<Vec<u8>> {
+pub async fn encrypt_with(key: &[u8], plaintext: &[u8]) -> anyhow::Result<SecretBox<Vec<u8>>> {
     let payload = fast_crypto()
         .encrypt(
             &SecretBox::new(Box::new(plaintext.to_vec())),
             &SecretBox::new(Box::new(key.to_vec())),
         )
         .await
-        .expect("encrypt");
-    serialize_vault_key_envelope(&payload)
+        .context("encrypt")?;
+    Ok(serialize_vault_key_envelope(&payload))
 }
 
 pub fn contains(haystack: &[u8], needle: &[u8]) -> bool {
@@ -108,14 +108,14 @@ pub struct Account {
 }
 
 /// A migrated database with one account bootstrapped exactly like first start-up.
-pub async fn bootstrap_account() -> Account {
-    let dir = TempDir::new().expect("temp dir");
+pub async fn bootstrap_account() -> anyhow::Result<Account> {
+    let dir = TempDir::new().context("temp dir")?;
     let db_path = dir.path().join("vault.db");
-    let pool = open_pool(&db_path).await;
+    let pool = open_pool(&db_path).await?;
     let backup = BackupServiceImpl::new();
     let phrase = backup
         .generate_recovery_key()
-        .expect("recovery phrase")
+        .context("recovery phrase")?
         .recovery_phrase;
     let boot = bootstrap_first_admin_with_recovery(
         &SqlxUserRepository::new(pool.clone()),
@@ -127,15 +127,15 @@ pub async fn bootstrap_account() -> Account {
         phrase,
     )
     .await
-    .expect("bootstrap");
-    Account {
+    .context("bootstrap")?;
+    Ok(Account {
         dir,
         db_path,
         pool,
         user_id: boot.user_id,
         account_key: boot.master_key.expose_secret().clone(),
         recovery_phrase: boot.recovery_phrase,
-    }
+    })
 }
 
 /// Creates a vault owned by `owner` whose key is wrapped under `account_key`.
@@ -144,7 +144,7 @@ pub async fn create_vault(
     owner: Uuid,
     account_key: &[u8],
     vault_key: &[u8; 32],
-) -> Uuid {
+) -> anyhow::Result<Uuid> {
     let vault_id = Uuid::new_v4();
     SqlxVaultRepository::new(pool.clone())
         .create_vault_with_envelope(
@@ -153,11 +153,11 @@ pub async fn create_vault(
                 owner_user_id: owner,
                 name: "Perso".to_string(),
             },
-            encrypt_with(account_key, vault_key).await,
+            encrypt_with(account_key, vault_key).await?,
         )
         .await
-        .expect("vault");
-    vault_id
+        .context("vault")?;
+    Ok(vault_id)
 }
 
 /// Inserts a secret encrypted under `vault_key`; returns its id and the stored ciphertext.
@@ -166,7 +166,7 @@ pub async fn insert_secret(
     vault_id: Uuid,
     vault_key: &[u8; 32],
     plaintext: &[u8],
-) -> (Uuid, Vec<u8>) {
+) -> anyhow::Result<(Uuid, Vec<u8>)> {
     let item = SecretItem {
         id: Uuid::new_v4(),
         vault_id,
@@ -182,21 +182,21 @@ pub async fn insert_secret(
         secret_blob: SecretBox::new(Box::new(Vec::new())),
         deleted_at: None,
     };
-    let blob = encrypt_with(vault_key, plaintext).await;
+    let blob = encrypt_with(vault_key, plaintext).await?;
     let stored = blob.expose_secret().clone();
     SqlxSecretRepository::new(pool.clone())
         .insert_secret_blob(&item, blob)
         .await
-        .expect("secret");
-    (item.id, stored)
+        .context("secret")?;
+    Ok((item.id, stored))
 }
 
 #[cfg(unix)]
-pub fn mode(path: &Path) -> u32 {
+pub fn mode(path: &Path) -> anyhow::Result<u32> {
     use std::os::unix::fs::PermissionsExt;
-    std::fs::metadata(path)
-        .expect("file metadata")
+    Ok(std::fs::metadata(path)
+        .context("file metadata")?
         .permissions()
         .mode()
-        & 0o777
+        & 0o777)
 }

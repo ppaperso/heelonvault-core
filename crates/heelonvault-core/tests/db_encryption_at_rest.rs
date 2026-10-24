@@ -1,3 +1,6 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! Security tests for encryption at rest.
@@ -8,6 +11,7 @@
 //! repositories, instead of a hand-maintained copy of the schema — so a passing test actually
 //! says something about the production schema.
 
+use anyhow::Context as _;
 use heelonvault_core::models::Vault;
 use heelonvault_core::models::secret_item::{BlobStorage, SecretItem, SecretType};
 use heelonvault_core::repositories::secret_repository::{SecretRepository, SqlxSecretRepository};
@@ -47,7 +51,7 @@ fn secret(value: &str) -> SecretBox<Vec<u8>> {
     SecretBox::new(Box::new(value.as_bytes().to_vec()))
 }
 
-async fn open_pool(path: &Path) -> SqlitePool {
+async fn open_pool(path: &Path) -> anyhow::Result<SqlitePool> {
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect_with(
@@ -57,37 +61,39 @@ async fn open_pool(path: &Path) -> SqlitePool {
                 .pragma("secure_delete", "ON"),
         )
         .await
-        .expect("open sqlite pool");
+        .context("open sqlite pool")?;
     let migrations = Path::new(env!("CARGO_MANIFEST_DIR")).join("../heelonvault-app/migrations");
     sqlx::migrate::Migrator::new(migrations.as_path())
         .await
-        .expect("load migrations")
+        .context("load migrations")?
         .run(&pool)
         .await
-        .expect("run migrations");
-    pool
+        .context("run migrations")?;
+    Ok(pool)
 }
 
-async fn encrypt_with(key: &[u8], plaintext: &[u8]) -> SecretBox<Vec<u8>> {
+async fn encrypt_with(key: &[u8], plaintext: &[u8]) -> anyhow::Result<SecretBox<Vec<u8>>> {
     let payload = fast_crypto()
         .encrypt(
             &SecretBox::new(Box::new(plaintext.to_vec())),
             &SecretBox::new(Box::new(key.to_vec())),
         )
         .await
-        .expect("encrypt");
-    // Real production code stores vault-key envelopes and secret blobs as `nonce ||
-    // ciphertext` (via `serialize_vault_key_envelope` / secret_service's identical private
-    // helper), not the version-prefixed `crypto_service::encode_envelope` format (a legacy
-    // format `rekey_service.rs` still knows how to read).
-    serialize_vault_key_envelope(&payload)
+        .context("encrypt")?;
+    Ok(
+        // Real production code stores vault-key envelopes and secret blobs as `nonce ||
+        // ciphertext` (via `serialize_vault_key_envelope` / secret_service's identical private
+        // helper), not the version-prefixed `crypto_service::encode_envelope` format (a legacy
+        // format `rekey_service.rs` still knows how to read).
+        serialize_vault_key_envelope(&payload),
+    )
 }
 
-fn file_contains(path: &Path, needle: &[u8]) -> bool {
-    std::fs::read(path)
-        .expect("read database file")
+fn file_contains(path: &Path, needle: &[u8]) -> anyhow::Result<bool> {
+    Ok(std::fs::read(path)
+        .context("read database file")?
         .windows(needle.len())
-        .any(|window| window == needle)
+        .any(|window| window == needle))
 }
 
 struct Env {
@@ -101,15 +107,15 @@ struct Env {
 
 /// A real user (bootstrapped through `bootstrap_first_admin_with_recovery`, exactly like
 /// production startup) with one empty vault, on a fully migrated database.
-async fn setup() -> Env {
-    let dir = TempDir::new().expect("temp dir");
+async fn setup() -> anyhow::Result<Env> {
+    let dir = TempDir::new().context("temp dir")?;
     let db_path = dir.path().join("test.db");
-    let pool = open_pool(&db_path).await;
+    let pool = open_pool(&db_path).await?;
 
     let backup = BackupServiceImpl::new();
     let phrase = backup
         .generate_recovery_key()
-        .expect("recovery phrase")
+        .context("recovery phrase")?
         .recovery_phrase;
     let boot = bootstrap_first_admin_with_recovery(
         &SqlxUserRepository::new(pool.clone()),
@@ -121,7 +127,7 @@ async fn setup() -> Env {
         phrase,
     )
     .await
-    .expect("bootstrap");
+    .context("bootstrap")?;
 
     let key = boot.master_key.expose_secret().clone();
     let vault_id = Uuid::new_v4();
@@ -132,21 +138,21 @@ async fn setup() -> Env {
                 owner_user_id: boot.user_id,
                 name: VAULT_NAME.to_string(),
             },
-            encrypt_with(&key, &VAULT_KEY).await,
+            encrypt_with(&key, &VAULT_KEY).await?,
         )
         .await
-        .expect("vault");
+        .context("vault")?;
 
-    Env {
+    Ok(Env {
         dir,
         db_path,
         pool,
         user_id: boot.user_id,
         vault_id,
-    }
+    })
 }
 
-async fn insert_secret(pool: &SqlitePool, vault_id: Uuid, plaintext: &str) -> Uuid {
+async fn insert_secret(pool: &SqlitePool, vault_id: Uuid, plaintext: &str) -> anyhow::Result<Uuid> {
     let secret_id = Uuid::new_v4();
     let item = SecretItem {
         id: secret_id,
@@ -164,43 +170,47 @@ async fn insert_secret(pool: &SqlitePool, vault_id: Uuid, plaintext: &str) -> Uu
         deleted_at: None,
     };
     SqlxSecretRepository::new(pool.clone())
-        .insert_secret_blob(&item, encrypt_with(&VAULT_KEY, plaintext.as_bytes()).await)
+        .insert_secret_blob(&item, encrypt_with(&VAULT_KEY, plaintext.as_bytes()).await?)
         .await
-        .expect("insert secret");
-    secret_id
+        .context("insert secret")?;
+    Ok(secret_id)
 }
 
-async fn secret_blob(pool: &SqlitePool, vault_id: Uuid, secret_id: Uuid) -> Vec<u8> {
-    SqlxSecretRepository::new(pool.clone())
+async fn secret_blob(
+    pool: &SqlitePool,
+    vault_id: Uuid,
+    secret_id: Uuid,
+) -> anyhow::Result<Vec<u8>> {
+    Ok(SqlxSecretRepository::new(pool.clone())
         .list_by_vault_id(vault_id)
         .await
-        .expect("list secrets")
+        .context("list secrets")?
         .into_iter()
         .find(|item| item.id == secret_id)
-        .expect("secret present")
+        .context("secret present")?
         .secret_blob
         .expose_secret()
-        .clone()
+        .clone())
 }
 
-async fn vault_key_envelope(pool: &SqlitePool, vault_id: Uuid) -> Vec<u8> {
-    SqlxVaultRepository::new(pool.clone())
+async fn vault_key_envelope(pool: &SqlitePool, vault_id: Uuid) -> anyhow::Result<Vec<u8>> {
+    Ok(SqlxVaultRepository::new(pool.clone())
         .get_vault_key_envelope(vault_id)
         .await
-        .expect("query vault")
-        .expect("vault envelope present")
+        .context("query vault")?
+        .context("vault envelope present")?
         .expose_secret()
-        .clone()
+        .clone())
 }
 
-async fn password_envelope(pool: &SqlitePool, user_id: Uuid) -> Vec<u8> {
-    SqlxUserRepository::new(pool.clone())
+async fn password_envelope(pool: &SqlitePool, user_id: Uuid) -> anyhow::Result<Vec<u8>> {
+    Ok(SqlxUserRepository::new(pool.clone())
         .get_password_envelope_by_user_id(user_id)
         .await
-        .expect("query envelope")
-        .expect("envelope present")
+        .context("query envelope")?
+        .context("envelope present")?
         .expose_secret()
-        .clone()
+        .clone())
 }
 
 // ============================================================================
@@ -208,12 +218,12 @@ async fn password_envelope(pool: &SqlitePool, user_id: Uuid) -> Vec<u8> {
 // ============================================================================
 
 #[tokio::test]
-async fn test_secret_blob_is_encrypted_in_db() {
-    let env = setup().await;
+async fn test_secret_blob_is_encrypted_in_db() -> anyhow::Result<()> {
+    let env = setup().await?;
     let plaintext = "mon_secret_super_secret_123";
-    let secret_id = insert_secret(&env.pool, env.vault_id, plaintext).await;
+    let secret_id = insert_secret(&env.pool, env.vault_id, plaintext).await?;
 
-    let blob = secret_blob(&env.pool, env.vault_id, secret_id).await;
+    let blob = secret_blob(&env.pool, env.vault_id, secret_id).await?;
 
     assert!(
         !blob
@@ -229,12 +239,13 @@ async fn test_secret_blob_is_encrypted_in_db() {
         blob.len() > NONCE_LEN,
         "Blob too short to contain a nonce and ciphertext"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_vault_key_is_encrypted_in_db() {
-    let env = setup().await;
-    let envelope = vault_key_envelope(&env.pool, env.vault_id).await;
+async fn test_vault_key_is_encrypted_in_db() -> anyhow::Result<()> {
+    let env = setup().await?;
+    let envelope = vault_key_envelope(&env.pool, env.vault_id).await?;
 
     assert!(
         envelope.len() > NONCE_LEN,
@@ -246,12 +257,13 @@ async fn test_vault_key_is_encrypted_in_db() {
         envelope.len() > 32,
         "Vault key envelope appears to be unencrypted 32-byte key!"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_password_envelope_is_not_plaintext() {
-    let env = setup().await;
-    let envelope = password_envelope(&env.pool, env.user_id).await;
+async fn test_password_envelope_is_not_plaintext() -> anyhow::Result<()> {
+    let env = setup().await?;
+    let envelope = password_envelope(&env.pool, env.user_id).await?;
 
     // Not a simple hash (too short)
     assert!(
@@ -267,26 +279,27 @@ async fn test_password_envelope_is_not_plaintext() {
         "Invalid envelope version: {}. Expected 1 (legacy) or 2 (account key)",
         version
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_all_envelopes_are_structured_ciphertext_not_raw_bytes() {
+async fn test_all_envelopes_are_structured_ciphertext_not_raw_bytes() -> anyhow::Result<()> {
     // Only `users.password_envelope` carries a version byte (see
     // `test_password_envelope_structure_v2`, and `auth_service.rs`'s own versioning).
     // `secrets.secret_blob` and `vaults.vault_key_envelope` use the shorter `nonce ||
     // ciphertext` form — this test checks that every one of them is at least long enough to
     // hold real structure (nonce + auth tag), i.e. isn't an empty or truncated placeholder.
-    let env = setup().await;
-    let secret_id = insert_secret(&env.pool, env.vault_id, "test").await;
+    let env = setup().await?;
+    let secret_id = insert_secret(&env.pool, env.vault_id, "test").await?;
 
     let nonce_ciphertext_blobs = [
         (
             "secrets.secret_blob",
-            secret_blob(&env.pool, env.vault_id, secret_id).await,
+            secret_blob(&env.pool, env.vault_id, secret_id).await?,
         ),
         (
             "vaults.vault_key_envelope",
-            vault_key_envelope(&env.pool, env.vault_id).await,
+            vault_key_envelope(&env.pool, env.vault_id).await?,
         ),
     ];
     for (label, blob) in nonce_ciphertext_blobs {
@@ -297,7 +310,7 @@ async fn test_all_envelopes_are_structured_ciphertext_not_raw_bytes() {
         );
     }
 
-    let password_envelope = password_envelope(&env.pool, env.user_id).await;
+    let password_envelope = password_envelope(&env.pool, env.user_id).await?;
     assert!(
         !password_envelope.is_empty(),
         "Empty users.password_envelope"
@@ -307,23 +320,24 @@ async fn test_all_envelopes_are_structured_ciphertext_not_raw_bytes() {
         "Invalid version in users.password_envelope: got {}",
         password_envelope[0]
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_envelope_nonce_uniqueness() {
-    let env = setup().await;
+async fn test_envelope_nonce_uniqueness() -> anyhow::Result<()> {
+    let env = setup().await?;
 
     let secret_ids: Vec<Uuid> = {
         let mut ids = Vec::with_capacity(100);
         for i in 0..100 {
-            ids.push(insert_secret(&env.pool, env.vault_id, &format!("test-{i}")).await);
+            ids.push(insert_secret(&env.pool, env.vault_id, &format!("test-{i}")).await?);
         }
         ids
     };
 
     let mut nonces = Vec::new();
     for id in &secret_ids {
-        let blob = secret_blob(&env.pool, env.vault_id, *id).await;
+        let blob = secret_blob(&env.pool, env.vault_id, *id).await?;
         assert!(
             blob.len() > NONCE_LEN,
             "Blob too short to contain nonce for secret {id}"
@@ -340,12 +354,13 @@ async fn test_envelope_nonce_uniqueness() {
             "Duplicate nonce found at index {i}! This is a critical security issue! Nonce: {nonce:?}"
         );
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_password_envelope_structure_v2() {
-    let env = setup().await;
-    let envelope = password_envelope(&env.pool, env.user_id).await;
+async fn test_password_envelope_structure_v2() -> anyhow::Result<()> {
+    let env = setup().await?;
+    let envelope = password_envelope(&env.pool, env.user_id).await?;
 
     // V2 envelope structure: version(1) || salt_len(2) || body_len(2) || salt(salt_len) || nonce(12) || ciphertext
     assert_eq!(
@@ -368,51 +383,54 @@ async fn test_password_envelope_structure_v2() {
         body_len >= 12,
         "Password envelope body too short to contain nonce"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_secret_blob_contains_valid_envelope() {
-    let env = setup().await;
-    let secret_id = insert_secret(&env.pool, env.vault_id, "test_secret_data").await;
+async fn test_secret_blob_contains_valid_envelope() -> anyhow::Result<()> {
+    let env = setup().await?;
+    let secret_id = insert_secret(&env.pool, env.vault_id, "test_secret_data").await?;
     let blob = SecretBox::new(Box::new(
-        secret_blob(&env.pool, env.vault_id, secret_id).await,
+        secret_blob(&env.pool, env.vault_id, secret_id).await?,
     ));
 
     let payload =
-        deserialize_vault_key_envelope(&blob).expect("Failed to decode secret blob envelope");
+        deserialize_vault_key_envelope(&blob).context("Failed to decode secret blob envelope")?;
     assert_eq!(payload.nonce.len(), 12, "Nonce must be 12 bytes");
     assert!(
         !payload.ciphertext.expose_secret().is_empty(),
         "Ciphertext must not be empty"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_vault_key_envelope_contains_valid_envelope() {
-    let env = setup().await;
-    let blob = SecretBox::new(Box::new(vault_key_envelope(&env.pool, env.vault_id).await));
+async fn test_vault_key_envelope_contains_valid_envelope() -> anyhow::Result<()> {
+    let env = setup().await?;
+    let blob = SecretBox::new(Box::new(vault_key_envelope(&env.pool, env.vault_id).await?));
 
     let payload =
-        deserialize_vault_key_envelope(&blob).expect("Failed to decode vault key envelope");
+        deserialize_vault_key_envelope(&blob).context("Failed to decode vault key envelope")?;
     assert_eq!(payload.nonce.len(), 12, "Nonce must be 12 bytes");
     assert!(
         !payload.ciphertext.expose_secret().is_empty(),
         "Ciphertext must not be empty"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_direct_db_read_reveals_no_sensitive_data() {
+async fn test_direct_db_read_reveals_no_sensitive_data() -> anyhow::Result<()> {
     // Ce test vérifie que même avec un accès direct aux repositories (contournant l'UI/API,
     // comme le ferait un attaquant ayant une copie du fichier), on ne peut pas extraire de
     // données sensibles sans les clés.
-    let env = setup().await;
+    let env = setup().await?;
     let secret_plaintext = "my_super_secret_password_123!";
-    let secret_id = insert_secret(&env.pool, env.vault_id, secret_plaintext).await;
+    let secret_id = insert_secret(&env.pool, env.vault_id, secret_plaintext).await?;
 
-    let password_envelope = password_envelope(&env.pool, env.user_id).await;
-    let vault_key_envelope = vault_key_envelope(&env.pool, env.vault_id).await;
-    let secret_blob = secret_blob(&env.pool, env.vault_id, secret_id).await;
+    let password_envelope = password_envelope(&env.pool, env.user_id).await?;
+    let vault_key_envelope = vault_key_envelope(&env.pool, env.vault_id).await?;
+    let secret_blob = secret_blob(&env.pool, env.vault_id, secret_id).await?;
 
     let sensitive_strings = [PASSWORD, secret_plaintext, USERNAME, VAULT_NAME];
     let all_blobs = [
@@ -431,23 +449,25 @@ async fn test_direct_db_read_reveals_no_sensitive_data() {
             );
         }
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_secret_plaintext_never_appears_in_the_raw_database_file() {
+async fn test_secret_plaintext_never_appears_in_the_raw_database_file() -> anyhow::Result<()> {
     // La garantie la plus directe pour "encryption at rest" : les octets bruts du fichier
     // .db sur disque, pas seulement les valeurs relues via SQL/les repositories.
-    let env = setup().await;
+    let env = setup().await?;
     let secret_plaintext = "raw_file_scan_secret_456!";
-    insert_secret(&env.pool, env.vault_id, secret_plaintext).await;
+    insert_secret(&env.pool, env.vault_id, secret_plaintext).await?;
     env.pool.close().await;
 
     // The username is legitimately stored in clear (it must stay queryable for login) — only
     // the password and the secret's plaintext are actual secrets here.
     for sensitive in [PASSWORD, secret_plaintext] {
         assert!(
-            !file_contains(&env.db_path, sensitive.as_bytes()),
+            !file_contains(&env.db_path, sensitive.as_bytes())?,
             "'{sensitive}' must never appear in clear in the raw database file"
         );
     }
+    Ok(())
 }

@@ -49,6 +49,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 - Correction des avis RUSTSEC-2026-0381, 0382, 0383 et 0385 dans les deux fichiers de verrouillage : `ctutils` 0.4.5, `rustls-webpki` 0.103.16, `webpki-root-certs` et `webpki-roots` 1.0.11. Les correctifs concernent les opérations à temps constant et le rejet des chaînes de certificats emSign révoquées ; aucun avis ignoré.
 - Actualisation des dépendances compatibles, notamment Tokio 1.54.1, UUID 1.29.0, ICU 2.4.0 et webbrowser 1.2.5 ; migration de la dépendance de test `rstest` vers 0.28.0.
 - `crypto-common` 0.1.7 impose `generic-array` 0.14.7 sur la branche historique utilisée par SQLx. `matchit` reste en 0.8.4, version exacte imposée par Axum ; aucune contrainte upstream contournée.
+- Contrôle de sécurité du code (`cargo clippy-secure`) sans erreur et désormais imposé en CI : les tests et le script de build n'utilisent plus `unwrap`, `expect` ni `panic!` et échouent avec une erreur contextualisée. Les exceptions restantes se limitent aux expansions de macros tierces (`#[tokio::test]`, `static_loader!`) et sont justifiées sur place.
 - Versions Core, App, vérificateur d'URL et Premium alignées. SBOM et inventaire des licences actualisés.
 - Aucun changement de l'API publique, du schéma de base, des formats chiffrés, des sauvegardes ou des rapports signés. Rust minimum inchangé.
 

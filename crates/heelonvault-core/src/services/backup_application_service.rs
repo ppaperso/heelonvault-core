@@ -257,7 +257,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    // `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+    // reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+    // enforced by `cargo clippy-secure` in CI.
     #![allow(clippy::disallowed_methods)]
+    use anyhow::Context as _;
     use std::collections::HashMap;
     use std::sync::MutexGuard;
     use std::sync::{Arc, Mutex};
@@ -276,13 +280,13 @@ mod tests {
         std::env::temp_dir().join(format!("heelonvault-src-{}.db", Uuid::new_v4()))
     }
 
-    async fn test_pool() -> sqlx::SqlitePool {
+    async fn test_pool() -> anyhow::Result<sqlx::SqlitePool> {
         let path = std::env::temp_dir().join(format!("heelonvault-rbac-{}.db", Uuid::new_v4()));
         sqlx::sqlite::SqlitePoolOptions::new()
             .max_connections(1)
             .connect(&format!("sqlite://{}?mode=rwc", path.display()))
             .await
-            .expect("file-backed sqlite pool")
+            .context("file-backed sqlite pool")
     }
 
     #[derive(Default, Clone)]
@@ -451,14 +455,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn admin_can_export_backup() {
+    async fn admin_can_export_backup() -> anyhow::Result<()> {
         let user_repo = StubUserRepo::default();
         let admin_id = Uuid::new_v4();
         user_repo.insert_user(admin_id, UserRole::Admin);
 
         let backup_service = StubBackupService;
         let app_service =
-            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await?);
 
         let result = app_service
             .export_backup_secured(
@@ -470,17 +474,18 @@ mod tests {
             .await;
 
         assert!(result.is_ok(), "export should succeed: {:?}", result.err());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn non_admin_cannot_export_backup() {
+    async fn non_admin_cannot_export_backup() -> anyhow::Result<()> {
         let user_repo = StubUserRepo::default();
         let user_id = Uuid::new_v4();
         user_repo.insert_user(user_id, UserRole::User);
 
         let backup_service = StubBackupService;
         let app_service =
-            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await?);
 
         let result = app_service
             .export_backup_secured(
@@ -492,17 +497,18 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(AppError::Authorization(_))));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn admin_can_restore_backup() {
+    async fn admin_can_restore_backup() -> anyhow::Result<()> {
         let user_repo = StubUserRepo::default();
         let admin_id = Uuid::new_v4();
         user_repo.insert_user(admin_id, UserRole::Admin);
 
         let backup_service = StubBackupService;
         let app_service =
-            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await?);
 
         let result = app_service
             .restore_backup_secured(
@@ -514,17 +520,18 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn non_admin_cannot_restore_backup() {
+    async fn non_admin_cannot_restore_backup() -> anyhow::Result<()> {
         let user_repo = StubUserRepo::default();
         let user_id = Uuid::new_v4();
         user_repo.insert_user(user_id, UserRole::User);
 
         let backup_service = StubBackupService;
         let app_service =
-            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await?);
 
         let result = app_service
             .restore_backup_secured(
@@ -536,16 +543,17 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(AppError::Authorization(_))));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn missing_user_returns_not_found() {
+    async fn missing_user_returns_not_found() -> anyhow::Result<()> {
         let user_repo = StubUserRepo::default();
         let missing_id = Uuid::new_v4();
 
         let backup_service = StubBackupService;
         let app_service =
-            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await?);
 
         let result = app_service
             .export_backup_secured(
@@ -557,17 +565,18 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(AppError::NotFound(_))));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn admin_can_export_rotation_backup_ticket() {
+    async fn admin_can_export_rotation_backup_ticket() -> anyhow::Result<()> {
         let user_repo = StubUserRepo::default();
         let admin_id = Uuid::new_v4();
         user_repo.insert_user(admin_id, UserRole::Admin);
 
         let backup_service = StubBackupService;
         let app_service =
-            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await?);
 
         let result = app_service
             .export_rotation_backup_secured(
@@ -578,20 +587,21 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
-        let ticket = result.expect("rotation ticket should be returned");
+        let ticket = result.context("rotation ticket should be returned")?;
         assert_eq!(ticket.backup_file_path, "/tmp/backup.hvb");
         assert_eq!(ticket.metadata_sha256_hex, "abc123");
+        Ok(())
     }
 
     #[tokio::test]
-    async fn admin_can_restore_rotation_backup_ticket() {
+    async fn admin_can_restore_rotation_backup_ticket() -> anyhow::Result<()> {
         let user_repo = StubUserRepo::default();
         let admin_id = Uuid::new_v4();
         user_repo.insert_user(admin_id, UserRole::Admin);
 
         let backup_service = StubBackupService;
         let app_service =
-            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await);
+            BackupApplicationServiceImpl::new(user_repo, backup_service, test_pool().await?);
 
         let ticket = app_service
             .export_rotation_backup_secured(
@@ -600,7 +610,7 @@ mod tests {
                 std::path::Path::new("/tmp/backup.hvb"),
             )
             .await
-            .expect("rotation backup export should succeed");
+            .context("rotation backup export should succeed")?;
 
         let restore_result = app_service
             .restore_rotation_backup_secured(
@@ -611,12 +621,13 @@ mod tests {
             .await;
 
         assert!(restore_result.is_ok());
+        Ok(())
     }
 
     /// Guards against reading the `.db` file directly: in WAL mode the recent rows only
     /// live in the `-wal` sidecar, so a raw copy would silently lose them.
     #[tokio::test]
-    async fn snapshot_captures_rows_still_held_in_the_wal() {
+    async fn snapshot_captures_rows_still_held_in_the_wal() -> anyhow::Result<()> {
         let db_path = unique_db_path();
         let pool = match sqlx::sqlite::SqlitePoolOptions::new()
             .max_connections(1)
@@ -624,7 +635,7 @@ mod tests {
             .await
         {
             Ok(pool) => pool,
-            Err(_) => return,
+            Err(_) => return Ok(()),
         };
 
         if sqlx::raw_sql(sqlx::AssertSqlSafe("PRAGMA journal_mode=WAL".to_string()))
@@ -632,7 +643,7 @@ mod tests {
             .await
             .is_err()
         {
-            return;
+            return Ok(());
         }
         if sqlx::query("CREATE TABLE probe (value TEXT NOT NULL)")
             .execute(&pool)
@@ -643,7 +654,7 @@ mod tests {
                 .await
                 .is_err()
         {
-            return;
+            return Ok(());
         }
 
         let user_repo = StubUserRepo::default();
@@ -653,7 +664,7 @@ mod tests {
 
         let snapshot = match app_service.snapshot_database(db_path.as_path()).await {
             Ok(value) => value,
-            Err(err) => panic!("snapshot should succeed: {err:?}"),
+            Err(err) => anyhow::bail!("snapshot should succeed: {err:?}"),
         };
 
         let snapshot_bytes = std::fs::read(snapshot.path.as_path()).unwrap_or_default();
@@ -671,5 +682,6 @@ mod tests {
         );
 
         let _ = std::fs::remove_file(&db_path);
+        Ok(())
     }
 }

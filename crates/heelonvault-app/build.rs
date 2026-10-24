@@ -1,10 +1,7 @@
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Les assets GTK GLib sont dans assets/ dans le dossier de la crate.
     // Ce build script s'exécute depuis crates/heelonvault-app/.
-    let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
-        Ok(v) => v,
-        Err(_) => panic!("CARGO_MANIFEST_DIR is always set by Cargo during build"),
-    };
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")?;
     let assets_dir = format!("{manifest_dir}/assets");
     let gresources_xml = format!("{assets_dir}/gresources.xml");
 
@@ -23,14 +20,14 @@ fn main() {
 
     // Icône de heelonvault.exe (Explorer, barre des tâches, raccourci Start
     // Menu) — embarquée en ressource PE.
-    embed_windows_icon(&manifest_dir);
+    embed_windows_icon(&manifest_dir)
 }
 
 // #[cfg(target_os = "windows")], not a runtime check: embed-resource is only
 // a build-dependency under target."cfg(windows)" in Cargo.toml (see there),
 // so referencing the crate unconditionally would fail to compile elsewhere.
 #[cfg(target_os = "windows")]
-fn embed_windows_icon(manifest_dir: &str) {
+fn embed_windows_icon(manifest_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=windows/heelonvault.rc");
     println!("cargo:rerun-if-changed=assets/icons/Heelonys.ico");
     embed_resource::compile(
@@ -38,8 +35,11 @@ fn embed_windows_icon(manifest_dir: &str) {
         embed_resource::NONE,
     )
     .manifest_optional()
-    .unwrap_or_else(|error| panic!("failed to embed Windows icon resource: {error}"));
+    .map_err(|error| format!("failed to embed Windows icon resource: {error}"))?;
+    Ok(())
 }
 
 #[cfg(not(target_os = "windows"))]
-fn embed_windows_icon(_manifest_dir: &str) {}
+fn embed_windows_icon(_manifest_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
+    Ok(())
+}

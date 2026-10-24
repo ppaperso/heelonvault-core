@@ -1,20 +1,27 @@
-#![allow(clippy::disallowed_methods)]
-
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{OnceLock, RwLock};
 
+use fluent_templates::Loader;
 use fluent_templates::fluent_bundle::FluentValue;
-use fluent_templates::{Loader, static_loader};
 use unic_langid::{LanguageIdentifier, langid};
 
-static_loader! {
-    static LOCALES = {
-        locales: "locales",
-        fallback_language: "en",
-    };
+// fluent-templates' `static_loader!` expands to its own `unwrap` calls on catalogs embedded and
+// validated at compile time. The exception is scoped to that third-party expansion only: the
+// rest of this module stays under the crate-wide ban on `unwrap`/`expect`.
+#[allow(clippy::disallowed_methods)]
+mod catalogs {
+    use fluent_templates::static_loader;
+
+    static_loader! {
+        pub(super) static LOCALES = {
+            locales: "locales",
+            fallback_language: "en",
+        };
+    }
 }
+use catalogs::LOCALES;
 
 static LANGUAGE_OVERRIDE: OnceLock<RwLock<String>> = OnceLock::new();
 

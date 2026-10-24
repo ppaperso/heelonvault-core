@@ -1,5 +1,9 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
+use anyhow::Context as _;
 /// Integration tests for backup security via BackupApplicationService
 /// Tests authorization enforcement and data integrity
 #[path = "common/mod.rs"]
@@ -14,16 +18,16 @@ use uuid::Uuid;
 
 /// `VACUUM INTO` produces nothing from an in-memory database, so the snapshot taken
 /// during an export needs a file-backed pool.
-async fn test_pool() -> sqlx::SqlitePool {
+async fn test_pool() -> anyhow::Result<sqlx::SqlitePool> {
     let path = std::env::temp_dir().join(format!("heelonvault-itest-{}.db", Uuid::new_v4()));
     sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
         .connect(&format!("sqlite://{}?mode=rwc", path.display()))
         .await
-        .expect("file-backed sqlite pool")
+        .context("file-backed sqlite pool")
 }
 #[tokio::test]
-async fn test_non_admin_cannot_export_backup() {
+async fn test_non_admin_cannot_export_backup() -> anyhow::Result<()> {
     // Case 1: Non-admin user attempts export
     let user_repo = StubUserRepo::default();
     let non_admin_id = Uuid::new_v4();
@@ -34,10 +38,10 @@ async fn test_non_admin_cannot_export_backup() {
         heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl::new(
             user_repo,
             backup_service,
-            test_pool().await,
+            test_pool().await?,
         );
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().context("temp dir")?;
     let db_path = temp_dir.path().join("test.db");
     let backup_path = temp_dir.path().join("backup.hvb");
 
@@ -55,10 +59,11 @@ async fn test_non_admin_cannot_export_backup() {
         "Expected Authorization error, but got: {:?}",
         result
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_admin_can_export_backup() {
+async fn test_admin_can_export_backup() -> anyhow::Result<()> {
     // Case 2: Admin user can export
     let user_repo = StubUserRepo::default();
     let admin_id = Uuid::new_v4();
@@ -69,15 +74,15 @@ async fn test_admin_can_export_backup() {
         heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl::new(
             user_repo,
             backup_service,
-            test_pool().await,
+            test_pool().await?,
         );
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().context("temp dir")?;
     let db_path = temp_dir.path().join("test.db");
     let backup_path = temp_dir.path().join("backup.hvb");
 
     // Create dummy database file
-    std::fs::write(&db_path, b"dummy db content").unwrap();
+    std::fs::write(&db_path, b"dummy db content").context("write dummy db")?;
 
     let result = app_service
         .export_backup_secured(
@@ -93,10 +98,11 @@ async fn test_admin_can_export_backup() {
         "Admin export should succeed, but got error: {:?}",
         result
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_missing_user_returns_not_found() {
+async fn test_missing_user_returns_not_found() -> anyhow::Result<()> {
     // Case: User that doesn't exist should return NotFound
     let user_repo = StubUserRepo::default();
     let missing_id = Uuid::new_v4();
@@ -106,10 +112,10 @@ async fn test_missing_user_returns_not_found() {
         heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl::new(
             user_repo,
             backup_service,
-            test_pool().await,
+            test_pool().await?,
         );
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().context("temp dir")?;
     let db_path = temp_dir.path().join("test.db");
     let backup_path = temp_dir.path().join("backup.hvb");
 
@@ -127,4 +133,5 @@ async fn test_missing_user_returns_not_found() {
         "Expected NotFound error for missing user, but got: {:?}",
         result
     );
+    Ok(())
 }

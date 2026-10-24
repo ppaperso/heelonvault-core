@@ -49,6 +49,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Fixed RUSTSEC-2026-0381, 0382, 0383 and 0385 in both lockfiles: `ctutils` 0.4.5, `rustls-webpki` 0.103.16, `webpki-root-certs` and `webpki-roots` 1.0.11. The fixes address constant-time operations and rejection of distrusted emSign certificate chains; no advisories ignored.
 - Refreshed compatible dependencies, including Tokio 1.54.1, UUID 1.29.0, ICU 2.4.0 and webbrowser 1.2.5; migrated the `rstest` test dependency to 0.28.0.
 - `crypto-common` 0.1.7 requires `generic-array` 0.14.7 on the legacy branch used by SQLx. `matchit` remains at 0.8.4, the exact version required by Axum; no upstream constraints bypassed.
+- Security lint pass (`cargo clippy-secure`) clean and enforced in CI: tests and the build script no longer use `unwrap`, `expect` or `panic!`, and fail with a contextual error instead. The remaining exceptions are limited to third-party macro expansions (`#[tokio::test]`, `static_loader!`) and documented in place.
 - Aligned the Core, App, URL checker and Premium versions. Updated the SBOM and license inventory.
 - No changes to the public API, database schema, encrypted formats, backups or signed reports. Minimum Rust version unchanged.
 

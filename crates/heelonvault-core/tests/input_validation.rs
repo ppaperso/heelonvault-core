@@ -1,8 +1,12 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! Security tests for input validation.
 //! Verifies that malformed inputs are rejected before any processing.
 
+use anyhow::Context as _;
 use heelonvault_core::errors::AppError;
 use heelonvault_core::services::crypto_service::{CryptoService, KdfConfig};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
@@ -66,7 +70,7 @@ fn test_password_envelope_decode_rejects_invalid_format() {
 }
 
 #[tokio::test]
-async fn test_password_envelope_version_validation() {
+async fn test_password_envelope_version_validation() -> anyhow::Result<()> {
     use heelonvault_core::services::auth_service::{
         PasswordEnvelope, decode_password_envelope, encode_password_envelope,
     };
@@ -89,10 +93,10 @@ async fn test_password_envelope_version_validation() {
         &account_key,
     )
     .await
-    .expect("Failed to wrap");
+    .context("Failed to wrap")?;
 
     let encoded = encode_password_envelope(&envelope);
-    let decoded = decode_password_envelope(&encoded).expect("Should decode v2");
+    let decoded = decode_password_envelope(&encoded).context("Should decode v2")?;
     assert!(
         matches!(decoded, PasswordEnvelope::AccountKey { .. }),
         "Should be v2"
@@ -109,6 +113,7 @@ async fn test_password_envelope_version_validation() {
     corrupted_v3[0] = 3;
     let result = decode_password_envelope(&SecretBox::new(Box::new(corrupted_v3)));
     assert!(result.is_err(), "Should reject v3");
+    Ok(())
 }
 
 #[tokio::test]
@@ -159,7 +164,7 @@ async fn test_encryption_rejects_empty_plaintext_with_validation() {
 }
 
 #[tokio::test]
-async fn test_recovery_phrase_format_validation() {
+async fn test_recovery_phrase_format_validation() -> anyhow::Result<()> {
     use heelonvault_core::services::account_key::{
         open_with_recovery_phrase, seal_with_recovery_phrase,
     };
@@ -182,7 +187,7 @@ async fn test_recovery_phrase_format_validation() {
         &account_key,
     )
     .await
-    .expect("Should seal with valid phrase");
+    .context("Should seal with valid phrase")?;
 
     // Ouvrir avec la même phrase devrait fonctionner
     let result = open_with_recovery_phrase(
@@ -201,6 +206,7 @@ async fn test_recovery_phrase_format_validation() {
     )
     .await;
     assert!(result.is_err(), "Should fail with invalid phrase");
+    Ok(())
 }
 
 #[test]
@@ -247,7 +253,7 @@ fn test_payload_structure_validation() {
 // ============================================================================
 
 #[tokio::test]
-async fn test_derive_key_with_empty_password() {
+async fn test_derive_key_with_empty_password() -> anyhow::Result<()> {
     use heelonvault_core::services::crypto_service::CryptoServiceImpl;
     use secrecy::SecretString;
 
@@ -256,7 +262,7 @@ async fn test_derive_key_with_empty_password() {
     let salt = service
         .generate_kdf_salt()
         .await
-        .expect("Salt generation failed");
+        .context("Salt generation failed")?;
 
     // Argon2id devrait accepter un mot de passe vide (même si ce n'est pas recommandé)
     // mais cela ne devrait pas causer de panique
@@ -267,16 +273,17 @@ async fn test_derive_key_with_empty_password() {
     );
 
     // La clé devrait quand même avoir la bonne longueur
-    let key = result.expect("key derived from empty password");
+    let key = result.context("key derived from empty password")?;
     assert_eq!(
         key.expose_secret().len(),
         32,
         "Key should be 32 bytes even with empty password"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_derive_key_with_very_long_password() {
+async fn test_derive_key_with_very_long_password() -> anyhow::Result<()> {
     use heelonvault_core::services::crypto_service::CryptoServiceImpl;
     use secrecy::SecretString;
 
@@ -288,14 +295,15 @@ async fn test_derive_key_with_very_long_password() {
     let salt = service
         .generate_kdf_salt()
         .await
-        .expect("Salt generation failed");
+        .context("Salt generation failed")?;
 
     // Cela devrait fonctionner (Argon2id gère les longs passwords)
     let result = service.derive_key(&password, &salt).await;
     assert!(result.is_ok(), "Long password should be derivable");
 
-    let key = result.expect("key derived from a very long password");
+    let key = result.context("key derived from a very long password")?;
     assert_eq!(key.expose_secret().len(), 32, "Key should be 32 bytes");
+    Ok(())
 }
 
 #[test]
@@ -331,7 +339,7 @@ fn test_validation_error_messages() {
 }
 
 #[tokio::test]
-async fn test_sql_injection_like_inputs() {
+async fn test_sql_injection_like_inputs() -> anyhow::Result<()> {
     // Tester que des entrées qui ressemblent à des injections SQL sont rejetées
     // si elles sont utilisées dans des requêtes
 
@@ -353,9 +361,10 @@ async fn test_sql_injection_like_inputs() {
     );
 
     // Le chiffrement devrait produire un ciphertext valide
-    let payload = result.expect("encrypt SQL-like plaintext");
+    let payload = result.context("encrypt SQL-like plaintext")?;
     assert!(
         !payload.ciphertext.expose_secret().is_empty(),
         "Ciphertext should not be empty"
     );
+    Ok(())
 }

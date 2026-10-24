@@ -1,9 +1,13 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! Security tests for the complete decryption chain.
 //! Verifies that the entire chain of decryption works correctly and that
 //! omitting any step fails.
 
+use anyhow::Context as _;
 use heelonvault_core::services::account_key::{
     generate_account_key, open_with_recovery_phrase, seal_with_recovery_phrase,
 };
@@ -25,7 +29,7 @@ async fn setup_complete_environment(
     crypto: &CryptoServiceImpl,
     password: &str,
     recovery_phrase: &str,
-) -> (
+) -> anyhow::Result<(
     Uuid,
     Uuid,
     Uuid,
@@ -34,13 +38,13 @@ async fn setup_complete_environment(
     SecretBox<Vec<u8>>,
     SecretBox<Vec<u8>>,
     SecretBox<Vec<u8>>,
-) {
+)> {
     let user_id = Uuid::new_v4();
     let vault_id = Uuid::new_v4();
     let secret_id = Uuid::new_v4();
 
     // Generate account key
-    let account_key = generate_account_key().expect("Failed to generate account key");
+    let account_key = generate_account_key().context("Failed to generate account key")?;
 
     // Wrap account key with password (v2 envelope)
     let password_envelope = wrap_account_key(
@@ -49,7 +53,7 @@ async fn setup_complete_environment(
         &account_key,
     )
     .await
-    .expect("Failed to wrap account key");
+    .context("Failed to wrap account key")?;
 
     // Seal account key with recovery phrase
     let recovery_envelope = seal_with_recovery_phrase(
@@ -58,14 +62,14 @@ async fn setup_complete_environment(
         &account_key,
     )
     .await
-    .expect("Failed to seal with recovery phrase");
+    .context("Failed to seal with recovery phrase")?;
 
     // Generate vault key and encrypt with account key
-    let vault_key = generate_account_key().expect("Failed to generate vault key");
+    let vault_key = generate_account_key().context("Failed to generate vault key")?;
     let encrypted_vault_key = crypto
         .encrypt(&vault_key, &account_key)
         .await
-        .expect("Failed to encrypt vault key");
+        .context("Failed to encrypt vault key")?;
     let vault_key_envelope = encode_envelope(&encrypted_vault_key);
 
     // Generate secret and encrypt with vault key
@@ -73,10 +77,10 @@ async fn setup_complete_environment(
     let encrypted_secret = crypto
         .encrypt(&secret_plaintext, &vault_key)
         .await
-        .expect("Failed to encrypt secret");
+        .context("Failed to encrypt secret")?;
     let secret_blob = encode_envelope(&encrypted_secret);
 
-    (
+    Ok((
         user_id,
         vault_id,
         secret_id,
@@ -85,7 +89,7 @@ async fn setup_complete_environment(
         recovery_envelope,
         vault_key_envelope,
         secret_blob,
-    )
+    ))
 }
 
 // ============================================================================
@@ -93,7 +97,7 @@ async fn setup_complete_environment(
 // ============================================================================
 
 #[tokio::test]
-async fn test_full_decryption_chain_with_password() {
+async fn test_full_decryption_chain_with_password() -> anyhow::Result<()> {
     let crypto = CryptoServiceImpl::with_defaults();
     let password = "MyStr0ng!Passw0rd";
     let recovery_phrase = "abandon ability able about above absent absorb abstract absurd abuse access accident account";
@@ -107,13 +111,13 @@ async fn test_full_decryption_chain_with_password() {
         _recovery_envelope,
         vault_key_envelope,
         secret_blob,
-    ) = setup_complete_environment(&crypto, password, recovery_phrase).await;
+    ) = setup_complete_environment(&crypto, password, recovery_phrase).await?;
 
     // Étape 1: Déverrouiller l'account key avec le mot de passe
     // (simulation: on a le password_envelope en DB)
     let encoded_password_envelope = encode_password_envelope(&password_envelope);
     let decoded_password_envelope = decode_password_envelope(&encoded_password_envelope)
-        .expect("Failed to decode password envelope");
+        .context("Failed to decode password envelope")?;
 
     let account_key_result = unlock_password_envelope(
         &crypto,
@@ -121,25 +125,25 @@ async fn test_full_decryption_chain_with_password() {
         &SecretString::new(password.to_string().into()),
     )
     .await
-    .expect("Failed to unlock password envelope");
+    .context("Failed to unlock password envelope")?;
 
-    let account_key = account_key_result.expect("Password should unlock the account key");
+    let account_key = account_key_result.context("Password should unlock the account key")?;
 
     // Étape 2: Déchiffrer la vault key avec l'account key
     let vault_payload = decode_envelope(vault_key_envelope.expose_secret())
-        .expect("Failed to decode vault key envelope");
+        .context("Failed to decode vault key envelope")?;
     let vault_key_result = crypto.decrypt(&vault_payload, &account_key).await;
 
     assert!(vault_key_result.is_ok(), "Step 2 failed: decrypt vault key");
-    let vault_key = vault_key_result.expect("vault key decrypted in step 2");
+    let vault_key = vault_key_result.context("vault key decrypted in step 2")?;
 
     // Étape 3: Déchiffrer le secret avec la vault key
     let secret_payload =
-        decode_envelope(secret_blob.expose_secret()).expect("Failed to decode secret blob");
+        decode_envelope(secret_blob.expose_secret()).context("Failed to decode secret blob")?;
     let secret_result = crypto.decrypt(&secret_payload, &vault_key).await;
 
     assert!(secret_result.is_ok(), "Step 3 failed: decrypt secret");
-    let decrypted_secret = secret_result.expect("secret decrypted in step 3");
+    let decrypted_secret = secret_result.context("secret decrypted in step 3")?;
 
     // Vérifier que le secret déchiffré correspond au plaintext original
     assert_eq!(
@@ -147,10 +151,11 @@ async fn test_full_decryption_chain_with_password() {
         b"my_super_secret_data_123!",
         "Decrypted secret does not match original plaintext"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_full_decryption_chain_requires_all_components() {
+async fn test_full_decryption_chain_requires_all_components() -> anyhow::Result<()> {
     let crypto = CryptoServiceImpl::with_defaults();
     let password = "MyStr0ng!Passw0rd";
     let recovery_phrase = "abandon ability able about above absent absorb abstract absurd abuse access accident account";
@@ -164,17 +169,17 @@ async fn test_full_decryption_chain_requires_all_components() {
         _recovery_envelope,
         vault_key_envelope,
         secret_blob,
-    ) = setup_complete_environment(&crypto, password, recovery_phrase).await;
+    ) = setup_complete_environment(&crypto, password, recovery_phrase).await?;
 
     // Récupérer toutes les enveloppes
     let encoded_password_envelope = encode_password_envelope(&password_envelope);
     let decoded_password_envelope = decode_password_envelope(&encoded_password_envelope)
-        .expect("Failed to decode password envelope");
+        .context("Failed to decode password envelope")?;
 
     let vault_payload = decode_envelope(vault_key_envelope.expose_secret())
-        .expect("Failed to decode vault key envelope");
+        .context("Failed to decode vault key envelope")?;
     let secret_payload =
-        decode_envelope(secret_blob.expose_secret()).expect("Failed to decode secret blob");
+        decode_envelope(secret_blob.expose_secret()).context("Failed to decode secret blob")?;
 
     // Maintenant, tester que l'omission de n'importe quelle étape échoue
 
@@ -185,7 +190,7 @@ async fn test_full_decryption_chain_requires_all_components() {
         &SecretString::new("wrong_password".to_string().into()),
     )
     .await
-    .expect("Should not panic");
+    .context("Should not panic")?;
 
     assert!(
         wrong_password_result.is_none(),
@@ -199,8 +204,8 @@ async fn test_full_decryption_chain_requires_all_components() {
         &SecretString::new(password.to_string().into()),
     )
     .await
-    .expect("Failed to unlock")
-    .expect("Password should work");
+    .context("Failed to unlock")?
+    .context("Password should work")?;
 
     let wrong_vault_key = SecretBox::new(Box::new(vec![0u8; 32]));
     let result = crypto.decrypt(&vault_payload, &wrong_vault_key).await;
@@ -210,7 +215,7 @@ async fn test_full_decryption_chain_requires_all_components() {
     let vault_key = crypto
         .decrypt(&vault_payload, &account_key)
         .await
-        .expect("Should decrypt vault key");
+        .context("Should decrypt vault key")?;
     let wrong_secret_key = SecretBox::new(Box::new(vec![0u8; 32]));
     let result = crypto.decrypt(&secret_payload, &wrong_secret_key).await;
     assert!(result.is_err(), "Should fail with wrong secret key");
@@ -218,10 +223,11 @@ async fn test_full_decryption_chain_requires_all_components() {
     // Test 4: Vérifier que la bonne combinaison fonctionne
     let correct_result = crypto.decrypt(&secret_payload, &vault_key).await;
     assert!(correct_result.is_ok(), "Should succeed with correct key");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_recovery_phrase_alternative_path() {
+async fn test_recovery_phrase_alternative_path() -> anyhow::Result<()> {
     // Tester que la recovery phrase permet aussi de déchiffrer l'account key
     let crypto = CryptoServiceImpl::with_defaults();
     let password = "MyStr0ng!Passw0rd";
@@ -236,7 +242,7 @@ async fn test_recovery_phrase_alternative_path() {
         recovery_envelope,
         vault_key_envelope,
         secret_blob,
-    ) = setup_complete_environment(&crypto, password, recovery_phrase).await;
+    ) = setup_complete_environment(&crypto, password, recovery_phrase).await?;
 
     // Déverrouiller l'account key avec la recovery phrase
     let account_key_result = open_with_recovery_phrase(
@@ -245,7 +251,7 @@ async fn test_recovery_phrase_alternative_path() {
         &recovery_envelope,
     )
     .await
-    .expect("Should unlock with recovery phrase");
+    .context("Should unlock with recovery phrase")?;
 
     assert_eq!(
         account_key_result.expose_secret(),
@@ -255,7 +261,7 @@ async fn test_recovery_phrase_alternative_path() {
 
     // Maintenant, on peut déchiffrer la vault key
     let vault_payload = decode_envelope(vault_key_envelope.expose_secret())
-        .expect("Failed to decode vault key envelope");
+        .context("Failed to decode vault key envelope")?;
     let vault_key_result = crypto.decrypt(&vault_payload, &account_key_result).await;
 
     assert!(
@@ -265,8 +271,8 @@ async fn test_recovery_phrase_alternative_path() {
 
     // Et enfin le secret
     let secret_payload =
-        decode_envelope(secret_blob.expose_secret()).expect("Failed to decode secret blob");
-    let vault_key = vault_key_result.expect("vault key decrypted from recovery path");
+        decode_envelope(secret_blob.expose_secret()).context("Failed to decode secret blob")?;
+    let vault_key = vault_key_result.context("vault key decrypted from recovery path")?;
     let secret_result = crypto.decrypt(&secret_payload, &vault_key).await;
 
     assert!(
@@ -277,22 +283,23 @@ async fn test_recovery_phrase_alternative_path() {
     // Vérifier que le secret est correct
     assert_eq!(
         secret_result
-            .expect("secret decrypted from recovery path")
+            .context("secret decrypted from recovery path")?
             .expose_secret(),
         b"my_super_secret_data_123!",
         "Secret decrypted via recovery path should match original"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_wrong_recovery_phrase_fails() {
+async fn test_wrong_recovery_phrase_fails() -> anyhow::Result<()> {
     let crypto = CryptoServiceImpl::with_defaults();
     let password = "MyStr0ng!Passw0rd";
     let recovery_phrase = "abandon ability able about above absent absorb abstract absurd abuse access accident account";
     let wrong_phrase = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong";
 
     let (_, _, _, _account_key_original, _password_envelope, recovery_envelope, _, _) =
-        setup_complete_environment(&crypto, password, recovery_phrase).await;
+        setup_complete_environment(&crypto, password, recovery_phrase).await?;
 
     // Try to open with wrong phrase
     let result = open_with_recovery_phrase(
@@ -306,16 +313,17 @@ async fn test_wrong_recovery_phrase_fails() {
         result.is_err(),
         "Should fail to open with wrong recovery phrase"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_account_key_consistency_across_paths() {
+async fn test_account_key_consistency_across_paths() -> anyhow::Result<()> {
     // Vérifier que l'account key obtenue via le mot de passe est la même que celle via la recovery phrase
     let crypto = CryptoServiceImpl::with_defaults();
     let password = "MyStr0ng!Passw0rd";
     let recovery_phrase = "abandon ability able about above absent absorb abstract absurd abuse access accident account";
 
-    let account_key_original = generate_account_key().expect("Failed to generate account key");
+    let account_key_original = generate_account_key().context("Failed to generate account key")?;
 
     // Wrap with password
     let password_envelope = wrap_account_key(
@@ -324,7 +332,7 @@ async fn test_account_key_consistency_across_paths() {
         &account_key_original,
     )
     .await
-    .expect("Failed to wrap");
+    .context("Failed to wrap")?;
 
     // Seal with recovery phrase
     let recovery_envelope = seal_with_recovery_phrase(
@@ -333,20 +341,20 @@ async fn test_account_key_consistency_across_paths() {
         &account_key_original,
     )
     .await
-    .expect("Failed to seal");
+    .context("Failed to seal")?;
 
     // Unlock via password
     let encoded_password_envelope = encode_password_envelope(&password_envelope);
     let decoded_password_envelope =
-        decode_password_envelope(&encoded_password_envelope).expect("Failed to decode");
+        decode_password_envelope(&encoded_password_envelope).context("Failed to decode")?;
     let account_key_from_password = unlock_password_envelope(
         &crypto,
         &decoded_password_envelope,
         &SecretString::new(password.to_string().into()),
     )
     .await
-    .expect("Failed to unlock")
-    .expect("Should unlock");
+    .context("Failed to unlock")?
+    .context("Should unlock")?;
 
     // Unlock via recovery phrase
     let account_key_from_recovery = open_with_recovery_phrase(
@@ -355,7 +363,7 @@ async fn test_account_key_consistency_across_paths() {
         &recovery_envelope,
     )
     .await
-    .expect("Failed to open");
+    .context("Failed to open")?;
 
     // Les deux doivent donner la même account key
     assert_eq!(
@@ -369,15 +377,16 @@ async fn test_account_key_consistency_across_paths() {
         account_key_original.expose_secret(),
         "Account keys should match original"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_envelope_version_validation_in_chain() {
+async fn test_envelope_version_validation_in_chain() -> anyhow::Result<()> {
     // Vérifier que les enveloppes avec des versions invalides sont rejetées
     let crypto = CryptoServiceImpl::with_defaults();
 
     // Créer une enveloppe valide
-    let account_key = generate_account_key().expect("Failed to generate account key");
+    let account_key = generate_account_key().context("Failed to generate account key")?;
     let password = "test_password";
     let password_envelope = wrap_account_key(
         &crypto,
@@ -385,7 +394,7 @@ async fn test_envelope_version_validation_in_chain() {
         &account_key,
     )
     .await
-    .expect("Failed to wrap");
+    .context("Failed to wrap")?;
 
     let encoded = encode_password_envelope(&password_envelope);
 
@@ -404,21 +413,22 @@ async fn test_envelope_version_validation_in_chain() {
 
     let result = decode_password_envelope(&future_envelope);
     assert!(result.is_err(), "Should reject future version");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_truncated_envelope_fails_in_chain() {
+async fn test_truncated_envelope_fails_in_chain() -> anyhow::Result<()> {
     let crypto = CryptoServiceImpl::with_defaults();
     let password = "test_password";
 
-    let account_key = generate_account_key().expect("Failed to generate account key");
+    let account_key = generate_account_key().context("Failed to generate account key")?;
     let password_envelope = wrap_account_key(
         &crypto,
         &SecretString::new(password.to_string().into()),
         &account_key,
     )
     .await
-    .expect("Failed to wrap");
+    .context("Failed to wrap")?;
 
     let encoded = encode_password_envelope(&password_envelope);
 
@@ -429,10 +439,11 @@ async fn test_truncated_envelope_fails_in_chain() {
 
     let result = decode_password_envelope(&truncated_envelope);
     assert!(result.is_err(), "Should reject truncated envelope");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_chain_with_legacy_password_envelope() {
+async fn test_chain_with_legacy_password_envelope() -> anyhow::Result<()> {
     // Tester que la chaîne fonctionne aussi avec l'ancien format (v1)
     use heelonvault_core::services::auth_service::{
         PasswordEnvelope::Legacy, encode_password_envelope,
@@ -446,11 +457,11 @@ async fn test_chain_with_legacy_password_envelope() {
     let salt = crypto
         .generate_kdf_salt()
         .await
-        .expect("Failed to generate salt");
+        .context("Failed to generate salt")?;
     let master_key = crypto
         .derive_key(&SecretString::new(password.to_string().into()), &salt)
         .await
-        .expect("Failed to derive key");
+        .context("Failed to derive key")?;
 
     // SecretBox<Vec<u8>> is not Clone: rebuild an independent copy for the envelope so
     // `master_key` stays available for the later comparison below.
@@ -462,7 +473,7 @@ async fn test_chain_with_legacy_password_envelope() {
     let encoded = encode_password_envelope(&legacy_envelope);
 
     // Décoder
-    let decoded = decode_password_envelope(&encoded).expect("Failed to decode");
+    let decoded = decode_password_envelope(&encoded).context("Failed to decode")?;
     assert!(
         matches!(decoded, Legacy { .. }),
         "Should be legacy envelope"
@@ -475,10 +486,10 @@ async fn test_chain_with_legacy_password_envelope() {
         &SecretString::new(password.to_string().into()),
     )
     .await
-    .expect("Failed to unlock");
+    .context("Failed to unlock")?;
 
     assert!(result.is_some(), "Should unlock with correct password");
-    let unlocked_key = result.expect("legacy envelope unlocked with the correct password");
+    let unlocked_key = result.context("legacy envelope unlocked with the correct password")?;
 
     // La clé doit correspondre à la clé dérivée
     assert_eq!(unlocked_key.expose_secret(), master_key.expose_secret());
@@ -490,10 +501,11 @@ async fn test_chain_with_legacy_password_envelope() {
         &SecretString::new("wrong_password".to_string().into()),
     )
     .await
-    .expect("Should not panic");
+    .context("Should not panic")?;
 
     assert!(
         wrong_result.is_none(),
         "Should not unlock with wrong password"
     );
+    Ok(())
 }

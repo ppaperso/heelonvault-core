@@ -4,43 +4,44 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-fn catalog_keys(lang: &str) -> BTreeSet<String> {
+fn catalog_keys(lang: &str) -> anyhow::Result<BTreeSet<String>> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("locales")
         .join(lang)
         .join("main.ftl");
     let Ok(content) = std::fs::read_to_string(&path) else {
-        panic!("cannot read {}", path.display());
+        anyhow::bail!("cannot read {}", path.display());
     };
-    content
+    Ok(content
         .lines()
         .filter(|line| line.starts_with(|c: char| c.is_ascii_lowercase()))
         .filter_map(|line| line.split_once(" ="))
         .map(|(key, _)| key.to_string())
-        .collect()
+        .collect())
 }
 
 #[test]
-fn french_and_english_catalogs_define_the_same_keys() {
-    let fr = catalog_keys("fr");
-    let en = catalog_keys("en");
+fn french_and_english_catalogs_define_the_same_keys() -> anyhow::Result<()> {
+    let fr = catalog_keys("fr")?;
+    let en = catalog_keys("en")?;
     let only_fr: Vec<_> = fr.difference(&en).collect();
     let only_en: Vec<_> = en.difference(&fr).collect();
     assert!(
         only_fr.is_empty() && only_en.is_empty(),
         "keys only in fr: {only_fr:?}; keys only in en: {only_en:?}"
     );
+    Ok(())
 }
 
 #[test]
-fn catalogs_have_no_duplicate_keys() {
+fn catalogs_have_no_duplicate_keys() -> anyhow::Result<()> {
     for lang in ["fr", "en"] {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("locales")
             .join(lang)
             .join("main.ftl");
         let Ok(content) = std::fs::read_to_string(&path) else {
-            panic!("cannot read {}", path.display());
+            anyhow::bail!("cannot read {}", path.display());
         };
         let mut seen = BTreeSet::new();
         for line in content.lines() {
@@ -51,4 +52,5 @@ fn catalogs_have_no_duplicate_keys() {
             }
         }
     }
+    Ok(())
 }

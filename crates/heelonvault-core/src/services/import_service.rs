@@ -881,9 +881,9 @@ mod tests {
     }
 
     #[test]
-    fn write_reject_report_includes_reject_type_and_redacted_raw_line() {
+    fn write_reject_report_includes_reject_type_and_redacted_raw_line() -> anyhow::Result<()> {
         let Ok(temp) = tempfile::tempdir() else {
-            panic!("tempdir should be created");
+            anyhow::bail!("tempdir should be created");
         };
 
         let report_path = ImportServiceImpl::write_reject_report_to_dir(
@@ -898,24 +898,25 @@ mod tests {
             }],
         );
         let Ok(Some(report_path)) = report_path else {
-            panic!("report creation should succeed, got {report_path:?}");
+            anyhow::bail!("report creation should succeed, got {report_path:?}");
         };
         let Ok(content) = fs::read_to_string(report_path) else {
-            panic!("report should be readable");
+            anyhow::bail!("report should be readable");
         };
 
         assert!(content.contains("Type: Wrong column count"));
         assert!(
             content.contains("Raw line: <redacted, 15 characters; see row 3 of the source file>")
         );
+        Ok(())
     }
 
     /// CWE-532: a malformed row keeps its password column; the reject report is written to the
     /// log directory and must never contain it, nor any other field of the rejected row.
     #[test]
-    fn reject_report_never_contains_the_values_of_a_rejected_row() {
+    fn reject_report_never_contains_the_values_of_a_rejected_row() -> anyhow::Result<()> {
         let Ok(temp) = tempfile::tempdir() else {
-            panic!("tempdir should be created");
+            anyhow::bail!("tempdir should be created");
         };
         let password = "Sup3r-S3cret-Reject-P@ss!";
         let username = "reject.user@example.org";
@@ -930,7 +931,7 @@ mod tests {
         );
 
         let Ok(outcome) = ImportServiceImpl::parse_csv_rows(path.as_path()) else {
-            panic!("a malformed row must not abort parsing");
+            anyhow::bail!("a malformed row must not abort parsing");
         };
         assert!(
             outcome.rows.is_empty(),
@@ -947,10 +948,10 @@ mod tests {
             path.as_path(),
             &outcome.rejects,
         ) else {
-            panic!("report creation should succeed");
+            anyhow::bail!("report creation should succeed");
         };
         let Ok(content) = fs::read(&report_path) else {
-            panic!("report should be readable");
+            anyhow::bail!("report should be readable");
         };
 
         for needle in [password, username, "private note"] {
@@ -972,7 +973,7 @@ mod tests {
         {
             use std::os::unix::fs::PermissionsExt;
             let Ok(metadata) = fs::metadata(&report_path) else {
-                panic!("report metadata should be readable");
+                anyhow::bail!("report metadata should be readable");
             };
             assert_eq!(
                 metadata.permissions().mode() & 0o777,
@@ -980,5 +981,6 @@ mod tests {
                 "the reject report must be readable by its owner only"
             );
         }
+        Ok(())
     }
 }

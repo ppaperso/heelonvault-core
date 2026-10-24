@@ -126,7 +126,7 @@ fn expected_for_non_admin(action: Action, resource: &Resource) -> Option<AccessD
 }
 
 #[test]
-fn every_non_admin_decision_matches_the_policy() {
+fn every_non_admin_decision_matches_the_policy() -> anyhow::Result<()> {
     let subject = user(UserRole::User);
     let mut mismatches = Vec::new();
 
@@ -135,7 +135,9 @@ fn every_non_admin_decision_matches_the_policy() {
             let actual = match check_permission(&subject, action, &resource) {
                 Ok(()) => None,
                 Err(AppError::Authorization(reason)) => Some(reason),
-                Err(other) => panic!("unexpected error {other:?} for {action:?} on {resource:?}"),
+                Err(other) => {
+                    anyhow::bail!("unexpected error {other:?} for {action:?} on {resource:?}")
+                }
             };
             let expected = expected_for_non_admin(action, &resource);
             if actual != expected {
@@ -152,6 +154,7 @@ fn every_non_admin_decision_matches_the_policy() {
         mismatches.len(),
         mismatches.join("\n")
     );
+    Ok(())
 }
 
 #[test]

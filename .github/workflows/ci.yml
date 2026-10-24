@@ -111,6 +111,15 @@ jobs:
         if: matrix.suite == 'quality'
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
+      # Same lints as the `cargo clippy-secure` alias (.cargo/config.toml), spelled out so that
+      # `--locked` reaches cargo: test code is held to the no-unwrap/expect/panic rule too.
+      - name: cargo clippy-secure
+        if: matrix.suite == 'quality'
+        run: >-
+          cargo clippy --locked --workspace --all-targets --all-features --
+          -D clippy::unwrap_used -D clippy::expect_used -D clippy::disallowed_methods
+          -D clippy::panic -D clippy::todo -D clippy::unimplemented
+
       - name: cargo check --workspace
         if: matrix.suite == 'quality'
         run: cargo check --workspace --all-features --locked

@@ -1,10 +1,14 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
+#![allow(clippy::disallowed_methods)]
+
 //! Tests de sécurité pour les injections SQL
 //!
 //! Validation que les repositories sont protégés contre les injections SQL
 //! suite aux corrections des issues #35 et #37.
 
-#![allow(clippy::disallowed_methods)]
-
+use anyhow::Context as _;
 use heelonvault_core::repositories::user_repository::{SqlxUserRepository, UserRepository};
 use sqlx::sqlite::SqlitePoolOptions;
 use uuid::Uuid;
@@ -20,12 +24,12 @@ const MALICIOUS_PAYLOADS: &[&str] = &[
     "test'",
 ];
 
-async fn setup_pool() -> sqlx::SqlitePool {
+async fn setup_pool() -> anyhow::Result<sqlx::SqlitePool> {
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
-        .expect("Failed to connect");
+        .context("Failed to connect")?;
 
     // Créer la table users avec le schema complet
     sqlx::query(
@@ -47,14 +51,14 @@ async fn setup_pool() -> sqlx::SqlitePool {
     )
     .execute(&pool)
     .await
-    .expect("Failed to create table");
+    .context("Failed to create table")?;
 
-    pool
+    Ok(pool)
 }
 
 #[tokio::test]
-async fn test_sql_injection_user_repository() {
-    let pool = setup_pool().await;
+async fn test_sql_injection_user_repository() -> anyhow::Result<()> {
+    let pool = setup_pool().await?;
     let repo = SqlxUserRepository::new(pool.clone());
 
     // Créer un utilisateur valide
@@ -65,30 +69,28 @@ async fn test_sql_injection_user_repository() {
         .bind("user")
         .execute(&pool)
         .await
-        .expect("Setup failed");
+        .context("Setup failed")?;
 
     // Tester que les payloads malveillants ne causent pas d'injection
     for payload in MALICIOUS_PAYLOADS {
-        let result = UserRepository::get_by_username(&repo, payload).await;
+        let user = UserRepository::get_by_username(&repo, payload)
+            .await
+            .with_context(|| format!("Query failed for payload: {payload}"))?;
 
-        assert!(result.is_ok(), "Query failed for payload: {}", payload);
-        assert!(
-            result.unwrap().is_none(),
-            "Injection successful for: {}",
-            payload
-        );
+        assert!(user.is_none(), "Injection successful for: {}", payload);
     }
 
     // Vérifier que l'utilisateur valide existe toujours
     let valid = UserRepository::get_by_username(&repo, "valid_user")
         .await
-        .expect("Failed to get valid user");
+        .context("Failed to get valid user")?;
     assert!(valid.is_some());
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_sql_injection_special_chars() {
-    let pool = setup_pool().await;
+async fn test_sql_injection_special_chars() -> anyhow::Result<()> {
+    let pool = setup_pool().await?;
     let repo = SqlxUserRepository::new(pool.clone());
 
     let user_id = Uuid::new_v4();
@@ -100,12 +102,13 @@ async fn test_sql_injection_special_chars() {
         .bind("user")
         .execute(&pool)
         .await
-        .expect("Setup failed");
+        .context("Setup failed")?;
 
     let result = UserRepository::get_by_username(&repo, special_name)
         .await
-        .expect("Failed to get user");
+        .context("Failed to get user")?;
 
-    assert!(result.is_some());
-    assert_eq!(result.unwrap().username, special_name);
+    let user = result.context("the user with special characters must be found")?;
+    assert_eq!(user.username, special_name);
+    Ok(())
 }

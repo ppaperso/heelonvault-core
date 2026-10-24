@@ -70,7 +70,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sqlx_bind_secret_opt_some() {
+    fn test_sqlx_bind_secret_opt_some() -> anyhow::Result<()> {
         let data = vec![1u8, 2u8, 3u8];
         let secret = SecretBox::new(Box::new(data.clone()));
         let secret_opt = Some(secret);
@@ -80,8 +80,9 @@ mod tests {
         if let Some(val) = result {
             assert_eq!(val, data.as_slice());
         } else {
-            panic!("expected Some but got None");
+            anyhow::bail!("expected Some but got None");
         }
+        Ok(())
     }
 
     #[test]

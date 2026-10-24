@@ -399,6 +399,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    // `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+    // reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+    // enforced by `cargo clippy-secure` in CI.
     #![allow(clippy::disallowed_methods)]
     use super::{
         AuthService, AuthServiceImpl, PasswordEnvelope, decode_password_envelope,
@@ -407,6 +410,7 @@ mod tests {
     use crate::errors::AppError;
     use crate::services::account_key::generate_account_key;
     use crate::services::crypto_service::{CryptoServiceImpl, KdfConfig};
+    use anyhow::Context as _;
     use secrecy::{ExposeSecret, SecretBox, SecretString};
 
     fn fast_crypto() -> CryptoServiceImpl {
@@ -423,21 +427,23 @@ mod tests {
     }
 
     /// Credentials loaded the way startup loads them, for an account-key account.
-    async fn account_key_service(password: &str) -> (AuthServiceImpl<CryptoServiceImpl>, Vec<u8>) {
-        let account_key = generate_account_key().expect("account key");
+    async fn account_key_service(
+        password: &str,
+    ) -> anyhow::Result<(AuthServiceImpl<CryptoServiceImpl>, Vec<u8>)> {
+        let account_key = generate_account_key().context("account key")?;
         let envelope = wrap_account_key(
             &fast_crypto(),
             &SecretString::new(password.into()),
             &account_key,
         )
         .await
-        .expect("wrap account key");
+        .context("wrap account key")?;
         let service = AuthServiceImpl::new(fast_crypto());
         service
             .upsert_password_envelope("alice", encode_password_envelope(&envelope))
             .await
-            .expect("load credentials");
-        (service, account_key.expose_secret().clone())
+            .context("load credentials")?;
+        Ok((service, account_key.expose_secret().clone()))
     }
 
     #[tokio::test]
@@ -578,34 +584,35 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn account_key_opens_only_with_its_password() {
-        let (service, account_key) = account_key_service("correct horse battery").await;
+    async fn account_key_opens_only_with_its_password() -> anyhow::Result<()> {
+        let (service, account_key) = account_key_service("correct horse battery").await?;
 
         let opened = service
             .derive_key_if_valid("alice", secret("correct horse battery"))
             .await
-            .expect("derive")
-            .expect("the password opens the account key");
+            .context("derive")?
+            .context("the password opens the account key")?;
         assert_eq!(opened.expose_secret(), &account_key);
 
         assert!(
             service
                 .derive_key_if_valid("alice", secret("wrong horse battery"))
                 .await
-                .expect("derive")
+                .context("derive")?
                 .is_none()
         );
         assert!(
             !service
                 .verify_password("alice", secret("wrong horse battery"))
                 .await
-                .expect("verify")
+                .context("verify")?
         );
+        Ok(())
     }
 
     #[tokio::test]
-    async fn changing_the_password_keeps_the_account_key() {
-        let (service, account_key) = account_key_service("first password here").await;
+    async fn changing_the_password_keeps_the_account_key() -> anyhow::Result<()> {
+        let (service, account_key) = account_key_service("first password here").await?;
 
         service
             .change_password(
@@ -614,47 +621,50 @@ mod tests {
                 secret("second password here"),
             )
             .await
-            .expect("change password");
+            .context("change password")?;
 
         let opened = service
             .derive_key_if_valid("alice", secret("second password here"))
             .await
-            .expect("derive")
-            .expect("new password opens the account key");
+            .context("derive")?
+            .context("new password opens the account key")?;
         assert_eq!(opened.expose_secret(), &account_key);
         assert!(
             service
                 .derive_key_if_valid("alice", secret("first password here"))
                 .await
-                .expect("derive")
+                .context("derive")?
                 .is_none()
         );
+        Ok(())
     }
 
     #[tokio::test]
-    async fn account_key_envelope_survives_encoding() {
-        let (service, _) = account_key_service("some password value").await;
+    async fn account_key_envelope_survives_encoding() -> anyhow::Result<()> {
+        let (service, _) = account_key_service("some password value").await?;
         let encoded = service
             .get_password_envelope("alice")
             .await
-            .expect("envelope");
-        let decoded = decode_password_envelope(&encoded).expect("decode");
+            .context("envelope")?;
+        let decoded = decode_password_envelope(&encoded).context("decode")?;
         assert!(decoded.is_account_key());
         assert_eq!(
             encode_password_envelope(&decoded).expose_secret(),
             encoded.expose_secret()
         );
         assert!(matches!(decoded, PasswordEnvelope::AccountKey { .. }));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn no_second_account_next_to_an_account_key_account() {
-        let (service, _) = account_key_service("some password value").await;
+    async fn no_second_account_next_to_an_account_key_account() -> anyhow::Result<()> {
+        let (service, _) = account_key_service("some password value").await?;
 
         let result = service
             .create_user("bob", secret("another password value"))
             .await;
 
         assert!(matches!(result, Err(AppError::SingleAccountVault)));
+        Ok(())
     }
 }

@@ -1,3 +1,6 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! Security tests for memory safety.
@@ -30,6 +33,7 @@
 //! Vérifier la mise à zéro mémoire elle-même resterait possible via `cargo miri test` en CI
 //! (piste future, hors scope de ce fichier).
 
+use anyhow::Context as _;
 use heelonvault_core::errors::AppError;
 use heelonvault_core::services::crypto_service::{CryptoService, CryptoServiceImpl, KdfConfig};
 use secrecy::{ExposeSecret, SecretBox, SecretString};
@@ -78,7 +82,7 @@ fn test_secret_string_debug_never_exposes_the_secret() {
 }
 
 #[tokio::test]
-async fn test_no_sensitive_data_in_error_messages() {
+async fn test_no_sensitive_data_in_error_messages() -> anyhow::Result<()> {
     let service = fast_crypto();
     let password = SecretString::new("test".to_string().into());
     let empty_salt = SecretBox::new(Box::new(Vec::new()));
@@ -86,7 +90,9 @@ async fn test_no_sensitive_data_in_error_messages() {
     // Cela devrait échouer car le salt est vide
     let result = service.derive_key(&password, &empty_salt).await;
 
-    let err = result.expect_err("derive_key with an empty salt should fail");
+    let err = result
+        .err()
+        .context("derive_key with an empty salt should fail")?;
     let error_string = format!("{err:?}");
     assert!(
         !error_string.contains("test"),
@@ -99,4 +105,5 @@ async fn test_no_sensitive_data_in_error_messages() {
             "Crypto error message should not contain the password: {msg}"
         );
     }
+    Ok(())
 }

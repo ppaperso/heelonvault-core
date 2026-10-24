@@ -616,15 +616,15 @@ mod tests {
     /// Every clipboard write of the application must go through this module, or a secret could
     /// be copied without being cleared.
     #[test]
-    fn no_other_module_writes_to_the_clipboard() {
-        fn scan(dir: &std::path::Path, offenders: &mut Vec<String>) {
+    fn no_other_module_writes_to_the_clipboard() -> anyhow::Result<()> {
+        fn scan(dir: &std::path::Path, offenders: &mut Vec<String>) -> anyhow::Result<()> {
             let Ok(entries) = std::fs::read_dir(dir) else {
-                panic!("cannot read {}", dir.display());
+                anyhow::bail!("cannot read {}", dir.display());
             };
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
-                    scan(&path, offenders);
+                    scan(&path, offenders)?;
                     continue;
                 }
                 let is_source = path
@@ -634,7 +634,7 @@ mod tests {
                     continue;
                 }
                 let Ok(content) = std::fs::read_to_string(&path) else {
-                    panic!("cannot read {}", path.display());
+                    anyhow::bail!("cannot read {}", path.display());
                 };
                 for (number, line) in content.lines().enumerate() {
                     let code = line.split("//").next().unwrap_or_default();
@@ -644,17 +644,19 @@ mod tests {
                     }
                 }
             }
+            Ok(())
         }
 
         let mut offenders = Vec::new();
         scan(
             &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
             &mut offenders,
-        );
+        )?;
         assert!(
             offenders.is_empty(),
             "use ui::sensitive_clipboard instead of writing to the clipboard directly:\n{}",
             offenders.join("\n")
         );
+        Ok(())
     }
 }
