@@ -9,6 +9,11 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [2.1.1] — 2026-10-24
 
+### Documentation utilisateur
+
+- Guide utilisateur entièrement réorganisé par tâches en français et en anglais ; procédures de récupération, sauvegarde et limites des éditions clarifiées.
+- Captures bilingues actualisées depuis les widgets de production avec données fictives ; anciennes images retirées. Génération isolée, provenance et empreintes des images, contrôle léger en CI et vérification de fraîcheur avant publication.
+
 ### Finition de l'interface
 
 - Éditeur de mots de passe : l'encart « Le champ mot de passe est vide par défaut… » apparaît uniquement en modification lorsque le préremplissage du mot de passe actuel est désactivé dans le profil ; il est absent lorsque cette option est activée, ainsi qu'en création.
