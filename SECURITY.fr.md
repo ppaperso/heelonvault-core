@@ -25,6 +25,18 @@ destinations internes sont bloquées. Un succès TLS signifie seulement que le c
 ligne, existence de page ou légitimité du site ne sont évaluées. Aucun fournisseur de
 réputation activé. L'invariant Core sans réseau reste testé.
 
+Les vérifications facultatives de mise à jour de l'application relèvent de la couche App, pas
+de Core. Les vérifications automatiques exigent un consentement explicite, enregistré pour
+chaque utilisateur du système d'exploitation, et se limitent à une tentative toutes les
+24 heures au démarrage ; le profil propose une vérification manuelle ponctuelle. Les
+requêtes visent uniquement l'API des releases GitHub officielle, en HTTPS, sans jeton ni
+donnée de coffre, de compte ou de licence. GitHub peut observer l'IP du client. Les
+redirections sont refusées ; la durée de la requête et la taille de la réponse sont bornées.
+Seules les versions semver stables sont prises en compte, et les liens de release utilisent
+le dépôt officiel fixe. La fonction ne télécharge ni n'installe aucun paquet et n'atteste pas
+leur authenticité. Une erreur réseau ou de configuration n'est jamais présentée comme un
+résultat « à jour ».
+
 Objectifs securite :
 
 - proteger les secrets au repos ;

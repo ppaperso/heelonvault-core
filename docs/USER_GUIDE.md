@@ -235,7 +235,7 @@ En Community, l'administrateur peut voir une présentation verrouillée de Profe
 
 Dans **Profil & Sécurité → Mises à jour**, choisissez **Vérifier maintenant**. La vérification manuelle fonctionne même si les vérifications automatiques sont désactivées.
 
-Si vous les autorisez, les vérifications automatiques contactent GitHub au démarrage, **au plus une fois par jour**. Le réglage concerne cette installation. GitHub reçoit votre adresse IP, mais aucune donnée de coffre, de compte ou de licence n'est envoyée par cette vérification.
+Si vous les autorisez, les vérifications automatiques contactent GitHub au démarrage, **au plus une fois par jour**. Le réglage s'applique à votre compte utilisateur sur cet ordinateur (chaque utilisateur d'un poste partagé décide pour lui-même), pas à votre compte HeelonVault. GitHub reçoit votre adresse IP, mais aucune donnée de coffre, de compte ou de licence n'est envoyée par cette vérification.
 
 ![Consentement initial aux vérifications de mise à jour et contrôle manuel](images/user-guide/fr/updates-consent.png)
 

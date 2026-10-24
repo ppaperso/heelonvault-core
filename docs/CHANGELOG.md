@@ -39,7 +39,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ### Notifications de mise à jour
 
-- Vérification optionnelle des versions stables publiées sur le dépôt GitHub officiel, en arrière-plan au démarrage et au plus une fois toutes les 24 heures. Aucun appel avant consentement ; contrôle manuel disponible même si l'automatisme est désactivé.
+- Vérification optionnelle des versions stables publiées sur le dépôt GitHub officiel, en arrière-plan au démarrage et au plus une fois toutes les 24 heures. Aucun appel avant consentement, enregistré pour chaque utilisateur du système d'exploitation ; contrôle manuel disponible même si l'automatisme est désactivé.
 - Bandeau non bloquant aux couleurs HeelonVault : consentement initial, découverte des nouveautés/téléchargements et report à plus tard. Panneau dédié dans Profil & Sécurité, version installée, progression et états explicites hors ligne ou en cas d'erreur de configuration, en français et en anglais.
 - Aucun téléchargement ni installation automatique, aucune donnée de coffre, de compte ou de licence envoyée. Délai réseau et taille de réponse bornés, redirections refusées et liens limités au dépôt officiel. Aucune promesse de sécurité ou d'authenticité des paquets fondée sur la simple présence d'une version.
 - Tests de comparaison semver, consentement, persistance, erreurs HTTP, dépassement de taille, délai réseau et parcours GTK avec résultats simulés.
