@@ -1,0 +1,21 @@
+.update-banner {
+    margin: 10px 18px 12px;
+    padding: 16px 20px;
+    border: 1px solid @hv_border;
+    border-left: 4px solid @hv_brand_600;
+    border-radius: 14px;
+    background: linear-gradient(110deg, @hv_brand_50, @hv_surface);
+    box-shadow: 0 3px 12px @hv_shadow_soft;
+    color: @hv_text;
+}
+
+.update-banner-icon {
+    color: @hv_brand_700;
+    background: @hv_brand_100;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.update-banner .heading {
+    color: @hv_brand_900;
+}

@@ -8,6 +8,21 @@ installation sur un poste, voir [QUICKSTART.fr.md](QUICKSTART.fr.md).
 
 ## Avant toute mise à jour
 
+### Être averti d'une nouvelle version
+
+Activez **Profil & Sécurité > Mises à jour de l'application > Vérifier automatiquement**
+pour consulter la dernière version stable publiée sur GitHub, au démarrage et au plus une
+fois par 24 heures. Sans consentement, aucun contrôle automatique n'est effectué.
+**Vérifier** permet un contrôle ponctuel même si cette option est désactivée.
+
+Le bandeau **Découvrir la version** ouvre les notes et téléchargements officiels dans votre
+navigateur ; **Plus tard** le masque pour la session de l'application. Une connexion indisponible
+n'est jamais présentée comme une absence de mise à jour. GitHub reçoit l'adresse IP, mais
+aucune donnée de coffre, de compte ou de licence. L'application n'installe rien et ne vérifie
+pas elle-même les paquets : les étapes ci-dessous restent nécessaires.
+
+### Préparer l'installation
+
 1. Faites un **export chiffré `.hvb`** de vos coffres depuis **Profil & Sécurité > Gestion des
    données**, et conservez-le hors du poste.
 2. Notez la version installée (en-tête du [journal des modifications](CHANGELOG.md)) et lisez

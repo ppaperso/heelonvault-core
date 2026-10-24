@@ -13,7 +13,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 - Password editor: the "password field is empty by default" hint appears only while editing with current-password prefilling disabled in the profile; it is absent when that option is enabled and when creating a secret.
 
-- Deep-teal primary actions, rounded corners and subtle elevation; light bordered secondary actions, softly tinted utility controls on hover and red destructive actions. Sign-in and PIN unlock share the same visual language; pills remain for selectors.
+- Deep-teal primary actions, rounded corners and subtle elevation; light bordered secondary actions, softly tinted utility controls on hover and red destructive actions. Sign-in, PIN unlock and release notifications share the same visual language; pills remain for selectors.
 - Popovers use a single bordered, elevated panel without repeated frames around nested layout boxes. Spaced menu rows, subtle separators, visible keyboard focus and destructive colors preserved on hover.
 - Secret cards no longer move on hover, and border widths stay constant, including on selection: titles and actions no longer shift. More legible copy controls.
 - Lighter view/sort selectors: a quiet shared surface and a light active option with a teal underline, distinct from hover. GTK components, bundled icons and logical dimensions retained for Linux, Windows and macOS.
@@ -31,6 +31,13 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Explicit states: updating, affected-item count, zero only after a complete analysis without findings, unavailable report or error/incomplete coverage. Translated tooltips; a missing report is never presented as healthy.
 - Closely spaced requests are coalesced; viewing the latest report avoids redundant analysis. Leaving the page no longer cancels the calculation; locking/signing out cancels queued or running analyses and prevents late results.
 - Native GTK tests with real SQLite cover off-page analysis, creation/deletion/restoration, coalescing, navigation, incomplete reports, errors and locking.
+
+### Update notifications
+
+- Optional background discovery of stable releases from the official GitHub repository at startup, at most once every 24 hours. No request before consent; manual checking remains available with automatic checks disabled.
+- Nonblocking HeelonVault-branded banner for initial consent, release notes/downloads and deferral. Dedicated Profile & Security panel with installed version, progress and explicit offline/configuration-error states, in French and English.
+- No automatic download or installation and no vault, account or license data sent. Bounded network time and response size, redirects rejected and links restricted to the official repository. Release discovery does not attest package authenticity or security.
+- Tests cover semver comparison, consent, persistence, HTTP errors, size limits, network deadlines and native GTK flows with simulated results.
 
 ### Security and dependencies
 

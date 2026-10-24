@@ -8,6 +8,19 @@ perform a Linux system-wide install. For a first install on a computer, see
 
 ## Before any update
 
+### Get notified about a new release
+
+Enable **Profile & Security > Application updates > Check automatically** to check the
+latest stable GitHub release at startup, at most once every 24 hours. No automatic request
+is made without consent. **Check now** performs a one-off check even with that option disabled.
+
+The **Explore release** banner opens official notes and downloads in your browser; **Later**
+hides it for the application session. An unavailable connection is never presented as an
+absence of updates. GitHub receives the IP address but no vault, account or license data.
+The application neither installs nor verifies packages: the following steps remain necessary.
+
+### Prepare the installation
+
 1. Make an **encrypted `.hvb` export** of your vaults from **Profile & Security > Data
    management**, and keep it off the computer.
 2. Note the installed version (header of the [changelog](CHANGELOG.en.md)) and read the sections

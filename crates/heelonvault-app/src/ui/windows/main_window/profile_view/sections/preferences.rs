@@ -13,6 +13,7 @@ pub struct PreferencesSection {
     pub frame: adw::PreferencesGroup,
     pub language_items: gtk4::StringList,
     pub language_row: adw::ComboRow,
+    pub updates: crate::ui::updates::UpdateSection,
 }
 
 fn translated_languages() -> Vec<String> {
@@ -38,6 +39,7 @@ pub fn build() -> PreferencesSection {
         frame,
         language_items,
         language_row,
+        updates: crate::ui::updates::build_preferences(),
     };
     section.refresh_i18n();
     section
@@ -60,6 +62,7 @@ impl PreferencesSection {
     }
 
     pub fn refresh_i18n(&self) {
+        (self.updates.refresh_i18n)();
         self.frame
             .set_title(heelonvault_core::tr!("profile-section-preferences").as_str());
         self.language_row

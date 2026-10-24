@@ -531,6 +531,7 @@ where
     );
 
     // ── 6. Live translation ───────────────────────────────────────────────────
+    let updates = crate::ui::updates::build_banner();
     let refresh_i18n = i18n_refresh::build_refresh(
         i18n_refresh::I18nTargets {
             sidebar_panel: sidebar_panel.clone(),
@@ -549,6 +550,7 @@ where
             extra_refreshers: std::iter::once(header_license_refresh)
                 .chain(certification_refresh)
                 .chain(std::iter::once(security.refresh_i18n))
+                .chain(std::iter::once(updates.refresh_i18n))
                 .collect(),
         },
         #[cfg(feature = "premium")]
@@ -590,6 +592,7 @@ where
     });
 
     root.append(&header_bar);
+    root.append(&updates.widget);
     root.append(&content_shell.container);
     toast_overlay.set_child(Some(&root));
     window.set_content(Some(&toast_overlay));

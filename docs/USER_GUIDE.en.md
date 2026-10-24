@@ -334,6 +334,27 @@ The page reads top to bottom, one row per setting:
 
 The new master password must contain at least 16 characters; it is stored exactly as typed, spaces included. After the change, an active PIN must be set up again.
 
+### Application updates
+
+A discreet banner offers to enable update checks. **Not now** keeps them disabled without
+asking again at every sign-in. Change this choice in **Profile & Security > Application updates**.
+
+- Once enabled, a background check runs at startup, at most once every 24 hours, without
+  delaying sign-in. The setting applies to this installation, not an account.
+- **Check now** performs a one-off GitHub request even with automatic checks disabled.
+  Only one check can run at a time.
+- When a newer stable release exists, **Explore release** opens its official GitHub page
+  with release notes and downloads. **Later** hides the banner for the application session;
+  the result remains available in the profile.
+- Offline or when GitHub does not respond, the panel says **Verification unavailable**,
+  never "You are up to date". A known newer release can be offered from the cache at startup;
+  the cache never proves that the application is up to date.
+
+No automatic request is made without consent. GitHub receives the IP address used for the
+connection; no vault, account or license data is sent. The application never downloads or
+installs a package. Discovering a release does not verify its integrity:
+follow the [update guide](UPDATE_GUIDE.en.md).
+
 ### PIN Quick-Unlock
 
 HeelonVault provides a PIN-based quick-unlock to avoid retyping the master password after every auto-lock event.
