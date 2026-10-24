@@ -566,12 +566,16 @@ pub fn setup_search_entry_handlers(
 
     // Enter key handler - jump to first visible card
     let flow_for_search_activate = secret_flow.clone();
-    search_entry.connect_activate(move |_| {
+    search_entry.connect_activate(move |entry| {
+        // Enter may arrive before SearchEntry's debounced search-changed signal.
+        *filter_runtime.search_text.borrow_mut() = entry.text().to_string();
+        apply_filters(&flow_for_search_activate, &filter_runtime);
         let mut cursor = flow_for_search_activate.first_child();
         while let Some(widget) = cursor {
             let next = widget.next_sibling();
             if let Ok(flow_child) = widget.downcast::<gtk4::FlowBoxChild>()
                 && flow_child.is_visible()
+                && flow_child.is_child_visible()
             {
                 flow_for_search_activate.select_child(&flow_child);
                 flow_child.grab_focus();
@@ -584,7 +588,7 @@ pub fn setup_search_entry_handlers(
 
 /// Setup the key controller for auto-lock and keyboard shortcuts
 ///
-/// Handles Ctrl+F (focus search), Ctrl+C/L/U (copy actions), and arrow key navigation.
+/// Handles Ctrl+F globally; card actions and navigation only while the list owns focus.
 #[allow(clippy::too_many_arguments)]
 pub fn setup_key_controller(
     window: &adw::ApplicationWindow,
@@ -622,13 +626,25 @@ pub fn setup_key_controller(
         let ctrl_or_meta = state.contains(gtk4::gdk::ModifierType::CONTROL_MASK)
             || state.contains(gtk4::gdk::ModifierType::META_MASK);
 
-        if ctrl_or_meta {
-            if matches!(key, gtk4::gdk::Key::f | gtk4::gdk::Key::F) {
-                search_entry_for_key.grab_focus();
-                return glib::Propagation::Stop;
-            }
+        if ctrl_or_meta && matches!(key, gtk4::gdk::Key::f | gtk4::gdk::Key::F) {
+            search_entry_for_key.grab_focus();
+            search_entry_for_key.select_region(0, -1);
+            return glib::Propagation::Stop;
+        }
 
-            if matches!(
+        // Composite inputs focus an internal GtkText, not their outer widget.
+        // A selected card alone must never steal keys from another control.
+        let focus_is_in_grid =
+            gtk4::prelude::GtkWindowExt::focus(&window_for_key).is_some_and(|focus| {
+                focus == flow_for_key.clone().upcast::<gtk4::Widget>()
+                    || focus.is_ancestor(&flow_for_key)
+            });
+        if !focus_is_in_grid {
+            return glib::Propagation::Proceed;
+        }
+
+        if ctrl_or_meta
+            && matches!(
                 key,
                 gtk4::gdk::Key::c
                     | gtk4::gdk::Key::C
@@ -636,30 +652,30 @@ pub fn setup_key_controller(
                     | gtk4::gdk::Key::L
                     | gtk4::gdk::Key::u
                     | gtk4::gdk::Key::U
-            ) && let Some(selected_child) = flow_for_key.selected_children().first().cloned()
-                && let Some(card_widget) = selected_child.child()
-            {
-                let widget_key = card_widget.widget_name().to_string();
-                if let Some(actions) = actions_for_key.borrow().get(&widget_key) {
-                    match key {
-                        gtk4::gdk::Key::c | gtk4::gdk::Key::C => {
-                            actions.copy_password.emit_clicked();
+            )
+            && let Some(selected_child) = flow_for_key.selected_children().first().cloned()
+            && let Some(card_widget) = selected_child.child()
+        {
+            let widget_key = card_widget.widget_name().to_string();
+            if let Some(actions) = actions_for_key.borrow().get(&widget_key) {
+                match key {
+                    gtk4::gdk::Key::c | gtk4::gdk::Key::C => {
+                        actions.copy_password.emit_clicked();
+                        return glib::Propagation::Stop;
+                    }
+                    gtk4::gdk::Key::l | gtk4::gdk::Key::L => {
+                        if let Some(button) = &actions.copy_login {
+                            button.emit_clicked();
                             return glib::Propagation::Stop;
                         }
-                        gtk4::gdk::Key::l | gtk4::gdk::Key::L => {
-                            if let Some(button) = &actions.copy_login {
-                                button.emit_clicked();
-                                return glib::Propagation::Stop;
-                            }
-                        }
-                        gtk4::gdk::Key::u | gtk4::gdk::Key::U => {
-                            if let Some(button) = &actions.open_url {
-                                button.emit_clicked();
-                                return glib::Propagation::Stop;
-                            }
-                        }
-                        _ => {}
                     }
+                    gtk4::gdk::Key::u | gtk4::gdk::Key::U => {
+                        if let Some(button) = &actions.open_url {
+                            button.emit_clicked();
+                            return glib::Propagation::Stop;
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -670,68 +686,53 @@ pub fn setup_key_controller(
                 | gtk4::gdk::Key::Right
                 | gtk4::gdk::Key::Up
                 | gtk4::gdk::Key::Down
+        ) && !state.intersects(
+            gtk4::gdk::ModifierType::CONTROL_MASK
+                | gtk4::gdk::ModifierType::META_MASK
+                | gtk4::gdk::ModifierType::ALT_MASK
+                | gtk4::gdk::ModifierType::SHIFT_MASK,
         ) {
-            if search_entry_for_key.has_focus() {
+            let mut visible_children: Vec<gtk4::FlowBoxChild> = Vec::new();
+            let mut cursor = flow_for_key.first_child();
+            while let Some(widget) = cursor {
+                let next = widget.next_sibling();
+                if let Ok(flow_child) = widget.downcast::<gtk4::FlowBoxChild>()
+                    && flow_child.is_visible()
+                    && flow_child.is_child_visible()
+                {
+                    visible_children.push(flow_child);
+                }
+                cursor = next;
+            }
+
+            if visible_children.is_empty() {
                 return glib::Propagation::Proceed;
             }
 
-            let focus_is_in_grid =
-                gtk4::prelude::GtkWindowExt::focus(&window_for_key).is_some_and(|focus| {
-                    let mut current = Some(focus);
-                    while let Some(widget) = current {
-                        if widget == flow_for_key.clone().upcast::<gtk4::Widget>() {
-                            return true;
-                        }
-                        current = widget.parent();
-                    }
-                    false
-                });
+            let selected_idx = flow_for_key
+                .selected_children()
+                .first()
+                .and_then(|selected| visible_children.iter().position(|child| child == selected))
+                .unwrap_or(0);
 
-            let has_selected_child = !flow_for_key.selected_children().is_empty();
-            if focus_is_in_grid || has_selected_child {
-                let mut visible_children: Vec<gtk4::FlowBoxChild> = Vec::new();
-                let mut cursor = flow_for_key.first_child();
-                while let Some(widget) = cursor {
-                    let next = widget.next_sibling();
-                    if let Ok(flow_child) = widget.downcast::<gtk4::FlowBoxChild>()
-                        && flow_child.is_visible()
-                    {
-                        visible_children.push(flow_child);
-                    }
-                    cursor = next;
+            let per_line = usize::try_from(flow_for_key.max_children_per_line())
+                .unwrap_or(1)
+                .max(1);
+            let target_idx = match key {
+                gtk4::gdk::Key::Left => selected_idx.saturating_sub(1),
+                gtk4::gdk::Key::Right => {
+                    (selected_idx.saturating_add(1)).min(visible_children.len() - 1)
                 }
-
-                if visible_children.is_empty() {
-                    return glib::Propagation::Proceed;
+                gtk4::gdk::Key::Up => selected_idx.saturating_sub(per_line),
+                gtk4::gdk::Key::Down => {
+                    (selected_idx.saturating_add(per_line)).min(visible_children.len() - 1)
                 }
+                _ => selected_idx,
+            };
 
-                let selected_idx = flow_for_key
-                    .selected_children()
-                    .first()
-                    .and_then(|selected| {
-                        visible_children.iter().position(|child| child == selected)
-                    })
-                    .unwrap_or(0);
-
-                let per_line = usize::try_from(flow_for_key.max_children_per_line())
-                    .unwrap_or(1)
-                    .max(1);
-                let target_idx = match key {
-                    gtk4::gdk::Key::Left => selected_idx.saturating_sub(1),
-                    gtk4::gdk::Key::Right => {
-                        (selected_idx.saturating_add(1)).min(visible_children.len() - 1)
-                    }
-                    gtk4::gdk::Key::Up => selected_idx.saturating_sub(per_line),
-                    gtk4::gdk::Key::Down => {
-                        (selected_idx.saturating_add(per_line)).min(visible_children.len() - 1)
-                    }
-                    _ => selected_idx,
-                };
-
-                flow_for_key.select_child(&visible_children[target_idx]);
-                visible_children[target_idx].grab_focus();
-                return glib::Propagation::Stop;
-            }
+            flow_for_key.select_child(&visible_children[target_idx]);
+            visible_children[target_idx].grab_focus();
+            return glib::Propagation::Stop;
         }
 
         glib::Propagation::Proceed

@@ -23,6 +23,39 @@ use heelonvault_core::services::password_service::{PasswordService, PasswordServ
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
 
+#[cfg(test)]
+pub(crate) fn native_password_hint_scenario() {
+    fn has_hint(widget: &gtk4::Widget) -> bool {
+        if widget.has_css_class("dialog-password-edit-hint-wrap") {
+            return true;
+        }
+        let mut child = widget.first_child();
+        while let Some(current) = child {
+            if has_hint(&current) {
+                return true;
+            }
+            child = current.next_sibling();
+        }
+        false
+    }
+
+    for mode in [
+        DialogMode::Create,
+        DialogMode::CreateInVault(Uuid::nil()),
+        DialogMode::Edit(Uuid::nil()),
+    ] {
+        for show_passwords in [false, true] {
+            let (panel, entry, _) = AddEditDialog::build_password_panel(mode, show_passwords);
+            assert_eq!(
+                has_hint(panel.upcast_ref()),
+                matches!(mode, DialogMode::Edit(_)) && !show_passwords,
+                "{mode:?}, show_passwords_in_edit={show_passwords}"
+            );
+            assert!(entry.text().is_empty());
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
 pub enum DialogMode {
@@ -94,7 +127,8 @@ impl AddEditDialog {
     }
 
     fn build_password_panel(
-        edit_hint: Option<&str>,
+        mode: DialogMode,
+        show_passwords_in_edit: bool,
     ) -> (gtk4::Frame, gtk4::PasswordEntry, PasswordStrengthBar) {
         let frame = gtk4::Frame::new(None);
         frame.add_css_class("dialog-type-frame");
@@ -157,7 +191,7 @@ impl AddEditDialog {
 
         box_widget.append(&password_label);
         box_widget.append(&password_row);
-        if let Some(hint) = edit_hint {
+        if matches!(mode, DialogMode::Edit(_)) && !show_passwords_in_edit {
             let hint_wrap = gtk4::Box::builder()
                 .orientation(Orientation::Horizontal)
                 .spacing(8)
@@ -172,7 +206,9 @@ impl AddEditDialog {
             hint_icon.set_pixel_size(16);
             hint_icon.add_css_class("dialog-password-edit-hint-icon");
 
-            let hint_label = gtk4::Label::new(Some(hint));
+            let hint_label = gtk4::Label::new(Some(
+                heelonvault_core::tr!("add-edit-password-edit-hint").as_str(),
+            ));
             hint_label.set_halign(Align::Start);
             hint_label.set_xalign(0.0);
             hint_label.set_wrap(true);

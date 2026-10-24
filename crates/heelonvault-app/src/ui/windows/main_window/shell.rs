@@ -43,6 +43,7 @@ pub(super) fn build_content_shell(
 
     let search_entry = gtk4::SearchEntry::builder()
         .placeholder_text(heelonvault_core::tr!("main-search-placeholder").as_str())
+        .tooltip_text(heelonvault_core::tr!("main-search-keyboard-tooltip").as_str())
         .hexpand(true)
         .build();
     search_entry.add_css_class("main-search-entry");
@@ -193,6 +194,9 @@ pub(super) fn build_content_shell(
             ));
             search_entry_r.set_placeholder_text(Some(
                 heelonvault_core::tr!("main-search-placeholder").as_str(),
+            ));
+            search_entry_r.set_tooltip_text(Some(
+                heelonvault_core::tr!("main-search-keyboard-tooltip").as_str(),
             ));
             help_button_r.set_tooltip_text(Some(
                 heelonvault_core::tr!("main-search-help-tooltip").as_str(),

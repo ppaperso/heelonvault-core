@@ -115,8 +115,24 @@ Rôle de l'écran :
 
 ### Centre de sécurité
 
-Sélectionnez **Centre de sécurité** dans la barre latérale pour analyser localement tous
-les coffres accessibles. La synthèse indique les éléments concernés, les coffres analysés,
+Le diagnostic local de tous les coffres accessibles démarre automatiquement à la connexion
+et après un déverrouillage par PIN, sans ouvrir la page. Il se recalcule après création,
+modification ou suppression d'un secret, restauration ou purge de la corbeille, import CSV,
+création ou suppression d'un coffre et changements d'équipe affectant les accès réalisés
+dans l'application. Les demandes rapprochées sont regroupées pour éviter les analyses en double.
+
+Le badge de la barre latérale indique `...` pendant l'actualisation, le nombre d'éléments
+à examiner après l'analyse, et `0` uniquement après un bilan complet sans constat. `?`
+signifie qu'aucun bilan n'est disponible ; `!` signale une erreur ou une couverture incomplète
+sans constat chiffré. Son infobulle précise l'état. Un compteur nul n'est pas une garantie
+d'absence de compromission.
+
+Sélectionnez **Centre de sécurité** pour consulter le dernier diagnostic sans relancer
+inutilement l'analyse. Le bouton d'actualisation permet de demander un nouveau bilan, notamment
+après un changement effectué depuis une autre session. Quitter la page n'interrompt pas
+l'analyse en arrière-plan ; verrouiller la session l'annule et efface ses résultats.
+
+La synthèse indique les éléments concernés, les coffres analysés,
 les coffres indisponibles et les mots de passe illisibles. Une analyse incomplète n'est
 jamais présentée comme un bilan sain.
 
@@ -259,13 +275,27 @@ Exemples : `login:alice` · `coffre:perso` · `titre:gmail` · `url:google`
 
 Le bouton `?` à droite de la barre affiche ce récapitulatif directement dans l'application.
 
+### Corriger une recherche au clavier
+
+- `Ctrl+F` (`Cmd+F` sur macOS) place le curseur dans la recherche et sélectionne le texte existant.
+- Les flèches gauche/droite déplacent le curseur ; `Maj` + flèche sélectionne du texte et
+  `Ctrl` + flèche utilise la navigation native par mots selon le système.
+- Copier, couper, coller et sélectionner tout conservent leur comportement habituel dans les
+  champs texte, même lorsqu'une carte de secret reste sélectionnée.
+- `Entrée` applique la saisie actuelle et place le focus sur le premier résultat visible.
+  Sans résultat, le focus reste dans la recherche pour la corriger.
+
 ### Raccourcis clavier sur la carte active
 
-Quand une carte (ou une ligne, en affichage liste) est sélectionnée, les actions rapides suivantes sont disponibles :
+Quand le focus est dans la liste des secrets et qu'une carte (ou une ligne, en affichage liste)
+est sélectionnée, les actions rapides suivantes sont disponibles :
 
 - `Ctrl+C` : copier le mot de passe ;
 - `Ctrl+L` : copier le login (si présent) ;
 - `Ctrl+U` : ouvrir l'URL (si présente).
+
+Les flèches naviguent alors entre les résultats visibles. Ces raccourcis ne détournent pas
+les touches d'un autre champ ou contrôle de l'interface.
 
 ### Indicateur du presse-papiers
 

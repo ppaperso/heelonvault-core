@@ -30,6 +30,46 @@
         color: @hv_brand_200;
     }
 
+    headerbar button.flat:hover:not(:disabled):not(:checked) {
+        background-color: alpha(@hv_on_brand, 0.14);
+    }
+
+    headerbar button.flat:active:not(:disabled):not(:checked) {
+        background-color: alpha(@hv_on_brand, 0.22);
+    }
+
+    headerbar button.flat:checked {
+        background: alpha(@hv_on_brand, 0.22);
+        border-color: alpha(@hv_on_brand, 0.35);
+        color: @hv_on_brand;
+    }
+
+    headerbar button:focus-visible {
+        outline-color: @hv_brand_200;
+    }
+
+    headerbar menubutton.header-profile-button > button {
+        background: @hv_surface;
+        color: @hv_brand_900;
+        border: 1px solid @hv_border;
+    }
+
+    headerbar menubutton.header-profile-button > button:hover:not(:disabled) {
+        background: @hv_brand_50;
+        border-color: @hv_brand_300;
+    }
+
+    headerbar menubutton.header-profile-button > button:active:not(:disabled),
+    headerbar menubutton.header-profile-button > button:checked {
+        background: @hv_brand_100;
+    }
+
+    headerbar menubutton.header-profile-button > button label,
+    headerbar menubutton.header-profile-button > button image,
+    headerbar menubutton.header-profile-button > button arrow {
+        color: inherit;
+    }
+
     .header-date-label {
         color: @hv_on_brand;
         font-size: 0.96rem;

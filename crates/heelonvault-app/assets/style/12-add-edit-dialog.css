@@ -133,17 +133,35 @@
     font-size: 0.92rem;
 }
 
-.add-edit-dialog button.add-edit-delete-btn {
-    color: @hv_danger;
+.add-edit-dialog button.add-edit-back-btn {
+    color: @hv_on_brand;
+    background: alpha(@hv_on_brand, 0.06);
+    border: 1px solid alpha(@hv_on_brand, 0.35);
 }
 
+.add-edit-dialog button.add-edit-back-btn:hover:not(:disabled) {
+    background: alpha(@hv_on_brand, 0.10);
+}
+
+.add-edit-dialog button.add-edit-back-btn:active:not(:disabled) {
+    background: alpha(@hv_on_brand, 0.14);
+}
+
+.add-edit-dialog button.add-edit-back-btn:focus-visible {
+    outline-color: @hv_on_brand;
+}
+
+.add-edit-dialog button.add-edit-back-btn label,
+.add-edit-dialog button.add-edit-back-btn image,
 .add-edit-dialog button.add-edit-delete-btn image,
 .add-edit-dialog button.add-edit-delete-btn label {
-    color: @hv_danger;
+    color: inherit;
 }
 
-.add-edit-dialog button.add-edit-delete-btn:hover {
-    background: alpha(@hv_danger, 0.10);
+.add-edit-dialog button.add-edit-back-btn:disabled {
+    color: alpha(@hv_on_brand, 0.55);
+    background: transparent;
+    border-color: alpha(@hv_on_brand, 0.18);
 }
 
 frame.add-edit-footer-card {
@@ -185,4 +203,3 @@ frame.add-edit-footer-card {
     font-weight: 700;
     color: @hv_brand_800;
 }
-

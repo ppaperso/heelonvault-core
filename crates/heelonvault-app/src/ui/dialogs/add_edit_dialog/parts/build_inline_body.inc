@@ -33,6 +33,7 @@
 
         let back_button = gtk4::Button::with_label(heelonvault_core::tr!("add-edit-button-back").as_str());
         back_button.add_css_class("flat");
+        back_button.add_css_class("add-edit-back-btn");
         let on_cancel_for_back = Rc::clone(&on_cancel);
         back_button.connect_clicked(move |_| {
             on_cancel_for_back();
@@ -156,12 +157,8 @@
             .build();
         dynamic_stack.add_css_class("dialog-dynamic-stack");
 
-        let password_hint = match mode {
-            DialogMode::Edit(_) => Some(heelonvault_core::tr!("add-edit-password-edit-hint")),
-            DialogMode::Create | DialogMode::CreateInVault(_) => None,
-        };
         let (password_panel, password_entry, password_strength_bar) =
-            Self::build_password_panel(password_hint.as_deref());
+            Self::build_password_panel(mode, show_passwords_in_edit);
         let initial_password_snapshot: Rc<std::cell::RefCell<Option<String>>> =
             Rc::new(std::cell::RefCell::new(None));
         dynamic_stack.add_titled(&password_panel, Some("password"), "password");
@@ -368,7 +365,6 @@
         save_button.set_child(Some(&save_button_content));
 
         let delete_button = gtk4::Button::new();
-        delete_button.add_css_class("flat");
         delete_button.add_css_class("destructive-action");
         delete_button.add_css_class("add-edit-delete-btn");
         delete_button.set_tooltip_text(Some(heelonvault_core::tr!("add-edit-delete-tooltip").as_str()));

@@ -115,7 +115,22 @@ Screen role:
 
 ### Security center
 
-Select **Security center** in the sidebar to analyze all vaults you can access, locally.
+Local analysis of all accessible vaults starts automatically at sign-in and after PIN unlock,
+without opening the page. It refreshes after creating, editing or deleting a secret,
+restoring or purging trash, importing CSV, creating or deleting a vault, and team changes
+affecting access made within the application. Closely spaced requests are coalesced to avoid
+duplicate analyses.
+
+The sidebar badge shows `...` while updating, the number of affected items after analysis,
+and `0` only after a complete analysis without findings. `?` means no report is available;
+`!` signals an error or incomplete coverage without a finding count. Its tooltip explains
+the status. A zero count is not a guarantee against compromise.
+
+Select **Security center** to view the latest report without unnecessarily restarting analysis.
+The refresh button requests a new report, for example after changes made in another session.
+Leaving the page does not interrupt background analysis; locking the session cancels analysis
+and clears its results.
+
 The summary shows affected items, analyzed vaults, unavailable vaults and unreadable
 passwords. An incomplete analysis is never presented as a clean bill of health.
 
@@ -257,13 +272,27 @@ Examples: `login:alice` · `vault:perso` · `title:gmail` · `url:google`
 
 The `?` button to the right of the search bar shows this reference directly in the app.
 
+### Editing a search with the keyboard
+
+- `Ctrl+F` (`Cmd+F` on macOS) focuses search and selects the existing text.
+- Left/right arrows move the cursor; `Shift` + arrow selects text and `Ctrl` + arrow uses
+  native word navigation where supported by the operating system.
+- Copy, cut, paste and select all retain their usual behavior in text fields, even when a
+  secret card remains selected.
+- `Enter` applies the current text and focuses the first visible result. When there are no
+  results, focus stays in search so you can correct it.
+
 ### Keyboard shortcuts on the active card
 
-When a card (or a row, in list view) is selected, the following quick actions are available:
+When focus is in the secret list and a card (or a row, in list view) is selected, the following
+quick actions are available:
 
 - `Ctrl+C`: copy password;
 - `Ctrl+L`: copy login (when present);
 - `Ctrl+U`: open URL (when present).
+
+Arrow keys then navigate between visible results. These shortcuts do not intercept keys
+belonging to another field or control in the interface.
 
 ### Clipboard indicator
 
