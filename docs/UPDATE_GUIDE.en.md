@@ -18,6 +18,11 @@ Database schema changes are applied **automatically** on the first launch of the
 They cannot be undone: going back to an older version requires restoring a backup made before
 the update.
 
+Security dependency updates do not, by themselves, require recreating vaults, changing your
+master password or replacing your recovery phrase. Check the changelog for any release-specific
+steps. Install the corrected package on each computer and also restart any standalone PSC
+callback bridge after updating it: replacing files does not update an already running process.
+
 ## Updating a computer
 
 Download and verify the new package as for a first install

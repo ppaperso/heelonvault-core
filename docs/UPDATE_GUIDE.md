@@ -18,6 +18,12 @@ Les évolutions du schéma de base sont appliquées **automatiquement** au premi
 nouvelle version. Elles ne sont pas réversibles : revenir à une version antérieure impose de
 restaurer une sauvegarde faite avant la mise à jour.
 
+Les mises à jour de dépendances de sécurité ne nécessitent pas, à elles seules, de recréer vos
+coffres, de changer votre mot de passe maître ou de renouveler votre phrase de récupération.
+Consultez le journal des modifications pour les éventuelles opérations propres à une livraison.
+Installez le paquet corrigé sur chaque poste et redémarrez aussi tout pont de rappel PSC autonome
+après sa mise à jour : remplacer les fichiers ne met pas à jour un processus déjà en cours.
+
 ## Mettre à jour un poste
 
 Téléchargez et vérifiez le nouveau paquet comme pour une première installation

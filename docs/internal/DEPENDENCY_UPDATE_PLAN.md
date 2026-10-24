@@ -7,6 +7,56 @@ supply-chain et conserver la compatibilite des coffres, sauvegardes et phrases d
 recuperation. Les deux depots restent des unites de livraison distinctes :
 chacun conserve son propre `Cargo.lock`. Aucune base utilisateur n'est modifiee.
 
+## Maintenance corrective du 24 octobre 2026
+
+Cette maintenance succede aux resultats historiques ci-dessous :
+
+- Correctifs `ctutils` 0.4.5, `rustls-webpki` 0.103.16,
+  `webpki-root-certs` et `webpki-roots` 1.0.11 dans les deux lockfiles,
+  pour RUSTSEC-2026-0381, 0382, 0383 et 0385.
+- Actualisation des dependances compatibles dans les deux depots et migration
+  de `rstest` vers 0.28.0 pour les tests Core.
+- Selection explicite de `crypto-common` 0.1.7 sur sa branche historique.
+  Cette version upstream exige exactement `generic-array` 0.14.7 : le recul
+  depuis 0.14.9 est donc intentionnel. Un `cargo update` global peut preferer
+  le couple `crypto-common` 0.1.6 / `generic-array` 0.14.9 ; ce choix du
+  resolveur ne signale pas un nouveau correctif manquant. Aucun epinglage
+  artificiel ni dependance directe supplementaire n'est ajoute.
+- `matchit` reste en 0.8.4 car `axum` 0.8.9 l'impose exactement ;
+  attendre une mise a jour upstream avant de migrer vers 0.8.6.
+- Versions du produit alignees, y compris la crate interne du verificateur
+  d'URL. Le shim SQLx conserve sa version upstream. La contrainte Premium
+  sur Core reste compatible avec la livraison corrective.
+- Changelogs FR/EN, README, guide de mise a jour, inventaire des licences
+  et SBOM actualises. Aucun changement de l'API publique ni des formats
+  persistants, des sauvegardes ou des rapports signes ; MSRV inchangee.
+
+### Validation locale de cette maintenance
+
+- Formatage, Clippy strict, compilation verrouillee et compilation de toutes
+  les cibles de test : OK dans les deux depots.
+- Workspace avec toutes les fonctionnalites : 362 tests reussis, aucun echec.
+  Le smoke test GTK natif reste ignore par defaut car il necessite un
+  affichage graphique ; les deux doctests deja ignores restent inchanges.
+- Premium autonome avec toutes les fonctionnalites, pont PSC compris :
+  23 tests reussis, aucun ignore.
+- Compilation de toutes les cibles et fonctionnalites sous Rust 1.98.0 :
+  OK dans les deux depots. Assemblage Community sans fonctionnalites par
+  defaut : OK.
+- Audits des deux lockfiles : aucun avis ni avertissement de securite.
+  Toutes les politiques cargo-deny passent dans Core ; advisories passe
+  dans Premium avec toutes les fonctionnalites.
+- API publique comparee au Core publie : 223 controles semver reussis,
+  aucune rupture. `cargo publish --dry-run --locked --allow-dirty` valide
+  la construction du paquet Core isole sans publier quoi que ce soit.
+  `--allow-dirty` inclut uniquement les changements locaux non commites
+  dans cette simulation.
+- SBOM : 409 composants ; deux generations identiques hors identifiant
+  et horodatage. Les versions du produit correspondent aux manifestes et
+  aux deux lockfiles.
+- CI Linux/Fedora/macOS/Windows a confirmer apres publication des changements.
+  Aucun commit, push, tag ou publication de crate effectue.
+
 ## Ordre d'execution et points de controle
 
 1. **Securite, sans migration fonctionnelle**

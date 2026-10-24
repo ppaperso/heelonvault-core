@@ -7,6 +7,18 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [2.1.1] — 2026-10-24
+
+### Sécurité et dépendances
+
+- Correction des avis RUSTSEC-2026-0381, 0382, 0383 et 0385 dans les deux fichiers de verrouillage : `ctutils` 0.4.5, `rustls-webpki` 0.103.16, `webpki-root-certs` et `webpki-roots` 1.0.11. Les correctifs concernent les opérations à temps constant et le rejet des chaînes de certificats emSign révoquées ; aucun avis ignoré.
+- Actualisation des dépendances compatibles, notamment Tokio 1.54.1, UUID 1.29.0, ICU 2.4.0 et webbrowser 1.2.5 ; migration de la dépendance de test `rstest` vers 0.28.0.
+- `crypto-common` 0.1.7 impose `generic-array` 0.14.7 sur la branche historique utilisée par SQLx. `matchit` reste en 0.8.4, version exacte imposée par Axum ; aucune contrainte upstream contournée.
+- Versions Core, App, vérificateur d'URL et Premium alignées. SBOM et inventaire des licences actualisés.
+- Aucun changement de l'API publique, du schéma de base, des formats chiffrés, des sauvegardes ou des rapports signés. Rust minimum inchangé.
+
+---
+
 ## [2.1.0] — 2026-10-18
 
 ### Centre de sécurité

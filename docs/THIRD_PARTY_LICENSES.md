@@ -56,11 +56,11 @@ equivalent). The full license texts are available via
 | serde | 1.0.229 | MIT OR Apache-2.0 | Serialization framework |
 | serde_json | 1.0.154 | MIT OR Apache-2.0 | JSON serialization |
 | thiserror | 2.0.21 | MIT OR Apache-2.0 | Error type derivation |
-| tokio | 1.53.3 | MIT | Async runtime |
+| tokio | 1.54.1 | MIT | Async runtime |
 | totp-rs | 6.0.0 | MIT | TOTP / 2FA authentication |
 | tracing | 0.1.44 | MIT | Structured logging |
 | tracing-subscriber | 0.3.23 | MIT | Log subscriber/appender |
-| uuid | 1.28.0 | Apache-2.0 OR MIT | UUID generation |
+| uuid | 1.29.0 | Apache-2.0 OR MIT | UUID generation |
 | zxcvbn | 3.1.1 | MIT | Password strength estimation |
 
 ### 2.2 Full Transitive Dependency Table
@@ -112,7 +112,7 @@ equivalent). The full license texts are available via
 | cairo-rs | 0.22.9 | MIT |
 | cairo-sys-rs | 0.22.9 | MIT |
 | cast | 0.3.0 | MIT OR Apache-2.0 |
-| cc | 1.8.0 | MIT OR Apache-2.0 |
+| cc | 1.10.0 | MIT OR Apache-2.0 |
 | cfg-expr | 0.20.10 | MIT OR Apache-2.0 |
 | cfg-if | 1.0.5 | MIT OR Apache-2.0 |
 | cfg_aliases | 0.2.2 | MIT |
@@ -138,7 +138,7 @@ equivalent). The full license texts are available via
 | cpufeatures | 0.3.1 | MIT OR Apache-2.0 |
 | crc | 3.4.0 | MIT OR Apache-2.0 |
 | crc-catalog | 2.5.0 | MIT OR Apache-2.0 |
-| crc32fast | 1.5.2 | MIT OR Apache-2.0 |
+| crc32fast | 1.5.3 | MIT OR Apache-2.0 |
 | criterion | 0.8.2 | Apache-2.0 OR MIT |
 | criterion-plot | 0.8.2 | Apache-2.0 OR MIT |
 | crossbeam-channel | 0.5.17 | MIT OR Apache-2.0 |
@@ -147,12 +147,12 @@ equivalent). The full license texts are available via
 | crossbeam-queue | 0.3.14 | MIT OR Apache-2.0 |
 | crossbeam-utils | 0.8.23 | MIT OR Apache-2.0 |
 | crunchy | 0.2.4 | MIT |
-| crypto-common | 0.1.6 | MIT OR Apache-2.0 |
+| crypto-common | 0.1.7 | MIT OR Apache-2.0 |
 | crypto-common | 0.2.2 | MIT OR Apache-2.0 |
 | csv | 1.4.0 | Unlicense/MIT |
 | csv-core | 0.1.13 | Unlicense/MIT |
 | ctr | 0.10.1 | MIT OR Apache-2.0 |
-| ctutils | 0.4.3 | Apache-2.0 OR MIT |
+| ctutils | 0.4.5 | Apache-2.0 OR MIT |
 | curve25519-dalek | 5.0.0 | BSD-3-Clause |
 | curve25519-dalek-derive | 0.1.1 | MIT/Apache-2.0 |
 | darling | 0.20.11 | MIT |
@@ -184,7 +184,7 @@ equivalent). The full license texts are available via
 | fdeflate | 0.3.7 | MIT OR Apache-2.0 |
 | fiat-crypto | 0.3.0 | MIT OR Apache-2.0 OR BSD-1-Clause |
 | field-offset | 0.3.6 | MIT OR Apache-2.0 |
-| find-msvc-tools | 0.1.14 | MIT OR Apache-2.0 |
+| find-msvc-tools | 0.1.15 | MIT OR Apache-2.0 |
 | flate2 | 1.1.10 | MIT OR Apache-2.0 |
 | fluent-bundle | 0.16.0 | Apache-2.0 OR MIT |
 | fluent-langneg | 0.13.1 | Apache-2.0 OR MIT |
@@ -211,7 +211,7 @@ equivalent). The full license texts are available via
 | gdk-pixbuf-sys | 0.22.9 | MIT |
 | gdk4 | 0.11.5 | MIT |
 | gdk4-sys | 0.11.5 | MIT |
-| generic-array | 0.14.9 | MIT |
+| generic-array | 0.14.7 | MIT |
 | getrandom | 0.2.17 | MIT OR Apache-2.0 |
 | getrandom | 0.4.3 | MIT OR Apache-2.0 |
 | ghash | 0.6.0 | Apache-2.0 OR MIT |
@@ -236,10 +236,10 @@ equivalent). The full license texts are available via
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 |
 | hashlink | 0.11.1 | MIT OR Apache-2.0 |
 | heck | 0.5.0 | MIT OR Apache-2.0 |
-| heelonvault-app | 2.1.0 | Apache-2.0 |
-| heelonvault-core | 2.1.0 | Apache-2.0 |
-| heelonvault-premium | 2.1.0 | LicenseRef-Heelonys-Proprietary |
-| heelonvault-url-check | 2.1.0 | Apache-2.0 |
+| heelonvault-app | 2.1.1 | Apache-2.0 |
+| heelonvault-core | 2.1.1 | Apache-2.0 |
+| heelonvault-premium | 2.1.1 | LicenseRef-Heelonys-Proprietary |
+| heelonvault-url-check | 2.1.1 | Apache-2.0 |
 | hex | 0.4.3 | MIT OR Apache-2.0 |
 | hex-conservative | 0.2.3 | CC0-1.0 |
 | hkdf | 0.13.0 | MIT OR Apache-2.0 |
@@ -254,20 +254,20 @@ equivalent). The full license texts are available via
 | hyper-util | 0.1.21 | MIT |
 | iana-time-zone | 0.1.65 | MIT OR Apache-2.0 |
 | iana-time-zone-haiku | 0.1.2 | MIT OR Apache-2.0 |
-| icu_collections | 2.3.0 | Unicode-3.0 |
-| icu_locale_core | 2.3.0 | Unicode-3.0 |
-| icu_normalizer | 2.3.0 | Unicode-3.0 |
-| icu_normalizer_data | 2.3.0 | Unicode-3.0 |
-| icu_properties | 2.3.0 | Unicode-3.0 |
-| icu_properties_data | 2.3.0 | Unicode-3.0 |
-| icu_provider | 2.3.1 | Unicode-3.0 |
+| icu_collections | 2.4.0 | Unicode-3.0 |
+| icu_locale_core | 2.4.0 | Unicode-3.0 |
+| icu_normalizer | 2.4.0 | Unicode-3.0 |
+| icu_normalizer_data | 2.4.0 | Unicode-3.0 |
+| icu_properties | 2.4.0 | Unicode-3.0 |
+| icu_properties_data | 2.4.0 | Unicode-3.0 |
+| icu_provider | 2.4.0 | Unicode-3.0 |
 | ident_case | 1.0.1 | MIT/Apache-2.0 |
 | idna | 1.1.0 | MIT OR Apache-2.0 |
 | idna_adapter | 1.2.2 | Apache-2.0 OR MIT |
 | ignore | 0.4.33 | Unlicense OR MIT |
 | image | 0.25.10 | MIT OR Apache-2.0 |
 | indexmap | 2.14.2 | Apache-2.0 OR MIT |
-| inout | 0.2.4 | MIT OR Apache-2.0 |
+| inout | 0.2.5 | MIT OR Apache-2.0 |
 | intl-memoizer | 0.5.3 | Apache-2.0 OR MIT |
 | intl_pluralrules | 7.0.2 | Apache-2.0/MIT |
 | ipnet | 2.12.2 | MIT OR Apache-2.0 |
@@ -357,8 +357,8 @@ equivalent). The full license texts are available via
 | relative-path | 1.9.3 | MIT OR Apache-2.0 |
 | reqwest | 0.13.5 | MIT OR Apache-2.0 |
 | ring | 0.17.14 | Apache-2.0 AND ISC |
-| rstest | 0.27.0 | MIT OR Apache-2.0 |
-| rstest_macros | 0.27.0 | MIT OR Apache-2.0 |
+| rstest | 0.28.0 | MIT OR Apache-2.0 |
+| rstest_macros | 0.28.0 | MIT OR Apache-2.0 |
 | rustc-hash | 2.1.3 | Apache-2.0 OR MIT |
 | rustc_version | 0.4.1 | MIT OR Apache-2.0 |
 | rustix | 1.1.5 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
@@ -367,7 +367,7 @@ equivalent). The full license texts are available via
 | rustls-pki-types | 1.15.1 | MIT OR Apache-2.0 |
 | rustls-platform-verifier | 0.7.1 | MIT OR Apache-2.0 |
 | rustls-platform-verifier-android | 0.2.0 | MIT OR Apache-2.0 |
-| rustls-webpki | 0.103.15 | ISC |
+| rustls-webpki | 0.103.16 | ISC |
 | rustversion | 1.0.23 | MIT OR Apache-2.0 |
 | rusty-fork | 0.3.1 | MIT/Apache-2.0 |
 | ryu | 1.0.23 | Apache-2.0 OR BSL-1.0 |
@@ -395,7 +395,7 @@ equivalent). The full license texts are available via
 | simd_cesu8 | 1.2.0 | Apache-2.0 OR MIT |
 | simdutf8 | 0.1.5 | MIT OR Apache-2.0 |
 | slab | 0.4.12 | MIT |
-| smallvec | 1.16.3 | MIT OR Apache-2.0 |
+| smallvec | 1.16.4 | MIT OR Apache-2.0 |
 | socket2 | 0.6.5 | MIT OR Apache-2.0 |
 | spin | 0.9.9 | MIT |
 | sqlx-core | 0.9.0 | MIT OR Apache-2.0 |
@@ -414,7 +414,7 @@ equivalent). The full license texts are available via
 | sync_wrapper | 1.0.2 | Apache-2.0 |
 | synstructure | 0.14.0 | MIT |
 | system-deps | 7.0.8 | MIT OR Apache-2.0 |
-| system-deps | 9.0.0 | MIT OR Apache-2.0 |
+| system-deps | 9.0.1 | MIT OR Apache-2.0 |
 | target-lexicon | 0.13.5 | Apache-2.0 WITH LLVM-exception |
 | tempfile | 3.27.0 | MIT OR Apache-2.0 |
 | thiserror | 2.0.21 | MIT OR Apache-2.0 |
@@ -423,10 +423,10 @@ equivalent). The full license texts are available via
 | time | 0.3.55 | MIT OR Apache-2.0 |
 | time-core | 0.1.9 | MIT OR Apache-2.0 |
 | time-macros | 0.2.32 | MIT OR Apache-2.0 |
-| tinystr | 0.8.4 | Unicode-3.0 |
+| tinystr | 0.8.5 | Unicode-3.0 |
 | tinytemplate | 1.2.1 | Apache-2.0 OR MIT |
 | tinyvec | 1.13.3 | Zlib OR Apache-2.0 OR MIT |
-| tokio | 1.53.3 | MIT |
+| tokio | 1.54.1 | MIT |
 | tokio-macros | 2.7.2 | MIT |
 | tokio-rustls | 0.26.6 | MIT OR Apache-2.0 |
 | tokio-stream | 0.1.19 | MIT |
@@ -465,7 +465,7 @@ equivalent). The full license texts are available via
 | url | 2.5.8 | MIT OR Apache-2.0 |
 | urlencoding | 2.1.3 | MIT |
 | utf8_iter | 1.0.4 | Apache-2.0 OR MIT |
-| uuid | 1.28.0 | Apache-2.0 OR MIT |
+| uuid | 1.29.0 | Apache-2.0 OR MIT |
 | valuable | 0.1.1 | MIT |
 | vcpkg | 0.2.15 | MIT/Apache-2.0 |
 | version-compare | 0.2.1 | MIT |
@@ -483,9 +483,9 @@ equivalent). The full license texts are available via
 | wasm-bindgen-shared | 0.2.129 | MIT OR Apache-2.0 |
 | web-sys | 0.3.106 | MIT OR Apache-2.0 |
 | web-time | 1.1.0 | MIT OR Apache-2.0 |
-| webbrowser | 1.2.4 | MIT OR Apache-2.0 |
-| webpki-root-certs | 1.0.9 | CDLA-Permissive-2.0 |
-| webpki-roots | 1.0.9 | CDLA-Permissive-2.0 |
+| webbrowser | 1.2.5 | MIT OR Apache-2.0 |
+| webpki-root-certs | 1.0.11 | CDLA-Permissive-2.0 |
+| webpki-roots | 1.0.11 | CDLA-Permissive-2.0 |
 | whoami | 2.1.3 | Apache-2.0 OR BSL-1.0 OR MIT |
 | winapi | 0.3.9 | MIT/Apache-2.0 |
 | winapi-i686-pc-windows-gnu | 0.4.0 | MIT/Apache-2.0 |
@@ -511,7 +511,7 @@ equivalent). The full license texts are available via
 | winnow | 1.0.4 | MIT |
 | winreg | 0.56.0 | MIT |
 | writeable | 0.6.4 | Unicode-3.0 |
-| yoke | 0.8.3 | Unicode-3.0 |
+| yoke | 0.8.4 | Unicode-3.0 |
 | yoke-derive | 0.8.4 | Unicode-3.0 |
 | zerocopy | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT |
 | zerocopy-derive | 0.8.63 | BSD-2-Clause OR Apache-2.0 OR MIT |
@@ -520,8 +520,8 @@ equivalent). The full license texts are available via
 | zeroize | 1.9.1 | Apache-2.0 OR MIT |
 | zeroize_derive | 1.5.0 | Apache-2.0 OR MIT |
 | zerotrie | 0.2.5 | Unicode-3.0 |
-| zerovec | 0.11.8 | Unicode-3.0 |
-| zerovec-derive | 0.11.6 | Unicode-3.0 |
+| zerovec | 0.11.9 | Unicode-3.0 |
+| zerovec-derive | 0.11.7 | Unicode-3.0 |
 | zlib-rs | 0.6.8 | Zlib |
 | zmij | 1.0.23 | MIT |
 | zxcvbn | 3.1.1 | MIT |

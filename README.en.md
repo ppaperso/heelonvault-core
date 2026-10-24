@@ -1,4 +1,4 @@
-# HeelonVault 2.1.0
+# HeelonVault 2.1.1
 
 Language: EN | [FR](README.md)
 
@@ -128,4 +128,4 @@ Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-> **Source version**: 2.1.0 (in preparation) — detailed notes in [CHANGELOG.en.md](docs/CHANGELOG.en.md). Published packages remain available on the Releases page.
+> **Source version**: 2.1.1 (in preparation) — detailed notes in [CHANGELOG.en.md](docs/CHANGELOG.en.md). Published packages remain available on the Releases page.
