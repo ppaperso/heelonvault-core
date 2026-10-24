@@ -1,4 +1,6 @@
 pub mod dialogs;
+#[cfg(test)]
+pub(crate) mod doc_screenshots;
 pub mod entitlements;
 pub mod license_badge;
 pub mod messages;

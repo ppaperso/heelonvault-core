@@ -183,6 +183,37 @@ struct SidebarWidgets {
     administration_button: gtk4::Button,
 }
 
+#[cfg(test)]
+mod documentation_tests {
+    #[test]
+    #[ignore = "documentation generation only; requires isolated config and a graphical display"]
+    fn documentation_screenshots() -> Result<(), Box<dyn std::error::Error>> {
+        let language = crate::ui::doc_screenshots::language().ok_or("missing capture language")?;
+        if !["fr", "en"].contains(&language.as_str()) {
+            return Err("unsupported capture language".into());
+        }
+        let config = std::env::var_os("XDG_CONFIG_HOME").ok_or("missing isolated config")?;
+        let marker = std::path::PathBuf::from(config).join("heelonvault-documentation-fixture");
+        if !marker.is_file() {
+            return Err(
+                "documentation capture requires the generation script's isolated config".into(),
+            );
+        }
+        libadwaita::init()?;
+        libadwaita::StyleManager::default().set_color_scheme(libadwaita::ColorScheme::ForceLight);
+        gtk4::Settings::default()
+            .ok_or("missing GTK settings")?
+            .set_gtk_font_name(Some("DejaVu Sans 10"));
+        gtk4::gio::resources_register_include!("heelonvault.gresource")?;
+        assert!(heelonvault_core::i18n::set_language(&language));
+        super::security_center::tests::native_security_center_scenario()?;
+        crate::ui::updates::tests::native_update_scenario()?;
+        assert!(heelonvault_core::i18n::set_language(&language));
+        super::profile_view::smoke_tests::native_profile_scenario()?;
+        Ok(())
+    }
+}
+
 /// GTK can only be initialised once per process, from one thread, and libtest runs every test
 /// on its own thread: the native scenarios therefore share this single entry point.
 #[cfg(test)]
