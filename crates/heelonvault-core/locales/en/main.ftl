@@ -280,6 +280,7 @@ main-category-documents = Secure documents
 main-account-title = Account
 main-profile-security = Profile & Security
 main-search-placeholder = Search a secret
+main-search-keyboard-tooltip = Ctrl+F (Cmd+F on macOS): select the search text. Enter: go to the first result. Arrow keys move the cursor within the text.
 main-status-total-tooltip = Total number of secrets in this vault
 main-status-noncompliant-tooltip = Non-compliant secrets: weak or duplicated
 main-status-incomplete-tooltip = Number of incomplete secrets (missing login or URL)

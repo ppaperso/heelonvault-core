@@ -280,6 +280,7 @@ main-category-documents = Documents sécurisés
 main-account-title = Compte
 main-profile-security = Profil & Sécurité
 main-search-placeholder = Rechercher un secret
+main-search-keyboard-tooltip = Ctrl+F (Cmd+F sur macOS) : sélectionner la recherche. Entrée : aller au premier résultat. Les flèches déplacent le curseur dans le texte.
 main-status-total-tooltip = Nombre total de secrets dans ce coffre
 main-status-noncompliant-tooltip = Secrets non conformes: faibles ou en doublon
 main-status-incomplete-tooltip = Nombre de secrets incomplets (sans login ou URL)

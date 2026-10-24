@@ -192,6 +192,7 @@ mod native_gtk_tests {
     fn native_gtk_smoke() -> Result<(), Box<dyn std::error::Error>> {
         libadwaita::init()?;
         gtk4::gio::resources_register_include!("heelonvault.gresource")?;
+        super::window::keyboard_tests::native_keyboard_scenario()?;
         super::security_center::tests::native_security_center_scenario()?;
         super::profile_view::smoke_tests::native_profile_scenario()?;
         Ok(())

@@ -20,3 +20,6 @@ pub mod pin_badge;
 pub mod refresh;
 pub mod vault_list;
 pub mod views;
+
+#[cfg(test)]
+pub(super) mod keyboard_tests;
