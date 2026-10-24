@@ -39,7 +39,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ### Update notifications
 
-- Optional background discovery of stable releases from the official GitHub repository at startup, at most once every 24 hours. No request before consent; manual checking remains available with automatic checks disabled.
+- Optional background discovery of stable releases from the official GitHub repository at startup, at most once every 24 hours. No request before consent, which is stored per operating-system user; manual checking remains available with automatic checks disabled.
 - Nonblocking HeelonVault-branded banner for initial consent, release notes/downloads and deferral. Dedicated Profile & Security panel with installed version, progress and explicit offline/configuration-error states, in French and English.
 - No automatic download or installation and no vault, account or license data sent. Bounded network time and response size, redirects rejected and links restricted to the official repository. Release discovery does not attest package authenticity or security.
 - Tests cover semver comparison, consent, persistence, HTTP errors, size limits, network deadlines and native GTK flows with simulated results.

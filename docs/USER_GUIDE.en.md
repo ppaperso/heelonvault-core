@@ -235,7 +235,7 @@ In Community, an administrator may see a locked presentation of Professional: it
 
 In **Profile & Security → Application updates**, choose **Check now**. Manual checks work even when automatic checks are disabled.
 
-If you allow them, automatic checks contact GitHub at startup, **at most once a day**. The setting applies to this installation. GitHub receives your IP address, but this check sends no vault, account or license data.
+If you allow them, automatic checks contact GitHub at startup, **at most once a day**. The setting applies to your user account on this computer (each user of a shared computer decides for themselves), not to your HeelonVault account. GitHub receives your IP address, but this check sends no vault, account or license data.
 
 ![Initial consent to update checks and manual check control](images/user-guide/en/updates-consent.png)
 

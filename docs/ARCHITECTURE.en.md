@@ -24,8 +24,8 @@ No server is required: secrets never leave the machine.
 Release discovery (`heelonvault-app::ui::updates`) is a separate network boundary,
 independent of sessions and licenses: one HTTPS request to
 `api.github.com/repos/ppaperso/heelonvault-core/releases/latest`, without tokens or vault
-data. Consent, last attempt time and latest known stable tag are stored in installation-level
-`update_preferences.json` in the UI configuration directory. Missing or corrupt consent
+data. Consent, last attempt time and latest known stable tag are stored in
+`update_preferences.json` in the UI configuration directory of each operating-system user. Missing or corrupt consent
 prevents automatic checks; read/write errors are visible. At startup a 24-hour budget is
 checked before launching on Tokio; manual checks bypass that budget. Concurrent checks
 are coalesced and disabling checks aborts the in-flight request.

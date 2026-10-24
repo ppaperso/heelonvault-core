@@ -25,7 +25,8 @@ La découverte de versions (`heelonvault-app::ui::updates`) est une autre fronti
 réseau, indépendante des sessions et des licences : une requête HTTPS vers
 `api.github.com/repos/ppaperso/heelonvault-core/releases/latest`, sans jeton ni donnée
 de coffre. Consentement, date de tentative et dernier tag stable connu sont conservés
-dans `update_preferences.json` dans le répertoire de configuration UI, par installation.
+dans `update_preferences.json`, dans le répertoire de configuration UI de chaque utilisateur
+du système d'exploitation.
 L'absence ou la corruption du consentement interdit le contrôle automatique ; les erreurs
 de lecture/écriture sont visibles. Au démarrage, le budget de 24 heures est vérifié avant
 le lancement sur Tokio ; le contrôle manuel est indépendant de ce budget. Les contrôles

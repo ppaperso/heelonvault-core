@@ -38,8 +38,8 @@ revocation status via online OCSP/CRL, page existence and site legitimacy are no
 No reputation provider is enabled. Core's no-network invariant remains tested.
 
 Optional application update checks run in the App layer, not Core. Automatic checks require
-explicit installation-level consent and are limited to one attempt every 24 hours at startup;
-the profile offers a one-off manual check. Requests go only to the official GitHub releases
+explicit consent, stored per operating-system user, and are limited to one attempt every
+24 hours at startup; the profile offers a one-off manual check. Requests go only to the official GitHub releases
 API over HTTPS, with no token, vault, account or license data. GitHub can observe the client
 IP. Redirects are rejected; request duration and response size are bounded. Only stable
 semver releases are considered, and release links use the fixed official repository.
