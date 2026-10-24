@@ -1,3 +1,6 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! Security tests for backup protection.
@@ -13,6 +16,7 @@
 //! that a tampered backup or a wrong recovery phrase is genuinely rejected, and that the
 //! exported file never contains the plaintext secret or password.
 
+use anyhow::Context as _;
 use heelonvault_core::errors::{AppError, RecoveryFailure};
 use heelonvault_core::models::Vault;
 use heelonvault_core::models::secret_item::{BlobStorage, SecretItem, SecretType};
@@ -51,7 +55,7 @@ fn secret(value: &str) -> SecretBox<Vec<u8>> {
     SecretBox::new(Box::new(value.as_bytes().to_vec()))
 }
 
-async fn open_pool(path: &Path) -> SqlitePool {
+async fn open_pool(path: &Path) -> anyhow::Result<SqlitePool> {
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect_with(
@@ -61,30 +65,32 @@ async fn open_pool(path: &Path) -> SqlitePool {
                 .pragma("secure_delete", "ON"),
         )
         .await
-        .expect("open sqlite pool");
+        .context("open sqlite pool")?;
     let migrations = Path::new(env!("CARGO_MANIFEST_DIR")).join("../heelonvault-app/migrations");
     sqlx::migrate::Migrator::new(migrations.as_path())
         .await
-        .expect("load migrations")
+        .context("load migrations")?
         .run(&pool)
         .await
-        .expect("run migrations");
-    pool
+        .context("run migrations")?;
+    Ok(pool)
 }
 
-async fn encrypt_with(key: &[u8], plaintext: &[u8]) -> SecretBox<Vec<u8>> {
+async fn encrypt_with(key: &[u8], plaintext: &[u8]) -> anyhow::Result<SecretBox<Vec<u8>>> {
     let payload = fast_crypto()
         .encrypt(
             &SecretBox::new(Box::new(plaintext.to_vec())),
             &SecretBox::new(Box::new(key.to_vec())),
         )
         .await
-        .expect("encrypt");
-    // Real production code stores both vault-key envelopes and secret blobs as
-    // `nonce || ciphertext` (via `serialize_vault_key_envelope` / `secret_service`'s own
-    // identical private helper) — not the version-prefixed `crypto_service::encode_envelope`
-    // format, which is only a legacy format `rekey_service.rs` still knows how to read.
-    serialize_vault_key_envelope(&payload)
+        .context("encrypt")?;
+    Ok(
+        // Real production code stores both vault-key envelopes and secret blobs as
+        // `nonce || ciphertext` (via `serialize_vault_key_envelope` / `secret_service`'s own
+        // identical private helper) — not the version-prefixed `crypto_service::encode_envelope`
+        // format, which is only a legacy format `rekey_service.rs` still knows how to read.
+        serialize_vault_key_envelope(&payload),
+    )
 }
 
 struct Seed {
@@ -97,15 +103,15 @@ struct Seed {
 
 /// A real single-user database (bootstrap, one vault, one secret) on a fully migrated
 /// SQLite file, ready to be exported through the real `BackupServiceImpl`.
-async fn seed() -> Seed {
-    let dir = TempDir::new().expect("temp dir");
+async fn seed() -> anyhow::Result<Seed> {
+    let dir = TempDir::new().context("temp dir")?;
     let db_path = dir.path().join("source.db");
-    let pool = open_pool(&db_path).await;
+    let pool = open_pool(&db_path).await?;
 
     let backup = BackupServiceImpl::new();
     let phrase = backup
         .generate_recovery_key()
-        .expect("recovery phrase")
+        .context("recovery phrase")?
         .recovery_phrase;
     let boot = bootstrap_first_admin_with_recovery(
         &SqlxUserRepository::new(pool.clone()),
@@ -117,7 +123,7 @@ async fn seed() -> Seed {
         phrase,
     )
     .await
-    .expect("bootstrap");
+    .context("bootstrap")?;
 
     let key = boot.master_key.expose_secret().clone();
     let vault_id = Uuid::new_v4();
@@ -128,10 +134,10 @@ async fn seed() -> Seed {
                 owner_user_id: boot.user_id,
                 name: "Perso".to_string(),
             },
-            encrypt_with(&key, &VAULT_KEY).await,
+            encrypt_with(&key, &VAULT_KEY).await?,
         )
         .await
-        .expect("vault");
+        .context("vault")?;
 
     let item = SecretItem {
         id: Uuid::new_v4(),
@@ -149,25 +155,25 @@ async fn seed() -> Seed {
         deleted_at: None,
     };
     SqlxSecretRepository::new(pool.clone())
-        .insert_secret_blob(&item, encrypt_with(&VAULT_KEY, SECRET_PLAINTEXT).await)
+        .insert_secret_blob(&item, encrypt_with(&VAULT_KEY, SECRET_PLAINTEXT).await?)
         .await
-        .expect("secret");
+        .context("secret")?;
 
     pool.close().await;
-    Seed {
+    Ok(Seed {
         dir,
         db_path,
         user_id: boot.user_id,
         vault_id,
         recovery_phrase: boot.recovery_phrase,
-    }
+    })
 }
 
-fn file_contains(path: &Path, needle: &[u8]) -> bool {
-    std::fs::read(path)
-        .expect("read backup file")
+fn file_contains(path: &Path, needle: &[u8]) -> anyhow::Result<bool> {
+    Ok(std::fs::read(path)
+        .context("read backup file")?
         .windows(needle.len())
-        .any(|window| window == needle)
+        .any(|window| window == needle))
 }
 
 // ============================================================================
@@ -175,15 +181,16 @@ fn file_contains(path: &Path, needle: &[u8]) -> bool {
 // ============================================================================
 
 #[tokio::test]
-async fn test_backup_roundtrip_restores_the_real_secret_and_never_leaks_it_in_clear() {
-    let seed = seed().await;
+async fn test_backup_roundtrip_restores_the_real_secret_and_never_leaks_it_in_clear()
+-> anyhow::Result<()> {
+    let seed = seed().await?;
     let backup = BackupServiceImpl::new();
     let hvb_path = seed.dir.path().join("export.hvb");
     let restored_path = seed.dir.path().join("restored.db");
 
     let metadata = backup
         .export_hvb_with_recovery_key(&seed.db_path, &hvb_path, &seed.recovery_phrase)
-        .expect("export should succeed");
+        .context("export should succeed")?;
     assert!(
         metadata.plaintext_size > 0,
         "exported metadata should report a non-zero size"
@@ -192,62 +199,62 @@ async fn test_backup_roundtrip_restores_the_real_secret_and_never_leaks_it_in_cl
     // Le fichier exporté ne doit jamais contenir le secret ni le mot de passe en clair —
     // contrairement au StubBackupService, BackupServiceImpl chiffre réellement le contenu.
     assert!(
-        !file_contains(&hvb_path, SECRET_PLAINTEXT),
+        !file_contains(&hvb_path, SECRET_PLAINTEXT)?,
         "the exported backup must never contain the secret's plaintext"
     );
     assert!(
-        !file_contains(&hvb_path, PASSWORD.as_bytes()),
+        !file_contains(&hvb_path, PASSWORD.as_bytes())?,
         "the exported backup must never contain the password in clear"
     );
 
     backup
         .import_hvb_with_recovery_key(&hvb_path, &seed.recovery_phrase, &restored_path)
-        .expect("import should succeed with the correct recovery phrase");
+        .context("import should succeed with the correct recovery phrase")?;
 
     // La DB restaurée doit se comporter comme l'originale : le mot de passe déverrouille le
     // compte, et le secret se déchiffre au contenu d'origine.
-    let pool = open_pool(&restored_path).await;
+    let pool = open_pool(&restored_path).await?;
     let user_repo = SqlxUserRepository::new(pool.clone());
     let auth = AuthServiceImpl::new(fast_crypto());
     let stored_envelope = user_repo
         .get_password_envelope_by_user_id(seed.user_id)
         .await
-        .expect("query envelope")
-        .expect("envelope present after restore");
+        .context("query envelope")?
+        .context("envelope present after restore")?;
     auth.upsert_password_envelope(USERNAME, stored_envelope)
         .await
-        .expect("load credentials");
+        .context("load credentials")?;
     let account_key = auth
         .derive_key_if_valid(USERNAME, secret(PASSWORD))
         .await
-        .expect("derive key")
-        .expect("the original password must still unlock the restored account");
+        .context("derive key")?
+        .context("the original password must still unlock the restored account")?;
 
     let vault_envelope = SqlxVaultRepository::new(pool.clone())
         .get_vault_key_envelope(seed.vault_id)
         .await
-        .expect("query vault")
-        .expect("vault envelope present");
+        .context("query vault")?
+        .context("vault envelope present")?;
     let vault_payload =
-        deserialize_vault_key_envelope(&vault_envelope).expect("decode vault envelope");
+        deserialize_vault_key_envelope(&vault_envelope).context("decode vault envelope")?;
     let vault_key = fast_crypto()
         .decrypt(&vault_payload, &account_key)
         .await
-        .expect("decrypt vault key");
+        .context("decrypt vault key")?;
 
     let stored = SqlxSecretRepository::new(pool.clone())
         .list_by_vault_id(seed.vault_id)
         .await
-        .expect("list secrets");
+        .context("list secrets")?;
     let item = stored
         .first()
-        .expect("restored vault should still hold its secret");
+        .context("restored vault should still hold its secret")?;
     let secret_payload =
-        deserialize_vault_key_envelope(&item.secret_blob).expect("decode secret envelope");
+        deserialize_vault_key_envelope(&item.secret_blob).context("decode secret envelope")?;
     let decrypted = fast_crypto()
         .decrypt(&secret_payload, &vault_key)
         .await
-        .expect("decrypt secret");
+        .context("decrypt secret")?;
 
     assert_eq!(
         decrypted.expose_secret(),
@@ -256,24 +263,25 @@ async fn test_backup_roundtrip_restores_the_real_secret_and_never_leaks_it_in_cl
     );
 
     pool.close().await;
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_import_with_altered_backup_file_is_rejected() {
-    let seed = seed().await;
+async fn test_import_with_altered_backup_file_is_rejected() -> anyhow::Result<()> {
+    let seed = seed().await?;
     let backup = BackupServiceImpl::new();
     let hvb_path = seed.dir.path().join("export.hvb");
     let restored_path = seed.dir.path().join("restored.db");
 
     backup
         .export_hvb_with_recovery_key(&seed.db_path, &hvb_path, &seed.recovery_phrase)
-        .expect("export should succeed");
+        .context("export should succeed")?;
 
     // Flip one bit in the middle of the file to simulate corruption/tampering.
-    let mut bytes = std::fs::read(&hvb_path).expect("read exported backup");
+    let mut bytes = std::fs::read(&hvb_path).context("read exported backup")?;
     let mid = bytes.len() / 2;
     bytes[mid] ^= 0xFF;
-    std::fs::write(&hvb_path, &bytes).expect("write tampered backup");
+    std::fs::write(&hvb_path, &bytes).context("write tampered backup")?;
 
     let result =
         backup.import_hvb_with_recovery_key(&hvb_path, &seed.recovery_phrase, &restored_path);
@@ -291,22 +299,23 @@ async fn test_import_with_altered_backup_file_is_rejected() {
         !restored_path.exists(),
         "a rejected import must not leave a partial database file"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_import_with_wrong_recovery_phrase_is_rejected() {
-    let seed = seed().await;
+async fn test_import_with_wrong_recovery_phrase_is_rejected() -> anyhow::Result<()> {
+    let seed = seed().await?;
     let backup = BackupServiceImpl::new();
     let hvb_path = seed.dir.path().join("export.hvb");
     let restored_path = seed.dir.path().join("restored.db");
 
     backup
         .export_hvb_with_recovery_key(&seed.db_path, &hvb_path, &seed.recovery_phrase)
-        .expect("export should succeed");
+        .context("export should succeed")?;
 
     let wrong_phrase = backup
         .generate_recovery_key()
-        .expect("generate a different phrase")
+        .context("generate a different phrase")?
         .recovery_phrase;
     let result = backup.import_hvb_with_recovery_key(&hvb_path, &wrong_phrase, &restored_path);
 
@@ -319,4 +328,5 @@ async fn test_import_with_wrong_recovery_phrase_is_rejected() {
         ),
         "got {result:?}"
     );
+    Ok(())
 }

@@ -8,30 +8,30 @@ fn app_src() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")
 }
 
-fn catalog_keys(lang: &str) -> BTreeSet<String> {
+fn catalog_keys(lang: &str) -> anyhow::Result<BTreeSet<String>> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../heelonvault-core/locales")
         .join(lang)
         .join("main.ftl");
     let Ok(content) = std::fs::read_to_string(&path) else {
-        panic!("cannot read {}", path.display());
+        anyhow::bail!("cannot read {}", path.display());
     };
-    content
+    Ok(content
         .lines()
         .filter(|line| line.starts_with(|c: char| c.is_ascii_lowercase()))
         .filter_map(|line| line.split_once(" ="))
         .map(|(key, _)| key.to_string())
-        .collect()
+        .collect())
 }
 
-fn source_files(dir: &Path, files: &mut Vec<PathBuf>) {
+fn source_files(dir: &Path, files: &mut Vec<PathBuf>) -> anyhow::Result<()> {
     let Ok(entries) = std::fs::read_dir(dir) else {
-        panic!("cannot list {}", dir.display());
+        anyhow::bail!("cannot list {}", dir.display());
     };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            source_files(&path, files);
+            source_files(&path, files)?;
         } else if path
             .extension()
             .is_some_and(|ext| ext == "rs" || ext == "inc")
@@ -39,6 +39,7 @@ fn source_files(dir: &Path, files: &mut Vec<PathBuf>) {
             files.push(path);
         }
     }
+    Ok(())
 }
 
 /// Literal keys following `tr!(`, `tr(` or `tr_args(` (whitespace allowed before the quote).
@@ -67,16 +68,16 @@ fn literal_keys(source: &str) -> Vec<String> {
 }
 
 #[test]
-fn every_literal_message_key_exists_in_both_catalogs() {
-    let fr = catalog_keys("fr");
-    let en = catalog_keys("en");
+fn every_literal_message_key_exists_in_both_catalogs() -> anyhow::Result<()> {
+    let fr = catalog_keys("fr")?;
+    let en = catalog_keys("en")?;
     let mut files = Vec::new();
-    source_files(&app_src(), &mut files);
+    source_files(&app_src(), &mut files)?;
 
     let mut missing = Vec::new();
     for file in files {
         let Ok(source) = std::fs::read_to_string(&file) else {
-            panic!("cannot read {}", file.display());
+            anyhow::bail!("cannot read {}", file.display());
         };
         for key in literal_keys(&source) {
             if !fr.contains(&key) || !en.contains(&key) {
@@ -89,4 +90,5 @@ fn every_literal_message_key_exists_in_both_catalogs() {
         "unknown message keys:\n{}",
         missing.join("\n")
     );
+    Ok(())
 }

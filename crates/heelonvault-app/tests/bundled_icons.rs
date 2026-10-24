@@ -9,14 +9,14 @@ fn crate_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-fn source_files(dir: &Path, files: &mut Vec<PathBuf>) {
+fn source_files(dir: &Path, files: &mut Vec<PathBuf>) -> anyhow::Result<()> {
     let Ok(entries) = std::fs::read_dir(dir) else {
-        panic!("cannot list {}", dir.display());
+        anyhow::bail!("cannot list {}", dir.display());
     };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            source_files(&path, files);
+            source_files(&path, files)?;
         } else if path
             .extension()
             .is_some_and(|ext| ext == "rs" || ext == "inc")
@@ -24,16 +24,17 @@ fn source_files(dir: &Path, files: &mut Vec<PathBuf>) {
             files.push(path);
         }
     }
+    Ok(())
 }
 
 /// `hv-…-symbolic` names quoted in the sources.
-fn icons_used() -> BTreeSet<String> {
+fn icons_used() -> anyhow::Result<BTreeSet<String>> {
     let mut files = Vec::new();
-    source_files(&crate_dir().join("src"), &mut files);
+    source_files(&crate_dir().join("src"), &mut files)?;
     let mut used = BTreeSet::new();
     for file in files {
         let Ok(content) = std::fs::read_to_string(&file) else {
-            panic!("cannot read {}", file.display());
+            anyhow::bail!("cannot read {}", file.display());
         };
         for chunk in content.split('"').skip(1).step_by(2) {
             if chunk.starts_with("hv-")
@@ -46,29 +47,29 @@ fn icons_used() -> BTreeSet<String> {
             }
         }
     }
-    used
+    Ok(used)
 }
 
 /// Icon names registered under `scalable/actions/` in gresources.xml.
-fn icons_registered() -> BTreeSet<String> {
+fn icons_registered() -> anyhow::Result<BTreeSet<String>> {
     let path = crate_dir().join("assets/gresources.xml");
     let Ok(content) = std::fs::read_to_string(&path) else {
-        panic!("cannot read {}", path.display());
+        anyhow::bail!("cannot read {}", path.display());
     };
-    content
+    Ok(content
         .split("alias=\"scalable/actions/")
         .skip(1)
         .filter_map(|rest| rest.split_once(".svg\""))
         .map(|(name, _)| name.to_string())
-        .collect()
+        .collect())
 }
 
-fn icons_on_disk() -> BTreeSet<String> {
+fn icons_on_disk() -> anyhow::Result<BTreeSet<String>> {
     let dir = crate_dir().join("assets/icons/symbolic");
     let Ok(entries) = std::fs::read_dir(&dir) else {
-        panic!("cannot list {}", dir.display());
+        anyhow::bail!("cannot list {}", dir.display());
     };
-    entries
+    Ok(entries
         .flatten()
         .filter_map(|entry| {
             entry
@@ -77,20 +78,22 @@ fn icons_on_disk() -> BTreeSet<String> {
                 .and_then(|name| name.strip_suffix(".svg"))
                 .map(str::to_string)
         })
-        .collect()
+        .collect())
 }
 
 #[test]
-fn every_bundled_icon_used_by_the_code_is_registered() {
-    let registered = icons_registered();
-    let missing: Vec<_> = icons_used().difference(&registered).cloned().collect();
+fn every_bundled_icon_used_by_the_code_is_registered() -> anyhow::Result<()> {
+    let registered = icons_registered()?;
+    let missing: Vec<_> = icons_used()?.difference(&registered).cloned().collect();
     assert!(
         missing.is_empty(),
         "icons used but not in gresources.xml: {missing:?}"
     );
+    Ok(())
 }
 
 #[test]
-fn every_icon_file_is_registered_and_vice_versa() {
-    assert_eq!(icons_on_disk(), icons_registered());
+fn every_icon_file_is_registered_and_vice_versa() -> anyhow::Result<()> {
+    assert_eq!(icons_on_disk()?, icons_registered()?);
+    Ok(())
 }

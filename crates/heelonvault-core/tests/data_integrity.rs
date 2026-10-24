@@ -1,8 +1,12 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! Security tests for data integrity.
 //! Verifies that data cannot be tampered with without detection.
 
+use anyhow::Context as _;
 use heelonvault_core::services::crypto_service::{
     CryptoService, CryptoServiceImpl, EncryptedPayload, NONCE_LEN, decode_envelope, encode_envelope,
 };
@@ -17,16 +21,16 @@ use secrecy::{ExposeSecret, SecretBox};
 // ============================================================================
 
 #[tokio::test]
-async fn test_aes_gcm_authentication() {
+async fn test_aes_gcm_authentication() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
     let key = SecretBox::new(Box::new(vec![0x42; 32]));
     let plaintext = SecretBox::new(Box::new(b"test message".to_vec()));
 
     // Chiffrer
-    let payload = service.encrypt(&plaintext, &key).await.expect("encrypt");
+    let payload = service.encrypt(&plaintext, &key).await.context("encrypt")?;
 
     // Déchiffrer avec la bonne clé - devrait réussir
-    let decrypted = service.decrypt(&payload, &key).await.expect("decrypt");
+    let decrypted = service.decrypt(&payload, &key).await.context("decrypt")?;
     assert_eq!(
         decrypted.expose_secret(),
         plaintext.expose_secret(),
@@ -47,16 +51,17 @@ async fn test_aes_gcm_authentication() {
         result.is_err(),
         "Should fail to decrypt corrupted ciphertext. AES-GCM authentication failed!"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_aes_gcm_authentication_multiple_bits() {
+async fn test_aes_gcm_authentication_multiple_bits() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
     let key = SecretBox::new(Box::new(vec![0x42; 32]));
     let plaintext = SecretBox::new(Box::new(b"test message for multiple bit flips".to_vec()));
 
     // Chiffrer
-    let payload = service.encrypt(&plaintext, &key).await.expect("encrypt");
+    let payload = service.encrypt(&plaintext, &key).await.context("encrypt")?;
 
     // Modifier plusieurs bits (EncryptedPayload n'est pas Clone : on reconstruit manuellement)
     let mut ciphertext = payload.ciphertext.expose_secret().clone();
@@ -76,32 +81,37 @@ async fn test_aes_gcm_authentication_multiple_bits() {
         result.is_err(),
         "Should fail to decrypt with multiple bit flips"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_aes_gcm_different_keys_same_ciphertext_fails() {
+async fn test_aes_gcm_different_keys_same_ciphertext_fails() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
     let key_1 = SecretBox::new(Box::new(vec![0x42; 32]));
     let key_2 = SecretBox::new(Box::new(vec![0x43; 32]));
     let plaintext = SecretBox::new(Box::new(b"test message".to_vec()));
 
     // Chiffrer avec key_1
-    let payload = service.encrypt(&plaintext, &key_1).await.expect("encrypt");
+    let payload = service
+        .encrypt(&plaintext, &key_1)
+        .await
+        .context("encrypt")?;
 
     // Tenter de déchiffrer avec key_2 - devrait échouer
     let result = service.decrypt(&payload, &key_2).await;
     assert!(result.is_err(), "Should fail to decrypt with wrong key");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_aes_gcm_nonce_uniqueness_for_many_encryptions() {
+async fn test_aes_gcm_nonce_uniqueness_for_many_encryptions() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
     let key = SecretBox::new(Box::new(vec![0x42; 32]));
 
     let mut nonces = Vec::new();
     for i in 0..1000 {
         let plaintext = SecretBox::new(Box::new(format!("message {}", i).as_bytes().to_vec()));
-        let payload = service.encrypt(&plaintext, &key).await.expect("encrypt");
+        let payload = service.encrypt(&plaintext, &key).await.context("encrypt")?;
         nonces.push(payload.nonce);
     }
 
@@ -115,16 +125,17 @@ async fn test_aes_gcm_nonce_uniqueness_for_many_encryptions() {
             i
         );
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_aes_gcm_empty_plaintext() {
+async fn test_aes_gcm_empty_plaintext() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
     let key = SecretBox::new(Box::new(vec![0x42; 32]));
     let plaintext = SecretBox::new(Box::new(Vec::new()));
 
     // Chiffrer un plaintext vide
-    let payload = service.encrypt(&plaintext, &key).await.expect("encrypt");
+    let payload = service.encrypt(&plaintext, &key).await.context("encrypt")?;
 
     // Vérifier que le nonce est toujours présent
     assert_eq!(
@@ -134,16 +145,17 @@ async fn test_aes_gcm_empty_plaintext() {
     );
 
     // Déchiffrer
-    let decrypted = service.decrypt(&payload, &key).await.expect("decrypt");
+    let decrypted = service.decrypt(&payload, &key).await.context("decrypt")?;
     assert_eq!(
         decrypted.expose_secret(),
         plaintext.expose_secret(),
         "Empty plaintext should roundtrip correctly"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_aes_gcm_large_plaintext() {
+async fn test_aes_gcm_large_plaintext() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
     let key = SecretBox::new(Box::new(vec![0x42; 32]));
 
@@ -152,7 +164,7 @@ async fn test_aes_gcm_large_plaintext() {
     let plaintext = SecretBox::new(Box::new(large_plaintext.clone()));
 
     // Chiffrer
-    let payload = service.encrypt(&plaintext, &key).await.expect("encrypt");
+    let payload = service.encrypt(&plaintext, &key).await.context("encrypt")?;
 
     // Vérifier que le ciphertext a à peu près la même taille
     let ciphertext_len = payload.ciphertext.expose_secret().len();
@@ -162,12 +174,13 @@ async fn test_aes_gcm_large_plaintext() {
     );
 
     // Déchiffrer
-    let decrypted = service.decrypt(&payload, &key).await.expect("decrypt");
+    let decrypted = service.decrypt(&payload, &key).await.context("decrypt")?;
     assert_eq!(
         decrypted.expose_secret(),
         &large_plaintext,
         "Large plaintext should roundtrip correctly"
     );
+    Ok(())
 }
 
 // ============================================================================
@@ -175,7 +188,7 @@ async fn test_aes_gcm_large_plaintext() {
 // ============================================================================
 
 #[tokio::test]
-async fn test_envelope_version_validation() {
+async fn test_envelope_version_validation() -> anyhow::Result<()> {
     use heelonvault_core::services::crypto_service::ENVELOPE_VERSION;
 
     let payload = EncryptedPayload {
@@ -192,7 +205,7 @@ async fn test_envelope_version_validation() {
     );
 
     // Décoder devrait réussir
-    let decoded = decode_envelope(envelope.expose_secret()).expect("decode envelope");
+    let decoded = decode_envelope(envelope.expose_secret()).context("decode envelope")?;
     assert_eq!(decoded.nonce, payload.nonce);
     assert_eq!(
         decoded.ciphertext.expose_secret(),
@@ -220,6 +233,7 @@ async fn test_envelope_version_validation() {
         result.is_err(),
         "Should reject any version other than ENVELOPE_VERSION (2)"
     );
+    Ok(())
 }
 
 #[tokio::test]
@@ -251,19 +265,19 @@ async fn test_envelope_truncated_data() {
 }
 
 #[tokio::test]
-async fn test_envelope_roundtrip() {
+async fn test_envelope_roundtrip() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
     let key = SecretBox::new(Box::new(vec![0x42; 32]));
     let plaintext = SecretBox::new(Box::new(b"roundtrip test message".to_vec()));
 
     // Chiffrer
-    let payload = service.encrypt(&plaintext, &key).await.expect("encrypt");
+    let payload = service.encrypt(&plaintext, &key).await.context("encrypt")?;
 
     // Encoder
     let envelope = encode_envelope(&payload);
 
     // Décoder
-    let decoded = decode_envelope(envelope.expose_secret()).expect("decode envelope");
+    let decoded = decode_envelope(envelope.expose_secret()).context("decode envelope")?;
 
     // Vérifier
     assert_eq!(decoded.nonce, payload.nonce);
@@ -273,12 +287,13 @@ async fn test_envelope_roundtrip() {
     );
 
     // Déchiffrer
-    let decrypted = service.decrypt(&decoded, &key).await.expect("decrypt");
+    let decrypted = service.decrypt(&decoded, &key).await.context("decrypt")?;
     assert_eq!(
         decrypted.expose_secret(),
         plaintext.expose_secret(),
         "Roundtrip should preserve plaintext"
     );
+    Ok(())
 }
 
 #[tokio::test]
@@ -319,7 +334,7 @@ async fn test_corrupted_envelope_structure() {
 // ============================================================================
 
 #[tokio::test]
-async fn test_encryption_same_input_produces_different_output() {
+async fn test_encryption_same_input_produces_different_output() -> anyhow::Result<()> {
     // Vérifier que le chiffrement est non-déterministe (à cause des nonces aléatoires)
     let service = CryptoServiceImpl::with_defaults();
     let key = SecretBox::new(Box::new(vec![0x42; 32]));
@@ -327,7 +342,7 @@ async fn test_encryption_same_input_produces_different_output() {
 
     let mut ciphertexts = Vec::new();
     for _ in 0..100 {
-        let payload = service.encrypt(&plaintext, &key).await.expect("encrypt");
+        let payload = service.encrypt(&plaintext, &key).await.context("encrypt")?;
         ciphertexts.push(payload.ciphertext.expose_secret().clone());
     }
 
@@ -341,16 +356,17 @@ async fn test_encryption_same_input_produces_different_output() {
             i
         );
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_authentication_tag_integrity() {
+async fn test_authentication_tag_integrity() -> anyhow::Result<()> {
     // Tester que le tag d'authentification de AES-GCM détecte les modifications
     let service = CryptoServiceImpl::with_defaults();
     let key = SecretBox::new(Box::new(vec![0x42; 32]));
     let plaintext = SecretBox::new(Box::new(b"authentication test".to_vec()));
 
-    let payload = service.encrypt(&plaintext, &key).await.expect("encrypt");
+    let payload = service.encrypt(&plaintext, &key).await.context("encrypt")?;
     let ciphertext = payload.ciphertext.expose_secret().clone();
 
     // Le tag d'authentification fait partie du ciphertext (16 octets à la fin)
@@ -379,4 +395,5 @@ async fn test_authentication_tag_integrity() {
         result.is_err(),
         "Should fail to decrypt with corrupted auth tag"
     );
+    Ok(())
 }

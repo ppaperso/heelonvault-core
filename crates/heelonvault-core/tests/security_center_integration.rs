@@ -19,10 +19,10 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 #[test]
 fn repeated_password_batches_scale_without_per_item_queries() -> TestResult {
     tokio::runtime::Runtime::new()?.block_on(async {
-        let account = support::bootstrap_account().await;
+        let account = support::bootstrap_account().await?;
         let key = [7_u8; 32];
-        let vault = support::create_vault(&account.pool, account.user_id, &account.account_key, &key).await;
-        let (_, blob) = support::insert_secret(&account.pool, vault, &key, b"eW8!rK2#qL7$vN4@zT9").await;
+        let vault = support::create_vault(&account.pool, account.user_id, &account.account_key, &key).await?;
+        let (_, blob) = support::insert_secret(&account.pool, vault, &key, b"eW8!rK2#qL7$vN4@zT9").await?;
         let secrets = SecretServiceImpl::new(
             SqlxSecretRepository::new(account.pool.clone()), support::fast_crypto(), Arc::new(NoOpAuditLogService),
         );
@@ -59,12 +59,14 @@ fn repeated_password_batches_scale_without_per_item_queries() -> TestResult {
 #[test]
 fn batch_scan_reports_reuse_expiry_invalid_data_and_type_boundaries() -> TestResult {
     tokio::runtime::Runtime::new()?.block_on(async {
-        let account = support::bootstrap_account().await;
+        let account = support::bootstrap_account().await?;
         let key = [7_u8; 32];
         let first =
-            support::create_vault(&account.pool, account.user_id, &account.account_key, &key).await;
+            support::create_vault(&account.pool, account.user_id, &account.account_key, &key)
+                .await?;
         let second =
-            support::create_vault(&account.pool, account.user_id, &account.account_key, &key).await;
+            support::create_vault(&account.pool, account.user_id, &account.account_key, &key)
+                .await?;
         let secrets = SecretServiceImpl::new(
             SqlxSecretRepository::new(account.pool.clone()),
             support::fast_crypto(),
@@ -176,11 +178,12 @@ fn batch_scan_reports_reuse_expiry_invalid_data_and_type_boundaries() -> TestRes
 #[test]
 fn revoked_shares_are_excluded_and_unopenable_vaults_are_explicit() -> TestResult {
     tokio::runtime::Runtime::new()?.block_on(async {
-        let account = support::bootstrap_account().await;
+        let account = support::bootstrap_account().await?;
         let key = [7_u8; 32];
         let vault =
-            support::create_vault(&account.pool, account.user_id, &account.account_key, &key).await;
-        support::insert_secret(&account.pool, vault, &key, b"Password123!").await;
+            support::create_vault(&account.pool, account.user_id, &account.account_key, &key)
+                .await?;
+        support::insert_secret(&account.pool, vault, &key, b"Password123!").await?;
         let collaborator = uuid::Uuid::new_v4();
         let collaborator_key = [9_u8; 32];
         SqlxUserRepository::new(account.pool.clone())
@@ -190,7 +193,7 @@ fn revoked_shares_are_excluded_and_unopenable_vaults_are_explicit() -> TestResul
         repo.insert_key_share(
             vault,
             collaborator,
-            support::encrypt_with(&collaborator_key, &key).await,
+            support::encrypt_with(&collaborator_key, &key).await?,
             Some(account.user_id),
             None,
             VaultShareRole::Read,

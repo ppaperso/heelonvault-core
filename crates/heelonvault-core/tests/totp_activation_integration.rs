@@ -1,5 +1,9 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
+use anyhow::Context as _;
 use std::sync::Arc;
 
 use heelonvault_core::errors::AppError;
@@ -38,10 +42,10 @@ fn build_current_totp_code(username: &str, base32_secret: &str) -> Result<String
 }
 
 #[tokio::test]
-async fn enable_totp_requires_valid_code_without_password_prompt() {
+async fn enable_totp_requires_valid_code_without_password_prompt() -> anyhow::Result<()> {
     let pool = SqlitePool::connect("sqlite::memory:")
         .await
-        .expect("sqlite memory pool should initialize");
+        .context("sqlite memory pool should initialize")?;
 
     sqlx::query(
         "CREATE TABLE users (
@@ -52,7 +56,7 @@ async fn enable_totp_requires_valid_code_without_password_prompt() {
     )
     .execute(&pool)
     .await
-    .expect("users table should be created");
+    .context("users table should be created")?;
 
     let user_id = Uuid::new_v4();
     let username = "alice";
@@ -61,18 +65,18 @@ async fn enable_totp_requires_valid_code_without_password_prompt() {
         .bind(username)
         .execute(&pool)
         .await
-        .expect("user row should be inserted");
+        .context("user row should be inserted")?;
 
     let auth_service = Arc::new(AuthServiceImpl::new(CryptoServiceImpl::with_defaults()));
     auth_service
         .create_user(username, SecretBox::new(Box::new(b"Admin1234!".to_vec())))
         .await
-        .expect("auth user should exist");
+        .context("auth user should exist")?;
     let account_key = auth_service
         .derive_key_if_valid(username, SecretBox::new(Box::new(b"Admin1234!".to_vec())))
         .await
-        .expect("key derivation should run")
-        .expect("the password should open the account");
+        .context("key derivation should run")?
+        .context("the password should open the account")?;
     let totp_service = SqliteTotpService::new(
         pool.clone(),
         Arc::clone(&auth_service),
@@ -82,9 +86,9 @@ async fn enable_totp_requires_valid_code_without_password_prompt() {
 
     let payload = totp_service
         .create_setup_payload(username)
-        .expect("setup payload should be created");
+        .context("setup payload should be created")?;
     let valid_code = build_current_totp_code(username, payload.base32_secret.as_str())
-        .expect("current TOTP code should be generated");
+        .context("current TOTP code should be generated")?;
     let wrong_code = mutate_totp_code(valid_code.as_str());
 
     let wrong_result = totp_service
@@ -105,9 +109,9 @@ async fn enable_totp_requires_valid_code_without_password_prompt() {
         .bind(user_id.to_string())
         .fetch_one(&pool)
         .await
-        .expect("user row should exist");
+        .context("user row should exist")?;
     let stored_after_wrong: Option<Vec<u8>> =
-        row.try_get("totp_secret").expect("column should exist");
+        row.try_get("totp_secret").context("column should exist")?;
     assert!(
         stored_after_wrong.is_none(),
         "totp_secret must stay NULL on invalid code"
@@ -128,10 +132,12 @@ async fn enable_totp_requires_valid_code_without_password_prompt() {
         .bind(user_id.to_string())
         .fetch_one(&pool)
         .await
-        .expect("user row should exist");
-    let stored_after_ok: Option<Vec<u8>> = row.try_get("totp_secret").expect("column should exist");
+        .context("user row should exist")?;
+    let stored_after_ok: Option<Vec<u8>> =
+        row.try_get("totp_secret").context("column should exist")?;
     assert!(
         stored_after_ok.is_some(),
         "totp_secret should be stored once activation succeeds"
     );
+    Ok(())
 }

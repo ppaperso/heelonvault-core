@@ -1,3 +1,6 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! Robustness under hostile input, checked with generated data rather than hand-picked cases:
@@ -7,6 +10,7 @@
 
 mod support;
 
+use anyhow::Context as _;
 use heelonvault_core::services::account_key::open_with_recovery_phrase;
 use heelonvault_core::services::auth_service::{
     decode_password_envelope, unlock_password_envelope,
@@ -20,14 +24,20 @@ use heelonvault_core::services::password_service::{PasswordService, PasswordServ
 use heelonvault_core::services::pin_cache_service::PinCache;
 use heelonvault_core::services::vault_service::deserialize_vault_key_envelope;
 use proptest::prelude::*;
+use proptest::test_runner::TestCaseError;
 use secrecy::{ExposeSecret, SecretBox, SecretString};
 use support::fast_crypto;
 use uuid::Uuid;
 
-fn runtime() -> tokio::runtime::Runtime {
+/// Turns a failed setup step into a proptest failure instead of a panic.
+fn setup<E: std::fmt::Debug>(step: &'static str) -> impl FnOnce(E) -> TestCaseError {
+    move |error| TestCaseError::fail(format!("{step}: {error:?}"))
+}
+
+fn runtime() -> Result<tokio::runtime::Runtime, TestCaseError> {
     tokio::runtime::Builder::new_current_thread()
         .build()
-        .expect("tokio runtime")
+        .map_err(setup("tokio runtime"))
 }
 
 fn boxed(bytes: &[u8]) -> SecretBox<Vec<u8>> {
@@ -71,11 +81,11 @@ proptest! {
         key in proptest::array::uniform32(any::<u8>()),
     ) {
         let crypto = CryptoServiceImpl::default();
-        let decrypted = runtime().block_on(async {
+        let decrypted = runtime()?.block_on(async {
             let payload = crypto.encrypt(&boxed(&plaintext), &boxed(&key)).await?;
             crypto.decrypt(&payload, &boxed(&key)).await
         });
-        let decrypted = decrypted.expect("round trip");
+        let decrypted = decrypted.map_err(setup("round trip"))?;
         prop_assert_eq!(decrypted.expose_secret(), &plaintext);
     }
 
@@ -86,8 +96,11 @@ proptest! {
     ) {
         let crypto = CryptoServiceImpl::default();
         let key = boxed(&[0x11; 32]);
-        let outcome = runtime().block_on(async {
-            let payload = crypto.encrypt(&boxed(&plaintext), &key).await.expect("encrypt");
+        let runtime = runtime()?;
+        let payload = runtime
+            .block_on(crypto.encrypt(&boxed(&plaintext), &key))
+            .map_err(setup("encrypt"))?;
+        let outcome = runtime.block_on(async {
             let mut bytes = payload.nonce.to_vec();
             bytes.extend_from_slice(payload.ciphertext.expose_secret());
             let position = bit.index(bytes.len() * 8);
@@ -111,10 +124,11 @@ proptest! {
     ) {
         prop_assume!(key != other);
         let crypto = CryptoServiceImpl::default();
-        let outcome = runtime().block_on(async {
-            let payload = crypto.encrypt(&boxed(&plaintext), &boxed(&key)).await.expect("encrypt");
-            crypto.decrypt(&payload, &boxed(&other)).await
-        });
+        let runtime = runtime()?;
+        let payload = runtime
+            .block_on(crypto.encrypt(&boxed(&plaintext), &boxed(&key)))
+            .map_err(setup("encrypt"))?;
+        let outcome = runtime.block_on(crypto.decrypt(&payload, &boxed(&other)));
         prop_assert!(outcome.is_err());
     }
 }
@@ -126,7 +140,7 @@ proptest! {
     #[test]
     fn a_wrong_pin_never_releases_the_key(pin in "\\PC{0,16}") {
         let master_key = boxed(&[0x5A; 32]);
-        let mut cache = PinCache::wrap(&master_key, "4821", Uuid::new_v4()).expect("wrap");
+        let mut cache = PinCache::wrap(&master_key, "4821", Uuid::new_v4()).map_err(setup("wrap"))?;
         if pin != "4821" {
             prop_assert!(cache.try_unwrap(&pin).is_err());
         }
@@ -137,14 +151,14 @@ proptest! {
         let phrase = SecretString::new(
             "abandon ability able about above absent absorb abstract absurd abuse access accident".into(),
         );
-        let result = runtime().block_on(open_with_recovery_phrase(&fast_crypto(), &phrase, &boxed(&bytes)));
+        let result = runtime()?.block_on(open_with_recovery_phrase(&fast_crypto(), &phrase, &boxed(&bytes)));
         prop_assert!(result.is_err());
     }
 
     #[test]
     fn a_forged_password_envelope_never_unlocks(bytes in proptest::collection::vec(any::<u8>(), 5..200)) {
         if let Ok(envelope) = decode_password_envelope(&boxed(&bytes)) {
-            let result = runtime().block_on(unlock_password_envelope(
+            let result = runtime()?.block_on(unlock_password_envelope(
                 &fast_crypto(),
                 &envelope,
                 &SecretString::new("any-password".into()),
@@ -159,12 +173,12 @@ proptest! {
 
     #[test]
     fn importing_arbitrary_bytes_as_a_backup_fails_cleanly(bytes in proptest::collection::vec(any::<u8>(), 0..4096)) {
-        let dir = tempfile::tempdir().expect("temp dir");
+        let dir = tempfile::tempdir().map_err(setup("temp dir"))?;
         let hvb = dir.path().join("forged.hvb");
         let target = dir.path().join("restored.db");
-        std::fs::write(&hvb, &bytes).expect("write forged backup");
+        std::fs::write(&hvb, &bytes).map_err(setup("write forged backup"))?;
         let backup = BackupServiceImpl::new();
-        let phrase = backup.generate_recovery_key().expect("phrase").recovery_phrase;
+        let phrase = backup.generate_recovery_key().map_err(setup("phrase"))?.recovery_phrase;
 
         let result = backup.import_hvb_with_recovery_key(&hvb, &phrase, &target);
 
@@ -174,7 +188,7 @@ proptest! {
 }
 
 #[tokio::test]
-async fn a_large_payload_round_trips_and_truncation_is_detected() {
+async fn a_large_payload_round_trips_and_truncation_is_detected() -> anyhow::Result<()> {
     let crypto = CryptoServiceImpl::default();
     let key = boxed(&[0x42; 32]);
     let plaintext: Vec<u8> = (0..16 * 1024 * 1024_usize)
@@ -184,8 +198,8 @@ async fn a_large_payload_round_trips_and_truncation_is_detected() {
     let payload = crypto
         .encrypt(&boxed(&plaintext), &key)
         .await
-        .expect("encrypt 16 MiB");
-    let decrypted = crypto.decrypt(&payload, &key).await.expect("decrypt");
+        .context("encrypt 16 MiB")?;
+    let decrypted = crypto.decrypt(&payload, &key).await.context("decrypt")?;
     assert!(decrypted.expose_secret() == &plaintext);
 
     let ciphertext = payload.ciphertext.expose_secret();
@@ -194,23 +208,24 @@ async fn a_large_payload_round_trips_and_truncation_is_detected() {
         ciphertext: boxed(&ciphertext[..ciphertext.len() - 1]),
     };
     assert!(crypto.decrypt(&truncated, &key).await.is_err());
+    Ok(())
 }
 
 #[tokio::test]
-async fn a_backup_truncated_at_any_point_is_rejected() {
-    let account = support::bootstrap_account().await;
+async fn a_backup_truncated_at_any_point_is_rejected() -> anyhow::Result<()> {
+    let account = support::bootstrap_account().await?;
     account.pool.close().await;
     let backup = BackupServiceImpl::new();
     let hvb = account.dir.path().join("export.hvb");
     backup
         .export_hvb_with_recovery_key(&account.db_path, &hvb, &account.recovery_phrase)
-        .expect("export");
-    let full = std::fs::read(&hvb).expect("read export");
+        .context("export")?;
+    let full = std::fs::read(&hvb).context("read export")?;
 
     for length in [0, 1, 4, 8, 16, 64, full.len() / 2, full.len() - 1] {
         let truncated = account.dir.path().join(format!("truncated-{length}.hvb"));
         let target = account.dir.path().join(format!("restored-{length}.db"));
-        std::fs::write(&truncated, &full[..length]).expect("write truncated");
+        std::fs::write(&truncated, &full[..length]).context("write truncated")?;
 
         let result =
             backup.import_hvb_with_recovery_key(&truncated, &account.recovery_phrase, &target);
@@ -221,4 +236,5 @@ async fn a_backup_truncated_at_any_point_is_rejected() {
         );
         assert!(!target.exists());
     }
+    Ok(())
 }

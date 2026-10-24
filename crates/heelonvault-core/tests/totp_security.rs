@@ -1,8 +1,12 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! Second factor: the TOTP secret is stored encrypted, a login code cannot be replayed, and the
 //! code never substitutes for the password.
 
+use anyhow::Context as _;
 mod support;
 
 use std::sync::Arc;
@@ -26,8 +30,8 @@ const LEGACY_DEV_KEY: [u8; 32] = [0x41; 32];
 
 type TotpServiceType = SqliteTotpService<AuthServiceImpl<CryptoServiceImpl>, CryptoServiceImpl>;
 
-fn current_code(base32_secret: &str) -> String {
-    let secret = Secret::try_from_base32(base32_secret).expect("base32 secret");
+fn current_code(base32_secret: &str) -> anyhow::Result<String> {
+    let secret = Secret::try_from_base32(base32_secret).context("base32 secret")?;
     let totp = Builder::new()
         .with_algorithm(Algorithm::SHA1)
         .with_digits(6)
@@ -37,82 +41,89 @@ fn current_code(base32_secret: &str) -> String {
         .with_issuer(Some(ISSUER.to_string()))
         .with_account_name(USERNAME.to_string())
         .build()
-        .expect("totp config");
-    totp.generate_current().to_string()
+        .context("totp config")?;
+    Ok(totp.generate_current().to_string())
 }
 
 /// Loads the stored password envelope, as the application does at start-up.
-async fn totp_service(account: &Account) -> TotpServiceType {
+async fn totp_service(account: &Account) -> anyhow::Result<TotpServiceType> {
     let auth = Arc::new(AuthServiceImpl::new(fast_crypto()));
     let envelope = SqlxUserRepository::new(account.pool.clone())
         .get_password_envelope_by_user_id(account.user_id)
         .await
-        .expect("query envelope")
-        .expect("envelope");
+        .context("query envelope")?
+        .context("envelope")?;
     auth.upsert_password_envelope(USERNAME, envelope)
         .await
-        .expect("load credentials");
-    SqliteTotpService::new(account.pool.clone(), auth, fast_crypto(), ISSUER)
+        .context("load credentials")?;
+    Ok(SqliteTotpService::new(
+        account.pool.clone(),
+        auth,
+        fast_crypto(),
+        ISSUER,
+    ))
 }
 
-async fn enabled_totp(account: &Account) -> (TotpServiceType, String) {
-    let service = totp_service(account).await;
-    let payload = service.create_setup_payload(USERNAME).expect("setup");
+async fn enabled_totp(account: &Account) -> anyhow::Result<(TotpServiceType, String)> {
+    let service = totp_service(account).await?;
+    let payload = service.create_setup_payload(USERNAME).context("setup")?;
     service
         .enable_totp(
             account.user_id,
             USERNAME,
             &SecretBox::new(Box::new(account.account_key.clone())),
             &payload.base32_secret,
-            &current_code(&payload.base32_secret),
+            &current_code(&payload.base32_secret)?,
         )
         .await
-        .expect("enable totp");
-    (service, payload.base32_secret)
+        .context("enable totp")?;
+    Ok((service, payload.base32_secret))
 }
 
 #[tokio::test]
-async fn a_login_code_is_accepted_once_and_never_replayed() {
-    let account = bootstrap_account().await;
-    let (service, base32) = enabled_totp(&account).await;
-    let code = current_code(&base32);
+async fn a_login_code_is_accepted_once_and_never_replayed() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
+    let (service, base32) = enabled_totp(&account).await?;
+    let code = current_code(&base32)?;
 
     assert!(
         service
             .verify_login_totp(USERNAME, secret(PASSWORD), &code)
             .await
-            .expect("verify")
+            .context("verify")?
     );
     assert!(
         !service
             .verify_login_totp(USERNAME, secret(PASSWORD), &code)
             .await
-            .expect("verify replay"),
+            .context("verify replay")?,
         "a TOTP code already used to log in must be rejected (RFC 6238 §5.2)"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn a_valid_code_never_replaces_the_password() {
-    let account = bootstrap_account().await;
-    let (service, base32) = enabled_totp(&account).await;
+async fn a_valid_code_never_replaces_the_password() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
+    let (service, base32) = enabled_totp(&account).await?;
 
     let accepted = service
         .verify_login_totp(
             USERNAME,
             secret("not-the-password-2026"),
-            &current_code(&base32),
+            &current_code(&base32)?,
         )
         .await
-        .expect("verify");
+        .context("verify")?;
 
     assert!(!accepted, "a valid code with a wrong password must fail");
+    Ok(())
 }
 
 #[tokio::test]
-async fn malformed_codes_are_rejected_before_any_crypto() {
-    let account = bootstrap_account().await;
-    let (service, _) = enabled_totp(&account).await;
+async fn malformed_codes_are_rejected_before_any_crypto() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
+    let (service, _) = enabled_totp(&account).await?;
 
     for code in [
         "",
@@ -130,17 +141,18 @@ async fn malformed_codes_are_rejected_before_any_crypto() {
             !service
                 .verify_login_totp(USERNAME, secret(PASSWORD), code)
                 .await
-                .expect("verify"),
+                .context("verify")?,
             "malformed code {code:?} must be rejected"
         );
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn enabling_with_a_wrong_code_stores_nothing() {
-    let account = bootstrap_account().await;
-    let service = totp_service(&account).await;
-    let payload = service.create_setup_payload(USERNAME).expect("setup");
+async fn enabling_with_a_wrong_code_stores_nothing() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
+    let service = totp_service(&account).await?;
+    let payload = service.create_setup_payload(USERNAME).context("setup")?;
 
     let result = service
         .enable_totp(
@@ -162,20 +174,21 @@ async fn enabling_with_a_wrong_code_stores_nothing() {
             !service
                 .is_totp_enabled_for_user_id(account.user_id)
                 .await
-                .expect("status")
+                .context("status")?
         );
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn the_totp_secret_is_encrypted_at_rest() {
-    let account = bootstrap_account().await;
-    let (service, base32) = enabled_totp(&account).await;
+async fn the_totp_secret_is_encrypted_at_rest() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
+    let (service, base32) = enabled_totp(&account).await?;
     assert!(
         service
             .is_totp_enabled_for_user_id(account.user_id)
             .await
-            .expect("status")
+            .context("status")?
     );
     account.pool.close().await;
 
@@ -183,36 +196,37 @@ async fn the_totp_secret_is_encrypted_at_rest() {
         !db_files_contain(&account.db_path, base32.as_bytes()),
         "the base32 TOTP secret must never be written in clear"
     );
-    let raw_secret = Secret::try_from_base32(&base32).expect("raw secret");
+    let raw_secret = Secret::try_from_base32(&base32).context("raw secret")?;
     let raw = raw_secret.as_bytes();
     assert!(
         !db_files_contain(&account.db_path, raw),
         "the raw TOTP key must never be written in clear"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn disabling_totp_erases_the_stored_secret() {
-    let account = bootstrap_account().await;
-    let (service, _) = enabled_totp(&account).await;
+async fn disabling_totp_erases_the_stored_secret() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
+    let (service, _) = enabled_totp(&account).await?;
     let stored = SqlxUserRepository::new(account.pool.clone())
         .get_totp_secret(account.user_id)
         .await
-        .expect("query")
-        .expect("totp envelope")
+        .context("query")?
+        .context("totp envelope")?
         .expose_secret()
         .clone();
 
     service
         .disable_totp(account.user_id)
         .await
-        .expect("disable");
+        .context("disable")?;
 
     assert!(
         SqlxUserRepository::new(account.pool.clone())
             .get_totp_secret(account.user_id)
             .await
-            .expect("query")
+            .context("query")?
             .is_none()
     );
     account.pool.close().await;
@@ -220,22 +234,23 @@ async fn disabling_totp_erases_the_stored_secret() {
         !db_files_contain(&account.db_path, &stored),
         "secure_delete must wipe the encrypted TOTP secret from disk"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn setup_secrets_are_unique_and_long_enough() {
-    let account = bootstrap_account().await;
-    let service = totp_service(&account).await;
+async fn setup_secrets_are_unique_and_long_enough() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
+    let service = totp_service(&account).await?;
 
     assert!(matches!(
         service.create_setup_payload("   "),
         Err(AppError::Validation(_))
     ));
 
-    let first = service.create_setup_payload(USERNAME).expect("setup");
-    let second = service.create_setup_payload(USERNAME).expect("setup");
+    let first = service.create_setup_payload(USERNAME).context("setup")?;
+    let second = service.create_setup_payload(USERNAME).context("setup")?;
     assert_ne!(first.base32_secret, second.base32_secret);
-    let raw_secret = Secret::try_from_base32(&first.base32_secret).expect("raw");
+    let raw_secret = Secret::try_from_base32(&first.base32_secret).context("raw")?;
     let raw = raw_secret.as_bytes();
     assert!(
         raw.len() >= 20,
@@ -245,23 +260,24 @@ async fn setup_secrets_are_unique_and_long_enough() {
     assert!(first.otpauth_url.starts_with("otpauth://totp/"));
     assert!(!first.otpauth_url.contains(PASSWORD));
     assert!(first.qr_png.starts_with(b"\x89PNG"));
+    Ok(())
 }
 
 #[tokio::test]
-async fn a_code_accepted_through_the_legacy_key_cannot_be_replayed() {
+async fn a_code_accepted_through_the_legacy_key_cannot_be_replayed() -> anyhow::Result<()> {
     // Secrets written by early development builds were encrypted under a fixed key; the service
     // still reads them once and re-encrypts them under the account key. That path must apply
     // the same anti-replay guard as the regular one.
-    let account = bootstrap_account().await;
-    let service = totp_service(&account).await;
-    let payload = service.create_setup_payload(USERNAME).expect("setup");
+    let account = bootstrap_account().await?;
+    let service = totp_service(&account).await?;
+    let payload = service.create_setup_payload(USERNAME).context("setup")?;
     let legacy = fast_crypto()
         .encrypt(
             &SecretBox::new(Box::new(payload.base32_secret.as_bytes().to_vec())),
             &SecretBox::new(Box::new(LEGACY_DEV_KEY.to_vec())),
         )
         .await
-        .expect("legacy encryption");
+        .context("legacy encryption")?;
     sqlx::query("UPDATE users SET totp_secret = ?1 WHERE id = ?2")
         .bind(
             serialize_vault_key_envelope(&legacy)
@@ -271,20 +287,21 @@ async fn a_code_accepted_through_the_legacy_key_cannot_be_replayed() {
         .bind(account.user_id.to_string())
         .execute(&account.pool)
         .await
-        .expect("plant legacy secret");
-    let code = current_code(&payload.base32_secret);
+        .context("plant legacy secret")?;
+    let code = current_code(&payload.base32_secret)?;
 
     assert!(
         service
             .verify_login_totp(USERNAME, secret(PASSWORD), &code)
             .await
-            .expect("verify legacy")
+            .context("verify legacy")?
     );
     assert!(
         !service
             .verify_login_totp(USERNAME, secret(PASSWORD), &code)
             .await
-            .expect("verify replay after migration"),
+            .context("verify replay after migration")?,
         "the code used for the legacy migration must not open a second session"
     );
+    Ok(())
 }

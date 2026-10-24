@@ -1,9 +1,13 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! Security tests for brute-force resistance.
 //! Verifies that security parameters sufficiently slow down attacks, and that the
 //! IP rate-limiter actually locks out an attacker after too many failed attempts.
 
+use anyhow::Context as _;
 use heelonvault_core::errors::AppError;
 use heelonvault_core::repositories::ip_rate_limit_repository::{
     IpRateLimitPolicy, IpRateLimitRepository, SqlxIpRateLimitRepository,
@@ -19,7 +23,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
 use tempfile::TempDir;
 
-async fn open_pool(path: &Path) -> SqlitePool {
+async fn open_pool(path: &Path) -> anyhow::Result<SqlitePool> {
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect_with(
@@ -29,15 +33,15 @@ async fn open_pool(path: &Path) -> SqlitePool {
                 .pragma("secure_delete", "ON"),
         )
         .await
-        .expect("open sqlite pool");
+        .context("open sqlite pool")?;
     let migrations = Path::new(env!("CARGO_MANIFEST_DIR")).join("../heelonvault-app/migrations");
     sqlx::migrate::Migrator::new(migrations.as_path())
         .await
-        .expect("load migrations")
+        .context("load migrations")?
         .run(&pool)
         .await
-        .expect("run migrations");
-    pool
+        .context("run migrations")?;
+    Ok(pool)
 }
 
 fn password_bytes(value: &str) -> SecretBox<Vec<u8>> {
@@ -53,7 +57,7 @@ fn password_bytes(value: &str) -> SecretBox<Vec<u8>> {
 // ============================================================================
 
 #[tokio::test]
-async fn test_argon2id_parameters_are_sufficient() {
+async fn test_argon2id_parameters_are_sufficient() -> anyhow::Result<()> {
     // Une mesure d'horloge murale est intrinsèquement instable en CI (machine partagée,
     // charge variable) : on vérifie ici les *paramètres* de production plutôt qu'un temps
     // d'exécution mesuré, et on garde un test fonctionnel (dérivation réussie, bonne longueur).
@@ -88,20 +92,21 @@ async fn test_argon2id_parameters_are_sufficient() {
     let salt = service
         .generate_kdf_salt()
         .await
-        .expect("Salt generation failed");
+        .context("Salt generation failed")?;
     let key = service
         .derive_key(&password, &salt)
         .await
-        .expect("Derivation failed");
+        .context("Derivation failed")?;
     assert_eq!(
         key.expose_secret().len(),
         32,
         "Derived key should be 32 bytes"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_fast_argon2id_parameters() {
+async fn test_fast_argon2id_parameters() -> anyhow::Result<()> {
     // Test avec des paramètres réduits pour les tests
     let config = KdfConfig {
         memory_cost_kib: 1024, // 1 MiB
@@ -115,13 +120,13 @@ async fn test_fast_argon2id_parameters() {
     let salt = service
         .generate_kdf_salt()
         .await
-        .expect("Salt generation failed");
+        .context("Salt generation failed")?;
 
     let start = std::time::Instant::now();
     let _key = service
         .derive_key(&password, &salt)
         .await
-        .expect("Derivation failed");
+        .context("Derivation failed")?;
     let elapsed = start.elapsed();
 
     // Même avec des paramètres réduits, cela devrait prendre un certain temps
@@ -129,15 +134,16 @@ async fn test_fast_argon2id_parameters() {
 
     // Vérifier que la clé a la bonne longueur
     assert_eq!(_key.expose_secret().len(), 32, "Key should be 32 bytes");
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_different_salts_produce_different_keys() {
+async fn test_different_salts_produce_different_keys() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
     let password = SecretString::new("same_password".to_string().into());
 
-    let salt_1 = service.generate_kdf_salt().await.expect("generate salt");
-    let salt_2 = service.generate_kdf_salt().await.expect("generate salt");
+    let salt_1 = service.generate_kdf_salt().await.context("generate salt")?;
+    let salt_2 = service.generate_kdf_salt().await.context("generate salt")?;
 
     // Les salts doivent être différents
     assert_ne!(
@@ -149,11 +155,11 @@ async fn test_different_salts_produce_different_keys() {
     let key_1 = service
         .derive_key(&password, &salt_1)
         .await
-        .expect("derive key");
+        .context("derive key")?;
     let key_2 = service
         .derive_key(&password, &salt_2)
         .await
-        .expect("derive key");
+        .context("derive key")?;
 
     // Les clés doivent être différentes
     assert_ne!(
@@ -161,22 +167,23 @@ async fn test_different_salts_produce_different_keys() {
         key_2.expose_secret(),
         "Different salts should produce different keys"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_same_password_and_salt_produce_same_key() {
+async fn test_same_password_and_salt_produce_same_key() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
     let password = SecretString::new("test_password".to_string().into());
-    let salt = service.generate_kdf_salt().await.expect("generate salt");
+    let salt = service.generate_kdf_salt().await.context("generate salt")?;
 
     let key_1 = service
         .derive_key(&password, &salt)
         .await
-        .expect("derive key");
+        .context("derive key")?;
     let key_2 = service
         .derive_key(&password, &salt)
         .await
-        .expect("derive key");
+        .context("derive key")?;
 
     // Les mêmes inputs doivent produire la même clé
     assert_eq!(
@@ -184,16 +191,17 @@ async fn test_same_password_and_salt_produce_same_key() {
         key_2.expose_secret(),
         "Same inputs should produce same key"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_salt_generation_is_random() {
+async fn test_salt_generation_is_random() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
 
     // Générer plusieurs salts et vérifier qu'ils sont tous différents
     let mut salts = Vec::new();
     for _ in 0..100 {
-        let salt = service.generate_kdf_salt().await.expect("generate salt");
+        let salt = service.generate_kdf_salt().await.context("generate salt")?;
         salts.push(salt.expose_secret().clone());
     }
 
@@ -216,12 +224,13 @@ async fn test_salt_generation_is_random() {
             salt.len()
         );
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_argon2id_with_different_passwords() {
+async fn test_argon2id_with_different_passwords() -> anyhow::Result<()> {
     let service = CryptoServiceImpl::with_defaults();
-    let salt = service.generate_kdf_salt().await.expect("generate salt");
+    let salt = service.generate_kdf_salt().await.context("generate salt")?;
 
     let password_1 = SecretString::new("password_1".to_string().into());
     let password_2 = SecretString::new("password_2".to_string().into());
@@ -229,11 +238,11 @@ async fn test_argon2id_with_different_passwords() {
     let key_1 = service
         .derive_key(&password_1, &salt)
         .await
-        .expect("derive key");
+        .context("derive key")?;
     let key_2 = service
         .derive_key(&password_2, &salt)
         .await
-        .expect("derive key");
+        .context("derive key")?;
 
     // Des mots de passe différents avec le même salt doivent produire des clés différentes
     assert_ne!(
@@ -241,6 +250,7 @@ async fn test_argon2id_with_different_passwords() {
         key_2.expose_secret(),
         "Different passwords with same salt should produce different keys"
     );
+    Ok(())
 }
 
 // ============================================================================
@@ -248,7 +258,7 @@ async fn test_argon2id_with_different_passwords() {
 // ============================================================================
 
 #[tokio::test]
-async fn test_recovery_phrase_entropy() {
+async fn test_recovery_phrase_entropy() -> anyhow::Result<()> {
     // Une phrase de récupération de 24 mots BIP39 a ~264 bits d'entropie
     // 2048 mots possibles par position
     // 24 mots → 2048^24 combinaisons
@@ -256,7 +266,7 @@ async fn test_recovery_phrase_entropy() {
     // Vérifier que la génération de phrase produit bien 24 mots
     let phrase = BackupServiceImpl::new()
         .generate_recovery_key()
-        .expect("Should generate phrase")
+        .context("Should generate phrase")?
         .recovery_phrase;
 
     let word_count = phrase.expose_secret().split_whitespace().count();
@@ -284,13 +294,14 @@ async fn test_recovery_phrase_entropy() {
         &phrase_lower,
         "Recovery phrase should be lowercase"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_recovery_phrase_words_are_unique_in_position() {
+async fn test_recovery_phrase_words_are_unique_in_position() -> anyhow::Result<()> {
     let phrase = BackupServiceImpl::new()
         .generate_recovery_key()
-        .expect("Should generate phrase")
+        .context("Should generate phrase")?
         .recovery_phrase;
 
     let words: Vec<&str> = phrase.expose_secret().split_whitespace().collect();
@@ -305,13 +316,14 @@ async fn test_recovery_phrase_words_are_unique_in_position() {
             word
         );
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_recovery_phrase_is_lowercase() {
+async fn test_recovery_phrase_is_lowercase() -> anyhow::Result<()> {
     let phrase = BackupServiceImpl::new()
         .generate_recovery_key()
-        .expect("Should generate phrase")
+        .context("Should generate phrase")?
         .recovery_phrase;
 
     // Vérifier que la phrase est en minuscules
@@ -327,16 +339,17 @@ async fn test_recovery_phrase_is_lowercase() {
         !phrase_str.contains("  "),
         "Recovery phrase should not contain double spaces"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_multiple_recovery_phrases_are_different() {
+async fn test_multiple_recovery_phrases_are_different() -> anyhow::Result<()> {
     // Générer plusieurs phrases et vérifier qu'elles sont différentes
     let mut phrases = Vec::new();
     for _ in 0..10 {
         let phrase = BackupServiceImpl::new()
             .generate_recovery_key()
-            .expect("Should generate phrase")
+            .context("Should generate phrase")?
             .recovery_phrase;
         phrases.push(phrase.expose_secret().to_string());
     }
@@ -350,6 +363,7 @@ async fn test_multiple_recovery_phrases_are_different() {
             "Duplicate recovery phrase generated!"
         );
     }
+    Ok(())
 }
 
 // ============================================================================
@@ -357,14 +371,15 @@ async fn test_multiple_recovery_phrases_are_different() {
 // ============================================================================
 
 #[test]
-fn test_password_policy_enforcement() {
+fn test_password_policy_enforcement() -> anyhow::Result<()> {
     let policy = PasswordServiceImpl::new();
 
     // Mot de passe trop court (le minimum réel est 16 caractères, cf.
     // MIN_PASSWORD_LENGTH dans password_service.rs)
     let err = policy
         .validate_password_policy(&password_bytes("Short1!"))
-        .expect_err("too-short password should be rejected");
+        .err()
+        .context("too-short password should be rejected")?;
     assert!(
         matches!(err, AppError::Validation(ref msg) if msg.contains("length")),
         "got {err:?}"
@@ -373,7 +388,8 @@ fn test_password_policy_enforcement() {
     // Mot de passe avec espace (rejeté quelle que soit sa longueur)
     let err = policy
         .validate_password_policy(&password_bytes("Has A Space 123!"))
-        .expect_err("password with whitespace should be rejected");
+        .err()
+        .context("password with whitespace should be rejected")?;
     assert!(
         matches!(err, AppError::Validation(ref msg) if msg.contains("whitespace")),
         "got {err:?}"
@@ -382,7 +398,8 @@ fn test_password_policy_enforcement() {
     // Mot de passe sans majuscule (16+ caractères par ailleurs valides)
     let err = policy
         .validate_password_policy(&password_bytes("nouppercase1234!"))
-        .expect_err("password without uppercase should be rejected");
+        .err()
+        .context("password without uppercase should be rejected")?;
     assert!(
         matches!(err, AppError::Validation(ref msg) if msg.contains("uppercase")),
         "got {err:?}"
@@ -391,7 +408,8 @@ fn test_password_policy_enforcement() {
     // Mot de passe sans minuscule
     let err = policy
         .validate_password_policy(&password_bytes("NOLOWERCASE1234!"))
-        .expect_err("password without lowercase should be rejected");
+        .err()
+        .context("password without lowercase should be rejected")?;
     assert!(
         matches!(err, AppError::Validation(ref msg) if msg.contains("lowercase")),
         "got {err:?}"
@@ -400,7 +418,8 @@ fn test_password_policy_enforcement() {
     // Mot de passe sans chiffre
     let err = policy
         .validate_password_policy(&password_bytes("NoNumbersAtAll!!"))
-        .expect_err("password without a digit should be rejected");
+        .err()
+        .context("password without a digit should be rejected")?;
     assert!(
         matches!(err, AppError::Validation(ref msg) if msg.contains("digit")),
         "got {err:?}"
@@ -409,7 +428,8 @@ fn test_password_policy_enforcement() {
     // Mot de passe sans symbole
     let err = policy
         .validate_password_policy(&password_bytes("NoSymbolsHere123"))
-        .expect_err("password without a symbol should be rejected");
+        .err()
+        .context("password without a symbol should be rejected")?;
     assert!(
         matches!(err, AppError::Validation(ref msg) if msg.contains("symbol")),
         "got {err:?}"
@@ -434,10 +454,11 @@ fn test_password_policy_enforcement() {
             .is_ok(),
         "Valid password should pass"
     );
+    Ok(())
 }
 
 #[test]
-fn test_password_policy_boundary_cases() {
+fn test_password_policy_boundary_cases() -> anyhow::Result<()> {
     let policy = PasswordServiceImpl::new();
     // MIN_PASSWORD_LENGTH in password_service.rs (not exported, so mirrored here).
     const MIN_LEN: usize = 16;
@@ -459,7 +480,8 @@ fn test_password_policy_boundary_cases() {
     assert_eq!(one_below_min.len(), MIN_LEN - 1);
     let err = policy
         .validate_password_policy(&password_bytes(&one_below_min))
-        .expect_err("one char below the minimum should be rejected");
+        .err()
+        .context("one char below the minimum should be rejected")?;
     assert!(
         matches!(err, AppError::Validation(ref msg) if msg.contains("length")),
         "got {err:?}"
@@ -478,10 +500,11 @@ fn test_password_policy_boundary_cases() {
             "Password with special char '{special}' should be valid"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn test_password_policy_accepts_unicode_alongside_ascii_requirements() {
+fn test_password_policy_accepts_unicode_alongside_ascii_requirements() -> anyhow::Result<()> {
     // La politique réelle (password_service.rs) classe les octets non-ASCII comme des
     // "symboles" : un mot de passe combinant des caractères Unicode avec les exigences
     // ASCII (majuscule/minuscule/chiffre) est donc accepté, pas rejeté.
@@ -503,8 +526,10 @@ fn test_password_policy_accepts_unicode_alongside_ascii_requirements() {
     let pure_unicode = "пароль пароль пароль пароль";
     let err = policy
         .validate_password_policy(&password_bytes(pure_unicode))
-        .expect_err("a password with no ASCII uppercase/lowercase/digit should be rejected");
+        .err()
+        .context("a password with no ASCII uppercase/lowercase/digit should be rejected")?;
     assert!(matches!(err, AppError::Validation(_)), "got {err:?}");
+    Ok(())
 }
 
 // ============================================================================
@@ -562,7 +587,8 @@ fn test_pin_complexity_requirements() {
 // ============================================================================
 
 #[tokio::test]
-async fn test_password_comparison_behaves_correctly_for_right_and_wrong_password() {
+async fn test_password_comparison_behaves_correctly_for_right_and_wrong_password()
+-> anyhow::Result<()> {
     // La comparaison à temps constant elle-même (subtle::ConstantTimeEq, utilisée dans
     // account_key.rs) est une garantie de code, pas quelque chose qu'on peut vérifier de
     // façon fiable en mesurant l'horloge murale d'un test (bruit CI, ordonnancement du
@@ -577,19 +603,19 @@ async fn test_password_comparison_behaves_correctly_for_right_and_wrong_password
     let crypto = CryptoServiceImpl::with_defaults();
     let password = "correct_password_123";
 
-    let account_key = generate_account_key().expect("Failed to generate account key");
+    let account_key = generate_account_key().context("Failed to generate account key")?;
     let password_envelope = heelonvault_core::services::auth_service::wrap_account_key(
         &crypto,
         &SecretString::new(password.to_string().into()),
         &account_key,
     )
     .await
-    .expect("Failed to wrap account key");
+    .context("Failed to wrap account key")?;
 
     let encoded =
         heelonvault_core::services::auth_service::encode_password_envelope(&password_envelope);
     let decoded = heelonvault_core::services::auth_service::decode_password_envelope(&encoded)
-        .expect("Failed to decode");
+        .context("Failed to decode")?;
 
     let correct_result = unlock_password_envelope(
         &crypto,
@@ -597,7 +623,7 @@ async fn test_password_comparison_behaves_correctly_for_right_and_wrong_password
         &SecretString::new(password.to_string().into()),
     )
     .await
-    .expect("Should not panic");
+    .context("Should not panic")?;
     assert!(
         correct_result.is_some(),
         "the correct password must unlock the envelope"
@@ -609,11 +635,12 @@ async fn test_password_comparison_behaves_correctly_for_right_and_wrong_password
         &SecretString::new("wrong_password".to_string().into()),
     )
     .await
-    .expect("Should not panic");
+    .context("Should not panic")?;
     assert!(
         wrong_result.is_none(),
         "the wrong password must not unlock the envelope"
     );
+    Ok(())
 }
 
 // ============================================================================
@@ -621,12 +648,12 @@ async fn test_password_comparison_behaves_correctly_for_right_and_wrong_password
 // ============================================================================
 
 #[tokio::test]
-async fn test_ip_rate_limit_locks_after_max_attempts() {
+async fn test_ip_rate_limit_locks_after_max_attempts() -> anyhow::Result<()> {
     // Le nom de ce fichier promet une résistance au brute-force : ce test exerce le vrai
     // service de rate limiting par IP (table `login_attempts_ip`, migrée depuis les vraies
     // migrations SQLx) plutôt que de rester cantonné aux paramètres cryptographiques.
-    let dir = TempDir::new().expect("temp dir");
-    let pool = open_pool(&dir.path().join("ratelimit.db")).await;
+    let dir = TempDir::new().context("temp dir")?;
+    let pool = open_pool(&dir.path().join("ratelimit.db")).await?;
     let attacker_ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 42));
 
     let policy = IpRateLimitPolicy {
@@ -641,7 +668,7 @@ async fn test_ip_rate_limit_locks_after_max_attempts() {
         let status = repo
             .record_attempt(attacker_ip)
             .await
-            .expect("record attempt");
+            .context("record attempt")?;
         assert!(
             !status.is_locked(),
             "should not be locked after {attempt} attempt(s)"
@@ -652,7 +679,7 @@ async fn test_ip_rate_limit_locks_after_max_attempts() {
     let status = repo
         .record_attempt(attacker_ip)
         .await
-        .expect("record attempt");
+        .context("record attempt")?;
     assert!(
         status.is_locked(),
         "IP must be locked after reaching max_attempts"
@@ -666,7 +693,7 @@ async fn test_ip_rate_limit_locks_after_max_attempts() {
     let checked = repo
         .check_rate_limit(attacker_ip)
         .await
-        .expect("check rate limit");
+        .context("check rate limit")?;
     assert!(
         checked.is_locked(),
         "check_rate_limit must also report the IP as locked"
@@ -675,15 +702,16 @@ async fn test_ip_rate_limit_locks_after_max_attempts() {
     // reset_attempts (après un login réussi ailleurs, ou par un admin) lève le verrou.
     repo.reset_attempts(attacker_ip)
         .await
-        .expect("reset attempts");
+        .context("reset attempts")?;
     let after_reset = repo
         .check_rate_limit(attacker_ip)
         .await
-        .expect("check rate limit");
+        .context("check rate limit")?;
     assert!(
         !after_reset.is_locked(),
         "resetting attempts must clear the lock"
     );
 
     pool.close().await;
+    Ok(())
 }

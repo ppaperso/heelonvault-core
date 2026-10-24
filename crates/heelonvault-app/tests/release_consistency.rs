@@ -11,11 +11,11 @@ fn workspace_root() -> PathBuf {
     app_dir().join("../..")
 }
 
-fn read(path: &Path) -> String {
+fn read(path: &Path) -> anyhow::Result<String> {
     let Ok(content) = std::fs::read_to_string(path) else {
-        panic!("cannot read {}", path.display());
+        anyhow::bail!("cannot read {}", path.display());
     };
-    content
+    Ok(content)
 }
 
 /// Value of the first `key = "value"` line of `section` in a Cargo manifest.
@@ -51,11 +51,11 @@ fn manifest_value(manifest: &str, section: &str, key: &str) -> Option<String> {
     None
 }
 
-fn package_version(manifest_path: &Path) -> String {
-    let Some(version) = manifest_value(&read(manifest_path), "package", "version") else {
-        panic!("no [package] version in {}", manifest_path.display());
+fn package_version(manifest_path: &Path) -> anyhow::Result<String> {
+    let Some(version) = manifest_value(&read(manifest_path)?, "package", "version") else {
+        anyhow::bail!("no [package] version in {}", manifest_path.display());
     };
-    version
+    Ok(version)
 }
 
 fn numbers(version: &str) -> Vec<u64> {
@@ -106,16 +106,17 @@ fn manifest_values_are_read_from_plain_and_table_forms() {
 }
 
 #[test]
-fn app_and_core_share_the_product_version() {
-    let core = package_version(&workspace_root().join("crates/heelonvault-core/Cargo.toml"));
+fn app_and_core_share_the_product_version() -> anyhow::Result<()> {
+    let core = package_version(&workspace_root().join("crates/heelonvault-core/Cargo.toml"))?;
     assert_eq!(env!("CARGO_PKG_VERSION"), core);
+    Ok(())
 }
 
 #[test]
-fn premium_shares_the_version_and_depends_on_this_core() {
-    let core = package_version(&workspace_root().join("crates/heelonvault-core/Cargo.toml"));
+fn premium_shares_the_version_and_depends_on_this_core() -> anyhow::Result<()> {
+    let core = package_version(&workspace_root().join("crates/heelonvault-core/Cargo.toml"))?;
     let premium_manifest_path = workspace_root().join("../heelonvault-premium/Cargo.toml");
-    let premium_manifest = read(&premium_manifest_path);
+    let premium_manifest = read(&premium_manifest_path)?;
 
     assert_eq!(
         manifest_value(&premium_manifest, "package", "version").as_deref(),
@@ -124,17 +125,18 @@ fn premium_shares_the_version_and_depends_on_this_core() {
     );
     let Some(requirement) = manifest_value(&premium_manifest, "dependencies", "heelonvault-core")
     else {
-        panic!("heelonvault-premium does not depend on heelonvault-core");
+        anyhow::bail!("heelonvault-premium does not depend on heelonvault-core");
     };
     assert!(
         caret_matches(&requirement, &core),
         "heelonvault-premium requires heelonvault-core {requirement}, which excludes {core}"
     );
+    Ok(())
 }
 
 #[test]
-fn the_changelogs_document_the_current_version() {
-    let core = package_version(&workspace_root().join("crates/heelonvault-core/Cargo.toml"));
+fn the_changelogs_document_the_current_version() -> anyhow::Result<()> {
+    let core = package_version(&workspace_root().join("crates/heelonvault-core/Cargo.toml"))?;
     let heading = format!("## [{core}]");
     for changelog in [
         "docs/CHANGELOG.md",
@@ -143,8 +145,9 @@ fn the_changelogs_document_the_current_version() {
         "../heelonvault-premium/CHANGELOG.en.md",
     ] {
         assert!(
-            read(&workspace_root().join(changelog)).contains(&heading),
+            read(&workspace_root().join(changelog))?.contains(&heading),
             "{changelog} has no `{heading}` section"
         );
     }
+    Ok(())
 }

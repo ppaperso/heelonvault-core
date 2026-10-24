@@ -213,9 +213,9 @@ pub enum PinUnlockError {
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[allow(clippy::disallowed_methods)]
 mod tests {
     use super::*;
+    use anyhow::Context as _;
     use secrecy::SecretBox;
 
     fn dummy_master_key() -> SecretBox<Vec<u8>> {
@@ -227,43 +227,55 @@ mod tests {
     }
 
     #[test]
-    fn wrap_then_unwrap_succeeds() {
+    fn wrap_then_unwrap_succeeds() -> anyhow::Result<()> {
         let uid = dummy_uuid();
         let mk = dummy_master_key();
-        let mut cache = PinCache::wrap(&mk, "123456", uid).expect("wrap failed");
-        let recovered = cache.try_unwrap("123456").expect("unwrap failed");
+        let mut cache = PinCache::wrap(&mk, "123456", uid).context("wrap failed")?;
+        let recovered = cache
+            .try_unwrap("123456")
+            .map_err(|error| anyhow::anyhow!("unwrap failed: {error:?}"))?;
         assert_eq!(recovered.as_slice(), mk.expose_secret().as_slice());
+        Ok(())
     }
 
     #[test]
-    fn wrong_pin_increments_attempts() {
+    fn wrong_pin_increments_attempts() -> anyhow::Result<()> {
         let uid = dummy_uuid();
         let mk = dummy_master_key();
-        let mut cache = PinCache::wrap(&mk, "1234", uid).expect("wrap failed");
-        let err = cache.try_unwrap("9999").unwrap_err();
+        let mut cache = PinCache::wrap(&mk, "1234", uid).context("wrap failed")?;
+        let err = cache
+            .try_unwrap("9999")
+            .err()
+            .context("expected an error")?;
         assert_eq!(err, PinUnlockError::WrongPin { remaining: 2 });
         assert_eq!(cache.failed_attempts, 1);
+        Ok(())
     }
 
     #[test]
-    fn three_failures_exhaust_cache() {
+    fn three_failures_exhaust_cache() -> anyhow::Result<()> {
         let uid = dummy_uuid();
         let mk = dummy_master_key();
-        let mut cache = PinCache::wrap(&mk, "1234", uid).expect("wrap failed");
+        let mut cache = PinCache::wrap(&mk, "1234", uid).context("wrap failed")?;
         for _ in 0..2 {
             let _ = cache.try_unwrap("0000");
         }
-        let err = cache.try_unwrap("0000").unwrap_err();
+        let err = cache
+            .try_unwrap("0000")
+            .err()
+            .context("expected an error")?;
         assert_eq!(err, PinUnlockError::Exhausted);
         assert!(cache.is_exhausted());
+        Ok(())
     }
 
     #[test]
-    fn wrong_pin_does_not_decode() {
+    fn wrong_pin_does_not_decode() -> anyhow::Result<()> {
         let uid = dummy_uuid();
         let mk = dummy_master_key();
-        let mut cache = PinCache::wrap(&mk, "1234", uid).expect("wrap failed");
+        let mut cache = PinCache::wrap(&mk, "1234", uid).context("wrap failed")?;
         assert!(cache.try_unwrap("4321").is_err());
+        Ok(())
     }
 
     #[test]
@@ -284,19 +296,21 @@ mod tests {
     }
 
     #[test]
-    fn hard_timeout_detects_expiry() {
+    fn hard_timeout_detects_expiry() -> anyhow::Result<()> {
         let uid = dummy_uuid();
         let mk = dummy_master_key();
-        let cache = PinCache::wrap(&mk, "1234", uid).expect("wrap failed");
+        let cache = PinCache::wrap(&mk, "1234", uid).context("wrap failed")?;
         assert!(!cache.is_expired(Duration::from_secs(3600)));
         assert!(cache.is_expired(Duration::from_nanos(0)));
+        Ok(())
     }
 
     #[test]
-    fn user_id_binding_preserved() {
+    fn user_id_binding_preserved() -> anyhow::Result<()> {
         let uid = dummy_uuid();
         let mk = dummy_master_key();
-        let cache = PinCache::wrap(&mk, "1234", uid).expect("wrap failed");
+        let cache = PinCache::wrap(&mk, "1234", uid).context("wrap failed")?;
         assert_eq!(cache.user_id(), uid);
+        Ok(())
     }
 }

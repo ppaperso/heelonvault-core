@@ -1,3 +1,6 @@
+// `#[tokio::test]` expands to `Runtime::build().expect(..)`, which `disallowed_methods`
+// reports here. Test code stays covered by `clippy::unwrap_used` / `clippy::expect_used`,
+// enforced by `cargo clippy-secure` in CI.
 #![allow(clippy::disallowed_methods)]
 
 //! GDPR guarantees that can be checked on disk: erasure really removes the data (art. 17),
@@ -7,6 +10,7 @@
 //! through SQL: a row that SQL no longer returns but whose bytes survive in a freed page is
 //! not erased.
 
+use anyhow::Context as _;
 mod support;
 
 use heelonvault_core::errors::{AppError, RecoveryFailure};
@@ -26,65 +30,66 @@ use uuid::Uuid;
 
 const VAULT_KEY: [u8; 32] = [9; 32];
 
-async fn count(pool: &SqlitePool, sql: &'static str, id: &str) -> i64 {
+async fn count(pool: &SqlitePool, sql: &'static str, id: &str) -> anyhow::Result<i64> {
     sqlx::query_scalar::<_, i64>(sql)
         .bind(id)
         .fetch_one(pool)
         .await
-        .expect("count query")
+        .context("count query")
 }
 
-fn temporary_leftovers(dir: &std::path::Path) -> Vec<String> {
-    std::fs::read_dir(dir)
-        .expect("read dir")
+fn temporary_leftovers(dir: &std::path::Path) -> anyhow::Result<Vec<String>> {
+    Ok(std::fs::read_dir(dir)
+        .context("read dir")?
         .filter_map(Result::ok)
         .map(|entry| entry.file_name().to_string_lossy().to_string())
         .filter(|name| name.ends_with(".partial") || name.ends_with(".snapshot"))
-        .collect()
+        .collect())
 }
 
 // ─── Art. 17 : droit à l'effacement ─────────────────────────────────────────
 
 #[tokio::test]
-async fn a_trashed_secret_is_recoverable_and_a_purged_one_is_gone_from_disk() {
-    let account = bootstrap_account().await;
+async fn a_trashed_secret_is_recoverable_and_a_purged_one_is_gone_from_disk() -> anyhow::Result<()>
+{
+    let account = bootstrap_account().await?;
     let vault_id = create_vault(
         &account.pool,
         account.user_id,
         &account.account_key,
         &VAULT_KEY,
     )
-    .await;
+    .await?;
     let (secret_id, ciphertext) =
-        insert_secret(&account.pool, vault_id, &VAULT_KEY, b"purge-me-please").await;
+        insert_secret(&account.pool, vault_id, &VAULT_KEY, b"purge-me-please").await?;
     let repo = SqlxSecretRepository::new(account.pool.clone());
 
     // The trash is a reversible soft delete: it is not an erasure and must not pretend to be.
-    repo.soft_delete(secret_id).await.expect("soft delete");
+    repo.soft_delete(secret_id).await.context("soft delete")?;
     assert_eq!(
         count(
             &account.pool,
             "SELECT COUNT(*) FROM secret_items WHERE id = ?1",
             &secret_id.to_string()
         )
-        .await,
+        .await?,
         1
     );
     repo.restore_secret(secret_id, vault_id)
         .await
-        .expect("restore");
-    repo.soft_delete(secret_id).await.expect("soft delete");
+        .context("restore")?;
+    repo.soft_delete(secret_id).await.context("soft delete")?;
 
     repo.permanent_delete(secret_id, vault_id)
         .await
-        .expect("permanent delete");
+        .context("permanent delete")?;
     assert_eq!(
         count(
             &account.pool,
             "SELECT COUNT(*) FROM secret_items WHERE id = ?1",
             &secret_id.to_string()
         )
-        .await,
+        .await?,
         0
     );
     account.pool.close().await;
@@ -93,19 +98,20 @@ async fn a_trashed_secret_is_recoverable_and_a_purged_one_is_gone_from_disk() {
         !db_files_contain(&account.db_path, &ciphertext),
         "a permanently deleted secret must not survive in a freed page (secure_delete)"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn permanent_delete_refuses_a_secret_that_is_not_in_the_trash() {
-    let account = bootstrap_account().await;
+async fn permanent_delete_refuses_a_secret_that_is_not_in_the_trash() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
     let vault_id = create_vault(
         &account.pool,
         account.user_id,
         &account.account_key,
         &VAULT_KEY,
     )
-    .await;
-    let (secret_id, _) = insert_secret(&account.pool, vault_id, &VAULT_KEY, b"still-live").await;
+    .await?;
+    let (secret_id, _) = insert_secret(&account.pool, vault_id, &VAULT_KEY, b"still-live").await?;
 
     let result = SqlxSecretRepository::new(account.pool.clone())
         .permanent_delete(secret_id, vault_id)
@@ -121,24 +127,25 @@ async fn permanent_delete_refuses_a_secret_that_is_not_in_the_trash() {
             "SELECT COUNT(*) FROM secret_items WHERE id = ?1",
             &secret_id.to_string()
         )
-        .await,
+        .await?,
         1,
         "a live secret must never be purged in one step"
     );
+    Ok(())
 }
 
 #[tokio::test]
-async fn emptying_the_trash_wipes_trashed_secrets_only() {
-    let account = bootstrap_account().await;
+async fn emptying_the_trash_wipes_trashed_secrets_only() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
     let vault_id = create_vault(
         &account.pool,
         account.user_id,
         &account.account_key,
         &VAULT_KEY,
     )
-    .await;
+    .await?;
     let repo = SqlxSecretRepository::new(account.pool.clone());
-    let (kept_id, kept_blob) = insert_secret(&account.pool, vault_id, &VAULT_KEY, b"kept").await;
+    let (kept_id, kept_blob) = insert_secret(&account.pool, vault_id, &VAULT_KEY, b"kept").await?;
     let mut trashed_blobs = Vec::new();
     for index in 0..3 {
         let (id, blob) = insert_secret(
@@ -147,12 +154,12 @@ async fn emptying_the_trash_wipes_trashed_secrets_only() {
             &VAULT_KEY,
             format!("trashed-{index}").as_bytes(),
         )
-        .await;
-        repo.soft_delete(id).await.expect("soft delete");
+        .await?;
+        repo.soft_delete(id).await.context("soft delete")?;
         trashed_blobs.push(blob);
     }
 
-    let purged = repo.empty_trash(vault_id).await.expect("empty trash");
+    let purged = repo.empty_trash(vault_id).await.context("empty trash")?;
 
     assert_eq!(purged, 3);
     assert_eq!(
@@ -161,7 +168,7 @@ async fn emptying_the_trash_wipes_trashed_secrets_only() {
             "SELECT COUNT(*) FROM secret_items WHERE id = ?1",
             &kept_id.to_string()
         )
-        .await,
+        .await?,
         1
     );
     account.pool.close().await;
@@ -169,11 +176,12 @@ async fn emptying_the_trash_wipes_trashed_secrets_only() {
     for blob in &trashed_blobs {
         assert!(!db_files_contain(&account.db_path, blob));
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn deleting_a_user_erases_every_piece_of_their_personal_data() {
-    let account = bootstrap_account().await;
+async fn deleting_a_user_erases_every_piece_of_their_personal_data() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
     let pool = account.pool.clone();
     let user_id = account.user_id.to_string();
     let users = SqlxUserRepository::new(pool.clone());
@@ -191,40 +199,40 @@ async fn deleting_a_user_erases_every_piece_of_their_personal_data() {
             None,
         )
         .await
-        .expect("profile");
+        .context("profile")?;
     record_successful_login(&pool, account.user_id, Some(ip), Some(device))
         .await
-        .expect("login history");
+        .context("login history")?;
     SqlxAuthPolicyService::new(pool.clone())
         .record_failed_attempt(USERNAME)
         .await
-        .expect("failed attempt");
-    let vault_id = create_vault(&pool, account.user_id, &account.account_key, &VAULT_KEY).await;
-    let (_, ciphertext) = insert_secret(&pool, vault_id, &VAULT_KEY, b"owned-secret").await;
+        .context("failed attempt")?;
+    let vault_id = create_vault(&pool, account.user_id, &account.account_key, &VAULT_KEY).await?;
+    let (_, ciphertext) = insert_secret(&pool, vault_id, &VAULT_KEY, b"owned-secret").await?;
     sqlx::query("INSERT INTO audit_log (actor_user_id, action) VALUES (?1, 'vault.created')")
         .bind(&user_id)
         .execute(&pool)
         .await
-        .expect("audit entry");
+        .context("audit entry")?;
     let password_envelope = users
         .get_password_envelope_by_user_id(account.user_id)
         .await
-        .expect("query")
-        .expect("envelope")
+        .context("query")?
+        .context("envelope")?
         .expose_secret()
         .clone();
     let recovery_envelope = users
         .get_recovery_key_envelope(account.user_id)
         .await
-        .expect("query")
-        .expect("recovery key envelope")
+        .context("query")?
+        .context("recovery key envelope")?
         .expose_secret()
         .clone();
 
     users
         .delete_user(account.user_id)
         .await
-        .expect("delete user");
+        .context("delete user")?;
 
     for (table, sql) in [
         ("users", "SELECT COUNT(*) FROM users WHERE id = ?1"),
@@ -238,7 +246,7 @@ async fn deleting_a_user_erases_every_piece_of_their_personal_data() {
         ),
     ] {
         assert_eq!(
-            count(&pool, sql, &user_id).await,
+            count(&pool, sql, &user_id).await?,
             0,
             "{table} still references the deleted user"
         );
@@ -249,7 +257,7 @@ async fn deleting_a_user_erases_every_piece_of_their_personal_data() {
             "SELECT COUNT(*) FROM secret_items WHERE vault_id = ?1",
             &vault_id.to_string()
         )
-        .await,
+        .await?,
         0,
         "secrets of the user's vaults must be erased with them"
     );
@@ -259,7 +267,7 @@ async fn deleting_a_user_erases_every_piece_of_their_personal_data() {
             "SELECT COUNT(*) FROM auth_policy WHERE username = ?1",
             USERNAME
         )
-        .await,
+        .await?,
         0,
         "the login throttling row keeps the username of the deleted user"
     );
@@ -270,7 +278,7 @@ async fn deleting_a_user_erases_every_piece_of_their_personal_data() {
             "SELECT COUNT(*) FROM audit_log WHERE actor_user_id = ?1",
             &user_id
         )
-        .await,
+        .await?,
         0
     );
     assert_eq!(
@@ -279,7 +287,7 @@ async fn deleting_a_user_erases_every_piece_of_their_personal_data() {
             "SELECT COUNT(*) FROM audit_log WHERE action = ?1 AND actor_user_id IS NULL",
             "vault.created"
         )
-        .await,
+        .await?,
         1
     );
     pool.close().await;
@@ -299,11 +307,12 @@ async fn deleting_a_user_erases_every_piece_of_their_personal_data() {
             "the {label} of a deleted user is still on disk"
         );
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn deleting_an_unknown_user_changes_nothing() {
-    let account = bootstrap_account().await;
+async fn deleting_an_unknown_user_changes_nothing() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
 
     let result = SqlxUserRepository::new(account.pool.clone())
         .delete_user(Uuid::new_v4())
@@ -319,23 +328,24 @@ async fn deleting_an_unknown_user_changes_nothing() {
             "SELECT COUNT(*) FROM users WHERE id = ?1",
             &account.user_id.to_string()
         )
-        .await,
+        .await?,
         1
     );
+    Ok(())
 }
 
 // ─── Art. 20 : portabilité / export sécurisé ────────────────────────────────
 
 #[tokio::test]
-async fn the_export_is_owner_only_complete_and_leaves_no_temporary_file() {
-    let account = bootstrap_account().await;
+async fn the_export_is_owner_only_complete_and_leaves_no_temporary_file() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
     let vault_id = create_vault(
         &account.pool,
         account.user_id,
         &account.account_key,
         &VAULT_KEY,
     )
-    .await;
+    .await?;
     let mut blobs = Vec::new();
     for index in 0..5 {
         blobs.push(
@@ -345,7 +355,7 @@ async fn the_export_is_owner_only_complete_and_leaves_no_temporary_file() {
                 &VAULT_KEY,
                 format!("export-{index}").as_bytes(),
             )
-            .await
+            .await?
             .1,
         );
     }
@@ -353,16 +363,16 @@ async fn the_export_is_owner_only_complete_and_leaves_no_temporary_file() {
 
     let backup = BackupServiceImpl::new();
     let export_dir = account.dir.path().join("exports");
-    std::fs::create_dir(&export_dir).expect("export dir");
+    std::fs::create_dir(&export_dir).context("export dir")?;
     let hvb = export_dir.join("heelonvault.hvb");
     let restored = export_dir.join("restored.db");
 
     backup
         .export_hvb_with_recovery_key(&account.db_path, &hvb, &account.recovery_phrase)
-        .expect("export");
+        .context("export")?;
     #[cfg(unix)]
-    assert_eq!(support::mode(&hvb), 0o600, "the export must be owner-only");
-    let exported = std::fs::read(&hvb).expect("read export");
+    assert_eq!(support::mode(&hvb)?, 0o600, "the export must be owner-only");
+    let exported = std::fs::read(&hvb).context("read export")?;
     for blob in &blobs {
         assert!(
             !contains(&exported, blob),
@@ -372,20 +382,20 @@ async fn the_export_is_owner_only_complete_and_leaves_no_temporary_file() {
 
     backup
         .import_hvb_with_recovery_key(&hvb, &account.recovery_phrase, &restored)
-        .expect("import");
+        .context("import")?;
     #[cfg(unix)]
     assert_eq!(
-        support::mode(&restored),
+        support::mode(&restored)?,
         0o600,
         "the restored database must be owner-only"
     );
-    assert!(temporary_leftovers(&export_dir).is_empty());
+    assert!(temporary_leftovers(&export_dir)?.is_empty());
 
-    let pool = support::open_pool(&restored).await;
+    let pool = support::open_pool(&restored).await?;
     let restored_secrets = SqlxSecretRepository::new(pool.clone())
         .list_by_vault_id(vault_id)
         .await
-        .expect("list");
+        .context("list")?;
     assert_eq!(
         restored_secrets.len(),
         blobs.len(),
@@ -395,21 +405,22 @@ async fn the_export_is_owner_only_complete_and_leaves_no_temporary_file() {
         assert!(blobs.contains(item.secret_blob.expose_secret()));
     }
     pool.close().await;
+    Ok(())
 }
 
 #[tokio::test]
-async fn a_failed_import_writes_nothing() {
-    let account = bootstrap_account().await;
+async fn a_failed_import_writes_nothing() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
     account.pool.close().await;
     let backup = BackupServiceImpl::new();
     let hvb = account.dir.path().join("export.hvb");
     let restored = account.dir.path().join("restored.db");
     backup
         .export_hvb_with_recovery_key(&account.db_path, &hvb, &account.recovery_phrase)
-        .expect("export");
+        .context("export")?;
     let other_phrase = backup
         .generate_recovery_key()
-        .expect("phrase")
+        .context("phrase")?
         .recovery_phrase;
 
     let result = backup.import_hvb_with_recovery_key(&hvb, &other_phrase, &restored);
@@ -424,58 +435,60 @@ async fn a_failed_import_writes_nothing() {
         "got {result:?}"
     );
     assert!(!restored.exists());
-    assert!(temporary_leftovers(account.dir.path()).is_empty());
+    assert!(temporary_leftovers(account.dir.path())?.is_empty());
+    Ok(())
 }
 
 #[tokio::test]
-async fn importing_over_an_existing_file_is_refused() {
-    let account = bootstrap_account().await;
+async fn importing_over_an_existing_file_is_refused() -> anyhow::Result<()> {
+    let account = bootstrap_account().await?;
     account.pool.close().await;
     let backup = BackupServiceImpl::new();
     let hvb = account.dir.path().join("export.hvb");
     backup
         .export_hvb_with_recovery_key(&account.db_path, &hvb, &account.recovery_phrase)
-        .expect("export");
-    let before = std::fs::read(&account.db_path).expect("read db");
+        .context("export")?;
+    let before = std::fs::read(&account.db_path).context("read db")?;
 
     let result =
         backup.import_hvb_with_recovery_key(&hvb, &account.recovery_phrase, &account.db_path);
 
     if result.is_ok() {
         // Overwriting is allowed by design; the content must then be the export itself.
-        let pool = support::open_pool(&account.db_path).await;
+        let pool = support::open_pool(&account.db_path).await?;
         assert_eq!(
             count(
                 &pool,
                 "SELECT COUNT(*) FROM users WHERE id = ?1",
                 &account.user_id.to_string()
             )
-            .await,
+            .await?,
             1
         );
         pool.close().await;
     } else {
         assert_eq!(
-            std::fs::read(&account.db_path).expect("read db"),
+            std::fs::read(&account.db_path).context("read db")?,
             before,
             "a refused import must leave the live database untouched"
         );
     }
+    Ok(())
 }
 
 #[tokio::test]
-async fn a_secured_export_never_leaves_its_database_snapshot_behind() {
+async fn a_secured_export_never_leaves_its_database_snapshot_behind() -> anyhow::Result<()> {
     use heelonvault_core::services::backup_application_service::{
         BackupApplicationService, BackupApplicationServiceImpl,
     };
 
-    let account = bootstrap_account().await;
+    let account = bootstrap_account().await?;
     let service = BackupApplicationServiceImpl::new(
         SqlxUserRepository::new(account.pool.clone()),
         BackupServiceImpl::new(),
         account.pool.clone(),
     );
-    let db_dir = account.db_path.parent().expect("db dir").to_path_buf();
+    let db_dir = account.db_path.parent().context("db dir")?.to_path_buf();
 
     service
         .export_backup_secured(
@@ -485,8 +498,8 @@ async fn a_secured_export_never_leaves_its_database_snapshot_behind() {
             &account.recovery_phrase,
         )
         .await
-        .expect("secured export");
-    assert!(temporary_leftovers(&db_dir).is_empty());
+        .context("secured export")?;
+    assert!(temporary_leftovers(&db_dir)?.is_empty());
 
     let invalid_phrase = secrecy::SecretString::new("definitely not a recovery phrase".into());
     let refused = service
@@ -506,7 +519,7 @@ async fn a_secured_export_never_leaves_its_database_snapshot_behind() {
     );
     // The snapshot is taken before the backup is written: a write failure must still remove it.
     let occupied = account.dir.path().join("occupied.hvb");
-    std::fs::create_dir(&occupied).expect("directory in place of the backup file");
+    std::fs::create_dir(&occupied).context("directory in place of the backup file")?;
     let unwritable = service
         .export_backup_secured(
             account.user_id,
@@ -518,9 +531,10 @@ async fn a_secured_export_never_leaves_its_database_snapshot_behind() {
     assert!(unwritable.is_err(), "writing over a directory must fail");
 
     assert!(
-        temporary_leftovers(&db_dir).is_empty(),
+        temporary_leftovers(&db_dir)?.is_empty(),
         "no snapshot or partial backup may survive a failed export: {:?}",
-        temporary_leftovers(&db_dir)
+        temporary_leftovers(&db_dir)?
     );
     assert!(!account.dir.path().join("refused.hvb").exists());
+    Ok(())
 }

@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 /// Shared test stubs for integration tests.
 ///
 /// Usage: add `#[path = "../common/mod.rs"] mod common;` at the top of a test file,
@@ -26,32 +24,40 @@ impl Default for StubUserRepo {
 
 impl StubUserRepo {
     pub fn add_user(&self, id: Uuid, role: UserRole) {
-        self.users.lock().unwrap().insert(
-            id,
-            User {
+        self.users
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(
                 id,
-                username: format!("user_{}", id),
-                role,
-                email: None,
-                display_name: None,
-                preferred_language: "en".to_string(),
-                show_passwords_in_edit: false,
-                updated_at: None,
-            },
-        );
+                User {
+                    id,
+                    username: format!("user_{}", id),
+                    role,
+                    email: None,
+                    display_name: None,
+                    preferred_language: "en".to_string(),
+                    show_passwords_in_edit: false,
+                    updated_at: None,
+                },
+            );
     }
 }
 
 impl heelonvault_core::repositories::user_repository::UserRepository for StubUserRepo {
     async fn get_by_id(&self, id: Uuid) -> Result<Option<User>, AppError> {
-        Ok(self.users.lock().unwrap().get(&id).cloned())
+        Ok(self
+            .users
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(&id)
+            .cloned())
     }
 
     async fn get_by_username(&self, username: &str) -> Result<Option<User>, AppError> {
         Ok(self
             .users
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .values()
             .find(|u| u.username == username)
             .cloned())
@@ -64,14 +70,20 @@ impl heelonvault_core::repositories::user_repository::UserRepository for StubUse
         Ok(self
             .users
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .values()
             .find(|u| u.username == id)
             .map(|u| u.username.clone()))
     }
 
     async fn list_all(&self) -> Result<Vec<User>, AppError> {
-        Ok(self.users.lock().unwrap().values().cloned().collect())
+        Ok(self
+            .users
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .values()
+            .cloned()
+            .collect())
     }
 
     async fn create_user_db(&self, _: Uuid, _: &str, _: &UserRole) -> Result<(), AppError> {

@@ -1,5 +1,3 @@
-#![allow(clippy::disallowed_methods)]
-
 //! Privacy by design: the core library keeps every secret on the machine. It must not pull an
 //! HTTP client, a telemetry/analytics SDK or a crash reporter, even transitively, and its code
 //! must not open a socket. Optional consent-based TLS checks live in heelonvault-url-check,
@@ -7,6 +5,7 @@
 //! new transitive dependency is caught even if no `Cargo.toml` line mentions it.
 //! Consent-based release discovery is restricted to App's ui/updates/check.rs.
 
+use anyhow::Context as _;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -38,9 +37,9 @@ const FORBIDDEN: &[&str] = &[
     "minidumper",
 ];
 
-fn workspace_lock() -> String {
+fn workspace_lock() -> anyhow::Result<String> {
     let lock = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Cargo.lock");
-    std::fs::read_to_string(&lock).expect("workspace Cargo.lock")
+    std::fs::read_to_string(&lock).context("workspace Cargo.lock")
 }
 
 /// `name -> dependency names` for every package of the lock file.
@@ -88,8 +87,8 @@ fn closure(graph: &BTreeMap<String, Vec<String>>, root: &str) -> BTreeSet<String
 }
 
 #[test]
-fn the_lock_file_parser_sees_the_real_graph() {
-    let graph = dependency_graph(&workspace_lock());
+fn the_lock_file_parser_sees_the_real_graph() -> anyhow::Result<()> {
+    let graph = dependency_graph(&workspace_lock()?);
     let core = closure(&graph, "heelonvault-core");
     for expected in ["aes-gcm", "argon2", "zeroize", "secrecy", "sqlx-sqlite"] {
         assert!(
@@ -97,11 +96,13 @@ fn the_lock_file_parser_sees_the_real_graph() {
             "{expected} missing: the parser no longer reads Cargo.lock correctly"
         );
     }
+    Ok(())
 }
 
 #[test]
-fn heelonvault_core_pulls_no_network_client_nor_telemetry_even_transitively() {
-    let graph = dependency_graph(&workspace_lock());
+fn heelonvault_core_pulls_no_network_client_nor_telemetry_even_transitively() -> anyhow::Result<()>
+{
+    let graph = dependency_graph(&workspace_lock()?);
     let core = closure(&graph, "heelonvault-core");
 
     let offending: Vec<&str> = FORBIDDEN
@@ -118,13 +119,14 @@ fn heelonvault_core_pulls_no_network_client_nor_telemetry_even_transitively() {
         !core.contains("heelonvault-url-check"),
         "Core must not depend on the online checker"
     );
+    Ok(())
 }
 
-fn rust_sources(dir: &Path, found: &mut Vec<std::path::PathBuf>) {
-    for entry in std::fs::read_dir(dir).expect("read source dir").flatten() {
+fn rust_sources(dir: &Path, found: &mut Vec<std::path::PathBuf>) -> anyhow::Result<()> {
+    for entry in std::fs::read_dir(dir).context("read source dir")?.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            rust_sources(&path, found);
+            rust_sources(&path, found)?;
         } else if path
             .extension()
             .is_some_and(|extension| extension == "rs" || extension == "inc")
@@ -132,6 +134,7 @@ fn rust_sources(dir: &Path, found: &mut Vec<std::path::PathBuf>) {
             found.push(path);
         }
     }
+    Ok(())
 }
 
 fn permitted_update_api(relative_path: &Path, api: &str, test_code: bool) -> bool {
@@ -157,7 +160,7 @@ fn update_network_boundary_is_limited_to_the_reviewed_app_transport() {
 }
 
 #[test]
-fn the_code_opens_no_socket_and_calls_no_remote_endpoint() {
+fn the_code_opens_no_socket_and_calls_no_remote_endpoint() -> anyhow::Result<()> {
     let roots = [
         Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../heelonvault-app/src"),
@@ -176,13 +179,13 @@ fn the_code_opens_no_socket_and_calls_no_remote_endpoint() {
 
     let mut sources = Vec::new();
     for root in &roots {
-        rust_sources(root, &mut sources);
+        rust_sources(root, &mut sources)?;
     }
     assert!(sources.len() > 20, "source scan found too few files");
 
     let mut violations = Vec::new();
     for path in &sources {
-        let content = std::fs::read_to_string(path).expect("read source");
+        let content = std::fs::read_to_string(path).context("read source")?;
         let mut test_code = false;
         for (number, line) in content.lines().enumerate() {
             if line.trim() == "#[cfg(test)]" {
@@ -208,4 +211,5 @@ fn the_code_opens_no_socket_and_calls_no_remote_endpoint() {
         "network access outside the isolated URL checker, App update transport or reviewed premium modules:\n{}",
         violations.join("\n")
     );
+    Ok(())
 }

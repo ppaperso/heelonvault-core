@@ -70,6 +70,7 @@ uuid = { version = "1.26", features = ["serde", "v4"] }
 tracing = "0.1"
 
 [dev-dependencies]
+anyhow     = "1.0"
 criterion  = "0.8"
 proptest   = "1.11"
 rstest     = "0.28"
