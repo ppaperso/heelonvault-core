@@ -1,541 +1,286 @@
-# User Guide
+# User guide
 
 Language: EN | [FR](USER_GUIDE.md)
 
-## Purpose
+HeelonVault keeps your secrets in a local database. This guide follows everyday tasks; visible actions depend on your account role, vault permissions and activated edition.
 
-This user manual describes HeelonVault from an end-user perspective. It is intended for people who need to access, secure, organize, and maintain secrets in the product without relying on internal technical documentation.
+Screenshots show **real production components on Linux**, assembled in test scenarios with a demonstration database and fictitious data, not in a real user session. Vault and editor views illustrate their components without necessarily reproducing the entire window or every header element. Appearance, file pickers and some integrations may differ on Windows and macOS: these screenshots are not validation on those platforms.
 
-The document follows the main product screens and explains, for each one, its role, the available actions, and the associated best practices.
+## Get started
 
-This user guide covers day-to-day HeelonVault usage on the desktop side:
+1. Open HeelonVault from your system's application launcher.
+2. On first launch, follow the wizard to create the initial administrator account and choose a strong master password.
+3. Record the **24-word recovery phrase**, in order, on a safe medium separate from your computer. Do not share it.
+4. Finish the wizard, then sign in with the account you created. Creating the account does not automatically open a session.
+5. Select a vault or create one before adding your secrets.
+6. From **Profile & Security**, export an encrypted `.hvb` backup and keep it off this computer.
 
-- first launch;
-- sign-in and session security;
-- creating, editing, and searching secrets;
-- import, export, and trash workflows;
-- security best practices.
+**Prepare now:** the phrase protects recovery, but does not contain your data. The recovery workflow offered at sign-in requires **the `.hvb` file and its matching phrase**. See [Back up and restore](#import-back-up-and-restore).
 
-## 1. User journey overview
+For subsequent sign-ins, enter your username and master password. If two-factor authentication is enabled, also supply the TOTP code from your authenticator app.
 
-The standard HeelonVault user journey usually follows this sequence:
+## Find your way around
 
-1. initialize or open a vault;
-2. sign in;
-3. browse or search a secret;
-4. create, edit, share, or delete an item;
-5. manage session security and advanced operations.
+- **Sidebar:** select a vault, open the trash, security center and profile; administration entries depend on your permissions.
+- **Main area:** search, filter, sort and browse secrets within the selected scope.
+- **Window controls:** add a secret, change the layout and monitor clipboard-related exposure; component screenshots do not necessarily show all these elements.
+- **Editor and profile pages:** work without losing sidebar navigation, then return to your entries.
 
-This structure is used throughout the manual because it reflects the actual product flow experienced by end users.
+**Cards** and **list** show the same secrets and use the same search and filtering logic. Choose cards for visual browsing or the list for a more compact view.
 
-## 2. Screen 1 - Bootstrap wizard
+![Demonstration vault in card layout](images/user-guide/en/dashboard-grid.png)
 
-On first start, HeelonVault opens a guided bootstrap flow to create the first administrator account.
+![The same entries in list layout](images/user-guide/en/dashboard-list.png)
 
-Screen role:
+## Create and use the four secret types
 
-- prepare the vault for first use;
-- create the first account with administration privileges;
-- record the recovery information required for future access.
+### Add an entry
 
-General steps:
+1. Choose the destination vault, then the add action.
+2. Select the type and enter a title and the required value.
+3. Complete useful fields: login, URL, notes, category, tags or validity, as offered by the form.
+4. Save, then check that the entry appears in the correct vault.
 
-1. Choose the administrator login.
-2. Define a strong master password.
-3. **Generate and verify the account recovery key** (24-word BIP39 phrase).
-4. Save the generated recovery key in a secure location.
-5. Complete initialization: the wizard closes and the sign-in screen is displayed.
+| Type | What to enter | Important |
+| --- | --- | --- |
+| **Password** | Password, login and account information | Use the generator and strength indicator; prefer a unique value for each service. |
+| **API token** | Token and provider | Changing a token in HeelonVault does not renew it with the provider. |
+| **SSH key** | Private key; public key and passphrase if needed | Do not confuse the public key you distribute with the private key you must protect. |
+| **Secure document** | Document path and optional MIME type | The current form stores the **path as the secret value**, not the file's contents. It is not an encrypted attachment or a document backup. |
 
-Important notes:
+![Editing a fictitious password](images/user-guide/en/editor-password.png)
 
-- the **account recovery key** (24 words) is essential to regain access if the master password is lost;
-- the recovery key should be stored in a secure location outside the workstation;
-- the master password directly affects vault access security;
-- the process should not be interrupted before the displayed recovery material is safely recorded;
-- mandatory verification of 2 random words is required before completion.
+![Editing a fictitious API token](images/user-guide/en/editor-api.png)
 
-![Screen 1a - Bootstrap step 1](images/user-guide/hv_first_init_1.png)
+![Editing a fictitious SSH key](images/user-guide/en/editor-ssh.png)
 
-*Bootstrap wizard, step 1 (first administrator account creation).*
+![Secure document: a path reference, without importing the file](images/user-guide/en/editor-document.png)
 
-![Screen 1b - Bootstrap step 2](images/user-guide/hv_first_init_2.png)
+### View, copy and edit
 
-*Bootstrap wizard, step 2 (24-word recovery key).*
+Open an entry to edit it. Prefer copy actions to leaving a sensitive value visible. Copying a password decrypts it on demand and rechecks access to the vault.
 
-## 3. Screen 2 - Sign-in
+The clipboard indicator reports copies tracked by HeelonVault and their clearing countdown; click it to clear immediately. It does not guarantee the absence of secrets elsewhere in memory or the removal of clipboard history and copies already made by other applications.
 
-After initialization, the sign-in screen accepts account credentials and, when enabled, the one-time TOTP code.
+A validity date helps identify entries that need renewing: it does not revoke credentials at the external service. Change the secret on that service first, then update the entry.
 
-Right after the account is created, the sign-in screen shows "Account created, please sign in.", the username is already filled in and the cursor is placed in the password field: just type the master password chosen in the previous step.
+### Delete or recover a deleted entry
 
-Screen role:
+Deleting a secret moves it to the **trash**. Open the trash to restore the entry or delete it permanently. **Empty trash** is irreversible in the current database; an earlier backup, if available, is a separate recovery option.
 
-- authenticate the user;
-- protect access to the vault;
-- enforce configured account security rules.
+## Search and organize
 
-Best practices:
+Search uses the **active vault** by default. Enable **MultiVault** to search across vaults you can access. Searching does not grant additional permissions.
 
-- use a unique, long password;
-- store the recovery key outside the workstation;
-- verify system time if TOTP codes are rejected.
+Plain terms search the title, login, email, URL, notes, category, tags, type and vault name. Matching is case-insensitive and normalizes common accented characters; sufficiently long terms have light typo tolerance. Search does not inspect decrypted secret values.
 
-![Screen 2 - Sign-in](images/user-guide/hv_login_screen_after_init.png)
-
-*Sign-in screen with username, password, and database recovery entry point (.hvb).*
-
-## 4. Screen 3 - Main vault view
-
-Once signed in, the user reaches the main vault view with:
-
-- the secrets list;
-- search and filtering functions;
-- create, edit, delete, and share actions;
-- profile and security access;
-- a help button ("?" icon in the header bar) that opens the online documentation in the browser.
-
-### Card or list view
-
-Two buttons, to the right of the sort buttons above the list, choose how secrets are displayed:
-
-- **Card view** (default): a grid of detailed cards, with login, domain, badges (strength, usage, duplicate, incomplete, shared, vault) and quick actions;
-- **List view**: one compact row per secret, in aligned columns — type, title, login, domain, key badges (strength, duplicate, origin vault during cross-vault search) and quick actions. Handy for scanning a large vault quickly.
-
-Search, filters, sorting, keyboard shortcuts and double-click to edit work the same in both views, and switching is instant. The choice is remembered for future launches (installation-wide preference, shared by every account on the machine).
-
-Screen role:
-
-- act as the main entry point for daily work;
-- centralize vault navigation;
-- provide fast access to priority actions.
-
-![Screen 3 - Main vault view](images/user-guide/hv_dashboard_empty.png)
-
-*Main vault view with search, categories, security audit filters, and central workspace.*
-
-### Security center
-
-Local analysis of all accessible vaults starts automatically at sign-in and after PIN unlock,
-without opening the page. It refreshes after creating, editing or deleting a secret,
-restoring or purging trash, importing CSV, creating or deleting a vault, and team changes
-affecting access made within the application. Closely spaced requests are coalesced to avoid
-duplicate analyses.
-
-The sidebar badge shows `...` while updating, the number of affected items after analysis,
-and `0` only after a complete analysis without findings. `?` means no report is available;
-`!` signals an error or incomplete coverage without a finding count. Its tooltip explains
-the status. A zero count is not a guarantee against compromise.
-
-Select **Security center** to view the latest report without unnecessarily restarting analysis.
-The refresh button requests a new report, for example after changes made in another session.
-Leaving the page does not interrupt background analysis; locking the session cancels analysis
-and clears its results.
-
-The summary shows affected items, analyzed vaults, unavailable vaults and unreadable
-passwords. An incomplete analysis is never presented as a clean bill of health.
-
-Use the cards to filter reused passwords, weak passwords, expiration (including the next
-30 days) and links to review. A vault selector narrows the results. Reused passwords are
-grouped; expand an item to read its findings, then **Open item** to correct it. Results are
-displayed progressively in batches of 50. Return from the editor to refresh the analysis.
-
-Change the password on the actual service before updating the vault: editing HeelonVault
-alone does not change the remote account. Strength/reuse checks apply only to passwords,
-not API tokens, SSH keys or documents. A result without findings does not prove absence
-of compromise.
-
-### URL indicators and optional online checks
-
-The editor immediately checks URL syntax, HTTP/HTTPS, embedded credentials and internal
-or internationalized hosts, without network access. HTTPS requested is **not** a verified
-certificate. Internal addresses can be saved; online checking is not required.
-
-**Check DNS / TLS…** asks permission for one connection. The consent dialog displays
-the technical origin being contacted. Your DNS resolver and the destination may observe
-the hostname and your IP address. The check does not send the URL path, query, fragment,
-login, password or cookies and does not load a web page. Only public destinations are
-allowed, with certificate validation against bundled trusted roots. Enterprise private
-certificate authorities are not supported by this checker.
-
-- Green: TLS validated for this host at the displayed time, not a safety guarantee.
-- Orange: attention required, such as HTTP or an internal/internationalized target.
-- Red: invalid URL, embedded credentials or failed TLS validation.
-- Neutral: not checked, unreachable, DNS unavailable or timeout; not evidence of malice.
-
-Reputation/blocklists and the existence of the exact page are **not checked**. Saving
-works offline. Editing the URL or leaving the editor invalidates/cancels the online check.
-An in-flight system DNS lookup may finish in the background, but no subsequent connection
-is made after cancellation.
-
-## 5. Screen 4 - Create a secret
-
-To add a new secret:
-
-1. Open the create action.
-2. Select the appropriate type or category.
-3. Fill in relevant fields: title, login, password, URL, notes, tags.
-4. Enable "Health data access" when the secret is related to medical data.
-5. Review the strength indicator.
-6. Save.
-
-Recommendations:
-
-- use explicit titles;
-- add tags to improve searchability;
-- use the "Health data access" marker only for genuinely health-related secrets;
-- avoid unnecessary sensitive notes.
-
-![Screen 4a - Secret type selection](images/user-guide/hv_add_menu.png)
-
-*Secret type selection (password, api_token, ssh_key, secure_document).*
-
-![Screen 4b - Password secret form](images/user-guide/hv_add_password1.png)
-
-*Password secret creation form (main fields).*
-
-![Screen 4c - Password secret advanced area](images/user-guide/hv_add_password2.png)
-
-*Additional password-secret parameters (notes, validity, save actions).*
-
-![Screen 4d - API token form](images/user-guide/hv_add_apikey.png)
-
-*API token secret form.*
-
-![Screen 4e - SSH key form](images/user-guide/hv_add_sshkey.png)
-
-*SSH key secret form.*
-
-![Screen 4f - Secure document form](images/user-guide/hv_add_securedoc.png)
-
-*Secure document secret form.*
-
-## 6. Screen 5 - Edit, delete, and trash
-
-Each secret can be edited from the integrated editor. Deletion goes through the trash to reduce the risk of immediate data loss.
-
-In the main dashboard:
-
-- a single click selects a card without opening edit mode;
-- a double click opens the editor for the selected secret.
-
-Screen role:
-
-- maintain existing vault content;
-- secure deletion through an intermediate recovery step;
-- provide fast restoration when needed.
-
-Recommended flow:
-
-1. Edit the secret if needed.
-2. Use soft-delete to move it to trash.
-3. Restore it if deletion was accidental.
-4. Permanently purge only after confirmation.
-
-![Screen 5 - Trash and restore](images/user-guide/hv_trash.png)
-
-*Trash view with restore and purge actions for deleted items.*
-
-## 7. Screen 6 - Search and organization
-
-HeelonVault supports real-time multi-field search across all secret data.
-
-### Search mode
-
-- **Active vault (default)**: search is scoped to the vault selected in the left sidebar.
-- **MultiVault**: activate the **MultiVault** toggle button to the left of the search bar to search across all accessible vaults simultaneously.
-
-### Search without a prefix
-
-A term typed on its own is matched against all fields: title, type, login, email, URL, notes, category, tags, and vault name. Fuzzy matching tolerates one typo.
-
-### Thematic shortcut `#sante`
-
-The `#sante` shortcut filters secrets marked with "Health data access" and secrets automatically detected with high confidence.
-
-### `field:value` syntax
-
-To target a specific field, use `field:value` syntax (with or without a space after the colon):
-
-| Accepted keys | Field searched |
+| Example | Purpose |
 | --- | --- |
-| `title`, `name`, `titre`, `nom` | Title |
-| `login`, `user`, `username`, `identifiant` | Login |
-| `email`, `mail` | Email |
-| `url`, `site`, `domaine`, `domain` | URL |
-| `notes`, `note` | Notes |
-| `category`, `categorie`, `cat` | Category |
-| `tag`, `tags` | Tags |
-| `type`, `kind` | Secret type |
-| `vault`, `coffre`, `vault-name` | Vault name |
+| `mail` | Find a term in entry information |
+| `email:example.com` | Limit the term to the email field |
+| `tag:work` | Search tags |
+| `type:api` | Search a secret type |
+| `vault:team` | Restrict by vault name within the loaded scope |
+| `title:portal login:alice` | Combine criteria |
+| `#health` or `#sante` | Find healthcare-related accounts (medical services, health insurance…), not security findings |
 
-Examples: `login:alice` · `vault:perso` · `title:gmail` · `url:google`
+The prefixes `url:`, `notes:` and `category:` are also available. Combine search with filters, sorting and vault selection; if results are empty, first remove filters and check the scope.
 
-The `?` button to the right of the search bar shows this reference directly in the app.
+![Searching demonstration entries](images/user-guide/en/search.png)
 
-### Editing a search with the keyboard
+**Shortcuts:** `Ctrl+F` focuses search. While the secret list has focus, arrow keys move the selection; `Ctrl+C` copies the password, `Ctrl+L` the login and `Ctrl+U` opens the URL when the action is available. Command can replace Ctrl depending on the platform. These actions should not intercept typing in a form.
 
-- `Ctrl+F` (`Cmd+F` on macOS) focuses search and selects the existing text.
-- Left/right arrows move the cursor; `Shift` + arrow selects text and `Ctrl` + arrow uses
-  native word navigation where supported by the operating system.
-- Copy, cut, paste and select all retain their usual behavior in text fields, even when a
-  secret card remains selected.
-- `Enter` applies the current text and focuses the first visible result. When there are no
-  results, focus stays in search so you can correct it.
+## Review the security center
 
-### Keyboard shortcuts on the active card
+1. Open the **Security center**.
+2. Choose **Analyze my vaults**; you can cancel the scan.
+3. Review findings, their source vaults and scan coverage.
+4. Open an affected entry to prepare a correction, then run the analysis again after editing.
 
-When focus is in the secret list and a card (or a row, in list view) is selected, the following
-quick actions are available:
+![Security center with fictitious findings](images/user-guide/en/security-center.png)
 
-- `Ctrl+C`: copy password;
-- `Ctrl+L`: copy login (when present);
-- `Ctrl+U`: open URL (when present).
+The illustrated security center uses a different demonstration scenario from the vault views. Its findings therefore do not correspond to the counters in the vault screenshots, which may show zero; these are not the same analysis before and after corrections.
 
-Arrow keys then navigate between visible results. These shortcuts do not intercept keys
-belonging to another field or control in the interface.
+The analysis runs **locally, without network requests**, across accessible vaults. It identifies weak or reused passwords, expired or soon-to-expire entries, invalid dates or metadata, unreadable values and URLs needing attention.
 
-### Clipboard indicator
+An unavailable vault or unreadable password makes coverage incomplete: missing data must not be treated as healthy. No findings is neither proof of absence of compromise nor a compliance certification.
 
-In the header bar, a clipboard icon shows what HeelonVault exposes through the clipboard:
+To fix a reused password, expired token or exposed key, **change or revoke it on the relevant service first**, then update HeelonVault. Editing only the local entry does not secure the remote account.
 
-- **idle** (muted icon): "No secret exposed by HeelonVault";
-- **after a copy** (amber icon): a ring burns down over the clearing delay — 20 s for a password or login, 60 s for the recovery phrase. The tooltip says what was copied and the time left;
-- **clicking** the icon clears the clipboard at once, for instance right after pasting your password.
+## Manage your account, session and recovery
 
-If you copy something else in the meantime, HeelonVault wipes its copy at once and the indicator goes back to idle.
+### Set up your profile
 
-What the indicator does not cover: the key of the open vault stays in memory while the session is unlocked, and some system tools may keep a clipboard history (for instance Windows clipboard history, `Win+V`, when enabled). Disable such history on a sensitive workstation.
+Open **Profile & Security** to edit the available account information, change your master password, choose a language and adjust protections. The sign-in username cannot be changed. Language changes apply immediately throughout the interface.
 
-For your security, passwords are not kept decrypted in memory while the list is displayed: each copy decrypts the password at click time, after re-checking your access to the vault, then wipes it. If a share has been revoked in the meantime, or if the session is locked, a message says so and nothing is copied.
+![Community profile and session protections](images/user-guide/en/profile-community.png)
 
-### Best practices
+To change the master password, enter your current password, the new one and its confirmation. After success, check the PIN status: it remains valid if the account key has not changed; if the application reports that it was disabled after a key change, configure it again.
 
-Improve search relevance with consistent organization:
+### Lock and use a PIN
 
-- adopt a stable naming convention;
-- use tags consistently;
-- group secrets by type, use case, or team when relevant.
+- Choose automatic locking after **1, 5 or 30 minutes** of inactivity. **Never** disables it after a warning; avoid this setting on a computer left unattended.
+- Configure and confirm a **4–8 digit PIN** for quick unlock.
+- The PIN protects a key cache **only in memory**, never saved to disk. It does not replace the master password after starting the application again.
+- The cache expires no later than **12 hours after creation**; unlocking does not extend that deadline. After **3 wrong attempts**, the cache is deleted and a full sign-in is required.
+- With a valid cache, automatic locking and the sign-out action can display the PIN screen. To return to full sign-in, choose **Use master password** there; to exit, use the quit-application action.
 
-![Screen 6 - Search and navigation](images/user-guide/hv_dashboard_empty.png)
+A PIN is neither a recovery phrase nor a backup. Do not rely on it after closing the application.
 
-*Search bar with MultiVault toggle and help button, left-side navigation.*
+### Enable two-factor authentication
 
-## 8. Screen 7 - Profile and security
+In **Two-factor authentication (TOTP)**:
 
-The page reads top to bottom, one row per setting:
+1. Choose **Enable**.
+2. Scan the QR code with your authenticator app, or enter the Base32 secret.
+3. Enter a **6-digit** code to confirm activation.
 
-- **Header**: name, username, role, edition (Community or Professional) and **Account protection** — two-factor authentication, PIN and automatic lock, with what is left to turn on;
-- **Account**: display name and email address. The sign-in username cannot be changed; the current password is only asked for when the email address changes. "Save" is only enabled when something changed;
-- **Sign-in and protection**: master password, two-factor authentication (TOTP) and PIN. Each row expands to act on it;
-- **Session**: automatic lock delay ("Never" asks for confirmation before it is applied) and showing the current password in the editor;
-- **Preferences**: interface language, applied immediately;
-- **Data**: encrypted `.hvb` backup (administrators) and CSV import;
-- **Administration**: user and team management with a Professional license. On the Community edition, an administrator only sees what the Professional license adds.
+Keep safe access to your authenticator. The QR code and Base32 secret are sensitive. Disabling two-factor authentication requires confirmation in the profile.
 
-The new master password must contain at least 16 characters; it is stored exactly as typed, spaces included. After the change, an active PIN must be set up again.
+### Prepare for account recovery
 
-### Application updates
+Distinguish these three items:
 
-A discreet banner offers to enable update checks. **Not now** keeps them disabled without
-asking again at every sign-in. Change this choice in **Profile & Security > Application updates**.
+| Item | Used to… | Does not replace… |
+| --- | --- | --- |
+| Master password | Sign in to your account normally | A backup of your data |
+| 24-word recovery phrase | Decrypt the matching backup and enable recovery of the account key it contains | The `.hvb` file itself |
+| `.hvb` backup | Keep an encrypted snapshot of the database | The phrase needed to open it |
 
-- Once enabled, a background check runs at startup, at most once every 24 hours, without
-  delaying sign-in. The setting applies to this installation, not an account.
-- **Check now** performs a one-off GitHub request even with automatic checks disabled.
-  Only one check can run at a time.
-- When a newer stable release exists, **Explore release** opens its official GitHub page
-  with release notes and downloads. **Later** hides the banner for the application session;
-  the result remains available in the profile.
-- Offline or when GitHub does not respond, the panel says **Verification unavailable**,
-  never "You are up to date". A known newer release can be offered from the cache at startup;
-  the cache never proves that the application is up to date.
+The phrase alone cannot recreate a lost database. The sign-in workflow **restores a backup** and sets a new password; it is not an in-place password reset of the current account.
 
-No automatic request is made without consent. GitHub receives the IP address used for the
-connection; no vault, account or license data is sent. The application never downloads or
-installs a package. Discovering a release does not verify its integrity:
-follow the [update guide](UPDATE_GUIDE.en.md).
+If the application says a phrase needs to be reattached to the account key, follow its instruction to export from the profile. An administrator can then produce a new recoverable backup. Keep phrases associated with their backups.
 
-### PIN Quick-Unlock
+## Import, back up and restore
 
-HeelonVault provides a PIN-based quick-unlock to avoid retyping the master password after every auto-lock event.
+### Import passwords from CSV
 
-**Activation** (Profile → Sign-in and protection → Unlock PIN):
+From **Profile & Security → Data → CSV import**:
 
-1. Click "Configure…".
-2. Enter a 4-to-8 digit PIN code.
-3. Confirm the PIN.
-4. The PIN is active immediately for the current session.
+1. Select a CSV whose header contains these **seven columns**, each present even when some values are empty:
 
-**Usage during auto-lock**:
+   ```csv
+   name,url,username,password,notes,category,tags
+   Demo portal,https://example.com,alice-demo,fictitious-password,Example,Work,demo
+   ```
 
-- When auto-lock triggers (after the configured inactivity timeout), the PIN entry dialog appears.
-- Enter the PIN and press "Unlock".
-- Up to 3 attempts are allowed before the cache is wiped.
-- After 3 failed attempts or 12 hours of inactivity, the system automatically falls back to the full master-password login.
-- The "Use master password" button lets the user switch to the full login flow at any time.
+2. Check the preview and explicitly select the **destination vault**, where you need write permission.
+3. Confirm the import and wait for progress to finish.
+4. Read the summary: imported rows, failures and reasons. Fix only rejected rows before retrying.
 
-**Deactivation**:
+This import creates **Password** entries, not all four secret types. The `name`, `username` and `password` fields must be filled in. Limits are **10 MiB** and **10,000 data rows**. Exports from other managers may need their columns adapted; their native formats are not automatically accepted.
 
-- From the same row, "Configure…" turns the PIN off and wipes the cache immediately.
+Processing tolerates individual row errors: some entries may already have been created despite failures. Reimporting the whole file can create duplicates. Some structural rejections produce a `csv_import_rejects_*.txt` report in the log directory; the summary provides its path when available.
 
-**Session-time indicator in the title bar**:
+**The CSV contains plaintext secrets.** Protect it during transfer, then remove unnecessary copies and account for system backups.
 
-When the PIN is active, a "PIN active" badge appears in the application title bar. The badge changes appearance based on the time remaining before the cache expires:
+### Export an encrypted backup
 
-- **Nominal** (more than 2 hours remaining): standard semi-transparent white text, normal behaviour.
-- **Warning** (between 15 min and 2 h): amber border and text — consider logging out and back in to renew the session if needed.
-- **Critical** (less than 15 min): amber-filled badge with a pulsing animation, text shows "PIN · Xm" (X = minutes remaining). The cache will expire within the displayed minute count.
+Exporting `.hvb` is restricted to the **administrator** role in both Community and Professional. It covers **the whole database**, not just the active vault or displayed entries.
 
-Hovering over the badge shows a tooltip with the exact time remaining (e.g. "Expires in 1h 23m"). Clicking the badge opens the PIN management panel in the profile view.
+![Community profile Data section: CSV import and encrypted backup](images/user-guide/en/profile-community-data.png)
 
-The badge and its countdown timer are automatically removed when the cache expires, when the session is unlocked with the master password, or when the application is closed.
+1. In your profile, open **Encrypted backup (.hvb)**.
+2. Follow phrase verification: if one already exists, the application asks you to re-enter it; otherwise, it offers to generate a new one for you to record.
+3. Choose the destination file and wait for confirmation of success.
+4. Keep the file and phrase on separate, safe media. Export fresh backups regularly.
 
-**Security boundaries to keep in mind**:
+If a new phrase is generated, do not assume an old one will open future exports. Keep the old file/phrase associations for backups already created.
 
-- The PIN does not replace the master password; it only speeds up session unlock.
-- The PIN cache exists only in RAM and disappears when the application closes.
-- Do not reuse a PIN you already use elsewhere (phone lock screen, bank card, etc.).
+Copying, printing or saving the phrase as TXT creates another sensitive copy: the TXT file is not an encrypted backup. An `.hvb` export does not include files merely referenced by **Secure document** entries.
 
-General recommendations:
+### Restore and choose a new password
 
-- enable TOTP as early as possible;
-- use a short auto-lock delay on shared workstations;
-- after changing the master password, quickly verify access to main vaults;
-- never leave an open session unattended.
+**Warning: this workflow replaces the database used by the application; it does not merge secrets.** Preserve current data before continuing. Changes made after the backup will not be recovered.
 
-### Account Key Recovery
+1. On the sign-in screen, choose **Restore my database (.hvb)**.
+2. Select the backup and enter its **24-word** phrase.
+3. Choose and confirm a strong new master password.
+4. Choose **Restore and restart**, then sign in after the restart.
+5. Read any warnings about unreadable secrets or skipped vaults. Also check two-factor authentication: it may be preserved; if the application reports that it was disabled, enable it again.
 
-HeelonVault now allows you to recover access to your account if you lose your master password, thanks to an **account recovery key** generated during initialization.
+Recovery with a new password supports backups **containing a single account**. A multi-account backup can be exported, but this sign-in workflow does not support it. An account-key-format backup must also contain its recovery envelope; knowing a phrase does not make an older file without that envelope recoverable.
 
-**Initialization (during bootstrap)**:
-- A 24-word mnemonic phrase (BIP39 format) is automatically generated.
-- Mandatory verification of 2 randomly selected words is required before completion.
-- The key is copied to clipboard with automatic clearing after 60 seconds.
+Restoration is prepared in a separate database before replacement. An incorrect phrase, altered file or incompatible format produces an error: do not delete the original or repeatedly experiment on irreplaceable data.
 
-**Re-export**:
-- From `Profile & Security`, you can re-export your recovery key at any time.
-- This action requires valid authentication and administrator privileges.
+## Administer with Professional
 
-**Usage for recovery**:
-- In case of master password loss, use the recovery key to:
-  1. Unlock access to your account;
-  2. Reset your master password;
-  3. Regain access to your existing vaults.
+The **Professional** edition and **administrator** role are separate requirements. A Professional license does not turn a standard user into an administrator.
 
-**Best practices**:
-- Store the recovery key in a secure physical location (safe, sealed envelope);
-- Do NOT store it in an unencrypted digital file;
-- Do not share it with anyone;
-- Regularly verify you can access it.
+![Professional profile with administration access](images/user-guide/en/profile-professional.png)
 
-This screen is the core user trust area of the product. It contains the settings that most directly affect protection of the vault and session behavior.
+From administration entries in the profile or navigation:
 
-![Screen 7 - Profile and security](images/user-guide/hv_userprofil.png)
+![Professional profile administration section in a demonstration scenario](images/user-guide/en/profile-professional-data.png)
 
-*Account protection header, then settings by topic: account, sign-in and protection, session, preferences, data and administration.*
+- **Users:** manage accounts and roles, and use the password actions offered.
+- **Teams:** organize members and shared access.
+- **Audit and reports:** use the functions available for your license and permissions.
 
-## 9. Screen 8 - Import and export
+Do not confuse permission levels:
 
-Depending on granted permissions, HeelonVault supports:
+| Level | Scope |
+| --- | --- |
+| Account **User / Administrator** | Global administration; exporting the entire database is restricted to administrators. |
+| Team **Leader / Member** | Leaders manage membership; this does not grant the global administrator role. |
+| Vault sharing **Read / Write / Admin** | View; view and edit; administer sharing and vault operations. Owners retain their permissions. |
 
-- CSV import;
-- `.hvb` export;
-- operations constrained by RBAC rules.
+Sharing permissions require a real access path to the vault, directly or through a team. A global role does not mean a missing cryptographic key can be recreated. If an action is missing or denied, check the activated edition, account role and resource permissions.
 
-The CSV import flow is now explicit and guided:
+In Community, an administrator may see a locked presentation of Professional: it is not active access to multi-user features.
 
-- **Step 1 - Preview**: after selecting a file, the app shows detected secrets, importable rows, and rows that require manual review.
-- **Step 2 - Progress**: during import, a dedicated window displays live progress (processed/imported/failed).
-- **Step 3 - Final summary**: the app shows a detailed report (total/imported/failed) and lists the first non-imported rows with reasons for manual correction.
+## Manage updates and optional networking
 
-Before importing:
+### Check for an update
 
-- verify file format and encoding;
-- clean unnecessary columns;
-- confirm the correct target vault.
-- review the final summary and fix flagged rows before running a focused re-import.
-- check the reject-report path when shown (`logs/csv_import_rejects_*.txt`).
+In **Profile & Security → Application updates**, choose **Check now**. Manual checks work even when automatic checks are disabled.
 
-Before exporting:
+If you allow them, automatic checks contact GitHub at startup, **at most once a day**. The setting applies to this installation. GitHub receives your IP address, but this check sends no vault, account or license data.
 
-- limit the operation to the actual need;
-- protect the exported file;
-- delete the artifact after use when possible.
+![Initial consent to update checks and manual check control](images/user-guide/en/updates-consent.png)
 
-![Screen 8 - Import/Export from profile](images/user-guide/hv_userprofil.png)
+![Demonstration update notification: simulated version, not an announcement of a real release](images/user-guide/en/updates-available.png)
 
-*Data management area (.hvb export and CSV import) from Profile & Security.*
+The version displayed in this screenshot is **simulated for testing**: it does not announce an actual release.
 
-## 10. Screen 9 - Dashboard and audit
+When an update is offered, open the official release notes and downloads, then use the installation method appropriate for your system. **This workflow does not automatically download and install anything.** Back up before replacing the application.
 
-The security dashboard provides a summary of vault health. Audit logs trace sensitive actions.
+### Understand URL checks
 
-The dashboard now emphasizes day-to-day power usage:
+Local URL diagnostics highlight issues such as HTTP, invalid syntax or an internationalized domain. **HTTPS does not prove a site is trustworthy.**
 
-- cards are primarily sorted by usage frequency;
-- visual badges on cards (strength, incomplete, duplicate, usage, health);
-- clearer active-card selection for faster keyboard-driven actions.
+In the editor, an online DNS/TLS check is optional and requests consent **for each check**. The DNS resolver and destination server may observe the domain and your IP address. The check contacts the host, not the page: it sends no path, query parameters, secret, cookie or login. Internal addresses are blocked.
 
-Screen role:
+A valid TLS certificate guarantees neither the site's reputation nor the page's existence. A network failure is not proof that a domain is malicious. The security center does not make these connections.
 
-- quickly expose attention points;
-- review recent activity;
-- support security and compliance reviews.
+External links, opening a URL and any configured federated-authentication functions are other explicit network actions. Local secret-management tasks do not require URL or update checks to be enabled.
 
-Common use cases:
+## Troubleshoot
 
-- identify weak secrets;
-- review recent events;
-- track deletions, edits, and sharing operations.
+| Problem | Checks and action |
+| --- | --- |
+| Sign-in refused | Check username, keyboard layout and password; respect any delay after failed attempts. For TOTP, check the phone's clock and use a fresh code. |
+| PIN refused or missing after restart | It is limited to the in-memory session. Use the master password; after three failures or expiry, configure it again once signed in. |
+| Session locks too quickly | Adjust the profile timeout rather than disabling protection. |
+| Secret missing | Check active vault, MultiVault, search, filters and trash. Revoked sharing may also remove your access. |
+| Partially successful import | Review the summary, seven-column format and target-vault permissions. Reimport only rows not already created. |
+| Decryption error during import | Check the selected vault and access to its keys; this message does not necessarily mean the CSV is invalid. Do not reset the database to work around it. |
+| Phrase rejected during restore | Use the phrase associated with that file, in the correct order. Also check format, integrity and the single-account limit. The phrase alone is insufficient. |
+| Update check unavailable | Check connectivity and try later; local operations remain available. |
 
-![Screen 9a - Security dashboard](images/user-guide/hv_dashboard_empty.png)
+To identify your installation, use the **About** dialog, or these commands if the binary is accessible from your terminal:
 
-*Main dashboard and security audit indicators.*
+```sh
+heelonvault --version
+heelonvault --startup-check
+```
 
-![Screen 9b - Team management](images/user-guide/hv_team.png)
+`--version` prints the installed version without opening the database or interface. `--startup-check` initializes services and applies normal migrations, then exits without opening the interface: **it is not a read-only diagnostic**. Use it with the same installation and correct database; there is no restore command here to substitute for the graphical workflow.
 
-*Team administration view (vault sharing and member management).*
+Before sharing logs with support, remove sensitive information. Never attach your master password, recovery phrase, TOTP QR code, private key or a CSV containing secrets.
 
-![Screen 9c - User management](images/user-guide/hv_users.png)
-
-*User administration view (create users, roles, reset, delete).*
-
-## 11. Best practices
-
-- Use a unique and strong master password.
-- Enable TOTP as soon as the account is activated.
-- Store the recovery key away from the machine.
-- Lock or close the session when leaving the workstation.
-- Review obsolete secrets regularly.
-- Keep exports to a minimum.
-
-## 12. Quick troubleshooting
-
-### Unable to sign in
-
-- verify the account name;
-- verify the password;
-- verify system time if TOTP fails.
-
-### The application locks too quickly
-
-- review the auto-lock delay in session-related settings.
-
-### A secret seems to be missing
-
-- check the trash first;
-- review the audit log if available.
-
-### CSV import fails with a decryption error
-
-- verify the target vault is accessible in the current session;
-- sign out and sign in again if a master password change was just performed;
-- retry the import and review the rejected-row summary.
-
-## Useful references
+### Further reading
 
 - [Installation and quickstart](QUICKSTART.md)
-- [Updating and deployment](UPDATE_GUIDE.en.md)
-- [Security](../SECURITY.md)
-- [Architecture](ARCHITECTURE.en.md)
-- [Changelog](CHANGELOG.en.md)
+- [Architecture and data model](ARCHITECTURE.en.md)
+- [Security guide](../SECURITY.md)

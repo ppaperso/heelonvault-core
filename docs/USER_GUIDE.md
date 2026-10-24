@@ -2,545 +2,285 @@
 
 Langue : FR | [EN](USER_GUIDE.en.md)
 
-## Objectif
+HeelonVault conserve vos secrets dans une base locale. Ce guide suit les tâches du quotidien ; les actions visibles dépendent de votre rôle, des droits sur le coffre et de l'édition activée.
 
-Ce manuel utilisateur présente l'utilisation de HeelonVault dans un contexte opérationnel quotidien. Il s'adresse aux utilisateurs finaux qui doivent protéger, retrouver et maintenir leurs secrets dans l'application sans dépendre de la documentation technique du projet.
+Les captures montrent les **vrais composants de production sous Linux**, montés dans des scénarios de test avec une base de démonstration et des données fictives, pas dans une session utilisateur réelle. Les vues de coffre et d'édition illustrent leurs composants, sans reproduire nécessairement toute la fenêtre ni tous les éléments de son en-tête. L'apparence, les sélecteurs de fichiers et certaines intégrations peuvent différer sous Windows et macOS : ces captures ne constituent pas une validation sur ces plateformes.
 
-Le document suit les principaux écrans du produit et décrit, pour chacun d'eux, l'objectif de la vue, les actions disponibles et les bonnes pratiques associées.
+## Démarrer
 
-Ce guide utilisateur décrit l'utilisation courante de HeelonVault côté poste de travail :
+1. Ouvrez HeelonVault depuis le lanceur de votre système.
+2. Au premier démarrage, suivez l'assistant pour créer le compte administrateur initial et choisir un mot de passe maître fort.
+3. Notez la **phrase de récupération de 24 mots**, dans l'ordre, sur un support sûr séparé de votre ordinateur. Ne la partagez pas.
+4. Terminez l'assistant, puis connectez-vous avec le compte créé. La création du compte n'ouvre pas automatiquement une session.
+5. Sélectionnez un coffre ou créez-en un avant d'ajouter vos secrets.
+6. Depuis **Profil & Sécurité**, exportez une sauvegarde chiffrée `.hvb` et conservez-la hors de cet ordinateur.
 
-- premier lancement ;
-- connexion et sécurité de session ;
-- création, modification et recherche de secrets ;
-- import, export et corbeille ;
-- bonnes pratiques de sécurité.
+**À préparer dès maintenant :** la phrase protège la récupération, mais ne contient pas vos données. Pour le parcours de récupération proposé à la connexion, il faut **le fichier `.hvb` et la phrase qui lui correspond**. Voir [Sauvegarder et restaurer](#importer-sauvegarder-et-restaurer).
 
-## 1. Vue générale du parcours utilisateur
+Aux connexions suivantes, saisissez votre identifiant et votre mot de passe maître. Si la double authentification est activée, fournissez aussi le code TOTP de votre application d'authentification.
 
-Le parcours standard d'un utilisateur HeelonVault suit la séquence suivante :
+## Se repérer dans l'interface
 
-1. initialiser ou ouvrir un coffre ;
-2. s'authentifier ;
-3. consulter ou rechercher un secret ;
-4. créer, modifier, partager ou supprimer un élément ;
-5. gérer la sécurité de session et les opérations avancées.
+- **Barre latérale :** sélectionner un coffre, accéder à la corbeille, au centre de sécurité et au profil ; les entrées d'administration dépendent de vos droits.
+- **Zone centrale :** rechercher, filtrer, trier et consulter les secrets du périmètre sélectionné.
+- **Commandes de la fenêtre :** ajouter un secret, changer l'affichage et suivre l'exposition liée au presse-papiers ; tous ces éléments ne figurent pas nécessairement dans les captures de composants.
+- **Pages d'édition et de profil :** travailler sans perdre la navigation latérale, puis revenir aux entrées.
 
-Les sections suivantes sont organisées par écran.
+Les modes **cartes** et **liste** affichent les mêmes secrets et conservent la logique de recherche et de filtrage. Choisissez les cartes pour parcourir visuellement, la liste pour une vue plus compacte.
 
-## 2. Écran 1 - Assistant d'initialisation
+![Coffre de démonstration en mode cartes](images/user-guide/fr/dashboard-grid.png)
 
-Au premier démarrage, HeelonVault affiche un assistant d'initialisation guidé pour créer le premier compte administrateur.
+![Les mêmes entrées en mode liste](images/user-guide/fr/dashboard-list.png)
 
-Rôle de l'écran :
+## Créer et utiliser les quatre types de secrets
 
-- préparer le coffre pour sa première utilisation ;
-- créer le premier compte disposant des droits d'administration ;
-- enregistrer les éléments de récupération indispensables.
+### Ajouter une entrée
 
-Étapes générales :
+1. Choisissez le coffre de destination, puis l'action d'ajout.
+2. Sélectionnez le type et renseignez le titre ainsi que la valeur requise.
+3. Complétez les champs utiles : identifiant, URL, notes, catégorie, tags ou validité, selon le formulaire.
+4. Enregistrez, puis vérifiez que l'entrée apparaît dans le bon coffre.
 
-1. Choisir un identifiant administrateur.
-2. Définir un mot de passe maître fort.
-3. **Générer et vérifier la clé de récupération de compte** (24 mots BIP39).
-4. Enregistrer la clé de récupération générée dans un lieu sûr.
-5. Finaliser l'initialisation : l'assistant se ferme et l'écran de connexion s'affiche.
+| Type | À renseigner | Point d'attention |
+| --- | --- | --- |
+| **Mot de passe** | Mot de passe, identifiant et informations du compte | Utilisez le générateur et l'indicateur de robustesse ; préférez une valeur unique par service. |
+| **Token API** | Token et fournisseur | Modifier le token dans HeelonVault ne le renouvelle pas chez le fournisseur. |
+| **Clé SSH** | Clé privée ; clé publique et phrase secrète si nécessaires | Ne confondez pas la clé publique à distribuer avec la clé privée à protéger. |
+| **Document sécurisé** | Chemin du document et type MIME éventuel | Le formulaire actuel enregistre le **chemin comme valeur secrète**, pas le contenu du fichier. Ce n'est pas une pièce jointe chiffrée ni une sauvegarde du document. |
 
-À retenir :
+![Édition d'un mot de passe fictif](images/user-guide/fr/editor-password.png)
 
-- la **clé de récupération de compte** (24 mots) est essentielle pour retrouver l'accès en cas de perte du mot de passe maître ;
-- la clé de récupération doit être conservée dans un emplacement sûr et séparé de la machine ;
-- le mot de passe maître conditionne directement la sécurité d'accès au coffre ;
-- cette étape ne doit pas être interrompue sans sauvegarder les informations affichées ;
-- une vérification de 2 mots est obligatoire avant de pouvoir finaliser.
+![Édition d'un token API fictif](images/user-guide/fr/editor-api.png)
 
-![Écran 1a - Initialisation étape 1](images/user-guide/hv_first_init_1.png)
+![Édition d'une clé SSH fictive](images/user-guide/fr/editor-ssh.png)
 
-*Assistant d'initialisation, étape 1 (création du compte administrateur).*
+![Document sécurisé : référence à un chemin, sans import du fichier](images/user-guide/fr/editor-document.png)
 
-![Écran 1b - Initialisation étape 2](images/user-guide/hv_first_init_2.png)
+### Consulter, copier et modifier
 
-*Assistant d'initialisation, étape 2 (clé de secours 24 mots).*
+Ouvrez une entrée pour la modifier. Utilisez les actions de copie plutôt que d'afficher durablement une valeur sensible. La copie d'un mot de passe le déchiffre à la demande et revérifie l'accès au coffre.
 
-## 3. Écran 2 - Connexion
+L'indicateur du presse-papiers signale les copies suivies par HeelonVault et leur délai d'effacement ; cliquez dessus pour effacer immédiatement. Il ne garantit ni l'absence de secrets ailleurs en mémoire, ni l'effacement des historiques de presse-papiers ou des copies déjà effectuées par d'autres applications.
 
-Après initialisation, l'écran de connexion permet de saisir les identifiants du compte et, si activé, le code TOTP à usage unique.
+Une date de validité aide à repérer les entrées à renouveler : elle ne révoque pas les identifiants chez le service externe. Changez d'abord le secret sur ce service, puis mettez l'entrée à jour.
 
-Juste après la création du compte, l'écran de connexion affiche le message « Compte créé, connectez-vous. », l'identifiant est déjà renseigné et le curseur est placé dans le champ mot de passe : il suffit de saisir le mot de passe maître choisi à l'étape précédente.
+### Supprimer ou retrouver une entrée supprimée
 
-Rôle de l'écran :
+Une suppression place le secret dans la **corbeille**. Ouvrez-la pour restaurer l'entrée ou la supprimer définitivement. **Vider la corbeille** est irréversible dans la base courante ; une éventuelle sauvegarde antérieure constitue un autre recours.
 
-- authentifier l'utilisateur ;
-- contrôler l'accès au coffre ;
-- appliquer les règles de sécurité configurées pour le compte.
+## Rechercher et organiser
 
-Bonnes pratiques :
+La recherche porte par défaut sur le **coffre actif**. Activez **MultiCoffre** pour chercher dans les coffres auxquels vous avez accès. Une recherche ne donne aucun droit supplémentaire.
 
-- utiliser un mot de passe unique et long ;
-- conserver la clé de récupération hors poste ;
-- vérifier l'heure système si le TOTP est refusé.
+Les termes simples recherchent dans le titre, l'identifiant, l'e-mail, l'URL, les notes, la catégorie, les tags, le type et le nom du coffre. La recherche ignore la casse et normalise notamment les accents courants ; une légère tolérance aux fautes s'applique aux termes suffisamment longs. Elle ne recherche pas dans les valeurs secrètes déchiffrées.
 
-![Écran 2 - Connexion](images/user-guide/hv_login_screen_after_init.png)
-
-*Écran de connexion avec identifiant, mot de passe et accès récupération de base (.hvb).*
-
-## 4. Écran 3 - Vue principale du coffre
-
-Une fois connecté, l'utilisateur accède à la vue principale du coffre avec :
-
-- la liste des secrets ;
-- les fonctions de recherche et filtrage ;
-- les actions de création, modification, suppression et partage ;
-- l'accès au profil et à la sécurité ;
-- un bouton d'aide (icône « ? » dans la barre d'en-tête) qui ouvre la documentation en ligne dans le navigateur.
-
-### Affichage en cartes ou en liste
-
-Deux boutons, à droite des boutons de tri au-dessus de la liste, permettent de choisir la présentation des secrets :
-
-- **Affichage en cartes** (par défaut) : une grille de cartes détaillées, avec login, domaine, badges (robustesse, utilisation, doublon, incomplet, partagé, coffre) et actions rapides ;
-- **Affichage en liste** : une ligne compacte par secret, en colonnes alignées — type, titre, login, domaine, badges essentiels (robustesse, doublon, coffre d'origine en recherche multi-coffres) et actions rapides. Pratique pour parcourir rapidement un coffre volumineux.
-
-La recherche, les filtres, le tri, les raccourcis clavier et le double-clic pour modifier fonctionnent de la même façon dans les deux modes, et le changement de mode est instantané. Le choix est mémorisé pour les prochains lancements (préférence de l'installation, commune à tous les comptes du poste).
-
-Rôle de l'écran :
-
-- servir de point d'entrée pour toutes les opérations courantes ;
-- centraliser la navigation dans les données du coffre ;
-- offrir un accès rapide aux actions prioritaires.
-
-![Écran 3 - Vue principale du coffre](images/user-guide/hv_dashboard_empty.png)
-
-*Vue principale du coffre avec recherche, catégories, audit de sécurité et zone centrale.*
-
-### Centre de sécurité
-
-Le diagnostic local de tous les coffres accessibles démarre automatiquement à la connexion
-et après un déverrouillage par PIN, sans ouvrir la page. Il se recalcule après création,
-modification ou suppression d'un secret, restauration ou purge de la corbeille, import CSV,
-création ou suppression d'un coffre et changements d'équipe affectant les accès réalisés
-dans l'application. Les demandes rapprochées sont regroupées pour éviter les analyses en double.
-
-Le badge de la barre latérale indique `...` pendant l'actualisation, le nombre d'éléments
-à examiner après l'analyse, et `0` uniquement après un bilan complet sans constat. `?`
-signifie qu'aucun bilan n'est disponible ; `!` signale une erreur ou une couverture incomplète
-sans constat chiffré. Son infobulle précise l'état. Un compteur nul n'est pas une garantie
-d'absence de compromission.
-
-Sélectionnez **Centre de sécurité** pour consulter le dernier diagnostic sans relancer
-inutilement l'analyse. Le bouton d'actualisation permet de demander un nouveau bilan, notamment
-après un changement effectué depuis une autre session. Quitter la page n'interrompt pas
-l'analyse en arrière-plan ; verrouiller la session l'annule et efface ses résultats.
-
-La synthèse indique les éléments concernés, les coffres analysés,
-les coffres indisponibles et les mots de passe illisibles. Une analyse incomplète n'est
-jamais présentée comme un bilan sain.
-
-Les cartes filtrent les mots de passe réutilisés, faibles, l'expiration (dont les 30 prochains
-jours) et les liens à examiner. Un sélecteur restreint les résultats à un coffre. Les mots
-de passe communs sont regroupés ; dépliez un élément puis **Ouvrir l'élément** pour le corriger.
-L'affichage progresse par lots de 50. Le retour de l'éditeur actualise l'analyse.
-
-Changez le mot de passe sur le service concerné avant de mettre à jour le coffre : modifier
-HeelonVault seul ne change pas le compte distant. Les contrôles de robustesse/réutilisation
-concernent les mots de passe, pas les tokens API, clés SSH ou documents. L'absence de constat
-ne prouve pas l'absence de compromission.
-
-### Indicateurs URL et contrôles en ligne optionnels
-
-L'éditeur vérifie immédiatement le format, HTTP/HTTPS, les identifiants intégrés et les hôtes
-internes ou internationalisés, sans réseau. HTTPS demandé ne signifie **pas** certificat
-vérifié. Les adresses internes restent enregistrables ; le contrôle en ligne est facultatif.
-
-**Vérifier DNS / TLS…** demande l'autorisation pour une seule connexion. Le dialogue affiche
-l'origine technique contactée. Le résolveur DNS et le site peuvent observer le domaine et
-votre adresse IP. Le contrôle n'envoie ni chemin, paramètres, fragment, identifiants, mot de
-passe ou cookies, et ne charge aucune page. Seules les destinations publiques sont admises,
-avec validation du certificat par les racines de confiance embarquées. Les autorités privées
-d'entreprise ne sont pas prises en charge par ce contrôle.
-
-- Vert : TLS validé pour cet hôte à l'heure affichée, sans garantie de fiabilité du site.
-- Orange : attention requise, par exemple HTTP ou cible interne/internationalisée.
-- Rouge : URL invalide, identifiants intégrés ou échec de validation TLS.
-- Neutre : non vérifié, service injoignable, DNS indisponible ou délai dépassé ; aucune
-  conclusion de malveillance.
-
-La réputation/les listes de blocage et l'existence de la page exacte ne sont **pas vérifiées**.
-L'enregistrement fonctionne hors ligne. Modifier l'URL ou quitter l'éditeur invalide/annule
-le contrôle. Une résolution DNS système déjà engagée peut se terminer en arrière-plan,
-sans connexion ultérieure après annulation.
-
-## 5. Écran 4 - Création d'un secret
-
-Pour ajouter un secret :
-
-1. Ouvrir l'action de création.
-2. Choisir le type ou la catégorie adaptée.
-3. Renseigner les champs utiles : titre, login, mot de passe, URL, notes, tags.
-4. Cocher « Accès données de santé » si le secret est lié à des données médicales.
-5. Vérifier l'indicateur de robustesse.
-6. Enregistrer.
-
-Recommandations :
-
-- utiliser des titres explicites ;
-- renseigner les tags pour faciliter la recherche ;
-- utiliser le marqueur « Accès données de santé » uniquement pour les secrets réellement sensibles au sens santé ;
-- éviter les notes contenant des informations non nécessaires.
-
-![Écran 4a - Sélection du type de secret](images/user-guide/hv_add_menu.png)
-
-*Choix du type de secret (password, api_token, ssh_key, secure_document).*
-
-![Écran 4b - Formulaire mot de passe](images/user-guide/hv_add_password1.png)
-
-*Création d'un secret de type mot de passe (vue générale du formulaire).*
-
-![Écran 4c - Formulaire mot de passe, zone de validité](images/user-guide/hv_add_password2.png)
-
-*Paramètres complémentaires d'un secret mot de passe (notes, validité, enregistrement).*
-
-![Écran 4d - Formulaire token API](images/user-guide/hv_add_apikey.png)
-
-*Création d'un secret de type token API.*
-
-![Écran 4e - Formulaire clé SSH](images/user-guide/hv_add_sshkey.png)
-
-*Création d'un secret de type clé SSH.*
-
-![Écran 4f - Formulaire document sécurisé](images/user-guide/hv_add_securedoc.png)
-
-*Création d'un secret de type document sécurisé.*
-
-## 6. Écran 5 - Modification, suppression et corbeille
-
-Chaque secret peut être modifié depuis l'éditeur intégré. La suppression passe par la corbeille afin d'éviter une perte immédiate.
-
-Dans le tableau principal :
-
-- un clic simple sur une carte la sélectionne sans ouvrir l'éditeur ;
-- un double-clic ouvre la modification du secret sélectionné.
-
-Rôle de l'écran :
-
-- permettre la maintenance du contenu du coffre ;
-- sécuriser la suppression grâce à une étape intermédiaire ;
-- offrir une restauration rapide en cas d'erreur.
-
-Flux recommandé :
-
-1. Modifier le secret si nécessaire.
-2. Utiliser la suppression logique pour l'envoyer en corbeille.
-3. Restaurer le secret en cas d'erreur.
-4. Purger définitivement seulement après validation.
-
-![Écran 5 - Corbeille et restauration](images/user-guide/hv_trash.png)
-
-*Corbeille avec actions de restauration et purge des éléments supprimés.*
-
-## 7. Écran 6 - Recherche et organisation
-
-HeelonVault prend en charge une recherche multi-champs en temps réel sur l'ensemble des données des secrets.
-
-### Mode de recherche
-
-- **Coffre actif (défaut)** : la recherche porte sur le coffre sélectionné dans le panneau latéral.
-- **MultiCoffre** : activez le bouton **MultiCoffre** à gauche de la barre de recherche pour étendre la recherche à tous les coffres accessibles simultanément.
-
-### Recherche sans préfixe
-
-Un terme tapé seul est recherché dans tous les champs : titre, type, login, email, URL, notes, catégorie, tags et nom du coffre. La correspondance floue tolère une faute de frappe.
-
-### Raccourci thématique `#sante`
-
-Le raccourci `#sante` affiche les secrets marqués « Accès données de santé » et ceux détectés automatiquement avec une confiance élevée.
-
-### Syntaxe `champ:valeur`
-
-Pour cibler un champ précis, utilisez la syntaxe `champ:valeur` (avec ou sans espace après le deux-points) :
-
-| Clés acceptées | Champ recherché |
+| Exemple | Usage |
 | --- | --- |
-| `title`, `titre`, `name`, `nom` | Titre |
-| `login`, `user`, `username`, `identifiant` | Login |
-| `email`, `mail` | Email |
-| `url`, `site`, `domaine`, `domain` | URL |
-| `notes`, `note` | Notes |
-| `category`, `categorie`, `cat` | Catégorie |
-| `tag`, `tags` | Tags |
-| `type`, `kind` | Type de secret |
-| `vault`, `coffre`, `vault-name` | Nom du coffre |
+| `messagerie` | Retrouver un terme dans les informations de l'entrée |
+| `email:exemple.fr` | Limiter le terme au champ e-mail |
+| `tag:travail` | Chercher dans les tags |
+| `type:api` | Chercher un type de secret |
+| `coffre:équipe` | Restreindre au nom du coffre dans le périmètre chargé |
+| `title:portail login:alice` | Combiner des critères |
+| `#sante` ou `#health` | Retrouver les accès liés à la santé (services médicaux, assurance maladie…), pas les alertes de sécurité |
 
-Exemples : `login:alice` · `coffre:perso` · `titre:gmail` · `url:google`
+Les préfixes `url:`, `notes:` et `category:` sont également disponibles. Combinez la recherche avec les filtres, le tri et le choix du coffre ; en cas de résultat vide, retirez d'abord les filtres et vérifiez le périmètre.
 
-Le bouton `?` à droite de la barre affiche ce récapitulatif directement dans l'application.
+![Recherche sur des entrées de démonstration](images/user-guide/fr/search.png)
 
-### Corriger une recherche au clavier
+**Raccourcis :** `Ctrl+F` place le curseur dans la recherche. Quand la liste des secrets a le focus, les flèches déplacent la sélection ; `Ctrl+C` copie le mot de passe, `Ctrl+L` l'identifiant et `Ctrl+U` ouvre l'URL lorsque l'action existe. La touche Commande peut remplacer Ctrl selon la plateforme. Ces actions ne doivent pas détourner la saisie dans un formulaire.
 
-- `Ctrl+F` (`Cmd+F` sur macOS) place le curseur dans la recherche et sélectionne le texte existant.
-- Les flèches gauche/droite déplacent le curseur ; `Maj` + flèche sélectionne du texte et
-  `Ctrl` + flèche utilise la navigation native par mots selon le système.
-- Copier, couper, coller et sélectionner tout conservent leur comportement habituel dans les
-  champs texte, même lorsqu'une carte de secret reste sélectionnée.
-- `Entrée` applique la saisie actuelle et place le focus sur le premier résultat visible.
-  Sans résultat, le focus reste dans la recherche pour la corriger.
+## Examiner le centre de sécurité
 
-### Raccourcis clavier sur la carte active
+1. Ouvrez le **Centre de sécurité**.
+2. Lancez **Analyser mes coffres** ; vous pouvez annuler l'analyse.
+3. Consultez les constats, leur coffre d'origine et la couverture de l'analyse.
+4. Ouvrez une entrée concernée pour préparer la correction, puis relancez l'analyse après modification.
 
-Quand le focus est dans la liste des secrets et qu'une carte (ou une ligne, en affichage liste)
-est sélectionnée, les actions rapides suivantes sont disponibles :
+![Centre de sécurité avec constats fictifs](images/user-guide/fr/security-center.png)
 
-- `Ctrl+C` : copier le mot de passe ;
-- `Ctrl+L` : copier le login (si présent) ;
-- `Ctrl+U` : ouvrir l'URL (si présente).
+Le centre de sécurité illustré utilise un scénario de démonstration distinct de celui du coffre. Ses constats ne correspondent donc pas aux compteurs des captures du coffre, qui peuvent afficher zéro ; il ne s'agit pas d'une même analyse avant et après correction.
 
-Les flèches naviguent alors entre les résultats visibles. Ces raccourcis ne détournent pas
-les touches d'un autre champ ou contrôle de l'interface.
+L'analyse est **locale, sans requête réseau**, sur les coffres accessibles. Elle repère notamment les mots de passe faibles ou réutilisés, les expirations dépassées ou proches, les dates ou métadonnées invalides, les valeurs illisibles et les URL nécessitant votre attention.
 
-### Indicateur du presse-papiers
+Un coffre indisponible ou un mot de passe illisible rend la couverture incomplète : cela ne signifie pas que les données manquantes sont saines. L'absence de constat n'est ni une preuve d'absence de compromission, ni une certification de conformité.
 
-Dans la barre d'en-tête, une icône de presse-papiers indique ce que HeelonVault expose via le presse-papiers :
+Pour corriger un mot de passe réutilisé, un token expiré ou une clé exposée, **effectuez d'abord le changement ou la révocation sur le service concerné**, puis actualisez HeelonVault. Changer seulement l'entrée locale ne protège pas le compte distant.
 
-- **au repos** (icône discrète) : « Aucun secret exposé par HeelonVault » ;
-- **après une copie** (icône ambrée) : un anneau se consume pendant le délai d'effacement — 20 s pour un mot de passe ou un identifiant, 60 s pour la phrase de récupération. L'infobulle précise ce qui est copié et le temps restant ;
-- **un clic** sur l'icône efface immédiatement le presse-papiers, par exemple juste après avoir collé votre mot de passe.
+## Gérer le compte, la session et la récupération
 
-Si vous copiez autre chose entre-temps, HeelonVault efface aussitôt sa copie et l'indicateur revient au repos.
+### Régler le profil
 
-Ce que l'indicateur ne couvre pas : la clé du coffre ouvert reste en mémoire tant que la session est déverrouillée, et certains outils du système peuvent conserver un historique du presse-papiers (par exemple l'historique Windows, `Win+V`, s'il est activé). Désactivez cet historique sur un poste sensible.
+Ouvrez **Profil & Sécurité** pour modifier les informations proposées, changer le mot de passe maître, choisir la langue et régler les protections. L'identifiant de connexion n'est pas modifiable. La langue s'applique immédiatement à l'interface.
 
-Pour votre sécurité, les mots de passe ne restent pas déchiffrés en mémoire pendant l'affichage de la liste : chaque copie déchiffre le mot de passe au moment du clic, après avoir revérifié vos droits sur le coffre, puis l'efface. Si un partage vous a été retiré entre-temps, ou si la session est verrouillée, un message l'indique et rien n'est copié.
+![Profil Community et protections de session](images/user-guide/fr/profile-community.png)
 
-### Bonnes pratiques
+Pour changer le mot de passe maître, saisissez le mot de passe actuel, le nouveau et sa confirmation. Après réussite, vérifiez le statut du PIN : il reste valide si la clé du compte n'a pas changé ; si l'application annonce sa désactivation après un changement de clé, configurez-le à nouveau.
 
-Renforcer la pertinence de la recherche avec une organisation cohérente :
+### Verrouiller et utiliser le PIN
 
-- adopter une convention de nommage stable ;
-- utiliser les tags de manière cohérente ;
-- regrouper les secrets par type, usage ou équipe selon le contexte.
+- Choisissez un verrouillage automatique après **1, 5 ou 30 minutes** d'inactivité. **Jamais** le désactive après avertissement ; évitez ce réglage sur un poste laissé sans surveillance.
+- Configurez un **PIN de 4 à 8 chiffres**, confirmé deux fois, pour le déverrouillage rapide.
+- Le PIN protège un cache de clé **uniquement en mémoire**, jamais enregistré sur disque. Il ne remplace pas le mot de passe maître pour un nouveau démarrage.
+- Le cache expire au plus tard **12 heures après sa création** ; les déverrouillages ne prolongent pas ce délai. Après **3 erreurs**, il est supprimé et la connexion complète est requise.
+- Avec un cache valide, le verrouillage automatique et l'action de déconnexion peuvent afficher l'écran PIN. Pour revenir à la connexion complète, choisissez **Utiliser le mot de passe maître** sur cet écran ; pour quitter, utilisez l'action de fermeture de l'application.
 
-![Écran 6 - Recherche et navigation](images/user-guide/hv_dashboard_empty.png)
+Un PIN n'est ni une phrase de récupération ni une sauvegarde. Ne comptez pas dessus après fermeture de l'application.
 
-*Barre de recherche avec toggle MultiCoffre et bouton d'aide, navigation latérale.*
+### Activer la double authentification
 
-## 8. Écran 7 - Profil et sécurité
+Dans la section **Authentification à deux facteurs (TOTP)** :
 
-La page se lit de haut en bas, une ligne par réglage :
+1. Choisissez **Activer**.
+2. Scannez le QR code avec votre application d'authentification, ou saisissez le secret Base32.
+3. Entrez un code à **6 chiffres** pour confirmer l'activation.
 
-- **En-tête** : nom, identifiant, rôle, édition (Community ou Professional) et **Protection du compte** — double authentification, code PIN et verrouillage automatique, avec ce qu'il reste à activer ;
-- **Compte** : nom affiché et adresse e-mail. L'identifiant de connexion n'est pas modifiable ; le mot de passe actuel n'est demandé que si l'adresse e-mail change. « Enregistrer » ne s'active qu'en cas de modification ;
-- **Connexion et protection** : mot de passe maître, double authentification (TOTP) et code PIN. Chaque ligne se déplie pour agir ;
-- **Session** : délai de verrouillage automatique (« Jamais » demande une confirmation avant d'être appliqué) et affichage du mot de passe actuel dans l'éditeur ;
-- **Préférences** : langue de l'interface, appliquée immédiatement ;
-- **Données** : sauvegarde chiffrée `.hvb` (administrateurs) et import CSV ;
-- **Administration** : gestion des utilisateurs et des équipes avec une licence Professional. En édition Community, un administrateur voit uniquement ce que la licence Professional ajoute.
+Conservez un accès sûr à votre authentificateur. Le QR code et le secret Base32 sont sensibles. La désactivation demande une confirmation dans le profil.
 
-Le nouveau mot de passe maître doit contenir au moins 16 caractères ; il est enregistré exactement comme saisi, espaces compris. Après le changement, un code PIN actif doit être reconfiguré.
+### Préparer une récupération de compte
 
-### Mises à jour de l'application
+Distinguez ces trois éléments :
 
-Un bandeau discret propose d'activer la vérification des mises à jour. **Pas maintenant**
-la laisse désactivée sans reposer la question à chaque connexion. Vous pouvez changer ce
-choix dans **Profil & Sécurité > Mises à jour de l'application**.
+| Élément | Sert à… | Ne remplace pas… |
+| --- | --- | --- |
+| Mot de passe maître | Ouvrir normalement votre compte | Une sauvegarde des données |
+| Phrase de récupération de 24 mots | Déchiffrer la sauvegarde correspondante et permettre la récupération de la clé du compte qu'elle contient | Le fichier `.hvb` lui-même |
+| Sauvegarde `.hvb` | Conserver un instantané chiffré de la base | La phrase nécessaire pour l'ouvrir |
 
-- Après activation, une vérification en arrière-plan a lieu au démarrage, au plus une fois
-  toutes les 24 heures, sans ralentir la connexion. Le réglage concerne cette installation,
-  et non un compte.
-- **Vérifier** lance une vérification ponctuelle auprès de GitHub, même si l'automatisme est
-  désactivé. Une seule vérification peut être en cours.
-- Si une version stable plus récente existe, **Découvrir la version** ouvre sa page GitHub
-  officielle avec les nouveautés et les téléchargements. **Plus tard** masque le bandeau
-  pour la session de l'application ; le résultat reste accessible dans le profil.
-- Hors ligne ou si GitHub ne répond pas, le panneau indique **Vérification indisponible**,
-  jamais « Vous êtes à jour ». Une ancienne version connue comme plus récente peut être
-  proposée depuis le cache au démarrage ; le cache ne prouve jamais que l'application est à jour.
+La phrase seule ne recrée pas une base perdue. Le parcours disponible à la connexion **restaure une sauvegarde** et fixe un nouveau mot de passe ; ce n'est pas une réinitialisation sur place du compte courant.
 
-Aucun appel automatique n'est effectué sans accord. GitHub reçoit l'adresse IP utilisée
-pour la connexion ; aucune donnée de coffre, de compte ou de licence n'est envoyée.
-Aucun paquet n'est téléchargé ou installé par l'application. La présence d'une version ne
-constitue pas une vérification de son intégrité : suivez le [guide de mise à jour](UPDATE_GUIDE.md).
+Si l'application signale qu'une phrase doit être rattachée à la clé du compte, suivez l'instruction d'export depuis le profil. Un administrateur peut ainsi produire une nouvelle sauvegarde récupérable. Gardez les phrases associées à leurs sauvegardes.
 
-### Code PIN de déverrouillage rapide
+## Importer, sauvegarder et restaurer
 
-HeelonVault propose un déverrouillage rapide par code PIN pour éviter de ressaisir le mot de passe maître après chaque verrouillage automatique.
+### Importer des mots de passe depuis un CSV
 
-**Activation** (Profil → Connexion et protection → Code PIN de déverrouillage) :
+Depuis **Profil & Sécurité → Données → Import CSV** :
 
-1. Cliquer sur « Configurer… ».
-2. Saisir un code PIN de 4 à 8 chiffres.
-3. Confirmer le code PIN.
-4. Le PIN est actif immédiatement pour la session en cours.
+1. Choisissez un CSV dont l'en-tête contient les **sept colonnes** suivantes, chacune présente même si certaines valeurs sont vides :
 
-**Utilisation lors du déverrouillage automatique** :
+   ```csv
+   name,url,username,password,notes,category,tags
+   Portail démo,https://example.com,alice-demo,mot-de-passe-fictif,Exemple,Travail,demo
+   ```
 
-- Lors d'un verrouillage par inactivité (délai configuré), la fenêtre de saisie du PIN s'affiche.
-- Saisir le code PIN et appuyer sur « Déverrouiller ».
-- En cas d'erreur, 3 tentatives sont autorisées avant que le cache ne soit effacé.
-- Après 3 échecs ou 12 h d'inactivité, le système bascule automatiquement vers la connexion par mot de passe maître.
-- Le bouton « Utiliser le mot de passe » permet de revenir à tout moment à la connexion complète.
+2. Vérifiez l'aperçu et choisissez explicitement le **coffre de destination**, sur lequel vous devez disposer des droits d'écriture.
+3. Confirmez l'import et attendez la progression.
+4. Lisez le bilan : lignes importées, échecs et raisons. Corrigez seulement les lignes rejetées avant de réessayer.
 
-**Désactivation** :
+Cet import crée des entrées **Mot de passe**, pas les quatre types de secrets. Les champs `name`, `username` et `password` doivent être renseignés. Les limites sont **10 Mio** et **10 000 lignes de données**. Un export d'un autre gestionnaire peut nécessiter une adaptation des colonnes ; il n'est pas accepté automatiquement dans son format d'origine.
 
-- Depuis la même ligne, « Configurer… » permet de désactiver le code PIN et de supprimer le cache immédiatement.
+Le traitement tolère des erreurs par ligne : une partie des entrées peut déjà être créée malgré des échecs. Relancer tout le fichier peut créer des doublons. Certains rejets de structure produisent un rapport `csv_import_rejects_*.txt` dans le répertoire des journaux ; le bilan indique son chemin lorsqu'il existe.
 
-**Indicateur de temps de session dans la barre de titre** :
+**Le CSV contient des secrets en clair.** Protégez-le pendant le transfert, puis supprimez les copies inutiles et tenez compte des sauvegardes du système.
 
-Lorsque le PIN est actif, un badge « PIN actif » apparaît dans la barre de titre de la fenêtre. Ce badge évolue visuellement en fonction du temps restant avant l'expiration du cache :
+### Exporter une sauvegarde chiffrée
 
-- **Nominal** (plus de 2 h restantes) : texte blanc semi-transparent, comportement standard.
-- **Avertissement** (entre 15 min et 2 h) : bordure et texte ambre — envisager de se redéconnecter pour renouveler la session si besoin.
-- **Critique** (moins de 15 min) : badge fond ambre avec animation pulsante, texte affiche « PIN · Xm » (X = minutes restantes). Le cache expirera dans la minute indiquée.
+L'export `.hvb` est réservé au rôle **administrateur**, en Community comme en Professional. Il couvre **toute la base**, pas seulement le coffre actif ni les seules entrées affichées.
 
-Survoler le badge affiche une infobulle indiquant le temps exact restant (ex. « Expire dans 1h 23m »). Cliquer sur le badge ouvre le panneau de gestion PIN dans la vue profil.
+![Section Données du profil Community : import CSV et sauvegarde chiffrée](images/user-guide/fr/profile-community-data.png)
 
-Le badge et son minuteur sont automatiquement supprimés lorsque le cache expire, que la session est déverrouillée avec le mot de passe maître, ou que l'application est fermée.
+1. Dans le profil, ouvrez **Sauvegarde chiffrée (.hvb)**.
+2. Suivez la vérification de la phrase : si elle existe déjà, l'application vous demande de la ressaisir ; sinon, elle propose d'en générer une nouvelle à consigner.
+3. Choisissez le fichier de destination et attendez la confirmation de réussite.
+4. Conservez le fichier et sa phrase sur des supports séparés et sûrs. Faites régulièrement de nouveaux exports.
 
-**Limites de sécurité à retenir** :
+Si une nouvelle phrase est générée, ne présumez pas qu'une ancienne ouvrira les futurs exports. Gardez les anciennes associations fichier/phrase pour les sauvegardes déjà créées.
 
-- Le PIN ne remplace pas le mot de passe maître ; il accélère uniquement le déverrouillage de session.
-- Le cache PIN est strictement en mémoire vive et disparaît à la fermeture de l'application.
-- Ne pas choisir un PIN identique à un code déjà utilisé par ailleurs (téléphone, carte bancaire).
+Copier, imprimer ou enregistrer la phrase en TXT crée une autre copie sensible : le TXT n'est pas une sauvegarde chiffrée. Un export `.hvb` ne contient pas les fichiers simplement référencés par les entrées **Document sécurisé**.
 
-Points d'attention généraux :
+### Restaurer et choisir un nouveau mot de passe
 
-- activer le TOTP dès que possible ;
-- utiliser un délai d'auto-verrouillage court sur poste partagé ;
-- après un changement de mot de passe maître, vérifier rapidement l'accès aux coffres principaux ;
-- ne jamais laisser une session ouverte sans surveillance.
+**Attention : ce parcours remplace la base utilisée par l'application ; il ne fusionne pas les secrets.** Préservez les données actuelles avant de continuer. Les changements postérieurs à la sauvegarde ne seront pas récupérés.
 
-### Récupération de clé de compte
+1. Depuis l'écran de connexion, choisissez **Restaurer ma base (.hvb)**.
+2. Sélectionnez la sauvegarde et entrez sa phrase de **24 mots**.
+3. Choisissez un nouveau mot de passe maître fort et confirmez-le.
+4. Lancez **Restaurer et redémarrer**, puis reconnectez-vous après redémarrage.
+5. Lisez les avertissements éventuels sur les secrets illisibles ou les coffres ignorés. Vérifiez aussi l'état de la double authentification : elle peut être conservée ; si l'application annonce sa désactivation, réactivez-la.
 
-HeelonVault permet maintenant de récupérer l'accès à votre compte si vous perdez votre mot de passe maître, grâce à une **clé de récupération de compte** générée lors de l'initialisation.
+La récupération avec nouveau mot de passe prend en charge les sauvegardes **contenant un seul compte**. Une sauvegarde multi-comptes peut être exportée, mais n'est pas prise en charge par ce parcours de connexion. Une sauvegarde de compte au format à clé de compte doit aussi contenir son enveloppe de récupération ; un ancien fichier qui en est dépourvu ne devient pas récupérable simplement parce que vous connaissez une phrase.
 
-**Initialisation (durant le bootstrap)** :
-- Une phrase mnémotechnique de 24 mots (format BIP39) est générée automatiquement.
-- Une vérification obligatoire de 2 mots tirés au hasard est requise avant finalisation.
-- La clé est copiée dans le presse-papiers avec effacement automatique après 60 secondes.
+La restauration est préparée dans une base distincte avant remplacement. Une phrase incorrecte, un fichier altéré ou un format incompatible provoque une erreur : ne supprimez pas l'original et ne multipliez pas les essais sur des données irremplaçables.
 
-**Ré-exportation** :
-- Depuis `Profil & Sécurité`, vous pouvez ré-exporter votre clé de récupération à tout moment.
-- Cette action nécessite une authentification valide et les droits d'administrateur.
+## Administrer avec Professional
 
-**Utilisation pour la récupération** :
-- En cas de perte du mot de passe maître, utilisez la clé de récupération pour :
-  1. Déverrouiller l'accès à votre compte ;
-  2. Réinitialiser votre mot de passe maître ;
-  3. Retrouver l'accès à vos coffres existants.
+L'édition **Professional** et le rôle **administrateur** sont deux conditions distinctes. Une licence Professional ne transforme pas un utilisateur standard en administrateur.
 
-**Bonnes pratiques** :
-- Conservez la clé de récupération dans un lieu physique sûr (coffre, enveloppe scellée) ;
-- Ne la stockez PAS dans un fichier numérique non chiffré ;
-- Ne la partagez avec personne ;
-- Vérifiez régulièrement que vous pouvez y accéder.
+![Profil Professional avec accès à l'administration](images/user-guide/fr/profile-professional.png)
 
-Cet écran correspond à l'espace de gestion de la confiance utilisateur. C'est ici que se concentrent les réglages qui influencent directement le niveau de protection du coffre.
+Depuis les entrées d'administration du profil ou de la navigation :
 
-![Écran 7 - Profil et sécurité](images/user-guide/hv_userprofil.png)
+![Section d'administration du profil Professional dans un scénario de démonstration](images/user-guide/fr/profile-professional-data.png)
 
-*En-tête de protection du compte, puis réglages par thème : compte, connexion et protection, session, préférences, données et administration.*
+- **Utilisateurs :** gérer les comptes et leurs rôles, et utiliser les actions de mot de passe proposées.
+- **Équipes :** organiser les membres et les accès partagés.
+- **Audit et rapports :** consulter les fonctions disponibles pour votre licence et vos droits.
 
-## 9. Écran 8 - Import et export
+Ne confondez pas les niveaux d'autorisation :
 
-Selon les autorisations disponibles, HeelonVault permet :
+| Niveau | Portée |
+| --- | --- |
+| **Utilisateur / Administrateur** du compte | Administration globale ; l'export complet de la base est réservé à l'administrateur. |
+| **Responsable / Membre** d'équipe | Gestion des membres pour le responsable ; cela ne donne pas le rôle administrateur global. |
+| **Lecture / Écriture / Administration** du partage de coffre | Consulter ; consulter et modifier ; administrer notamment les partages et opérations du coffre. Le propriétaire conserve ses droits. |
 
-- l'import CSV ;
-- l'export au format `.hvb` ;
-- des opérations encadrées par les règles RBAC.
+Les droits de partage supposent un accès réel au coffre, direct ou par équipe. Un rôle global ne signifie pas qu'une clé cryptographique manquante peut être recréée. Si une action est absente ou refusée, vérifiez à la fois l'édition activée, le rôle du compte et les droits sur la ressource.
 
-Le flux d'import CSV est désormais explicite et guidé :
+En Community, l'administrateur peut voir une présentation verrouillée de Professional : ce n'est pas un accès actif aux fonctions multi-utilisateurs.
 
-- **Étape 1 - Prévisualisation** : après sélection du fichier, l'application affiche le nombre de secrets détectés, le nombre importable, et les lignes à revoir manuellement.
-- **Étape 2 - Progression** : pendant l'import, une fenêtre dédiée affiche l'avancement (traités/importés/en échec) avec mise à jour en continu.
-- **Étape 3 - Résumé final** : l'application affiche un bilan détaillé (total/importés/en échec) et liste les premières lignes non importées avec la raison pour correction manuelle.
+## Gérer les mises à jour et le réseau facultatif
 
-Avant un import :
+### Chercher une mise à jour
 
-- vérifier le format et l'encodage du fichier ;
-- nettoyer les colonnes inutiles ;
-- confirmer la destination correcte du coffre.
-- lire le résumé final et corriger les lignes signalées avant un second import ciblé.
-- consulter le chemin du rapport de rejets si affiché (fichier `logs/csv_import_rejects_*.txt`).
+Dans **Profil & Sécurité → Mises à jour**, choisissez **Vérifier maintenant**. La vérification manuelle fonctionne même si les vérifications automatiques sont désactivées.
 
-Avant un export :
+Si vous les autorisez, les vérifications automatiques contactent GitHub au démarrage, **au plus une fois par jour**. Le réglage concerne cette installation. GitHub reçoit votre adresse IP, mais aucune donnée de coffre, de compte ou de licence n'est envoyée par cette vérification.
 
-- limiter l'opération au strict besoin ;
-- protéger le fichier exporté ;
-- supprimer l'artefact après usage si possible.
+![Consentement initial aux vérifications de mise à jour et contrôle manuel](images/user-guide/fr/updates-consent.png)
 
-![Écran 8 - Import / Export depuis le profil](images/user-guide/hv_userprofil.png)
+![Notification de mise à jour de démonstration : version simulée, aucune version réelle annoncée](images/user-guide/fr/updates-available.png)
 
-*Zone Gestion des données (export .hvb et import CSV) accessible dans Profil & Sécurité.*
+La version affichée dans cette capture est **simulée pour le test** : elle n'annonce aucune publication réelle.
 
-## 10. Écran 9 - Tableau de bord et audit
+Quand une mise à jour est proposée, ouvrez les notes et téléchargements de la publication officielle, puis utilisez le mode d'installation adapté à votre système. **Rien n'est téléchargé et installé automatiquement par ce parcours.** Faites une sauvegarde avant de remplacer l'application.
 
-Le tableau de bord de sécurité donne une vue synthétique de l'état du coffre. Les journaux d'audit permettent de tracer les actions sensibles.
+### Comprendre les contrôles d'URL
 
-Le tableau de bord met en avant la productivité quotidienne :
+Le diagnostic local d'une URL signale par exemple HTTP, une syntaxe invalide ou un domaine internationalisé. **HTTPS ne prouve pas qu'un site est digne de confiance.**
 
-- tri prioritaire des cartes par fréquence d'usage ;
-- badges visuels sur les cartes (robustesse, incomplet, doublon, usage, santé) ;
-- sélection claire de la carte active pour enchaîner rapidement les actions clavier.
+Dans l'éditeur, un contrôle en ligne DNS/TLS est facultatif et demande votre accord **pour chaque contrôle**. Le résolveur DNS et le serveur cible peuvent observer le domaine et votre adresse IP. Le contrôle contacte l'hôte, pas la page : il n'envoie ni chemin, ni paramètres, ni secret, ni cookie, ni identifiant. Les adresses internes sont bloquées.
 
-Rôle de l'écran :
+Un certificat TLS valide ne garantit ni la réputation du site, ni l'existence de la page. Une erreur réseau ne prouve pas que le domaine est malveillant. Le centre de sécurité n'effectue pas ces connexions.
 
-- visualiser rapidement les points d'attention ;
-- suivre les événements récents ;
-- appuyer les revues de sécurité et de conformité.
+Les liens externes, l'ouverture d'une URL et les fonctions d'authentification fédérée éventuellement configurées constituent d'autres actions réseau explicites. Les tâches locales sur vos secrets ne nécessitent pas d'activer les contrôles d'URL ou de mises à jour.
 
-Utilisations courantes :
+## Dépanner
 
-- identifier les secrets faibles ;
-- vérifier les événements récents ;
-- suivre les suppressions, modifications et partages.
+| Problème | Vérifications et action |
+| --- | --- |
+| Connexion refusée | Vérifiez l'identifiant, la disposition du clavier et le mot de passe ; respectez un éventuel délai après échecs. Pour TOTP, vérifiez l'heure du téléphone et utilisez un code récent. |
+| PIN refusé ou absent après redémarrage | Il est limité à la session en mémoire. Utilisez le mot de passe maître ; après trois erreurs ou expiration, configurez-le à nouveau une fois connecté. |
+| Verrouillage trop rapide | Ajustez le délai dans le profil plutôt que de désactiver la protection. |
+| Secret introuvable | Vérifiez coffre actif, MultiCoffre, recherche, filtres et corbeille. Un retrait de partage peut aussi supprimer votre accès. |
+| Import partiellement réussi | Consultez le bilan, le format des sept colonnes et les droits du coffre cible. Ne réimportez que les lignes non créées. |
+| Erreur de déchiffrement à l'import | Vérifiez le coffre choisi et votre accès à ses clés ; ce message n'indique pas nécessairement un CSV invalide. Ne réinitialisez pas la base pour le contourner. |
+| Phrase refusée à la restauration | Utilisez la phrase associée à ce fichier, dans le bon ordre. Vérifiez aussi format, intégrité et limite mono-compte. La phrase seule ne suffit pas. |
+| Mise à jour indisponible | Vérifiez la connexion et réessayez plus tard ; vos opérations locales restent disponibles. |
 
-![Écran 9a - Tableau de bord sécurité](images/user-guide/hv_dashboard_empty.png)
+Pour identifier l'installation, utilisez le dialogue **À propos**, ou les commandes suivantes si le binaire est accessible dans votre terminal :
 
-*Tableau de bord principal et indicateurs d'audit de sécurité.*
+```sh
+heelonvault --version
+heelonvault --startup-check
+```
 
-![Écran 9b - Gestion des équipes](images/user-guide/hv_team.png)
+`--version` affiche la version installée sans ouvrir la base ni l'interface. `--startup-check` initialise les services et applique les migrations habituelles, puis quitte sans ouvrir l'interface : **ce n'est pas un diagnostic en lecture seule**. Utilisez-le avec la même installation et la bonne base ; il n'existe pas ici de commande de restauration à substituer au parcours graphique.
 
-*Vue d'administration des équipes (partage de coffres, gestion des membres).*
+Avant de transmettre un journal au support, retirez les informations sensibles. Ne joignez jamais mot de passe maître, phrase de récupération, QR TOTP, clé privée ou CSV contenant vos secrets.
 
-![Écran 9c - Gestion des utilisateurs](images/user-guide/hv_users.png)
-
-*Vue d'administration des utilisateurs (création, rôles, réinitialisation, suppression).*
-
-## 11. Bonnes pratiques
-
-- Utiliser un mot de passe maître unique et robuste.
-- Activer le TOTP dès l'activation du compte.
-- Stocker la clé de récupération hors de la machine.
-- Verrouiller ou fermer la session en quittant le poste.
-- Réviser régulièrement les secrets obsolètes.
-- Limiter les exports aux besoins réels.
-
-## 12. Dépannage rapide
-
-### Impossible de se connecter
-
-- vérifier le nom du compte ;
-- vérifier le mot de passe ;
-- vérifier l'heure système si le TOTP échoue.
-
-### L'application semble verrouillée trop vite
-
-- vérifier le délai d'auto-verrouillage dans les paramètres de session.
-
-### Un secret a disparu
-
-- vérifier la corbeille avant toute conclusion ;
-- consulter le journal d'audit si disponible.
-
-### L'import CSV échoue avec une erreur de déchiffrement
-
-- vérifier que le coffre cible est bien accessible avec la session en cours ;
-- se déconnecter puis se reconnecter si un changement de mot de passe maître vient d'être effectué ;
-- relancer l'import et contrôler le résumé des lignes rejetées.
-
-## Références utiles
+### Pour aller plus loin
 
 - [Installation et démarrage rapide](QUICKSTART.fr.md)
-- [Mise à jour et déploiement](UPDATE_GUIDE.md)
-- [Sécurité](../SECURITY.fr.md)
-- [Architecture](ARCHITECTURE.md)
-- [Journal des modifications](CHANGELOG.md)
+- [Architecture et modèle de données](ARCHITECTURE.md)
+- [Guide de sécurité](../SECURITY.fr.md)

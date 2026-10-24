@@ -9,6 +9,11 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ## [2.1.1] — 2026-10-24
 
+### User documentation
+
+- Task-based user guides rewritten in French and English, clarifying recovery, backups and edition boundaries.
+- Bilingual screenshots regenerated from production widgets with synthetic data; obsolete images removed. Isolated generation, image provenance and hashes, lightweight CI validation and pre-release freshness checks.
+
 ### Interface polish
 
 - Password editor: the "password field is empty by default" hint appears only while editing with current-password prefilling disabled in the profile; it is absent when that option is enabled and when creating a secret.

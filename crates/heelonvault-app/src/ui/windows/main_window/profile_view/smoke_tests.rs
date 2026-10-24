@@ -62,7 +62,8 @@ fn drain(context: &glib::MainContext, millis: u64) {
 /// Run by `native_gtk_smoke` (main_window/mod.rs), after GTK and the theme are initialised.
 pub(in crate::ui::windows::main_window) fn native_profile_scenario()
 -> Result<(), Box<dyn std::error::Error>> {
-    let _ = heelonvault_core::i18n::set_language("fr");
+    let language = crate::ui::doc_screenshots::language().unwrap_or_else(|| "fr".to_string());
+    assert!(heelonvault_core::i18n::set_language(&language));
 
     let runtime = tokio::runtime::Runtime::new()?;
     let pool = runtime.block_on(async {
@@ -90,7 +91,7 @@ pub(in crate::ui::windows::main_window) fn native_profile_scenario()
                 user_id,
                 Some("camille.martin@example.com"),
                 Some("Camille Martin"),
-                Some("fr"),
+                Some(&language),
                 Some(false),
             )
             .await
@@ -153,7 +154,11 @@ pub(in crate::ui::windows::main_window) fn native_profile_scenario()
     for (name, entitlements) in cases {
         let window = adw::ApplicationWindow::builder()
             .default_width(1100)
-            .default_height(1500)
+            .default_height(if crate::ui::doc_screenshots::language().is_some() {
+                900
+            } else {
+                1500
+            })
             .build();
         let opened = Rc::new(Cell::new(0));
         let opened_users = Rc::clone(&opened);
@@ -220,6 +225,19 @@ pub(in crate::ui::windows::main_window) fn native_profile_scenario()
             }
         }
         assert_eq!(opened.get(), 0);
+        let capture_name = match name {
+            "community-admin" => "profile-community",
+            "professional-admin" => "profile-professional",
+            _ => "profile-user",
+        };
+        crate::ui::doc_screenshots::capture(&window, capture_name)?;
+        if crate::ui::doc_screenshots::language().is_some() {
+            let scroll = page.container.vadjustment();
+            scroll.set_value(scroll.upper() - scroll.page_size());
+            drain(&context, 400);
+            crate::ui::doc_screenshots::capture(&window, &format!("{capture_name}-data"))?;
+            scroll.set_value(0.0);
+        }
 
         if let Some(dir) = std::env::var_os("HEELONVAULT_UI_SNAPSHOT_DIR") {
             let paintable = gtk4::WidgetPaintable::new(Some(&window));

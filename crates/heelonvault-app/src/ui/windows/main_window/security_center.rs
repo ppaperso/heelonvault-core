@@ -1119,7 +1119,7 @@ pub(super) mod tests {
         shell.append(&panel.frame);
         toast.set_child(Some(&shell));
         let window = gtk4::Window::builder()
-            .title("HeelonVault — Security center preview")
+            .title("HeelonVault")
             .default_width(1180)
             .default_height(850)
             .child(&toast)
@@ -1139,6 +1139,180 @@ pub(super) mod tests {
             }
         };
         drain();
+        if crate::ui::doc_screenshots::language().is_some() {
+            window.set_default_size(1400, 1050);
+            *center.view.completed_at.borrow_mut() = Some("12:00".to_string());
+            center.view.render();
+            let row = super::super::sidebar::build_vault_sidebar_row(
+                "Demo", vault_id, false, false, None, 4, None,
+            );
+            sidebar.my_vaults_list.append(&row);
+            sidebar.my_vaults_list.select_row(Some(&row));
+        }
+        crate::ui::doc_screenshots::capture(&window, "security-center")?;
+        if crate::ui::doc_screenshots::language().is_some() {
+            use crate::ui::dialogs::add_edit_dialog::{AddEditDialog, DialogMode};
+            use crate::ui::view_preferences::SecretViewMode;
+            use crate::ui::widgets::secret_card::{SecretCard, SecretRowData};
+
+            toast.set_child(gtk4::Widget::NONE);
+            shell.remove(&sidebar.frame);
+            shell.remove(&panel.frame);
+            let content = super::super::shell::build_content_shell(&sidebar.frame, &panel.frame);
+            let (header, _, _, _, _, _, _) = super::super::window::views::build_header_bar(
+                &crate::ui::license_badge::LicenseDisplay::community(),
+            );
+            let root = gtk4::Box::new(Orientation::Vertical, 0);
+            root.append(&header);
+            root.append(&content.container);
+            toast.set_child(Some(&root));
+            window.set_title(Some("HeelonVault"));
+            window.set_decorated(false);
+            window.set_default_size(1500, 1100);
+            if let Some(split) = content.container.last_child().and_downcast::<gtk4::Paned>() {
+                split.set_position(350);
+                split.set_shrink_start_child(false);
+            }
+            let rows: Vec<_> = [
+                (
+                    "Mail",
+                    "camille@example.test",
+                    "secret-type-password",
+                    "hv-key-symbolic",
+                ),
+                (
+                    "API demo",
+                    "demo-service",
+                    "secret-type-token",
+                    "hv-key-symbolic",
+                ),
+                (
+                    "SSH demo",
+                    "demo-host",
+                    "secret-type-ssh",
+                    "hv-key-symbolic",
+                ),
+                ("Notes", "demo", "secret-type-document", "hv-key-symbolic"),
+            ]
+            .into_iter()
+            .map(|(title, login, color, icon)| SecretRowData {
+                secret_id: Uuid::new_v4(),
+                icon_name: icon.into(),
+                type_label: title.into(),
+                title: title.into(),
+                created_at: String::new(),
+                login: login.into(),
+                url: "https://example.test".into(),
+                has_secret: true,
+                is_password: color == "secret-type-password",
+                color_class: color.into(),
+                is_weak: false,
+                is_health_access: false,
+                usage_count: 3,
+                is_duplicate: false,
+                is_incomplete: false,
+                is_shared_vault: false,
+                can_edit: true,
+                can_delete: true,
+                vault_name: "Demo".into(),
+            })
+            .collect();
+            panel.main_stack.set_visible_child_name("entries_view");
+            sidebar.audit_all_badge.set_text("4");
+            sidebar.security_nav.count.set_text("0");
+            sidebar.security_nav.new_pill.set_visible(false);
+            for (mode, name) in [
+                (SecretViewMode::Grid, "dashboard-grid"),
+                (SecretViewMode::List, "dashboard-list"),
+            ] {
+                while let Some(child) = panel.secret_flow.first_child() {
+                    panel.secret_flow.remove(&child);
+                }
+                super::super::center::apply_view_mode_to_flow(&panel.secret_flow, mode);
+                for row in &rows {
+                    panel
+                        .secret_flow
+                        .insert(&SecretCard::new(row.clone(), mode).get_widget(), -1);
+                }
+                panel.stack.set_visible_child_name("list");
+                panel.status_total_badge.set_text("4");
+                drain();
+                crate::ui::doc_screenshots::capture(&window, name)?;
+            }
+            content.multivault_toggle.set_active(true);
+            content.search_entry.set_text("login:camille");
+            let flow = panel.secret_flow.clone();
+            let first = flow.first_child();
+            flow.set_filter_func(move |child| first.as_ref().is_some_and(|widget| widget == child));
+            flow.invalidate_filter();
+            panel.status_total_badge.set_text("1");
+            drain();
+            crate::ui::doc_screenshots::capture(&window, "search")?;
+            panel.secret_flow.unset_filter_func();
+            content.search_entry.set_text("");
+            content.multivault_toggle.set_active(false);
+
+            for (index, name) in [
+                "editor-password",
+                "editor-api",
+                "editor-ssh",
+                "editor-document",
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let editor = AddEditDialog::build_inline(
+                    runtime.handle().clone(),
+                    Arc::clone(&secret_service),
+                    Arc::clone(&vault_service),
+                    user_id,
+                    vec![1; 32],
+                    false,
+                    DialogMode::Create,
+                    || {},
+                    |_| {},
+                    |_| {},
+                );
+                fn choose_type(widget: &gtk4::Widget, index: u32) -> bool {
+                    if let Some(combo) = widget.downcast_ref::<gtk4::DropDown>() {
+                        combo.set_selected(index);
+                        return true;
+                    }
+                    let mut child = widget.first_child();
+                    while let Some(current) = child {
+                        if choose_type(&current, index) {
+                            return true;
+                        }
+                        child = current.next_sibling();
+                    }
+                    false
+                }
+                assert!(choose_type(editor.container.upcast_ref(), index as u32));
+                panel
+                    .main_stack
+                    .add_named(&editor.container, Some("documentation-editor"));
+                panel
+                    .main_stack
+                    .set_visible_child_name("documentation-editor");
+                drain();
+                crate::ui::doc_screenshots::capture(&window, name)?;
+                panel.main_stack.remove(&editor.container);
+            }
+            if let Some(row) = sidebar.my_vaults_list.first_child() {
+                sidebar.my_vaults_list.remove(&row);
+            }
+            toast.set_child(gtk4::Widget::NONE);
+            if let Some(split) = content.container.last_child().and_downcast::<gtk4::Paned>() {
+                split.set_start_child(gtk4::Widget::NONE);
+                split.set_end_child(gtk4::Widget::NONE);
+            }
+            shell.append(&sidebar.frame);
+            shell.append(&panel.frame);
+            toast.set_child(Some(&shell));
+            panel
+                .main_stack
+                .set_visible_child_name("security_center_view");
+        }
         for (width, height, name) in [
             (1180, 850, "security-center-wide.png"),
             (820, 850, "security-center-compact.png"),

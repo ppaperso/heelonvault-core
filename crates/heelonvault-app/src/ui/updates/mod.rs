@@ -545,6 +545,15 @@ pub(crate) mod tests {
         checker.check(false);
         assert!(checker.task.borrow().is_none());
         assert!(!file.exists());
+        if let Some(capture_language) = crate::ui::doc_screenshots::language() {
+            assert!(heelonvault_core::i18n::set_language(&capture_language));
+            (banner.refresh_i18n)();
+            (preferences.refresh_i18n)();
+            crate::ui::doc_screenshots::capture(&window, "updates-consent")?;
+            assert!(heelonvault_core::i18n::set_language("fr"));
+            (banner.refresh_i18n)();
+            (preferences.refresh_i18n)();
+        }
         button(&banner.widget, &tr("updates-not-now"))
             .ok_or_else(|| anyhow::anyhow!("missing consent dismissal"))?
             .emit_clicked();
@@ -580,12 +589,14 @@ pub(crate) mod tests {
         assert!(checker.task.borrow().is_none());
         assert!(matches!(*checker.status.borrow(), Status::Available(_)));
         assert_eq!(read_preferences(&file)?.automatic, Some(true));
+        crate::ui::doc_screenshots::capture(&window, "updates-available")?;
         assert!(heelonvault_core::i18n::set_language("en"));
         (banner.refresh_i18n)();
         (preferences.refresh_i18n)();
         assert!(button(&banner.widget, "Explore release").is_some());
         assert_eq!(preferences.group.title(), "Application updates");
         assert!(button(&preferences.group, "Check now").is_some());
+        crate::ui::doc_screenshots::capture(&window, "updates-available")?;
 
         if let Some(dir) = std::env::var_os("HEELONVAULT_UI_SNAPSHOT_DIR") {
             drain(&context);

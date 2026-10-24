@@ -1,0 +1,50 @@
+name: user-guide-screenshots
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: user-guide-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          path: heelonvault-core
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: ppaperso/heelonvault-premium
+          ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
+          path: heelonvault-premium
+          persist-credentials: false
+      - name: Install GTK and headless display
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev libadwaita-1-dev libsqlite3-dev pkg-config \
+            xvfb xauth dbus-x11 fonts-dejavu-core jq
+      - name: Generate isolated bilingual captures
+        working-directory: heelonvault-core
+        env:
+          GDK_BACKEND: x11
+        run: |
+          set -euo pipefail
+          dbus-run-session -- xvfb-run --auto-servernum --server-args="-screen 0 1920x1600x24" \
+            bash scripts/generate-user-guide-screenshots.sh
+          bash scripts/check-user-guide-assets.sh --release
+      - name: Publish images for human review
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: user-guide-screenshots
+          path: heelonvault-core/docs/images/user-guide
+          if-no-files-found: error
+          retention-days: 14

@@ -85,6 +85,10 @@ jobs:
         if: matrix.suite == 'quality'
         run: cargo fmt -p heelonvault-core -p heelonvault-app -p heelonvault-url-check -p sqlx -- --check
 
+      - name: Check user-guide images
+        if: matrix.suite == 'quality'
+        run: bash scripts/check-user-guide-assets.sh
+
       - name: Install system dependencies
         run: |
           set -euo pipefail

@@ -39,6 +39,7 @@ Les pré-versions (`X.Y.Z-rc.N`) sont taguées pour produire les paquets de test
 1. **Versions** — dans `crates/heelonvault-core/Cargo.toml`, `crates/heelonvault-app/Cargo.toml` et `heelonvault-premium/Cargo.toml` (`version` et `heelonvault-core = "X.Y"`).
 2. **Lockfiles** — `git diff Cargo.lock` (dans les deux dépôts) ne doit montrer que les lignes de version de nos crates. Si Cargo a aussi changé d'autres dépendances, restaurer le fichier, modifier ces lignes à la main, puis vérifier avec `cargo check --workspace --locked`.
 3. **Documentation** — changelogs FR/EN des deux dépôts, titres des README (`# HeelonVault X.Y.Z`), `crates/heelonvault-core/README.md` (ligne `heelonvault-core = "X.Y"`). Les autres documents ne portent volontairement pas de numéro de version : ne pas en rajouter. Si un comportement visible change, mettre à jour `docs/QUICKSTART*.md`, `docs/USER_GUIDE*.md` ou `docs/UPDATE_GUIDE*.md`, et dérouler la recette [MANUAL_QA.md](MANUAL_QA.md).
+   Régénérer et relire les captures du guide selon [USER_GUIDE_SCREENSHOTS.md](USER_GUIDE_SCREENSHOTS.md), puis exécuter `bash scripts/check-user-guide-assets.sh --release`. Le manifeste doit correspondre aux sources et à la version préparée ; les captures Linux ne remplacent pas la recette native Windows/macOS.
 4. **SBOM** — `./scripts/generate-sbom.sh`, puis commiter `sbom.cyclonedx.json`.
 5. **Vérifications locales** (depuis `heelonvault-core`) :
    ```bash
