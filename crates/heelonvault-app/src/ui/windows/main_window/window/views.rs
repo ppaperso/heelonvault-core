@@ -115,6 +115,7 @@ pub fn build_profile_button(
 ) -> (gtk4::MenuButton, gtk4::Popover, gtk4::Label, gtk4::Box) {
     let profile_button = gtk4::MenuButton::new();
     profile_button.add_css_class("header-badge");
+    profile_button.add_css_class("header-profile-button");
     profile_button.set_label(
         heelonvault_core::i18n::tr_args(
             "main-connected-label",

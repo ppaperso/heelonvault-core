@@ -9,6 +9,29 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ## [2.1.1] — 2026-10-24
 
+### Finition de l'interface
+
+- Éditeur de mots de passe : l'encart « Le champ mot de passe est vide par défaut… » apparaît uniquement en modification lorsque le préremplissage du mot de passe actuel est désactivé dans le profil ; il est absent lorsque cette option est activée, ainsi qu'en création.
+
+- Actions principales en teal profond, angles arrondis et relief discret ; actions secondaires claires et bordées, commandes utilitaires teintées au survol et actions destructives rouges. Connexion et déverrouillage PIN partagent le même langage visuel ; les pilules restent réservées aux sélecteurs.
+- Popovers : un seul panneau avec bordure et ombre, sans cadres répétés autour des conteneurs internes. Lignes de menu espacées, séparateurs discrets, focus clavier visible et couleur destructive préservée au survol.
+- Cartes de secrets immobiles au survol et bordures de largeur constante, y compris à la sélection : titres et actions ne se décalent plus. Commandes de copie plus lisibles.
+- Sélecteurs de vue et de tri allégés : surface commune sobre, option active claire avec soulignement teal, distincte du simple survol. Conservation des composants GTK, icônes embarquées et dimensions logiques pour Linux, Windows et macOS.
+- Tests GTK natifs des états repos/survol/appui/focus/désactivation, de la stabilité géométrique et des petites fenêtres ; captures optionnelles pour la recette visuelle et HiDPI.
+- Contrastes corrigés sur les commandes contextuelles : identité connectée en texte sombre sur fond clair dans l'en-tête, retour de l'éditeur en blanc sur teal, suppression en blanc sur rouge. Vérification du contraste des libellés et icônes dans les états interactifs.
+
+### Recherche et clavier
+
+- Les flèches et raccourcis d'édition ne sont plus interceptés par la liste des secrets quand le focus est dans la recherche ou un autre champ (éditeur, notes, profil, mot de passe, réglage numérique). Une carte restée sélectionnée ne peut plus détourner `Ctrl+C` vers la copie d'un secret.
+- `Ctrl+F` (`Cmd+F` sur macOS) sélectionne la recherche existante. `Entrée` applique immédiatement la saisie et place le focus sur le premier résultat visible ; sans résultat, le focus reste dans la recherche. Navigation entre cartes limitée aux résultats visibles, aide clavier traduite et tests GTK natifs de non-régression.
+
+### Centre de sécurité
+
+- Diagnostic automatique en arrière-plan dès la connexion et après déverrouillage par PIN, puis après les changements de secrets, corbeille, import, coffres et accès d'équipe effectués dans l'application. Le badge ne nécessite plus d'ouvrir le Centre.
+- États explicites : actualisation, nombre d'éléments concernés, zéro uniquement après analyse complète sans constat, résultat indisponible ou erreur/couverture incomplète. Infobulles traduites ; aucune absence de bilan présentée comme un état sain.
+- Demandes rapprochées regroupées ; consultation du dernier bilan sans analyse redondante. Quitter la page n'annule plus le calcul ; verrouillage/déconnexion annulent les analyses programmées ou en cours et empêchent les résultats tardifs.
+- Tests GTK avec SQLite réel : analyse hors page, création/suppression/restauration, regroupement des demandes, navigation, bilan incomplet, erreur et verrouillage.
+
 ### Sécurité et dépendances
 
 - Correction des avis RUSTSEC-2026-0381, 0382, 0383 et 0385 dans les deux fichiers de verrouillage : `ctutils` 0.4.5, `rustls-webpki` 0.103.16, `webpki-root-certs` et `webpki-roots` 1.0.11. Les correctifs concernent les opérations à temps constant et le rejet des chaînes de certificats emSign révoquées ; aucun avis ignoré.

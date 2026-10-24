@@ -18,23 +18,21 @@
         background: rgba(255, 255, 255, 0.14);
         border: 1px solid rgba(255, 255, 255, 0.28);
         border-radius: 999px;
-        transition: all 220ms ease;
+        transition: background-color 150ms ease, box-shadow 150ms ease;
     }
 
-    toast button:hover {
+    toast button:hover:not(:disabled) {
         background: rgba(255, 255, 255, 0.22);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px alpha(@hv_brand_900, 0.20);
+        box-shadow: 0 2px 6px @hv_shadow_key;
     }
 
-    toast button:active {
+    toast button:active:not(:disabled) {
         background: alpha(@hv_brand_900, 0.22);
-        transform: translateY(0);
         box-shadow: none;
     }
 
-    toast button:focus {
-        outline: 2px solid @hv_brand_500;
+    toast button:focus-visible {
+        outline: 2px solid @hv_on_brand;
         outline-offset: 2px;
     }
 
@@ -64,4 +62,3 @@
         padding: 11px 15px;
         line-height: 1.55;
     }
-

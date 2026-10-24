@@ -100,7 +100,6 @@ pub fn build_pin_unlock_view(parent: &adw::ApplicationWindow) -> PinUnlockDialog
     let unlock_button =
         gtk4::Button::with_label(heelonvault_core::tr!("pin-unlock-button").as_str());
     unlock_button.add_css_class("suggested-action");
-    unlock_button.add_css_class("pill");
     unlock_button.set_hexpand(true);
     btn_row.append(&unlock_button);
 

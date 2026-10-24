@@ -192,8 +192,11 @@ mod native_gtk_tests {
     fn native_gtk_smoke() -> Result<(), Box<dyn std::error::Error>> {
         libadwaita::init()?;
         gtk4::gio::resources_register_include!("heelonvault.gresource")?;
+        crate::ui::dialogs::add_edit_dialog::native_password_hint_scenario();
         super::window::keyboard_tests::native_keyboard_scenario()?;
         super::security_center::tests::native_security_center_scenario()?;
+        let (profile, _, _, _) = super::window::views::build_profile_button("Patrick");
+        crate::ui::theme_tests::native_theme_scenario(profile)?;
         super::profile_view::smoke_tests::native_profile_scenario()?;
         Ok(())
     }

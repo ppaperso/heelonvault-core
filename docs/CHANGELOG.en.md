@@ -9,6 +9,29 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ## [2.1.1] — 2026-10-24
 
+### Interface polish
+
+- Password editor: the "password field is empty by default" hint appears only while editing with current-password prefilling disabled in the profile; it is absent when that option is enabled and when creating a secret.
+
+- Deep-teal primary actions, rounded corners and subtle elevation; light bordered secondary actions, softly tinted utility controls on hover and red destructive actions. Sign-in and PIN unlock share the same visual language; pills remain for selectors.
+- Popovers use a single bordered, elevated panel without repeated frames around nested layout boxes. Spaced menu rows, subtle separators, visible keyboard focus and destructive colors preserved on hover.
+- Secret cards no longer move on hover, and border widths stay constant, including on selection: titles and actions no longer shift. More legible copy controls.
+- Lighter view/sort selectors: a quiet shared surface and a light active option with a teal underline, distinct from hover. GTK components, bundled icons and logical dimensions retained for Linux, Windows and macOS.
+- Native GTK tests cover rest/hover/press/focus/disabled states, stable geometry and compact windows, with optional captures for visual and HiDPI validation.
+- Fixed contextual-control contrast: dark connected-identity text on a light header button, white editor back text on teal and white delete text on red. Label and icon contrast checked across interactive states.
+
+### Search and keyboard
+
+- Arrow keys and editing shortcuts are no longer intercepted by the secret list while focus is in search or another field (editor, notes, profile, password, numeric setting). A previously selected card can no longer redirect `Ctrl+C` to copying a secret.
+- `Ctrl+F` (`Cmd+F` on macOS) selects the existing search text. `Enter` immediately applies the current text and focuses the first visible result; without results, focus stays in search. Card navigation is limited to visible results, with translated keyboard guidance and native GTK regression tests.
+
+### Security center
+
+- Automatic background analysis at sign-in and after PIN unlock, then after secret, trash, import, vault and team-access changes made in the application. The badge no longer requires opening the center.
+- Explicit states: updating, affected-item count, zero only after a complete analysis without findings, unavailable report or error/incomplete coverage. Translated tooltips; a missing report is never presented as healthy.
+- Closely spaced requests are coalesced; viewing the latest report avoids redundant analysis. Leaving the page no longer cancels the calculation; locking/signing out cancels queued or running analyses and prevents late results.
+- Native GTK tests with real SQLite cover off-page analysis, creation/deletion/restoration, coalescing, navigation, incomplete reports, errors and locking.
+
 ### Security and dependencies
 
 - Fixed RUSTSEC-2026-0381, 0382, 0383 and 0385 in both lockfiles: `ctutils` 0.4.5, `rustls-webpki` 0.103.16, `webpki-root-certs` and `webpki-roots` 1.0.11. The fixes address constant-time operations and rejection of distrusted emSign certificate chains; no advisories ignored.

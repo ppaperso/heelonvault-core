@@ -235,7 +235,7 @@ button.profile-row-button {
     box-shadow: none;
 }
 
-.profile-view-content button.suggested-action:hover {
+.profile-view-content button.suggested-action:hover:not(:disabled) {
     transform: none;
     box-shadow: 0 2px 6px @hv_shadow_soft;
 }

@@ -57,6 +57,16 @@ contrôles automatisés (tests, clippy, semver, SBOM) sont décrits dans
    `tag:`, `type:` ; `champ: valeur` équivaut à `champ:valeur`.
 2. Bouton MultiCoffre : recherche dans tous les coffres, ou seulement le coffre actif.
 3. Marqueur « Accès données de santé » : `#sante` retrouve le secret, badge « Santé » affiché.
+4. Sélectionner une carte puis cliquer dans la recherche : gauche/droite déplace le curseur
+   sans changer de carte ; `Maj` + flèche sélectionne le texte. Corriger une faute au milieu
+   d'un mot, tester début/fin et navigation par mots, puis copier/couper/coller du texte.
+   `Ctrl+C` ne doit jamais copier le mot de passe de la carte depuis un champ texte.
+5. `Ctrl+F` (`Cmd+F` sur macOS) sélectionne la recherche existante ; taper un nouveau terme
+   puis presser immédiatement `Entrée` : seul le premier résultat correspondant reçoit le
+   focus. Sans résultat, le focus reste dans la recherche. Refaire en modes cartes et liste.
+6. Après sélection d'une carte, tester les flèches et `Ctrl+C/L/U` dans les champs de l'éditeur,
+   les notes multilignes, le profil, un champ mot de passe et un réglage numérique : aucune
+   navigation dans les cartes ni action rapide. Revenir à la liste et vérifier ses raccourcis.
 
 ## 6. Import, export, corbeille
 
@@ -86,7 +96,9 @@ contrôles automatisés (tests, clippy, semver, SBOM) sont décrits dans
 
 ## 9. Centre de sécurité et URL
 
-1. Sans réseau, ouvrir le Centre : analyse locale, compteurs, filtres et correction utilisables.
+1. Sans réseau, se connecter sans ouvrir le Centre : badge `...`, puis compteur des éléments
+   concernés. Même vérification après verrouillage puis déverrouillage par PIN. Ouvrir le Centre :
+   bilan déjà disponible, filtres et correction utilisables, pas de nouvelle analyse inutile.
 2. Même mot de passe dans deux coffres accessibles : regroupement ; un token identique ne
    participe pas au groupe. Vérifier une expiration passée et une expiration à moins de 30 jours.
 3. Filtrer un coffre, déplier un constat, ouvrir l'élément puis revenir : filtre et contexte
@@ -105,6 +117,14 @@ contrôles automatisés (tests, clippy, semver, SBOM) sont décrits dans
 9. Changement FR/EN, navigation clavier, lecteur d'écran, contraste et taille minimale de
    fenêtre : les cartes et constats doivent rester utilisables. Aucun verdict ne repose
    uniquement sur sa couleur ; aucune mention de réputation vérifiée ou de site « sûr ».
+10. Depuis la liste ou le profil, créer/modifier/supprimer un secret, restaurer/purger la
+    corbeille, importer un CSV et créer/supprimer un coffre : le badge s'actualise sans ouvrir
+    le Centre. Un import ne déclenche pas une analyse par ligne. Vérifier aussi ajout/retrait
+    d'un membre d'équipe, suppression d'équipe et partage de coffre dans l'application.
+11. Pendant l'analyse, revenir à la liste : elle continue et son résultat actualise le badge.
+    Plusieurs demandes rapprochées sont regroupées ; un résultat dépassé ne réapparaît pas.
+    Annuler puis actualiser fonctionne. Une erreur ou un coffre indisponible n'affiche jamais
+    un badge vert `0`. Au verrouillage, toute analyse programmée ou en cours est annulée.
 
 ## 10. Finition visuelle 2.1
 
@@ -114,14 +134,62 @@ contrôles automatisés (tests, clippy, semver, SBOM) sont décrits dans
 2. Accent système réglé sur une autre couleur (GNOME : bleu, violet…) : sélections, interrupteurs
    et cases à cocher restent teal. Vérifier aussi un environnement libadwaita < 1.6.
 3. Pastille « Nouveau » visible au premier lancement, disparue après le premier clic sur le
-   Centre et après redémarrage. Compteur de la barre latérale : visible après une analyse avec
-   constats, masqué sans constat, effacé au verrouillage.
+   Centre et après redémarrage. Badge de la barre latérale : `...` pendant l'analyse,
+   nombre d'éléments concernés, `0` vert seulement après un bilan complet sans constat,
+   `?` sans résultat et `!` en cas d'erreur/couverture incomplète sans constat chiffré.
 4. Bouclier du Centre : neutre avant analyse, ambre avec constats ou couverture incomplète,
    vert sans constat. Entrée de navigation surlignée seulement quand la page est affichée.
 5. Navigation au clavier (Tab) : anneau de focus visible ; un clic souris n'en laisse pas.
 6. Relire l'interface en français : aucun mot sans accent ni anglicisme involontaire.
 
+### Boutons, menus et stabilité visuelle
+
+Sur **chaque paquet natif** (AppImage, MSI et DMG), en français puis en anglais :
+
+1. Connexion, PIN, profil et Centre de sécurité : boutons principaux teal foncé arrondis,
+   secondaires clairs avec bordure, destructifs rouges. Au survol, appui et focus clavier,
+   aucun changement de taille ni déplacement du texte ; la désactivation enlève le relief.
+2. Aide de recherche, historique de connexion, certification et listes déroulantes :
+   une seule surface de popover ; pas de cadres/ombres répétés autour des lignes ou icônes.
+   Pas de texte blanc sur fond blanc dans les popovers de l'en-tête sombre.
+3. Ouvrir une liste déroulante au clavier, naviguer avec les flèches et fermer avec Échap.
+   Focus visible, survol distinct de la sélection, choix actif conservé. Les actions
+   destructives restent rouges au survol et au focus ; les éléments désactivés restent neutres.
+4. Survoler et sélectionner les cartes de chaque type, puis basculer cartes/liste :
+   aucun saut vertical ni décalage des titres, des logins ou des boutons de copie.
+5. Vue et tri : option active sur surface claire avec trait teal ; survoler une autre
+   option ne doit pas lui donner l'aspect de l'option sélectionnée.
+6. Tester une petite fenêtre et les libellés longs avec la police par défaut du système.
+   Les commandes ne doivent pas être coupées ; les décorations natives restent utilisables.
+7. Refaire à 100 %, 150 % et 200 % lorsque disponibles (Windows : mise à l'échelle de
+   l'affichage ; macOS : écran Retina et résolution mise à l'échelle ; Linux : réglage
+   d'affichage). Vérifier aussi le déplacement de fenêtre entre deux écrans d'échelles
+   différentes. Sous Linux, `GDK_SCALE=2` permet un contrôle HiDPI entier, mais ne remplace
+   ni une échelle fractionnaire ni une recette Windows/macOS.
+8. Réduire/désactiver les animations système : focus, sélection et désactivation restent
+   compréhensibles sans animation. Tester le rendu Cairo en plus du moteur par défaut
+   sous Linux (`GSK_RENDERER=cairo`) pour éviter une dépendance à un effet GPU.
+9. En-tête principal : « Connexion [nom] » en texte sombre sur fond clair, flèche lisible au
+   repos, au survol et pendant l'ouverture de l'historique. Création **et** modification :
+   « Retour » en blanc sur teal, avec bordure et focus visibles. Modification : « Supprimer »
+   et son icône en blanc sur rouge, y compris au survol/appui ; état désactivé neutre.
+   Le scénario GTK contrôle aussi les couleurs calculées des libellés/icônes avec un seuil
+   de contraste de 4,5:1 contre le fond le moins favorable de ces états activés.
+
+Le scénario partagé `native_gtk_smoke` vérifie la stabilité des mesures et positions dans
+les états interactifs et à largeur compacte. Avec `HEELONVAULT_UI_SNAPSHOT_DIR`, il produit
+aussi des captures des boutons, des sélecteurs et du popover, en plus des pages réelles.
+Ces contrôles Linux ne certifient pas les backends Windows/macOS : la recette des trois
+paquets reste obligatoire avant publication. Aucun nouveau widget, moteur de rendu,
+police ou dépendance système n'est requis par cette finition.
+
 ## 11. Profil & Sécurité et licence
+
+- Option « Afficher le mot de passe actuel dans l'éditeur » désactivée : ouvrir un mot de
+  passe en modification, vérifier le champ vide et l'encart explicatif. Activer l'option,
+  rouvrir l'éditeur : mot de passe prérempli (toujours masqué par le widget), encart absent.
+  Désactiver puis rouvrir : encart de nouveau présent. En création, avec ou sans coffre
+  présélectionné, cet encart est absent quel que soit le réglage.
 
 1. **Community, compte admin** : la section Administration n'affiche qu'une ligne « Fonctions
    Professional » sans navigation ; aucun chemin (profil, barre latérale, raccourci) ne mène aux
