@@ -5,6 +5,7 @@
 //! must not open a socket. Optional consent-based TLS checks live in heelonvault-url-check,
 //! never in Core. The dependency check walks the resolved graph in `Cargo.lock`, so a
 //! new transitive dependency is caught even if no `Cargo.toml` line mentions it.
+//! Consent-based release discovery is restricted to App's ui/updates/check.rs.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -133,6 +134,28 @@ fn rust_sources(dir: &Path, found: &mut Vec<std::path::PathBuf>) {
     }
 }
 
+fn permitted_update_api(relative_path: &Path, api: &str, test_code: bool) -> bool {
+    relative_path == Path::new("ui/updates/check.rs")
+        && (api == "reqwest::" || (test_code && api == "TcpListener"))
+}
+
+#[test]
+fn update_network_boundary_is_limited_to_the_reviewed_app_transport() {
+    let transport = Path::new("ui/updates/check.rs");
+    assert!(permitted_update_api(transport, "reqwest::", false));
+    assert!(permitted_update_api(transport, "TcpListener", true));
+    for api in ["TcpListener", "TcpStream", "UdpSocket", "sentry::"] {
+        assert!(!permitted_update_api(transport, api, false));
+    }
+    for path in [
+        "ui/updates/mod.rs",
+        "ui/updates/other.rs",
+        "services/check.rs",
+    ] {
+        assert!(!permitted_update_api(Path::new(path), "reqwest::", false));
+    }
+}
+
 #[test]
 fn the_code_opens_no_socket_and_calls_no_remote_endpoint() {
     let roots = [
@@ -160,9 +183,19 @@ fn the_code_opens_no_socket_and_calls_no_remote_endpoint() {
     let mut violations = Vec::new();
     for path in &sources {
         let content = std::fs::read_to_string(path).expect("read source");
+        let mut test_code = false;
         for (number, line) in content.lines().enumerate() {
+            if line.trim() == "#[cfg(test)]" {
+                test_code = true;
+            }
             let code = line.split("//").next().unwrap_or_default();
             for api in forbidden_apis {
+                if path
+                    .strip_prefix(&roots[1])
+                    .is_ok_and(|relative| permitted_update_api(relative, api, test_code))
+                {
+                    continue;
+                }
                 if code.contains(api) {
                     violations.push(format!("{}:{}: {api}", path.display(), number + 1));
                 }
@@ -172,7 +205,7 @@ fn the_code_opens_no_socket_and_calls_no_remote_endpoint() {
 
     assert!(
         violations.is_empty(),
-        "network access outside the isolated URL checker or reviewed premium modules:\n{}",
+        "network access outside the isolated URL checker, App update transport or reviewed premium modules:\n{}",
         violations.join("\n")
     );
 }

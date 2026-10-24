@@ -13,7 +13,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 - Éditeur de mots de passe : l'encart « Le champ mot de passe est vide par défaut… » apparaît uniquement en modification lorsque le préremplissage du mot de passe actuel est désactivé dans le profil ; il est absent lorsque cette option est activée, ainsi qu'en création.
 
-- Actions principales en teal profond, angles arrondis et relief discret ; actions secondaires claires et bordées, commandes utilitaires teintées au survol et actions destructives rouges. Connexion et déverrouillage PIN partagent le même langage visuel ; les pilules restent réservées aux sélecteurs.
+- Actions principales en teal profond, angles arrondis et relief discret ; actions secondaires claires et bordées, commandes utilitaires teintées au survol et actions destructives rouges. Connexion, déverrouillage PIN et notification de version partagent le même langage visuel ; les pilules restent réservées aux sélecteurs.
 - Popovers : un seul panneau avec bordure et ombre, sans cadres répétés autour des conteneurs internes. Lignes de menu espacées, séparateurs discrets, focus clavier visible et couleur destructive préservée au survol.
 - Cartes de secrets immobiles au survol et bordures de largeur constante, y compris à la sélection : titres et actions ne se décalent plus. Commandes de copie plus lisibles.
 - Sélecteurs de vue et de tri allégés : surface commune sobre, option active claire avec soulignement teal, distincte du simple survol. Conservation des composants GTK, icônes embarquées et dimensions logiques pour Linux, Windows et macOS.
@@ -31,6 +31,13 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 - États explicites : actualisation, nombre d'éléments concernés, zéro uniquement après analyse complète sans constat, résultat indisponible ou erreur/couverture incomplète. Infobulles traduites ; aucune absence de bilan présentée comme un état sain.
 - Demandes rapprochées regroupées ; consultation du dernier bilan sans analyse redondante. Quitter la page n'annule plus le calcul ; verrouillage/déconnexion annulent les analyses programmées ou en cours et empêchent les résultats tardifs.
 - Tests GTK avec SQLite réel : analyse hors page, création/suppression/restauration, regroupement des demandes, navigation, bilan incomplet, erreur et verrouillage.
+
+### Notifications de mise à jour
+
+- Vérification optionnelle des versions stables publiées sur le dépôt GitHub officiel, en arrière-plan au démarrage et au plus une fois toutes les 24 heures. Aucun appel avant consentement ; contrôle manuel disponible même si l'automatisme est désactivé.
+- Bandeau non bloquant aux couleurs HeelonVault : consentement initial, découverte des nouveautés/téléchargements et report à plus tard. Panneau dédié dans Profil & Sécurité, version installée, progression et états explicites hors ligne ou en cas d'erreur de configuration, en français et en anglais.
+- Aucun téléchargement ni installation automatique, aucune donnée de coffre, de compte ou de licence envoyée. Délai réseau et taille de réponse bornés, redirections refusées et liens limités au dépôt officiel. Aucune promesse de sécurité ou d'authenticité des paquets fondée sur la simple présence d'une version.
+- Tests de comparaison semver, consentement, persistance, erreurs HTTP, dépassement de taille, délai réseau et parcours GTK avec résultats simulés.
 
 ### Sécurité et dépendances
 

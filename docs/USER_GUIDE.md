@@ -337,6 +337,29 @@ La page se lit de haut en bas, une ligne par réglage :
 
 Le nouveau mot de passe maître doit contenir au moins 16 caractères ; il est enregistré exactement comme saisi, espaces compris. Après le changement, un code PIN actif doit être reconfiguré.
 
+### Mises à jour de l'application
+
+Un bandeau discret propose d'activer la vérification des mises à jour. **Pas maintenant**
+la laisse désactivée sans reposer la question à chaque connexion. Vous pouvez changer ce
+choix dans **Profil & Sécurité > Mises à jour de l'application**.
+
+- Après activation, une vérification en arrière-plan a lieu au démarrage, au plus une fois
+  toutes les 24 heures, sans ralentir la connexion. Le réglage concerne cette installation,
+  et non un compte.
+- **Vérifier** lance une vérification ponctuelle auprès de GitHub, même si l'automatisme est
+  désactivé. Une seule vérification peut être en cours.
+- Si une version stable plus récente existe, **Découvrir la version** ouvre sa page GitHub
+  officielle avec les nouveautés et les téléchargements. **Plus tard** masque le bandeau
+  pour la session de l'application ; le résultat reste accessible dans le profil.
+- Hors ligne ou si GitHub ne répond pas, le panneau indique **Vérification indisponible**,
+  jamais « Vous êtes à jour ». Une ancienne version connue comme plus récente peut être
+  proposée depuis le cache au démarrage ; le cache ne prouve jamais que l'application est à jour.
+
+Aucun appel automatique n'est effectué sans accord. GitHub reçoit l'adresse IP utilisée
+pour la connexion ; aucune donnée de coffre, de compte ou de licence n'est envoyée.
+Aucun paquet n'est téléchargé ou installé par l'application. La présence d'une version ne
+constitue pas une vérification de son intégrité : suivez le [guide de mise à jour](UPDATE_GUIDE.md).
+
 ### Code PIN de déverrouillage rapide
 
 HeelonVault propose un déverrouillage rapide par code PIN pour éviter de ressaisir le mot de passe maître après chaque verrouillage automatique.

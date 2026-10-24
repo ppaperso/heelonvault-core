@@ -21,6 +21,19 @@ No server is required: secrets never leave the machine.
 
 ### Local diagnostics and the optional network boundary
 
+Release discovery (`heelonvault-app::ui::updates`) is a separate network boundary,
+independent of sessions and licenses: one HTTPS request to
+`api.github.com/repos/ppaperso/heelonvault-core/releases/latest`, without tokens or vault
+data. Consent, last attempt time and latest known stable tag are stored in installation-level
+`update_preferences.json` in the UI configuration directory. Missing or corrupt consent
+prevents automatic checks; read/write errors are visible. At startup a 24-hour budget is
+checked before launching on Tokio; manual checks bypass that budget. Concurrent checks
+are coalesced and disabling checks aborts the in-flight request.
+The client rejects redirects and limits connection time to 4 seconds, total request time
+to 8 seconds and the body to 64 KiB. Only stable semver tags are accepted; release/download
+links are built on the official repository, ignoring URLs and text supplied in the response.
+No automatic download or installation takes place.
+
 The security center runs in a background worker using the UI-independent
 `services::security_center` module. It opens only accessible vaults, fetches encrypted items
 once per vault and decrypts only password payloads to derive strength and reuse findings.

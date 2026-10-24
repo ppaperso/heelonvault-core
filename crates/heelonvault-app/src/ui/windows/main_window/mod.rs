@@ -197,6 +197,7 @@ mod native_gtk_tests {
         super::security_center::tests::native_security_center_scenario()?;
         let (profile, _, _, _) = super::window::views::build_profile_button("Patrick");
         crate::ui::theme_tests::native_theme_scenario(profile)?;
+        crate::ui::updates::tests::native_update_scenario()?;
         super::profile_view::smoke_tests::native_profile_scenario()?;
         Ok(())
     }

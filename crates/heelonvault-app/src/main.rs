@@ -448,6 +448,7 @@ fn run_application(
     let needs_bootstrap_for_activate = Rc::new(Cell::new(start_needs_bootstrap));
     let startup_psc_artifact_for_activate = startup_psc_artifact.clone();
     application.connect_activate(move |app| {
+        ui::updates::initialize(runtime_handle.clone());
         let context = Arc::clone(&app_context_for_activate);
         let runtime_for_restore = Arc::clone(&runtime_for_activate);
         let needs_bootstrap_flag = Rc::clone(&needs_bootstrap_for_activate);

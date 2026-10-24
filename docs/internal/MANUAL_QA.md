@@ -22,6 +22,28 @@ contrôles automatisés (tests, clippy, semver, SBOM) sont décrits dans
 
 ## 2. Session
 
+### Notification de mise à jour
+
+1. Configuration vierge : pas de requête GitHub avant accord ; bandeau non bloquant après
+   connexion, palette teal, icône intégrée et boutons accessibles au clavier.
+2. **Pas maintenant** : bandeau masqué, refus conservé au redémarrage. Le contrôle manuel
+   dans **Profil & Sécurité > Mises à jour de l'application** reste disponible.
+3. Activer : progression sans blocage de l'UI, version installée visible. Au redémarrage
+   dans les 24 heures, aucune nouvelle tentative automatique ; après 24 heures, une seule.
+   Une déconnexion/reconnexion ne crée pas de nouvelle requête.
+4. Version stable plus récente (fixture des tests) : bandeau **Découvrir la version** ;
+   lien limité au dépôt officiel, notes et téléchargements, aucune installation automatique.
+   **Plus tard** masque le bandeau pour la session ; résultat toujours consultable dans le profil.
+5. Hors ligne, réponse HTTP invalide/limitée ou délai dépassé : état indisponible, jamais
+   « à jour ». Dossier de configuration non accessible : erreur visible.
+6. Désactiver pendant la vérification : requête annulée et résultat tardif rejeté.
+7. Basculer FR/EN : bandeau et panneau traduits sans redémarrage ; vérifier aux petites
+   largeurs de fenêtre, sans textes ni boutons coupés.
+8. Les tests natifs utilisent un fichier de configuration isolé et des résultats simulés ;
+   les tests HTTP utilisent uniquement un serveur local. Aucun consentement utilisateur modifié.
+
+### Connexion et verrouillage
+
 1. Fermer la fenêtre principale : l'écran de connexion réapparaît. Se reconnecter : les secrets
    sont visibles.
 2. Échecs de connexion répétés : l'attente avant nouvelle tentative augmente.

@@ -21,6 +21,20 @@ Aucun serveur n'est requis : les secrets ne quittent pas la machine.
 
 ### Diagnostics locaux et frontière réseau optionnelle
 
+La découverte de versions (`heelonvault-app::ui::updates`) est une autre frontière
+réseau, indépendante des sessions et des licences : une requête HTTPS vers
+`api.github.com/repos/ppaperso/heelonvault-core/releases/latest`, sans jeton ni donnée
+de coffre. Consentement, date de tentative et dernier tag stable connu sont conservés
+dans `update_preferences.json` dans le répertoire de configuration UI, par installation.
+L'absence ou la corruption du consentement interdit le contrôle automatique ; les erreurs
+de lecture/écriture sont visibles. Au démarrage, le budget de 24 heures est vérifié avant
+le lancement sur Tokio ; le contrôle manuel est indépendant de ce budget. Les contrôles
+concurrents sont regroupés et la désactivation annule la requête en cours.
+Le client refuse les redirections et borne la connexion à 4 secondes, l'ensemble de
+la requête à 8 secondes et le corps à 64 Kio. Seuls des tags semver stables sont acceptés ;
+les liens de téléchargement/notes sont construits sur le dépôt officiel, sans utiliser
+les URL ni le texte de la réponse. Aucun téléchargement ou installation automatique.
+
 Le Centre de sécurité utilise le module indépendant de l'UI `services::security_center`
 dans un worker. Il ouvre uniquement les coffres accessibles, charge les éléments chiffrés
 une fois par coffre et déchiffre uniquement les mots de passe pour dériver les constats de

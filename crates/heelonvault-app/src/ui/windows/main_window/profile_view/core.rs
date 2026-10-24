@@ -112,6 +112,7 @@ where
 
     let preferences_section = sections::preferences::build();
     content.append(&preferences_section.frame);
+    content.append(&preferences_section.updates.group);
 
     let data_section = sections::data::build(entitlements.can_export_backup());
     content.append(&data_section.frame);

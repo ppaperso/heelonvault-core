@@ -56,5 +56,6 @@
     <file>style/15-trust-console.css</file>
     <file>style/16-panic.css</file>
     <file>style/17-security-center.css</file>
+    <file>style/18-updates.css</file>
   </gresource>
 </gresources>
