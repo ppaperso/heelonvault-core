@@ -1,8 +1,8 @@
 {
-  "source_commit": "ac8b83da63ba59f8cab43107cc892edc4e6c38bd",
+  "source_commit": "8f40cca123d41ea5d0203e3ed40ca66fba1f338c",
   "source_dirty": false,
   "app_version": "2.1.1",
-  "generated_utc": "2026-10-24T09:32:27Z",
+  "generated_utc": "2026-10-24T13:49:38Z",
   "platform": "Linux",
   "renderer": "cairo",
   "scale": 1,
@@ -26,19 +26,19 @@
       "path": "docs/images/user-guide/fr/security-center.png"
     },
     {
-      "sha256": "94016d89e104bc213fbb65f5197260fa6bb27f2a0005a27bb0a3824f24c0089c",
+      "sha256": "77a11bbf4edd20f386b248b3e56cf429352c913abec287f59f18ab76f28a6414",
       "path": "docs/images/user-guide/fr/updates-available.png"
     },
     {
-      "sha256": "d0a7431b8d81ab2dd8fcfbf69c764266edfc7321ba0a3d50aba85b831663405b",
+      "sha256": "cbc3fd13660653c94de8053fdb5d5d0b8009717ab9aadcf0786931a0cf70ffd5",
       "path": "docs/images/user-guide/fr/updates-consent.png"
     },
     {
-      "sha256": "71d9dac35fac993d1b926cd916c7d6f59059ebaada1c89c0af139d28bcddbd21",
+      "sha256": "0b0ab300a2e3d1c219664aedee03e23c3329d1e109a061b73f08901accae73d0",
       "path": "docs/images/user-guide/fr/profile-community-data.png"
     },
     {
-      "sha256": "2d885b0128a3bce51b972ddadce4730a4b3330bd7985d21e4e1c31c56e3b582c",
+      "sha256": "22fe4399035d5979c85684fc692011a30a4fbdefe954adf96e30477c73296fa5",
       "path": "docs/images/user-guide/fr/profile-professional-data.png"
     },
     {
@@ -58,11 +58,11 @@
       "path": "docs/images/user-guide/fr/editor-password.png"
     },
     {
-      "sha256": "bc0f2723c02569a21a2fb90d2eab86ac0e807592a64364e95a372c903bfad616",
+      "sha256": "a0afb78269b5f12c467e39e8b030c99db19140174f7d219208616c5ec2769343",
       "path": "docs/images/user-guide/fr/editor-api.png"
     },
     {
-      "sha256": "59b39867307f15b012e53341b1e536311c12a7ab4fb065d5182f9c9a71905a8a",
+      "sha256": "b00912da5a54ba9b418b554da3bde7a5e4fc3b2fcae5a8161726ac3a23d80f2b",
       "path": "docs/images/user-guide/fr/editor-ssh.png"
     },
     {
@@ -82,19 +82,19 @@
       "path": "docs/images/user-guide/en/security-center.png"
     },
     {
-      "sha256": "5985ed343335a8cba18110ae0e363811e5fd10678486cc0231f7b9b54e75b659",
+      "sha256": "2c34c2a11ced5c8d9919823782952c2806813f5590a0733c75dfb73ab000f034",
       "path": "docs/images/user-guide/en/updates-available.png"
     },
     {
-      "sha256": "5d9a3a55c92f81795a7607d2855be6d3ef606220196195bb0a1a2f0e4333e296",
+      "sha256": "d92058867f20f32a780d5af73ba7a0b2226e55e5d05eb7e5c2a87b8bea00df6c",
       "path": "docs/images/user-guide/en/updates-consent.png"
     },
     {
-      "sha256": "449066a3bf48e3f191723fccd1ae0e951024e17f8d16dd3f36660910ac1a4786",
+      "sha256": "da66286fd1d23e8744a9849fe79de2f331549a336f8312981983de593fff9ec2",
       "path": "docs/images/user-guide/en/profile-community-data.png"
     },
     {
-      "sha256": "8712f474f4c1d6e9db9e21e68d167de100b8cb4aca2727c9b691d9350b35fb11",
+      "sha256": "984d259daec9d164f580b3208bf6ca935e607da911805492d6671c2d5a8692d2",
       "path": "docs/images/user-guide/en/profile-professional-data.png"
     },
     {
@@ -118,11 +118,11 @@
       "path": "docs/images/user-guide/en/editor-api.png"
     },
     {
-      "sha256": "4b6593618e968aebbd3a0ba13653bb37e81bbc9f1b944ccc14529c2a7715b0f7",
+      "sha256": "339fd7bb39de5a73deb23ca2dd0e2c240e40c264f384cd7f37aa09e1bab041be",
       "path": "docs/images/user-guide/en/editor-ssh.png"
     },
     {
-      "sha256": "6e0d9665a84ad38a3d6e40f18fc4ce93a37ee2f04db1e9b38ef020310273a21a",
+      "sha256": "124e3f3c1c35f38ceaaddf24102d1f57f1e1d3daac50fdb860cfbd451ec9c6fc",
       "path": "docs/images/user-guide/en/editor-document.png"
     }
   ]
