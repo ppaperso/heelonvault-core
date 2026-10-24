@@ -7,38 +7,84 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  check:
-    name: check, clippy, fmt, test
+  premium-revision:
+    name: Resolve Premium revision
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: heelonvault-core
-
+    outputs:
+      sha: ${{ steps.revision.outputs.sha }}
     steps:
-      # ── 1. Checkout heelonvault-core dans un sous-dossier ─────────────────────
-      - name: Checkout heelonvault-core
-        uses: actions/checkout@v7.0.1
-        with:
-          path: heelonvault-core
-          fetch-depth: 0
-
-      # ── 2. Checkout heelonvault-premium (repo privé) ────────────────────────
-      # default = ["premium"] dans heelonvault-app : même la build "communautaire"
-      # compile le code premium (licence vérifiée au runtime), donc requis ici aussi.
       - name: Checkout heelonvault-premium
         uses: actions/checkout@v7.0.1
         with:
           repository: ppaperso/heelonvault-premium
+          ref: main
           ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
+          persist-credentials: false
           path: heelonvault-premium
+
+      - name: Record revision shared by all checks
+        id: revision
+        working-directory: heelonvault-premium
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  validate:
+    name: ${{ matrix.suite }}
+    needs: premium-revision
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [quality, tests, premium, msrv, api]
+    defaults:
+      run:
+        working-directory: heelonvault-core
+    steps:
+      - name: Checkout heelonvault-core
+        uses: actions/checkout@v7.0.1
+        with:
+          path: heelonvault-core
+          persist-credentials: false
           fetch-depth: 0
 
-      # ── 3. Installation des dépendances système ────────────────────────────
+      - name: Checkout heelonvault-premium
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: ppaperso/heelonvault-premium
+          ref: ${{ needs.premium-revision.outputs.sha }}
+          ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
+          persist-credentials: false
+          path: heelonvault-premium
+
+      - name: Setup Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup show
+          cargo --version
+
+      # Only public crates.io downloads: never cache Premium sources or build outputs.
+      - name: Cache public Cargo downloads
+        uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/cache/index.crates.io-*
+            ~/.cargo/registry/index/index.crates.io-*
+            ~/.cargo/registry/src/index.crates.io-*
+          key: ${{ runner.os }}-cargo-public-v1-${{ matrix.suite }}-${{ hashFiles('heelonvault-core/rust-toolchain.toml', 'heelonvault-core/Cargo.lock', 'heelonvault-premium/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-public-v1-${{ matrix.suite }}-
+
+      - name: cargo fmt --check
+        if: matrix.suite == 'quality'
+        run: cargo fmt -p heelonvault-core -p heelonvault-app -p heelonvault-url-check -p sqlx -- --check
+
       - name: Install system dependencies
         run: |
           set -euo pipefail
@@ -56,58 +102,35 @@ jobs:
             xvfb \
             xauth \
             libsqlite3-dev
-          echo "[OK] System dependencies installed"
 
-      # ── 4. Toolchain Rust — honore le pin rust-toolchain.toml ───────────────
-      - name: Setup Rust toolchain
-        run: |
-          set -euo pipefail
-          rustup show
-          cargo --version
-
-      # ── 5. Cache Cargo ──────────────────────────────────────────────────────
-      - name: Cache Cargo registry and build
-        uses: actions/cache@v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-ci-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-ci-
-
-      # ── 6. Formatting — scope explicite aux crates du workspace : `--all`
-      #      formaterait aussi heelonvault-premium (dépendance locale patchée),
-      #      un repo privé distinct que ce workflow ne doit pas juger.
-      - name: cargo fmt --check
-        run: cargo fmt -p heelonvault-core -p heelonvault-app -p heelonvault-url-check -p sqlx -- --check
-
-      # ── 7. Clippy (zéro warning, -D warnings vient aussi de .cargo/config.toml) ─
       - name: cargo clippy
+        if: matrix.suite == 'quality'
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 
-      # ── 8. Build check (workspace complet, toutes features) ────────────────
       - name: cargo check --workspace
+        if: matrix.suite == 'quality'
         run: cargo check --workspace --all-features --locked
 
       - name: Check Community assembly
+        if: matrix.suite == 'quality'
         run: cargo check --locked -p heelonvault-app --no-default-features
 
-      # ── 9. Tests ─────────────────────────────────────────────────────────────
       - name: cargo test --workspace
+        if: matrix.suite == 'tests'
         run: cargo test --workspace --all-features --locked
 
-      - name: Native GTK smoke tests (security center, profile)
+      - name: Native GTK smoke tests
+        if: matrix.suite == 'tests'
         env:
           GSK_RENDERER: cairo
           GDK_BACKEND: x11
         run: >-
           dbus-run-session -- xvfb-run --auto-servernum
-          cargo test --locked -p heelonvault-app --bin heelonvault
+          cargo test --locked --workspace --all-features
           native_ -- --ignored --nocapture
 
       - name: Check standalone Premium
+        if: matrix.suite == 'premium'
         working-directory: heelonvault-premium
         run: |
           set -euo pipefail
@@ -117,26 +140,44 @@ jobs:
           cargo test --locked --all-targets --all-features
 
       - name: Check minimum supported Rust
+        if: matrix.suite == 'msrv'
         run: |
           set -euo pipefail
           rustup toolchain install 1.98.0 --profile minimal
           cargo +1.98.0 check --locked --workspace --all-targets --all-features
 
       - name: Check standalone Premium minimum supported Rust
+        if: matrix.suite == 'msrv'
         working-directory: heelonvault-premium
         run: cargo +1.98.0 check --locked --all-targets --all-features
 
-      # ── 10. Garde-fou semver — l'API publique de heelonvault-core (publiée sur
-      #       crates.io) est comparée à la dernière version publiée : une rupture
-      #       sans version majeure fait échouer la CI. Voir docs/internal/RELEASING.md.
       - name: Install cargo-semver-checks
+        if: matrix.suite == 'api'
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-semver-checks@0.51.0
 
       - name: cargo semver-checks (heelonvault-core)
+        if: matrix.suite == 'api'
         run: cargo semver-checks -p heelonvault-core
 
-      # ── 11. La crate publiée doit se construire seule, hors du workspace ─────
       - name: cargo publish --dry-run (heelonvault-core)
+        if: matrix.suite == 'api'
         run: cargo publish --dry-run -p heelonvault-core --locked
+
+  check:
+    name: check, clippy, fmt, test
+    if: always()
+    needs: [premium-revision, validate]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every validation suite to succeed
+        env:
+          PREMIUM_RESULT: ${{ needs.premium-revision.result }}
+          VALIDATION_RESULT: ${{ needs.validate.result }}
+        run: |
+          set -euo pipefail
+          if [ "$PREMIUM_RESULT" != success ] || [ "$VALIDATION_RESULT" != success ]; then
+            echo "::error::CI incomplete or unsuccessful: Premium=$PREMIUM_RESULT, validation=$VALIDATION_RESULT"
+            exit 1
+          fi

@@ -1,5 +1,47 @@
 # CI/CD Pipeline Optimization Plan
 
+## Current implementation
+
+The PR/main workflow in [ci.yml](../../.github/workflows/ci.yml) runs five
+independent suites in parallel: quality and Community assembly, workspace and
+native GTK tests, standalone Premium, minimum supported Rust, and public API /
+publish dry-run. The historical analysis below describes an older packaging
+pipeline, not the current PR workflow.
+
+All suites check out the same Premium commit, resolved once at the start of the
+run. Matrix fail-fast is disabled so one failure does not hide other results.
+The final `check, clippy, fmt, test` status keeps its existing name and succeeds
+only if every suite succeeds; failed, cancelled or skipped prerequisites cannot
+produce a green aggregate status.
+
+The test suite uses the same workspace and feature selection for ordinary and
+native GTK tests, reusing compiled test binaries within the job. No validation
+command was removed. Supply-chain checks and platform packaging workflows keep
+their existing triggers.
+
+Only public crates.io downloads are cached, keyed by suite, operating system,
+toolchain file and both lockfiles. The previous root-level `target` cache path
+did not match the nested checkouts. Do not replace it with a cache of the real
+build directories: those can contain private Premium artifacts. Private Git
+sources and build outputs must not be cached in this public repository.
+
+### Development workflow
+
+1. Review the PR while its checks run; merge only after approval and green checks.
+2. Refresh local `main` after merging and start the next PR immediately. The
+   post-merge validation may run concurrently; it need not delay preparation.
+3. If `main` fails, investigate before further merges. Require successful
+   validation before publishing, including the platform-specific release checks.
+4. Measure wall-clock time and runner minutes separately. Parallelism lowers
+   latency but can increase total runner consumption. Cold-cache runs remain
+   slower; no fixed duration is guaranteed.
+
+No workflow automatically merges a PR or publishes a release.
+
+---
+
+## Historical analysis
+
 **Document**: Analyse structurelle du workflow GitHub Actions  
 **Date**: 15 mai 2026  
 **Status**: Recommended for Phase 1 implementation
