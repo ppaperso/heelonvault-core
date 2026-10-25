@@ -217,6 +217,8 @@ Depuis les entrées d'administration du profil ou de la navigation :
 - **Équipes :** organiser les membres et les accès partagés.
 - **Audit et rapports :** consulter les fonctions disponibles pour votre licence et vos droits.
 
+Le menu **Certifier & Exporter** génère un rapport d'audit PDF signé sur 24 heures, 7 jours ou 30 jours. Il est enregistré dans votre dossier Téléchargements (`HeelonVault_Audit_<jours>j_<date>.pdf`) et s'ouvre avec le mot de passe **`heelonvault`**, rappelé à la fin de la génération. Ce mot de passe n'est pas un secret : il ouvre le rapport dans n'importe quel lecteur PDF, qui en autorise l'impression et la copie du texte mais en refuse la modification et les annotations. L'intégrité du rapport repose sur sa signature Ed25519, dont l'empreinte SHA-256 et la clé publique figurent en bas du document.
+
 Ne confondez pas les niveaux d'autorisation :
 
 | Niveau | Portée |

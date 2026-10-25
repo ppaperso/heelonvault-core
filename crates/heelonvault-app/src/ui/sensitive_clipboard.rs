@@ -431,9 +431,19 @@ fn wipe_owned_clipboard(clipboard: &gdk::Clipboard) {
 
 /// Windows clipboard writes aren't gated on window focus the way Mutter's are (see module doc)
 /// — always wipe, compensating for the eager provider's inability to self-clear on read.
+///
+/// The clipboard is emptied (no format offered) rather than given an empty text: GDK's Win32
+/// UTF-8 → CF_UNICODETEXT conversion passes the NULL buffer of a zero-length text to
+/// `g_utf8_to_utf16`, then dereferences its NULL result — STATUS_ACCESS_VIOLATION in
+/// libgtk-4-1.dll as soon as Windows renders the format, i.e. right at expiry.
 #[cfg(windows)]
 fn wipe_owned_clipboard(clipboard: &gdk::Clipboard) {
-    clipboard.set_text("");
+    if clipboard
+        .set_content(None::<&gdk::ContentProvider>)
+        .is_err()
+    {
+        tracing::warn!("could not empty the clipboard after a sensitive copy");
+    }
     clipboard.display().flush();
 }
 

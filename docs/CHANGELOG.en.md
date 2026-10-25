@@ -7,7 +7,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [2.1.1] — 2026-10-24
+## [2.1.1] — 2026-10-25
 
 ### User documentation
 
@@ -43,6 +43,11 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Nonblocking HeelonVault-branded banner for initial consent, release notes/downloads and deferral. Dedicated Profile & Security panel with installed version, progress and explicit offline/configuration-error states, in French and English.
 - No automatic download or installation and no vault, account or license data sent. Bounded network time and response size, redirects rejected and links restricted to the official repository. Release discovery does not attest package authenticity or security.
 - Tests cover semver comparison, consent, persistence, HTTP errors, size limits, network deadlines and native GTK flows with simulated results.
+
+### Fixes
+
+- Windows: the application no longer crashes when a sensitive copy expires (password after 20 s, recovery phrase after 60 s), nor when locking during the countdown. The clipboard is now emptied with no format at all instead of receiving an empty text, which GTK converted by dereferencing a null pointer.
+- PDF audit report (Professional edition): the `heelonvault` password opens the document again. Since 2.0.0 its encryption combined SHA-256 with a format that mandates MD5, so no PDF reader could open it. It now uses standard AES-256 encryption (PDF 2.0), with the same editing restrictions.
 
 ### Security and dependencies
 

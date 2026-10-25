@@ -790,6 +790,7 @@ certification-report-generated-toast = Rapport certifié généré (SHA-256 : { 
 certification-report-generated-title = Rapport signé généré
 certification-report-generated-body = Rapport PDF signé enregistré :
     { $path }
+    Mot de passe d'ouverture : heelonvault
 certification-report-license-required = Le rapport signé nécessite une licence Pro.
 certification-report-key-missing = Clé de certification indisponible. Ouvrez la console de confiance.
 certification-report-error-title = Erreur de génération

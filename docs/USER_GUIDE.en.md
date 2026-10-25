@@ -217,6 +217,8 @@ From administration entries in the profile or navigation:
 - **Teams:** organize members and shared access.
 - **Audit and reports:** use the functions available for your license and permissions.
 
+The **Certify & Export** menu generates a signed PDF audit report covering 24 hours, 7 days or 30 days. It is saved in your Downloads folder (`HeelonVault_Audit_<days>j_<date>.pdf`) and opens with the password **`heelonvault`**, shown again when generation completes. This password is not a secret: it opens the report in any PDF reader, which allows printing and copying text but refuses modification and annotations. The report's integrity rests on its Ed25519 signature, whose SHA-256 fingerprint and public key appear at the bottom of the document.
+
 Do not confuse permission levels:
 
 | Level | Scope |
