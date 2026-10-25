@@ -44,6 +44,11 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 - Aucun téléchargement ni installation automatique, aucune donnée de coffre, de compte ou de licence envoyée. Délai réseau et taille de réponse bornés, redirections refusées et liens limités au dépôt officiel. Aucune promesse de sécurité ou d'authenticité des paquets fondée sur la simple présence d'une version.
 - Tests de comparaison semver, consentement, persistance, erreurs HTTP, dépassement de taille, délai réseau et parcours GTK avec résultats simulés.
 
+### Corrections
+
+- Windows : l'application ne plante plus quand une copie sensible expire (mot de passe après 20 s, phrase de récupération après 60 s), ni au verrouillage pendant le décompte. Le presse-papiers est vidé sans aucun format au lieu de recevoir un texte vide, que GTK convertissait en déréférençant un pointeur nul.
+- Rapport d'audit PDF (édition Professional) : le mot de passe `heelonvault` ouvre de nouveau le document. Depuis la 2.0.0, son chiffrement combinait SHA-256 avec un format qui impose MD5, et aucun lecteur PDF ne pouvait l'ouvrir. Il utilise désormais le chiffrement standard AES-256 (PDF 2.0), avec les mêmes restrictions d'édition.
+
 ### Sécurité et dépendances
 
 - Correction des avis RUSTSEC-2026-0381, 0382, 0383 et 0385 dans les deux fichiers de verrouillage : `ctutils` 0.4.5, `rustls-webpki` 0.103.16, `webpki-root-certs` et `webpki-roots` 1.0.11. Les correctifs concernent les opérations à temps constant et le rejet des chaînes de certificats emSign révoquées ; aucun avis ignoré.
