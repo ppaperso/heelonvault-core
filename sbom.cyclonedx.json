@@ -2,9 +2,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.4",
   "version": 1,
-  "serialNumber": "urn:uuid:88b8f6ad-696e-4571-942d-2b9b00afaf1a",
+  "serialNumber": "urn:uuid:9dd91445-d870-49b1-ad1b-f9b52130bd9d",
   "metadata": {
-    "timestamp": "2026-10-24T08:44:13.247144438Z",
+    "timestamp": "2026-10-25T10:45:56.773122013Z",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -12708,6 +12708,7 @@
     {
       "ref": "path+file:///NORMALIZED/heelonvault-premium#2.1.1",
       "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#aes@0.9.3",
         "registry+https://github.com/rust-lang/crates.io-index#base64@0.23.1",
         "registry+https://github.com/rust-lang/crates.io-index#chrono@0.4.45",
         "registry+https://github.com/rust-lang/crates.io-index#directories@6.0.0",
