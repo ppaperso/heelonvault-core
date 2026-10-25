@@ -1,14 +1,14 @@
 {
-  "source_commit": "8f40cca123d41ea5d0203e3ed40ca66fba1f338c",
+  "source_commit": "81a923e85da8181926bf529959006b3e630e1abe",
   "source_dirty": false,
   "app_version": "2.1.1",
-  "generated_utc": "2026-10-24T13:49:38Z",
+  "generated_utc": "2026-10-25T10:47:33Z",
   "platform": "Linux",
   "renderer": "cairo",
   "scale": 1,
   "gtk": "4.22.5",
   "libadwaita": "1.9.4",
-  "premium_commit": "e4b546be66ee901c72a9be00198d48fec2dcf79b",
+  "premium_commit": "70286cc996c7f132025f343925b0f207d0a1bacf",
   "font": "DejaVu Sans 10",
   "theme": "light",
   "fixture": "synthetic in-memory SQLite; simulated releases; no real secrets",
@@ -34,7 +34,7 @@
       "path": "docs/images/user-guide/fr/updates-consent.png"
     },
     {
-      "sha256": "0b0ab300a2e3d1c219664aedee03e23c3329d1e109a061b73f08901accae73d0",
+      "sha256": "874194071a11f0791b9be4458681f42cb2bcea39cd4dcab7c7799951c8b5e815",
       "path": "docs/images/user-guide/fr/profile-community-data.png"
     },
     {
@@ -54,15 +54,15 @@
       "path": "docs/images/user-guide/fr/search.png"
     },
     {
-      "sha256": "4c9a99be4453d0fe1371cb66447845353e10d4bab158e5c2d829bdcc0b69a84d",
+      "sha256": "f7b230a1d41aca377ee2a1207e6d324f2d9a3421604a395086f7ccd16204567e",
       "path": "docs/images/user-guide/fr/editor-password.png"
     },
     {
-      "sha256": "a0afb78269b5f12c467e39e8b030c99db19140174f7d219208616c5ec2769343",
+      "sha256": "bc0f2723c02569a21a2fb90d2eab86ac0e807592a64364e95a372c903bfad616",
       "path": "docs/images/user-guide/fr/editor-api.png"
     },
     {
-      "sha256": "b00912da5a54ba9b418b554da3bde7a5e4fc3b2fcae5a8161726ac3a23d80f2b",
+      "sha256": "59b39867307f15b012e53341b1e536311c12a7ab4fb065d5182f9c9a71905a8a",
       "path": "docs/images/user-guide/fr/editor-ssh.png"
     },
     {
@@ -110,19 +110,19 @@
       "path": "docs/images/user-guide/en/search.png"
     },
     {
-      "sha256": "86d38ffdb01aafb9c07de39ae0496704ebaa7e574737f4ef34436b4986ab5d8a",
+      "sha256": "11e484cff21b2a3aa2e699be70b91545ecc23db7330d61b68e46cd2b123ec19b",
       "path": "docs/images/user-guide/en/editor-password.png"
     },
     {
-      "sha256": "809ebb6b33d084aa83bdc888515cd203a1a313378a53878f052758b62608d6ba",
+      "sha256": "0a56ecf638d7f5aeb396f45ba6f88154e55a2bb505fdd4df1fae6c03470427e0",
       "path": "docs/images/user-guide/en/editor-api.png"
     },
     {
-      "sha256": "339fd7bb39de5a73deb23ca2dd0e2c240e40c264f384cd7f37aa09e1bab041be",
+      "sha256": "586daabcdda85a67ec35fe699eafc4f11a55280861cd31202b7bd1491dcc830b",
       "path": "docs/images/user-guide/en/editor-ssh.png"
     },
     {
-      "sha256": "124e3f3c1c35f38ceaaddf24102d1f57f1e1d3daac50fdb860cfbd451ec9c6fc",
+      "sha256": "eb1b6f758766d4b278a8156a2dd104a6e1cd749ea789ffb3d2948062c2f04100",
       "path": "docs/images/user-guide/en/editor-document.png"
     }
   ]
