@@ -7,7 +7,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [2.1.1] — 2026-10-24
+## [2.1.1] — 2026-10-25
 
 ### Documentation utilisateur
 
