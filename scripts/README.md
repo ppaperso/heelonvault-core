@@ -9,6 +9,7 @@ Run scripts from the repository root.
 
 - `scripts/backup-prod-before-tests.sh`: creates a production backup archive before manual tests.
 - `scripts/fix-permissions.sh`: repairs permissions and ACL for legacy shared-data deployments.
+- `scripts/check-core-standalone.sh`: runs the `heelonvault-core` quality gates without `heelonvault-premium`.
 
 ## Rust Development
 

@@ -17,7 +17,8 @@ voir [CONTRIBUTING.fr.md](../../CONTRIBUTING.fr.md) ; pour le fonctionnement int
   `heelonvault-app` le déclare comme dépendance optionnelle par chemin, et Cargo charge le
   manifeste de toute dépendance par chemin, même optionnelle : **sans ce clone, le workspace ne
   se charge pas**, y compris avec `--no-default-features`. Les entrées `[patch]` du `Cargo.toml`
-  racine pointent vers ce même dossier.
+  racine pointent vers ce même dossier. Sans lui, seule `heelonvault-core` peut être vérifiée,
+  avec `scripts/check-core-standalone.sh` (voir [CONTRIBUTING.fr.md](../../CONTRIBUTING.fr.md)).
 
 ```bash
 rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy

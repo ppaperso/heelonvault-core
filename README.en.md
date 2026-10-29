@@ -124,6 +124,7 @@ Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).
 | Third-party licenses | [THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md) | [THIRD_PARTY_LICENSES.fr.md](docs/THIRD_PARTY_LICENSES.fr.md) |
 | Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) | [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) |
 | Code of Conduct | [CODE_OF_CONDUCT.en.md](CODE_OF_CONDUCT.en.md) | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
+| Governance | [GOVERNANCE.md](GOVERNANCE.md) | [GOVERNANCE.fr.md](GOVERNANCE.fr.md) |
 | Internal documentation (maintainers) | [docs/internal/](docs/internal/README.md) | |
 
 ---

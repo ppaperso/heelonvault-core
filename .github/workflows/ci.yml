@@ -21,6 +21,17 @@ jobs:
     outputs:
       sha: ${{ steps.revision.outputs.sha }}
     steps:
+      # GitHub does not pass secrets to pull requests from forks: fail with an explicit message
+      # instead of an SSH error. Such PRs are covered by the core-standalone job (CONTRIBUTING.md).
+      - name: Require access to heelonvault-premium
+        env:
+          HAS_PREMIUM_KEY: ${{ secrets.PREMIUM_SSH_KEY != '' }}
+        run: |
+          if [ "$HAS_PREMIUM_KEY" != true ]; then
+            echo "::error::No access to the private heelonvault-premium repository (pull request from a fork). See the core-standalone job; a maintainer runs the full CI before merging."
+            exit 1
+          fi
+
       - name: Checkout heelonvault-premium
         uses: actions/checkout@v7.0.1
         with:
@@ -177,6 +188,39 @@ jobs:
       - name: cargo publish --dry-run (heelonvault-core)
         if: matrix.suite == 'api'
         run: cargo publish --dry-run -p heelonvault-core --locked
+
+  # Contributor feedback for pull requests from forks, which cannot load the full workspace.
+  core-standalone:
+    name: heelonvault-core (standalone)
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout heelonvault-core
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends pkg-config libsqlite3-dev
+
+      - name: Setup Rust toolchain
+        run: |
+          set -euo pipefail
+          rustup show
+          cargo --version
+
+      - name: Install cargo-semver-checks
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-semver-checks@0.51.0
+
+      - name: heelonvault-core quality gates
+        env:
+          HEELONVAULT_CORE_STANDALONE_DIR: ${{ runner.temp }}/core-standalone
+        run: bash scripts/check-core-standalone.sh --semver
 
   check:
     name: check, clippy, fmt, test

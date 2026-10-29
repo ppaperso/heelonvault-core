@@ -16,7 +16,8 @@ Building, running and testing HeelonVault from source. For contribution rules, s
   `heelonvault-app` declares it as an optional path dependency, and Cargo loads the manifest of
   every path dependency, even optional ones: **without this checkout, the workspace does not
   load**, `--no-default-features` included. The `[patch]` entries of the root `Cargo.toml` point
-  at the same sibling directory.
+  at the same sibling directory. Without it, only `heelonvault-core` can be checked, with
+  `scripts/check-core-standalone.sh` (see [CONTRIBUTING.md](../../CONTRIBUTING.md)).
 
 ```bash
 rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy

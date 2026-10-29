@@ -9,6 +9,7 @@ Executer les scripts depuis la racine du depot.
 
 - `scripts/backup-prod-before-tests.sh` : cree une archive de sauvegarde avant tests manuels.
 - `scripts/fix-permissions.sh` : corrige les permissions et ACL sur les repertoires de donnees.
+- `scripts/check-core-standalone.sh` : execute les controles qualite de `heelonvault-core` sans `heelonvault-premium`.
 
 ## Developpement Rust
 

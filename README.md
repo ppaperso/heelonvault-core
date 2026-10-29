@@ -128,6 +128,7 @@ Règles de contribution : [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md).
 | Licences tierces | [THIRD_PARTY_LICENSES.fr.md](docs/THIRD_PARTY_LICENSES.fr.md) | [THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md) |
 | Contribuer | [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Code de conduite | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | [CODE_OF_CONDUCT.en.md](CODE_OF_CONDUCT.en.md) |
+| Gouvernance | [GOVERNANCE.fr.md](GOVERNANCE.fr.md) | [GOVERNANCE.md](GOVERNANCE.md) |
 | Documentation interne (mainteneurs) | [docs/internal/](docs/internal/README.md) | |
 
 ---
