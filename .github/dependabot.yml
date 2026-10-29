@@ -1,0 +1,13 @@
+# Workflow actions are pinned by commit SHA: Dependabot keeps those pins (and their version
+# comments) up to date. Cargo security updates are handled by Dependabot security updates.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

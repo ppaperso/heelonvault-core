@@ -14,12 +14,12 @@ jobs:
   capture:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: heelonvault-core
           persist-credentials: false
           fetch-depth: 0
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ppaperso/heelonvault-premium
           ssh-key: ${{ secrets.PREMIUM_SSH_KEY }}
@@ -42,7 +42,7 @@ jobs:
             bash scripts/generate-user-guide-screenshots.sh
           bash scripts/check-user-guide-assets.sh --release
       - name: Publish images for human review
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: user-guide-screenshots
           path: heelonvault-core/docs/images/user-guide

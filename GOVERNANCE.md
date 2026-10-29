@@ -38,6 +38,10 @@ path to `main`.
   therefore change the workflow and read the premium sources or the key itself. Pull requests
   from forks do not receive the secret. Other contributors, contractors included, work from a
   fork; do not grant write access, even temporarily, to make their work easier.
+- For the same reason, a fork branch is copied into this repository (to run the full CI) only
+  after its whole diff has been reviewed ([CONTRIBUTING.md](CONTRIBUTING.md#review-and-merge)).
+- Workflow actions are pinned by commit SHA and updated through Dependabot; release tags `v*`
+  cannot be moved or deleted; secret scanning with push protection is enabled.
 - Access granted for an engagement is reviewed at its end and removed when no longer needed.
 
 ## Releases and security
