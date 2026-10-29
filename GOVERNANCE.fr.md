@@ -40,6 +40,12 @@ supplémentaires, mais pas un autre chemin vers `main`.
   Les pull requests issues d'un fork ne reçoivent pas le secret. Les autres contributeurs,
   prestataires compris, travaillent depuis un fork ; ne pas accorder d'accès en écriture, même
   temporaire, pour leur faciliter la tâche.
+- Pour la même raison, une branche de fork n'est copiée dans ce dépôt (pour exécuter la CI
+  complète) qu'après relecture de tout son diff
+  ([CONTRIBUTING.fr.md](CONTRIBUTING.fr.md#relecture-et-merge)).
+- Les actions des workflows sont épinglées par SHA de commit et mises à jour via Dependabot ; les
+  tags de version `v*` ne peuvent être ni déplacés ni supprimés ; le secret scanning avec push
+  protection est activé.
 - Les accès accordés pour une mission sont revus à son terme et retirés s'ils ne sont plus
   nécessaires.
 

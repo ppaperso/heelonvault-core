@@ -111,6 +111,12 @@ GitHub ne donne pas aux pull requests issues d'un fork l'accès au dépôt priv�
   branche sur une branche interne de ce dépôt, où la CI complète s'exécute, puis la merge en squash
   en vous créditant comme auteur (`Co-authored-by`). Votre pull request d'origine est fermée avec
   un lien vers le commit mergé.
+- **Règle du mainteneur pour cette copie** : la CI interne récupère `heelonvault-premium` et
+  exécute le code proposé (tests, `build.rs`, nouvelles dépendances, fichiers de workflow) à côté.
+  La branche n'est poussée en interne **qu'après** relecture de tout son diff, en particulier
+  `.github/`, `build.rs`, `Cargo.toml` / `Cargo.lock` et tout code qui accède au réseau ou au
+  système de fichiers ; jamais pour simplement voir si la CI passe. Une pull request qui modifie
+  `.github/` n'est pas copiée : ce changement est fait par un mainteneur.
 - Comptez une première réponse sous cinq jours ouvrés. Une pull request sans activité de son
   auteur pendant 90 jours peut être fermée ; elle peut être rouverte à tout moment.
 

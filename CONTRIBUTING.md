@@ -106,6 +106,12 @@ GitHub does not give pull requests from forks access to the private repository. 
   internal branch of this repository, where the full CI runs, then squash-merges it with you
   credited as author (`Co-authored-by`). Your original pull request is closed with a link to the
   merged commit.
+- **Maintainer rule for that copy**: the internal CI checks out `heelonvault-premium` and runs the
+  contributed code (tests, `build.rs`, new dependencies, workflow files) next to it. The branch is
+  pushed internally only **after** reviewing its whole diff, with particular attention to
+  `.github/`, `build.rs`, `Cargo.toml` / `Cargo.lock` and any code that reaches the network or the
+  file system; never just to see whether CI passes. A pull request that changes `.github/` is not
+  copied: that change is made by a maintainer.
 - Expect a first answer within five working days. A pull request with no activity from its author
   for 90 days may be closed; it can be reopened at any time.
 
