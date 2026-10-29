@@ -54,6 +54,11 @@ modifies your checkout.
 
 Nobody pushes directly to `main`: it is protected and only accepts pull requests.
 
+### Language
+
+Commit messages, pull requests, code reviews and code comments are written in **English**. Issues
+may be opened in English or French. User-facing documentation stays bilingual (FR and EN).
+
 ## Code standards
 
 - Follow the existing style, naming and module layout.

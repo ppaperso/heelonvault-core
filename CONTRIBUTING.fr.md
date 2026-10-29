@@ -57,6 +57,12 @@ modifie jamais votre copie de travail.
 Personne ne pousse directement sur `main` : la branche est protégée et n'accepte que des pull
 requests.
 
+### Langue
+
+Les messages de commit, pull requests, relectures et commentaires de code sont rédigés en
+**anglais**. Les issues peuvent être ouvertes en anglais ou en français. La documentation destinée
+aux utilisateurs reste bilingue (FR et EN).
+
 ## Règles de code
 
 - Suivre le style, le nommage et le découpage en modules existants.
