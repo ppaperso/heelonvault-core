@@ -32,8 +32,14 @@ supplémentaires, mais pas un autre chemin vers `main`.
 - `main` est protégée : pull request obligatoire, CI complète verte, conversations de relecture
   résolues, approbation du mainteneur, merge en squash uniquement, ni force-push ni suppression.
 - **L'accès en écriture** à ce dépôt n'est accordé qu'aux personnes également autorisées sur le
-  dépôt privé `heelonvault-premium` : une branche de ce dépôt exécute la CI avec un accès à
-  celui-ci. Les autres contributeurs, prestataires compris, travaillent depuis un fork.
+  dépôt privé `heelonvault-premium`. La raison est un mécanisme, pas une formalité : la CI
+  récupère `heelonvault-premium` avec une clé SSH stockée en secret du dépôt (`PREMIUM_SSH_KEY`).
+  GitHub transmet ce secret à toute exécution de workflow lancée depuis une branche de ce dépôt,
+  et cette exécution utilise les fichiers de workflow de la branche. Quiconque peut pousser une
+  branche ici peut donc modifier le workflow et lire les sources premium, voire la clé elle-même.
+  Les pull requests issues d'un fork ne reçoivent pas le secret. Les autres contributeurs,
+  prestataires compris, travaillent depuis un fork ; ne pas accorder d'accès en écriture, même
+  temporaire, pour leur faciliter la tâche.
 - Les accès accordés pour une mission sont revus à son terme et retirés s'ils ne sont plus
   nécessaires.
 

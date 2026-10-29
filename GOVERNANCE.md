@@ -31,8 +31,13 @@ path to `main`.
 - `main` is protected: pull request required, full CI green, review conversations resolved,
   maintainer approval, squash merge only, no force-push, no deletion.
 - **Write access** to this repository is granted only to people also authorized on the private
-  `heelonvault-premium` repository: a branch of this repository runs CI with access to it.
-  Other contributors, contractors included, work from a fork.
+  `heelonvault-premium` repository. The reason is a mechanism, not a formality: the CI fetches
+  `heelonvault-premium` with an SSH key stored as a repository secret (`PREMIUM_SSH_KEY`).
+  GitHub hands that secret to every workflow run started from a branch of this repository, and
+  such a run uses the workflow files of that branch. Anyone who can push a branch here can
+  therefore change the workflow and read the premium sources or the key itself. Pull requests
+  from forks do not receive the secret. Other contributors, contractors included, work from a
+  fork; do not grant write access, even temporarily, to make their work easier.
 - Access granted for an engagement is reviewed at its end and removed when no longer needed.
 
 ## Releases and security

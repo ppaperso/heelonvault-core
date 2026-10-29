@@ -112,7 +112,7 @@ GitHub ne donne pas aux pull requests issues d'un fork l'accès au dépôt priv�
   en vous créditant comme auteur (`Co-authored-by`). Votre pull request d'origine est fermée avec
   un lien vers le commit mergé.
 - Comptez une première réponse sous cinq jours ouvrés. Une pull request sans activité de son
-  auteur pendant 30 jours peut être fermée ; elle peut être rouverte à tout moment.
+  auteur pendant 90 jours peut être fermée ; elle peut être rouverte à tout moment.
 
 ## Documentation
 

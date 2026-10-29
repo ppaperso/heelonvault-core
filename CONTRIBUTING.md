@@ -107,7 +107,7 @@ GitHub does not give pull requests from forks access to the private repository. 
   credited as author (`Co-authored-by`). Your original pull request is closed with a link to the
   merged commit.
 - Expect a first answer within five working days. A pull request with no activity from its author
-  for 30 days may be closed; it can be reopened at any time.
+  for 90 days may be closed; it can be reopened at any time.
 
 ## Documentation
 
