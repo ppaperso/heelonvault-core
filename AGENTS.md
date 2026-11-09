@@ -1,6 +1,7 @@
 # AGENTS.md — HeelonVault working guide (canonical)
 
 This file is the **single source of truth** for coding agents working on HeelonVault.
+Keep the standard filename `AGENTS.md` (plural, uppercase); do not create an `AGENT.md` duplicate.
 Per-agent entry points are thin pointers to this file:
 
 - **Mistral Vibe**: `.vibe/skills/heelonvault-dev/SKILL.md` (this `AGENTS.md` at the repo root is also auto-loaded by Vibe)
@@ -8,6 +9,19 @@ Per-agent entry points are thin pointers to this file:
 - **GitHub Copilot**: `.github/copilot-instructions.md`
 
 When the project changes, edit **this file**; keep the per-agent files as pointers.
+Read this guide before editing; consult the linked references only as needed. If a command or
+policy differs from the checked-out implementation or CI, report the discrepancy rather than
+silently bypassing a gate.
+
+## Safe working procedure
+
+- Inspect `git status --short --branch` in this repo and in Premium before changes. Preserve
+  pre-existing edits, untracked files, local databases, logs and recovery material.
+- Do not reset, clean, prune, rewrite history, delete branches, commit, push or merge unless
+  requested. Never open or migrate a real user database to validate a change; use synthetic
+  fixtures and temporary test databases.
+- Make scoped changes, run the relevant checks, and report exact commands/results, skipped
+  checks and remaining blockers. A passing build is not proof of graphical or package certification.
 
 ## Project snapshot
 
@@ -34,6 +48,7 @@ cargo test -p heelonvault-core --test release_2_1_1_compatibility --locked  # 2.
 dbus-run-session -- bash scripts/run-wayland-tests.sh \
   cargo test --locked --workspace --all-features native_ -- --ignored --nocapture
 cargo check -p heelonvault-app --features licensing --locked  # premium edition (needs ../heelonvault-premium)
+cargo check -p heelonvault-app --no-default-features --locked # community assembly
 cargo semver-checks -p heelonvault-core                   # public API vs crates.io (also in CI)
 cargo publish --dry-run -p heelonvault-core --locked      # crate must build standalone (also in CI)
 cargo deny --locked --all-features check --deny warnings  # supply-chain (also in CI)
@@ -42,7 +57,17 @@ scripts/check-core-standalone.sh --semver                 # same gates without t
 ./scripts/generate-sbom.sh                                # rerun when dependencies change → commit sbom.cyclonedx.json
 ```
 
-Toolchain is pinned by `rust-toolchain.toml` (1.99.1; MSRV 1.98 is checked separately in CI). `.cargo/config.toml` sets `-Dwarnings` and `-Dunsafe_code` globally: any warning or `unsafe` block fails the build.
+Run standalone Premium checks **from `../heelonvault-premium`**, not by passing
+`--manifest-path` from the core workspace: Cargo configuration and workspace patches depend
+on the working directory. Run `cargo fmt --all -- --check`,
+`cargo clippy --locked --all-targets --all-features -- -D warnings`,
+`cargo check --locked --all-features`, `cargo test --locked --all-targets --all-features` and
+`cargo deny --locked --all-features check advisories --deny warnings` there.
+
+Toolchain and MSRV are defined in `rust-toolchain.toml` and the crate manifests; CI checks
+MSRV separately. `.cargo/config.toml` sets `-Dwarnings` and `-Dunsafe_code` globally: any
+warning or `unsafe` block fails the build. Do not remove `--locked` to make validation pass;
+regenerate a lockfile only for an intentional dependency change.
 
 Integration tests live under `crates/heelonvault-core/tests/` (plus repo-consistency tests in `crates/heelonvault-app/tests/`: `release_consistency.rs`, `i18n_usage.rs`, …). Most integration tests spin up a real SQLite DB via `crates/heelonvault-core/tests/common/mod.rs`.
 
@@ -50,23 +75,31 @@ Integration tests live under `crates/heelonvault-core/tests/` (plus repo-consist
 
 1. **Never `.unwrap()` / `.expect()`** on `Result`/`Option` (banned by `clippy.toml` `disallowed-methods`; panics can leak secrets on sensitive paths). Use typed `thiserror` errors (`AppError` in `crates/heelonvault-core/src/errors.rs`).
 2. No `#[allow(...)]` to silence a lint without written rationale + owner + due date + tracked issue.
-3. **Never let a secret value** (password, key, recovery phrase) reach the UI, a log or an error message.
+3. **Never put secret values in list/display models, logs or error messages.** Plaintext may
+   reach an explicit reveal/edit/copy flow only after access checks; keep its lifetime and
+   scope minimal. Never include real secrets in tests, screenshots or reports.
 4. **No hardcoded user-facing text**: every label/tooltip/toast/dialog string goes through `heelonvault_core::tr!` / `tr_args` with a key in **both** `crates/heelonvault-core/locales/fr/main.ftl` and `locales/en/main.ftl` (enforced by `crates/heelonvault-core/tests/i18n_catalog.rs` and `crates/heelonvault-app/tests/i18n_usage.rs`). Any new static label must also be re-applied in the relevant `refresh_i18n` (live retranslation without restart; refreshers are collected in `I18nTargets::extra_refreshers`). Don't pass pre-rendered translated text around as data (the license badge is a `LicenseDisplay`, rendered at display time).
 5. No new dependency without prior agreement in an issue; never add permanent `cargo audit` / `cargo deny` ignore entries.
 6. **One version number** for the product, the `heelonvault-core` crate and `heelonvault-premium` (semver of the crate's public API): any API break = major release of the whole product. Prefer default trait methods, `#[non_exhaustive]`, deprecate-then-remove. Enforced by `crates/heelonvault-app/tests/release_consistency.rs` (which also requires the current version's section in **all four changelogs**: core `docs/CHANGELOG.md` + `docs/CHANGELOG.en.md`, premium `CHANGELOG.md` + `CHANGELOG.en.md`) and CI `cargo semver-checks`.
 7. **User-visible change → FR + EN changelog entry** plus the relevant guides (`docs/QUICKSTART*`, `USER_GUIDE*`, `UPDATE_GUIDE*`); follow the PR template checklist (`.github/pull_request_template.md`).
-8. Commits, PR titles, reviews and code comments in **English**, `<type>(<scope>): <summary>` (the PR title becomes the squash commit on `main`). Issues may be FR or EN. User-facing docs bilingual with the `Language: EN | [FR](…)` / `Langue : FR | [EN](…)` line; **no version numbers** in docs; `docs/internal/` is never published (the doc site only ships `docs/` minus `internal` + root READMEs).
+8. Commits, PR titles, reviews and code comments in **English**. Commit/PR titles use
+   `<type>(<scope>): <summary>` (the PR title becomes the squash commit on `main`).
+   Issues may be FR or EN. User-facing docs are bilingual; see Documentation layout below.
 9. Workflow: issue first → branch `<type>/<short-subject>` → PR to `main` (protected, **squash only**). **Merge the premium PR before the core PR**: core's CI checks out premium's `main` (`docs/internal/RELEASING.md`, step 6). External contributions are limited to `crates/heelonvault-core` and docs.
 10. Dependency change → regenerate `sbom.cyclonedx.json` (`./scripts/generate-sbom.sh`) and commit it.
+11. **Zero technical debt / zero security warnings**: no warning bypasses or permanent
+    advisory ignores. An approved temporary exception needs rationale, owner, due date and
+    a tracked blocking issue. Report output must remain deterministic and preserve its
+    cryptographic integrity markers (hash/signature).
 
 ## Security patch in progress (do not "clean up")
 
-- `[patch.crates-io]` pins `launchbadge/sqlx` at rev `10462fa4414c6c7f1ed1d39bb31678e3b726878c` (RUSTSEC-2026-0459, patched `libsqlite3-sys`) in **both repos**; `deny.toml` allows only that Git source, pinned by `rev`. Removal due no later than **2026-11-16** and before any crates.io publication (#75). `crates/heelonvault-core/tests/release_2_1_1_compatibility.rs` asserts the bundled SQLite is ≥ 3.54.0.
+- `[patch.crates-io]` pins `launchbadge/sqlx` at rev `10462fa4414c6c7f1ed1d39bb31678e3b726878c` (RUSTSEC-2026-0459, patched `libsqlite3-sys`) in **both repos**; `deny.toml` allows only that Git source, pinned by `rev`. Replace it with a published SQLx release accepting fixed SQLite **by 2026-11-16 or before crates.io publication, whichever comes first** (#75). Never simply delete the patch or restore vulnerable SQLite. If no fixed release exists by the deadline, keep publication blocked and report it; a passing publish dry-run does not clear this blocker. `crates/heelonvault-core/tests/release_2_1_1_compatibility.rs` asserts the bundled SQLite is ≥ 3.54.0.
 
 ## Security invariants (never break)
 
 - `SecretRowView` / `SecretRowData` never hold a secret value (only `has_secret` / `is_weak` / `is_duplicate`; fingerprints stay in the loader thread). Copying a password decrypts on demand (`PasswordCopier` in `secret_flow.rs`) and re-opens the vault so access is re-checked. Don't reintroduce plaintext into display data or closures.
-- Every clipboard copy of sensitive data goes through `sensitive_clipboard::copy_sensitive(text, SensitiveKind, delay)` and holds a `begin_decrypting()` guard. The exposure indicator must only claim what the app controls (never "no secret in memory").
+- Every clipboard copy of sensitive data goes through `sensitive_clipboard::copy_sensitive(text, SensitiveKind, delay)`. New on-demand decryption for a copy holds a `begin_decrypting()` guard. The exposure indicator must only claim what the app controls (never "no secret in memory").
 - Key model: a random account key wraps every vault key, stored encrypted under the master password **and** the recovery phrase (`services/account_key.rs`). `change_master_password` rewrites only the password envelope; legacy accounts are migrated in one transaction (`rekey_service.rs`).
 - `heelonvault-core` never initializes a `tracing` subscriber and never unwraps on sensitive paths — binary-only concerns.
 
@@ -110,4 +143,10 @@ Integration tests live under `crates/heelonvault-core/tests/` (plus repo-consist
 
 ## References
 
-`CONTRIBUTING.md`, `docs/ARCHITECTURE.md` / `docs/ARCHITECTURE.en.md`, `docs/internal/DEVELOPMENT(.fr).md`, `docs/internal/RELEASING(.en).md`, `docs/internal/MANUAL_QA.md`, `docs/internal/GTK_BACKEND_QUALIFICATION.md`, `.github/copilot-instructions.md`, `.github/pull_request_template.md`.
+- Contribution workflow: [CONTRIBUTING.md](CONTRIBUTING.md).
+- Architecture: [FR](docs/ARCHITECTURE.md) / [EN](docs/ARCHITECTURE.en.md).
+- Development: [EN](docs/internal/DEVELOPMENT.md) / [FR](docs/internal/DEVELOPMENT.fr.md).
+- Releases: [FR](docs/internal/RELEASING.md) / [EN](docs/internal/RELEASING.en.md).
+- Validation: [manual QA](docs/internal/MANUAL_QA.md), [GTK qualification](docs/internal/GTK_BACKEND_QUALIFICATION.md).
+- Automation: [CI](.github/workflows/ci.yml), [supply chain](.github/workflows/supply-chain.yml),
+  [PR template](.github/pull_request_template.md).
