@@ -4,7 +4,7 @@ on:
   push:
     tags:
       # Couvre les tags RC (vX.Y.Z-rc.N) et finaux (vX.Y.Z), même logique que
-      # les 3 workflows de packaging (linux/macos/windows).
+      # les workflows de packaging actifs (linux/windows ; macOS en pause).
       - "v*.*.*"
   workflow_dispatch:
     inputs:
@@ -86,7 +86,7 @@ jobs:
 
       # ── 5. Génère le SBOM (identique quelle que soit la plateforme de build
       #      grâce à --target all dans generate-sbom.sh — pas besoin de le
-      #      régénérer une fois par OS dans chacun des 3 workflows de
+      #      régénérer une fois par OS dans chacun des workflows de
       #      packaging) ──────────────────────────────────────────────────────
       - name: Generate SBOM
         run: ./scripts/generate-sbom.sh

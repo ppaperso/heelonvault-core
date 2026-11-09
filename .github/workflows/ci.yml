@@ -114,8 +114,11 @@ jobs:
             libgraphene-1.0-dev \
             libharfbuzz-dev \
             pkg-config \
-            xvfb \
-            xauth \
+            labwc \
+            wlr-randr \
+            wayland-utils \
+            dbus-daemon \
+            at-spi2-core \
             libsqlite3-dev
 
       - name: cargo clippy
@@ -143,13 +146,10 @@ jobs:
         if: matrix.suite == 'tests'
         run: cargo test --workspace --all-features --locked
 
-      - name: Native GTK smoke tests
+      - name: Native GTK certification (Wayland, fatal warnings)
         if: matrix.suite == 'tests'
-        env:
-          GSK_RENDERER: cairo
-          GDK_BACKEND: x11
         run: >-
-          dbus-run-session -- xvfb-run --auto-servernum
+          dbus-run-session -- bash scripts/run-wayland-tests.sh
           cargo test --locked --workspace --all-features
           native_ -- --ignored --nocapture
 

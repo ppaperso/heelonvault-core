@@ -6,7 +6,8 @@ Langue : FR | [EN](README.en.md)
 
 HeelonVault est un gestionnaire de secrets desktop **local-first** : mots de passe, clés API,
 clés SSH et documents sensibles sont chiffrés et stockés sur votre poste, sans serveur ni compte
-en ligne. Écrit en Rust, avec une interface GTK4 / libadwaita, pour Windows, macOS et Linux.
+en ligne. Écrit en Rust, avec une interface GTK4 / libadwaita, avec Linux comme plateforme
+prioritaire et Windows 11 comme seconde cible.
 
 > Distribué sous licence Apache 2.0. Voir [LICENSE](LICENSE) pour le logiciel et [LEGAL.md](docs/LEGAL.md) pour les conditions relatives à la marque et au Sceau d'Authenticité.
 
@@ -21,9 +22,17 @@ Téléchargez le paquet de votre système sur la page
 
 | Système | Paquet |
 | ------- | ------ |
-| Windows 10 / 11 (x64) | `heelonvault-windows-x86_64-vX.Y.Z.msi` |
-| macOS 13+ (Apple Silicon) | `heelonvault-macos-aarch64-vX.Y.Z.dmg` |
 | Linux (x86_64) | `heelonvault-linux-x86_64-vX.Y.Z.AppImage` |
+| Windows 11 (x64) | `heelonvault-windows-x86_64-vX.Y.Z.msi` |
+
+**Qualification graphique Linux : Wayland uniquement.** X11/XWayland ne sont pas
+certifiés ; ce périmètre sera réévalué avant la première diffusion externe.
+
+**macOS : développement et diffusion temporairement en pause.** Des problèmes de contrôles
+de fenêtres et de copie des secrets dans le presse-papiers empêchent de recommander les anciens
+DMG pour la production. Aucun nouveau DMG n'est construit ni publié par la CI/CD, même en
+lancement manuel. Le code est conservé ; la reprise sera réévaluée après validation de Linux
+et Windows 11 sur d'autres machines et en production, sans date annoncée.
 
 Vérification, installation pas à pas et premier lancement :
 [Installation et démarrage rapide](docs/QUICKSTART.fr.md).

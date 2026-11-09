@@ -43,8 +43,8 @@ Download and verify the new package as for a first install
 
 | System | Procedure |
 | ------ | --------- |
-| Windows | Run the new `.msi`. It replaces the installed version; no need to uninstall first. An `.msi` older than the installed version is refused. |
-| macOS | Drag the new application into **Applications** and choose **Replace**. Redo the Gatekeeper first-launch step. |
+| Windows 11 | Run the new `.msi`. It replaces the installed version; no need to uninstall first. An `.msi` older than the installed version is refused. |
+| macOS | Distribution temporarily paused: no new DMGs. Older packages are not recommended for production; see [macOS status](QUICKSTART.md#macos). |
 | Linux (AppImage) | Replace the old `.AppImage` file with the new one, then make it executable (`chmod +x`). |
 
 Replacing the application does not touch your data: it lives in a separate folder (see

@@ -7,6 +7,26 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased]
+
+### Sécurité et dépendances
+
+- Correction de l'avis RUSTSEC-2026-0459 (SQLite) : épinglage du commit SQLx officiel `10462fa4414c6c7f1ed1d39bb31678e3b726878c` (avec `libsqlite3-sys` corrigé) via `[patch.crates-io]`, dans ce dépôt et dans `heelonvault-premium`. `cargo-deny` n'autorise que cette source Git, et uniquement épinglée par `rev` ; `scripts/check-core-standalone.sh` propage le même patch au build autonome. Retrait au plus tard le 2026-11-16 et avant toute publication crates.io (#75). SBOM régénéré.
+- Nouveau test de compatibilité `crates/heelonvault-core/tests/release_2_1_1_compatibility.rs` : version SQLite embarquée ≥ 3.54.0, schéma historique figé par empreinte SHA-256, déchiffrement de vecteurs synthétiques fixes pour les quatre types de secrets, sauvegarde/restauration vers une base distincte. Les vecteurs ne sont jamais régénérés pour accompagner un changement de format.
+
+### Plateformes et qualification graphique
+
+- Périmètre de livraison : Linux en priorité, puis Windows 11. Développement et diffusion macOS en pause : `macos-dmg-rc.yml` n'a plus de déclencheur sur les tags et son job est désactivé (`if: ${{ false }}`), y compris en lancement manuel ; les anciens DMG ne sont pas recommandés en production. README, QUICKSTART, UPDATE_GUIDE et USER_GUIDE (FR et EN) mis à jour.
+- Certification graphique Linux : Wayland uniquement avec `G_DEBUG=fatal-warnings`, via le nouveau `scripts/run-wayland-tests.sh` (compositeur labwc headless, sortie 1920×1600, siège d'entrée). Xvfb/X11 retirés de la CI et du workflow de captures du guide ; X11 non certifié (#76). Audit détaillé : `docs/internal/GTK_BACKEND_QUALIFICATION.md`.
+
+### Corrections d'interface
+
+- Éditeur de secrets : pendant un enregistrement ou une suppression, le formulaire et les boutons restent désactivés jusqu'au résultat (garde RAII dans le nouveau module `operation.rs`) ; l'ouverture d'un autre éditeur pendant l'opération est refusée avec un message explicite. En cas d'échec, le formulaire est réactivé pour correction ou nouvel essai.
+- Badge PIN : le bouton PIN de l'en-tête et la section Profil & Sécurité (dont la coche du récapitul des protections) se mettent à jour ensemble, y compris à l'expiration du cache, via un canal unique `refresh_pin_state`.
+- Message de fermeture de fenêtre pendant une opération généralisé (« opération sur les données »), nouvelle chaîne traduite `add-edit-operation-in-progress` (FR/EN).
+
+---
+
 ## [2.1.1] — 2026-10-25
 
 ### Documentation utilisateur

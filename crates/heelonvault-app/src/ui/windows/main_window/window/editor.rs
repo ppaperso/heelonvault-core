@@ -27,6 +27,7 @@ pub struct EditorDeps<TSecret, TVault> {
     pub user_id: Uuid,
     pub session_master_key: Rc<RefCell<Vec<u8>>>,
     pub show_passwords_in_edit: Rc<Cell<bool>>,
+    pub critical_operations: Rc<Cell<u32>>,
     pub main_stack: gtk4::Stack,
     pub editor_host: gtk4::Box,
     pub toast_overlay: adw::ToastOverlay,
@@ -59,7 +60,14 @@ where
     TSecret: SecretService + Send + Sync + 'static,
     TVault: VaultService + Send + Sync + 'static,
 {
+    let operation_busy = Rc::new(Cell::new(false));
     Rc::new(move |mode| {
+        if operation_busy.get() {
+            deps.toast_overlay.add_toast(adw::Toast::new(
+                heelonvault_core::tr!("add-edit-operation-in-progress").as_str(),
+            ));
+            return;
+        }
         let Some(master_key) =
             super::super::MainWindow::snapshot_session_master_key(&deps.session_master_key)
         else {
@@ -87,6 +95,8 @@ where
             master_key,
             deps.show_passwords_in_edit.get(),
             mode,
+            Rc::clone(&operation_busy),
+            Rc::clone(&deps.critical_operations),
             move || {
                 stack_for_cancel.set_visible_child_name(return_page);
                 if return_page == "security_center_view" {

@@ -30,11 +30,37 @@ Pre-releases (`X.Y.Z-rc.N`) are tagged to build test packages; they are not publ
 
 ## Automated guardrails
 
+- **Compatibility baseline** — `cargo test --locked -p heelonvault-core --test release_2_1_1_compatibility --test recovery_phrase_compatibility`: historical schema pinned by digest, all four secret types decrypted from fixed synthetic vectors, and backup/restore into a separate database. Never regenerate vectors to accommodate a format change. Legacy document references remain paths, not imported files.
 - **CI — `cargo semver-checks -p heelonvault-core`**: compares the API with the latest version published on crates.io. Fails when the declared version does not cover the breaks.
 - **CI — `cargo publish --dry-run -p heelonvault-core`**: the crate must build on its own, with its crates.io dependencies, outside the workspace.
 - **Test `crates/heelonvault-app/tests/release_consistency.rs`**: core, app and premium carry the same version; premium depends on that core version; the four changelogs (core and premium, FR and EN) have a section for it.
 
 ## Release checklist
+
+**crates.io blocker — [#75](https://github.com/ppaperso/heelonvault-core/issues/75).**
+The RUSTSEC-2026-0459 remediation uses official SQLx commit
+`10462fa4414c6c7f1ed1d39bb31678e3b726878c` and fixed `libsqlite3-sys` in both repositories.
+Approved exception: owner @ppaperso, removal due no later than 16 November 2026,
+and before any crates.io publication. Replace the Git patches with a published SQLx release,
+remove the Git-source allowance and regenerate both lockfiles and the SBOM.
+Desktop package validation may continue; a Cargo dry run does not clear this blocker:
+workspace patches are not inherited by consumers of the published crate.
+
+**Linux graphical qualification: Wayland only — [#76](https://github.com/ppaperso/heelonvault-core/issues/76).**
+Wayland with `G_DEBUG=fatal-warnings` is the only blocking Linux graphical certification;
+Rust/security checks and Windows package QA remain mandatory.
+X11 is not certified — single-user Wayland scope — reassess at the first external deployment.
+The GTK 4.24.1/X11 GDK warnings remain documented; no filtering or weaker assertions
+are permitted. An upstream X11 fix is not required for the current scope.
+XWayland is the only potential future X11 compatibility target, not a certified platform.
+See the [backend audit](GTK_BACKEND_QUALIFICATION.md).
+
+**Current scope: Linux first and Windows 11.** macOS development and distribution are paused:
+`macos-dmg-rc.yml` no longer has a tag trigger and its job is disabled with `if: ${{ false }}`,
+including manual runs. Do not add DMGs to new releases. Historical artifacts are not removed,
+but are not recommended for production. Resumption will be reassessed after Linux/Windows 11
+validation and deployment on other machines. It requires fixing window controls and the
+clipboard, validating the DMG on a Mac, then explicitly restoring the job, trigger and documentation.
 
 1. **Versions** — in `crates/heelonvault-core/Cargo.toml`, `crates/heelonvault-app/Cargo.toml` and `heelonvault-premium/Cargo.toml` (`version` and `heelonvault-core = "X.Y"`).
 2. **Lockfiles** — `git diff Cargo.lock` (in both repositories) must only show the version lines of our crates. If Cargo also changed other dependencies, restore the file, edit those lines by hand, then check with `cargo check --workspace --locked`.
@@ -51,6 +77,6 @@ Pre-releases (`X.Y.Z-rc.N`) are tagged to build test packages; they are not publ
    ```
 6. **Merge premium first.** Core's CI checks out premium's `main` branch: as long as it requires the previous core version, the core PR does not compile. Merge the premium PR, re-run the core PR's CI, then merge it.
 7. **Publish the crate** from an up-to-date `main`: `cargo publish -p heelonvault-core`. Publishing is permanent (a version can only be withdrawn with `cargo yank`, never deleted).
-8. **Tag** core's merge commit: `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag triggers the AppImage, DMG, MSI and SBOM workflows, which create the GitHub release.
+8. **Tag** core's merge commit: `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag triggers the AppImage, MSI and SBOM workflows, which create the GitHub release; the DMG workflow remains paused.
 9. **Check** the GitHub release (artifacts and SHA-256 sums), the crates.io page and the documentation on [docs.rs](https://docs.rs/heelonvault-core).
 10. **Documentation site** — [doc.heelonvault.heelonys.fr](https://doc.heelonvault.heelonys.fr) re-syncs daily from the latest release (`Heelonys_webdoc` repository, `sync-docs` workflow). Run that workflow manually to publish right away. Only `docs/` (minus `docs/internal/`) and the root `README`, `SECURITY`, `CONTRIBUTING`, `CODE_OF_CONDUCT` files are published.

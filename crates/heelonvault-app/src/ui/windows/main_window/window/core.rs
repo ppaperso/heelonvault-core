@@ -251,6 +251,7 @@ where
         user_id: admin_user_id,
         session_master_key: Rc::clone(&session_master_key),
         show_passwords_in_edit: Rc::clone(&show_passwords_in_edit),
+        critical_operations: Rc::clone(&critical_ops_in_flight),
         main_stack: center_panel.main_stack.clone(),
         editor_host: editor_host.clone(),
         toast_overlay: toast_overlay.clone(),
@@ -302,12 +303,16 @@ where
         login_history_list,
     );
 
-    let on_pin_state_changed = pin_badge::build_pin_state_callback(
-        header_pin_label.clone(),
-        header_pin_btn.clone(),
-        Rc::clone(&pin_cache),
-    );
-    *on_pin_state_cb.borrow_mut() = Some(Rc::clone(&on_pin_state_changed));
+    let on_pin_state_changed: Rc<dyn Fn(bool)> = {
+        let callback = Rc::downgrade(&on_pin_state_cb);
+        Rc::new(move |active| {
+            if let Some(callback) = callback.upgrade()
+                && let Some(refresh) = callback.borrow().as_ref()
+            {
+                refresh(active);
+            }
+        })
+    };
 
     events::setup_pin_badge_handler(
         &header_pin_btn,
@@ -494,7 +499,7 @@ where
         })
     };
 
-    let profile_container = navigation::setup_profile_page(
+    let profile_view = navigation::setup_profile_page(
         navigation::ProfilePageDeps {
             window: window.clone(),
             runtime_handle: runtime_handle.clone(),
@@ -530,6 +535,21 @@ where
         build_stack_switch(&center_panel.main_stack, "teams_view"),
     );
 
+    let refresh_pin_state = pin_badge::build_pin_state_callback(
+        header_pin_label,
+        header_pin_btn.clone(),
+        Rc::clone(&pin_cache),
+        profile_view.refresh_pin_state,
+    );
+    *on_pin_state_cb.borrow_mut() = Some(Rc::clone(&refresh_pin_state));
+    let pin_refresh_i18n: Rc<dyn Fn()> = {
+        let cache = Rc::clone(&pin_cache);
+        Rc::new(move || {
+            let active = cache.borrow().is_some();
+            refresh_pin_state(active);
+        })
+    };
+
     // ── 6. Live translation ───────────────────────────────────────────────────
     let updates = crate::ui::updates::build_banner();
     let refresh_i18n = i18n_refresh::build_refresh(
@@ -545,9 +565,10 @@ where
             panic_label,
             help_button: help_button.clone(),
             clipboard_indicator: clipboard_indicator.clone(),
-            profile_container,
+            profile_container: profile_view.container,
             editor_host,
             extra_refreshers: std::iter::once(header_license_refresh)
+                .chain(std::iter::once(pin_refresh_i18n))
                 .chain(certification_refresh)
                 .chain(std::iter::once(security.refresh_i18n))
                 .chain(std::iter::once(updates.refresh_i18n))

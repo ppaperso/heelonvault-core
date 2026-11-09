@@ -4,6 +4,8 @@ Langue : FR | [EN](USER_GUIDE.en.md)
 
 HeelonVault conserve vos secrets dans une base locale. Ce guide suit les tâches du quotidien ; les actions visibles dépendent de votre rôle, des droits sur le coffre et de l'édition activée.
 
+**Linux est la plateforme prioritaire, suivie de Windows 11.** Le développement et la diffusion macOS sont temporairement en pause en raison de problèmes de contrôles de fenêtres et de presse-papiers. Aucun nouveau DMG n'est publié ; les anciens ne sont pas recommandés en production. Voir le [statut des plateformes](QUICKSTART.fr.md).
+
 Les captures montrent les **vrais composants de production sous Linux**, montés dans des scénarios de test avec une base de démonstration et des données fictives, pas dans une session utilisateur réelle. Les vues de coffre et d'édition illustrent leurs composants, sans reproduire nécessairement toute la fenêtre ni tous les éléments de son en-tête. L'apparence, les sélecteurs de fichiers et certaines intégrations peuvent différer sous Windows et macOS : ces captures ne constituent pas une validation sur ces plateformes.
 
 ## Démarrer
@@ -59,6 +61,10 @@ Les modes **cartes** et **liste** affichent les mêmes secrets et conservent la 
 ### Consulter, copier et modifier
 
 Ouvrez une entrée pour la modifier. Utilisez les actions de copie plutôt que d'afficher durablement une valeur sensible. La copie d'un mot de passe le déchiffre à la demande et revérifie l'accès au coffre.
+
+Pendant un enregistrement ou une suppression, l'éditeur reste désactivé jusqu'au résultat.
+Attendez la fin avant d'ouvrir un autre éditeur ou de fermer la fenêtre. En cas d'échec,
+le formulaire reste disponible pour corriger les informations ou réessayer.
 
 L'indicateur du presse-papiers signale les copies suivies par HeelonVault et leur délai d'effacement ; cliquez dessus pour effacer immédiatement. Il ne garantit ni l'absence de secrets ailleurs en mémoire, ni l'effacement des historiques de presse-papiers ou des copies déjà effectuées par d'autres applications.
 
@@ -121,6 +127,7 @@ Pour changer le mot de passe maître, saisissez le mot de passe actuel, le nouve
 
 - Choisissez un verrouillage automatique après **1, 5 ou 30 minutes** d'inactivité. **Jamais** le désactive après avertissement ; évitez ce réglage sur un poste laissé sans surveillance.
 - Configurez un **PIN de 4 à 8 chiffres**, confirmé deux fois, pour le déverrouillage rapide.
+- Le bouton PIN en haut à droite et la section **Profil & Sécurité** permettent tous deux de le configurer ou de le désactiver. Leur statut et la coche PIN du récapitulatif des protections se mettent à jour ensemble, y compris à l'expiration du cache.
 - Le PIN protège un cache de clé **uniquement en mémoire**, jamais enregistré sur disque. Il ne remplace pas le mot de passe maître pour un nouveau démarrage.
 - Le cache expire au plus tard **12 heures après sa création** ; les déverrouillages ne prolongent pas ce délai. Après **3 erreurs**, il est supprimé et la connexion complète est requise.
 - Avec un cache valide, le verrouillage automatique et l'action de déconnexion peuvent afficher l'écran PIN. Pour revenir à la connexion complète, choisissez **Utiliser le mot de passe maître** sur cet écran ; pour quitter, utilisez l'action de fermeture de l'application.

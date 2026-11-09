@@ -27,13 +27,14 @@ The native GTK smoke test uses synthetic display data, not a real account/databa
 It exercises card filtering and cleanup and can render previews without desktop capture:
 
 ```bash
-GSK_RENDERER=cairo cargo test -p heelonvault-app --bin heelonvault \
-  native_security_center_smoke -- --ignored --nocapture
+dbus-run-session -- bash scripts/run-wayland-tests.sh \
+  cargo test --locked -p heelonvault-app --bin heelonvault \
+  native_gtk_smoke -- --ignored --nocapture
 ```
 
 Set `HEELONVAULT_UI_SNAPSHOT_DIR` to an existing directory to save wide/compact PNGs.
 This test requires a graphical display and is explicitly selected rather than included
-in headless unit-test runs. Linux CI runs it separately under Xvfb. Automated
+in headless unit-test runs. Linux CI runs it separately under strict headless Wayland. Automated
 diagnostics/network tests do not require a display.
 
 ## Privacy decisions
@@ -123,7 +124,7 @@ UI-only `LicenseDisplay` module. The gate was removed; premium-specific internal
 their own gates, and both assemblies pass strict Clippy.
 
 Linux CI now checks Community compilation, formatting of the new crate and the native
-smoke test under Xvfb. These edited workflows have not run remotely yet. Merge Premium's
+smoke test under headless Wayland. These edited workflows have not run remotely yet. Merge Premium's
 version/lock alignment before running Core CI against Premium `main`, as required by the
 existing sibling-checkout release process. No commit, PR, tag or publication is part of
 this local implementation step.

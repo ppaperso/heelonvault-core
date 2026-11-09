@@ -31,14 +31,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             libgtk-4-dev libadwaita-1-dev libsqlite3-dev pkg-config \
-            xvfb xauth dbus-x11 fonts-dejavu-core jq
+            labwc wlr-randr wayland-utils dbus-daemon at-spi2-core fonts-dejavu-core jq
       - name: Generate isolated bilingual captures
         working-directory: heelonvault-core
-        env:
-          GDK_BACKEND: x11
         run: |
           set -euo pipefail
-          dbus-run-session -- xvfb-run --auto-servernum --server-args="-screen 0 1920x1600x24" \
+          dbus-run-session -- bash scripts/run-wayland-tests.sh \
             bash scripts/generate-user-guide-screenshots.sh
           bash scripts/check-user-guide-assets.sh --release
       - name: Publish images for human review

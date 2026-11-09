@@ -7,6 +7,26 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased]
+
+### Security and dependencies
+
+- RUSTSEC-2026-0459 (SQLite) remediation: the official SQLx commit `10462fa4414c6c7f1ed1d39bb31678e3b726878c` (with a patched `libsqlite3-sys`) is pinned via `[patch.crates-io]`, in this repository and in `heelonvault-premium`. `cargo-deny` allows only that Git source, and only pinned by `rev`; `scripts/check-core-standalone.sh` propagates the same patch to the standalone build. Removal due no later than 2026-11-16 and before any crates.io publication (#75). SBOM regenerated.
+- New compatibility test `crates/heelonvault-core/tests/release_2_1_1_compatibility.rs`: bundled SQLite version ≥ 3.54.0, historical schema pinned by SHA-256 digest, fixed synthetic ciphertext vectors decrypted for all four secret types, backup/restore into a separate database. Vectors are never regenerated to accommodate a format change.
+
+### Platforms and graphical qualification
+
+- Delivery scope: Linux first, then Windows 11. macOS development and distribution are paused: `macos-dmg-rc.yml` no longer has a tag trigger and its job is disabled (`if: ${{ false }}`), including manual runs; older DMGs are not recommended for production. README, QUICKSTART, UPDATE_GUIDE and USER_GUIDE (FR and EN) updated.
+- Linux graphical certification: Wayland only with `G_DEBUG=fatal-warnings`, through the new `scripts/run-wayland-tests.sh` (headless labwc compositor, 1920×1600 output, input seat). Xvfb/X11 removed from CI and from the guide-screenshot workflow; X11 is not certified (#76). Detailed audit: `docs/internal/GTK_BACKEND_QUALIFICATION.md`.
+
+### Interface fixes
+
+- Secret editor: while saving or deleting, the form and buttons stay disabled until the result arrives (RAII guard in the new `operation.rs` module); opening another editor during the operation is explicitly refused. On failure, the form is re-enabled to correct or retry.
+- PIN badge: the header PIN button and the Profile & Security section (including the protection-summary checkmark) now update together, including on cache expiry, through a single `refresh_pin_state` channel.
+- Window-close busy message generalized ("a data operation is in progress"), new translated string `add-edit-operation-in-progress` (FR/EN).
+
+---
+
 ## [2.1.1] — 2026-10-25
 
 ### User documentation

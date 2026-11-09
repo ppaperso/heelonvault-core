@@ -12,6 +12,12 @@ resolver = "2"
 # sur la copie locale du workspace, pour éviter la duplication de traits.
 heelonvault-core = { path = "crates/heelonvault-core" }
 
+# SQLite advisory remediation pending a published SQLx release.
+# Owner: @ppaperso; remove by 2026-11-16 and before crates.io publication; #75.
+sqlx = { git = "https://github.com/launchbadge/sqlx", rev = "10462fa4414c6c7f1ed1d39bb31678e3b726878c" }
+sqlx-core = { git = "https://github.com/launchbadge/sqlx", rev = "10462fa4414c6c7f1ed1d39bb31678e3b726878c" }
+sqlx-sqlite = { git = "https://github.com/launchbadge/sqlx", rev = "10462fa4414c6c7f1ed1d39bb31678e3b726878c" }
+
 # Patch pour heelonvault-premium (dépôt local adjacent)
 # Permet de builder le workspace sans avoir à cloner le repo premium séparément
 # si on utilise --no-default-features (mode community)

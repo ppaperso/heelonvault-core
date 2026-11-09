@@ -5,6 +5,12 @@ Language: EN | [FR](QUICKSTART.fr.md)
 This guide covers installing HeelonVault on your computer and the first launch, up to your
 first saved secret. Allow about ten minutes.
 
+**Current platforms: Linux first, then Windows 11.** macOS development and distribution are
+temporarily paused because of known window-control and secret clipboard-copy issues. No new
+DMGs are built or published, including through manual CI/CD runs; existing DMGs are not
+recommended for production. Resumption will be reassessed after Linux and Windows 11 have
+been validated on other machines and in production, with no announced date.
+
 ## 1. Download
 
 Packages are published on the
@@ -13,9 +19,8 @@ file for your system:
 
 | System | File | Requirements |
 | ------ | ---- | ------------ |
-| Windows | `heelonvault-windows-x86_64-vX.Y.Z.msi` | Windows 10 or 11, 64-bit, administrator rights to install |
-| macOS | `heelonvault-macos-aarch64-vX.Y.Z.dmg` | macOS 13 Ventura or later, Apple Silicon Mac (M1 and later) |
-| Linux | `heelonvault-linux-x86_64-vX.Y.Z.AppImage` | Recent 64-bit distribution (x86_64) |
+| Linux | `heelonvault-linux-x86_64-vX.Y.Z.AppImage` | Recent 64-bit distribution (x86_64), Wayland session; X11/XWayland not certified |
+| Windows 11 | `heelonvault-windows-x86_64-vX.Y.Z.msi` | 64-bit, administrator rights to install |
 
 Also download the matching `.sha256` file: it lets you check that the package was not tampered
 with.
@@ -25,12 +30,11 @@ with.
 Put the package and its `.sha256` file in the same folder, then:
 
 - **Linux**: `sha256sum -c heelonvault-linux-x86_64-vX.Y.Z.AppImage.sha256`
-- **macOS**: `shasum -a 256 -c heelonvault-macos-aarch64-vX.Y.Z.dmg.sha256`
 - **Windows** (PowerShell): compare the value printed by
   `Get-FileHash .\heelonvault-windows-x86_64-vX.Y.Z.msi -Algorithm SHA256`
   with the content of the `.sha256` file.
 
-The command must answer `OK` (Linux, macOS) or print the same hash (Windows). If it does not,
+The command must answer `OK` (Linux) or print the same hash (Windows). If it does not,
 do not run the package and download it again.
 
 ## 3. Install
@@ -47,15 +51,8 @@ do not run the package and download it again.
 
 ### macOS
 
-1. Open the `.dmg` file and drag **HeelonVault** into the **Applications** folder.
-2. The application is not signed with an Apple developer account, so Gatekeeper blocks it on
-   first launch:
-   - **macOS 13 and 14**: right-click (or Control-click) HeelonVault in Applications, choose
-     **Open**, then confirm **Open**;
-   - **macOS 15 and later**: launch the application once, dismiss the warning, then open
-     **System Settings > Privacy & Security** and click **Open Anyway** next to HeelonVault.
-
-   You only need to do this once. Terminal alternative: `xattr -cr /Applications/HeelonVault.app`.
+Installation is not offered during the pause. The macOS paths below are retained only for
+users of older packages; they do not constitute platform validation.
 
 ### Linux (AppImage)
 

@@ -343,6 +343,7 @@ pub(crate) fn native_theme_scenario(
     copy.unset_state_flags(StateFlags::FOCUS_VISIBLE);
     remove.unset_state_flags(StateFlags::PRELIGHT);
     popover.popdown();
+    settle();
     let dropdown_button = dropdown
         .first_child()
         .and_downcast::<gtk4::ToggleButton>()
@@ -353,12 +354,23 @@ pub(crate) fn native_theme_scenario(
     dropdown.set_selected(1);
     assert_eq!(dropdown.selected(), 1);
     dropdown_button.set_active(false);
+    settle();
     // Use logical sizes: GTK, not application code, converts these to physical pixels.
     window.set_default_size(560, 560);
     settle();
+    // The compositor may acknowledge a resize after several frames.
+    let resize_deadline = Instant::now() + Duration::from_secs(5);
+    while window.width() > 560 && Instant::now() < resize_deadline {
+        settle();
+    }
     assert!(
         window.width() <= 560,
-        "compact window unexpectedly forced wider"
+        "compact window unexpectedly forced wider: width={}, minimum={:?}, default={:?}, maximized={}, fullscreen={}",
+        window.width(),
+        window.measure(Orientation::Horizontal, -1),
+        window.default_size(),
+        window.is_maximized(),
+        window.is_fullscreen()
     );
     for button in [&primary, &secondary, &destructive, &utility] {
         let bounds = button

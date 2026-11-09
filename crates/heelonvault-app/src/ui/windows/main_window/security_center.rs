@@ -1269,6 +1269,8 @@ pub(super) mod tests {
                     vec![1; 32],
                     false,
                     DialogMode::Create,
+                    Rc::new(Cell::new(false)),
+                    Rc::new(Cell::new(0)),
                     || {},
                     |_| {},
                     |_| {},

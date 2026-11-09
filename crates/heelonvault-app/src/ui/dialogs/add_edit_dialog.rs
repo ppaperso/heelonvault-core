@@ -23,6 +23,11 @@ use heelonvault_core::services::password_service::{PasswordService, PasswordServ
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
 
+mod operation;
+
+#[cfg(test)]
+pub(crate) use operation::native_operation_scenario;
+
 #[cfg(test)]
 pub(crate) fn native_password_hint_scenario() {
     fn has_hint(widget: &gtk4::Widget) -> bool {
@@ -92,6 +97,8 @@ impl AddEditDialog {
         admin_master_key: Vec<u8>,
         show_passwords_in_edit: bool,
         mode: DialogMode,
+        operation_busy: Rc<std::cell::Cell<bool>>,
+        critical_operations: Rc<std::cell::Cell<u32>>,
         on_cancel: impl Fn() + 'static,
         on_saved: impl Fn(String) + 'static,
         on_deleted: impl Fn(String) + 'static,

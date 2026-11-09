@@ -380,14 +380,20 @@
         delete_button.set_child(Some(&delete_content));
         delete_button.set_visible(matches!(mode, DialogMode::Edit(_)));
 
-        {
+        let refresh_save: Rc<dyn Fn()> = {
             let strength = password_strength_bar.clone();
-            let dropdown = type_dropdown.clone();
-            let btn = save_button.clone();
-            let password_for_check = password_entry.clone();
+            let dropdown = type_dropdown.downgrade();
+            let btn = save_button.downgrade();
+            let password_for_check = password_entry.downgrade();
+            let busy = Rc::clone(&operation_busy);
             let initial_password_snapshot_for_check = Rc::clone(&initial_password_snapshot);
             let is_edit_mode = matches!(mode, DialogMode::Edit(_));
             let check: Rc<dyn Fn()> = Rc::new(move || {
+                let (Some(dropdown), Some(btn), Some(password_for_check)) =
+                    (dropdown.upgrade(), btn.upgrade(), password_for_check.upgrade())
+                else {
+                    return;
+                };
                 let selected_type = SecretType::from_dropdown_index(dropdown.selected());
                 let is_password_type = matches!(selected_type, Some(SecretType::Password));
                 let password_text = password_for_check.text();
@@ -420,14 +426,23 @@
                         // Not password type: always allow
                         true
                     };
-                btn.set_sensitive(can_save);
+                btn.set_sensitive(!busy.get() && can_save);
             });
             check();
             let c = Rc::clone(&check);
             password_entry.connect_text_notify(move |_| c());
             let c = Rc::clone(&check);
             type_dropdown.connect_selected_notify(move |_| c());
-        }
+            check
+        };
+        let operation = operation::EditOperation::new(
+            operation_busy,
+            critical_operations,
+            &container,
+            &delete_button,
+            &save_spinner,
+            refresh_save,
+        );
 
         let title_for_save = title_entry.clone();
         let category_for_save = category_entry.clone();
@@ -448,9 +463,7 @@
         let secure_doc_for_save = secure_doc_path_entry.clone();
         let secure_doc_mime_for_save = secure_doc_mime_entry.clone();
         let error_for_save = error_label.clone();
-        let spinner_for_save = save_spinner.clone();
-        let save_btn_for_save = save_button.clone();
-        let delete_btn_for_save_path = delete_button.clone();
+        let operation_for_save = operation.clone();
         let secret_for_save = Arc::clone(&secret_service);
         let vault_for_save = Arc::clone(&vault_service);
         let runtime_for_save = runtime_handle.clone();
@@ -461,6 +474,9 @@
         let initial_password_snapshot_for_save = Rc::clone(&initial_password_snapshot);
         let selected_target_vault_for_save = Rc::clone(&target_vault_id_state);
         save_button.connect_clicked(move |_| {
+            if operation_for_save.busy.get() {
+                return;
+            }
             error_for_save.set_visible(false);
             error_for_save.set_text("");
 
@@ -582,10 +598,9 @@
                 return;
             }
 
-            save_btn_for_save.set_sensitive(false);
-            delete_btn_for_save_path.set_sensitive(false);
-            save_spinner.set_visible(true);
-            save_spinner.set_spinning(true);
+            let Some(pending) = operation_for_save.begin() else {
+                return;
+            };
 
             let (sender, receiver) = tokio::sync::oneshot::channel();
             let secret_service_for_task = Arc::clone(&secret_for_save);
@@ -753,18 +768,10 @@
             });
 
             let error_for_result = error_for_save.clone();
-            let save_btn_for_result = save_btn_for_save.clone();
-            let delete_btn_for_result = delete_btn_for_save_path.clone();
-            let spinner_for_result = spinner_for_save.clone();
             let on_saved_for_result = Rc::clone(&on_saved_for_save);
             let on_cancel_for_result = Rc::clone(&on_cancel_for_save);
             glib::MainContext::default().spawn_local(async move {
-                save_btn_for_result.set_sensitive(true);
-                delete_btn_for_result.set_sensitive(true);
-                spinner_for_result.set_visible(false);
-                spinner_for_result.set_spinning(false);
-
-                match receiver.await {
+                match pending.wait(receiver).await {
                     Ok(Ok(_)) => {
                         on_saved_for_result(title_for_result);
                         on_cancel_for_result();
@@ -786,8 +793,7 @@
         });
 
         if let DialogMode::Edit(secret_id_for_delete) = mode {
-            let delete_btn_for_delete = delete_button.clone();
-            let save_btn_for_delete = save_button.clone();
+            let operation_for_delete = operation;
             let error_for_delete = error_label.clone();
             let secret_for_delete = Arc::clone(&secret_service);
             let runtime_for_delete = runtime_handle.clone();
@@ -796,10 +802,11 @@
             let on_cancel_for_delete = Rc::clone(&on_cancel);
 
             delete_button.connect_clicked(move |_| {
+                let Some(pending) = operation_for_delete.begin() else {
+                    return;
+                };
                 error_for_delete.set_visible(false);
                 error_for_delete.set_text("");
-                delete_btn_for_delete.set_sensitive(false);
-                save_btn_for_delete.set_sensitive(false);
 
                 let secret_service_for_task = Arc::clone(&secret_for_delete);
                 let runtime_for_task = runtime_for_delete.clone();
@@ -811,21 +818,25 @@
                     let _ = sender.send(result);
                 });
 
-                let delete_btn_for_result = delete_btn_for_delete.clone();
-                let save_btn_for_result = save_btn_for_delete.clone();
                 let error_for_result = error_for_delete.clone();
                 let on_deleted_for_result = Rc::clone(&on_deleted_for_delete);
                 let on_cancel_for_result = Rc::clone(&on_cancel_for_delete);
                 let title_for_result = title_for_delete.text().trim().to_string();
                 glib::MainContext::default().spawn_local(async move {
-                    match receiver.await {
+                    match pending.wait(receiver).await {
                         Ok(Ok(())) => {
                             on_deleted_for_result(title_for_result);
                             on_cancel_for_result();
                         }
-                        Ok(Err(_)) | Err(_) => {
-                            delete_btn_for_result.set_sensitive(true);
-                            save_btn_for_result.set_sensitive(true);
+                        Ok(Err(error)) => {
+                            error!(error = %error, "secret deletion failed");
+                            error_for_result.set_text(
+                                heelonvault_core::tr!("add-edit-error-save-failed").as_str(),
+                            );
+                            error_for_result.set_visible(true);
+                        }
+                        Err(_) => {
+                            error!("secret deletion task ended without reporting a result");
                             error_for_result.set_text(
                                 heelonvault_core::tr!("add-edit-error-save-failed").as_str(),
                             );

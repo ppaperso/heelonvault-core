@@ -24,15 +24,16 @@ bash scripts/generate-user-guide-screenshots.sh
 bash scripts/check-user-guide-assets.sh
 ```
 
-Use a display at least 1600 by 1500 pixels, or run in Xvfb:
+Use a Wayland display at least 1600 by 1500 pixels, or the isolated headless runner
+(requires `labwc`, `wlr-randr`, `wayland-utils`, `dbus-daemon` and `at-spi2-core`):
 
 ```sh
-dbus-run-session -- xvfb-run --auto-servernum \
-  --server-args="-screen 0 1920x1600x24" \
+dbus-run-session -- bash scripts/run-wayland-tests.sh \
   bash scripts/generate-user-guide-screenshots.sh
 ```
 
-The manual `user-guide-screenshots` workflow uses Ubuntu 24.04 with Xvfb.
+The manual `user-guide-screenshots` workflow uses Ubuntu 24.04 with headless Wayland,
+fatal warnings and the simple input module. It no longer depends on Xvfb/X11.
 It uploads only images and their manifest for review, never build directories,
 private sources or a database. It does not commit, merge or publish anything.
 Download and inspect the artifact before replacing committed images. This

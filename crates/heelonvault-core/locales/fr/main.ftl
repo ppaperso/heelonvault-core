@@ -778,7 +778,8 @@ login-error-generic = Erreur : { $error }
 
 ## Rapports d'audit signés et fermeture de la fenêtre
 main-close-busy-title = Opération en cours
-main-close-busy-body = Une opération d'import ou d'export est en cours. Attendez la fin avant de fermer la fenêtre.
+main-close-busy-body = Une opération sur les données est en cours. Attendez la fin avant de fermer la fenêtre.
+add-edit-operation-in-progress = Attendez la fin de l'opération en cours avant d'ouvrir un autre éditeur.
 certification-menu-label = Certifier & Exporter
 certification-menu-license-required = Certifier & Exporter (licence Pro requise)
 certification-report-24h = Rapport 24 h

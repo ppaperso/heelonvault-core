@@ -4,6 +4,8 @@ Language: EN | [FR](USER_GUIDE.md)
 
 HeelonVault keeps your secrets in a local database. This guide follows everyday tasks; visible actions depend on your account role, vault permissions and activated edition.
 
+**Linux is the primary platform, followed by Windows 11.** macOS development and distribution are temporarily paused because of window-control and clipboard issues. No new DMGs are published; older ones are not recommended for production. See [platform status](QUICKSTART.md).
+
 Screenshots show **real production components on Linux**, assembled in test scenarios with a demonstration database and fictitious data, not in a real user session. Vault and editor views illustrate their components without necessarily reproducing the entire window or every header element. Appearance, file pickers and some integrations may differ on Windows and macOS: these screenshots are not validation on those platforms.
 
 ## Get started
@@ -59,6 +61,10 @@ For subsequent sign-ins, enter your username and master password. If two-factor 
 ### View, copy and edit
 
 Open an entry to edit it. Prefer copy actions to leaving a sensitive value visible. Copying a password decrypts it on demand and rechecks access to the vault.
+
+While saving or deleting, the editor stays disabled until the result arrives.
+Wait for completion before opening another editor or closing the window. If the operation
+fails, the form remains available to correct the information or retry.
 
 The clipboard indicator reports copies tracked by HeelonVault and their clearing countdown; click it to clear immediately. It does not guarantee the absence of secrets elsewhere in memory or the removal of clipboard history and copies already made by other applications.
 
@@ -121,6 +127,7 @@ To change the master password, enter your current password, the new one and its 
 
 - Choose automatic locking after **1, 5 or 30 minutes** of inactivity. **Never** disables it after a warning; avoid this setting on a computer left unattended.
 - Configure and confirm a **4–8 digit PIN** for quick unlock.
+- Both the PIN button at the top right and **Profile & Security** let you configure or disable it. Their status and the PIN checkmark in the protection summary update together, including when the cache expires.
 - The PIN protects a key cache **only in memory**, never saved to disk. It does not replace the master password after starting the application again.
 - The cache expires no later than **12 hours after creation**; unlocking does not extend that deadline. After **3 wrong attempts**, the cache is deleted and a full sign-in is required.
 - With a valid cache, automatic locking and the sign-out action can display the PIN screen. To return to full sign-in, choose **Use master password** there; to exit, use the quit-application action.

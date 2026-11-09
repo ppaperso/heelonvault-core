@@ -1,12 +1,8 @@
-name: macos-dmg-rc
+name: macos-dmg-rc (paused)
 
+# Distribution is paused: window controls and sensitive clipboard need native validation.
+# Resume only after Linux/Windows 11 deployment is validated; see docs/internal/RELEASING.md.
 on:
-  push:
-    tags:
-      # Couvre les tags RC (vX.Y.Z-rc.N) et finaux (vX.Y.Z) — le statut
-      # prerelease de la Release GitHub est déterminé par le format exact,
-      # voir l'étape "Validate tag format before publish".
-      - "v*.*.*"
   workflow_dispatch:
     inputs:
       rc_tag:
@@ -31,6 +27,7 @@ env:
 
 jobs:
   package-macos-dmg:
+    if: ${{ false }}
     runs-on: macos-14  # Apple Silicon M1 — macOS 14 Sonoma
     permissions:
       contents: write

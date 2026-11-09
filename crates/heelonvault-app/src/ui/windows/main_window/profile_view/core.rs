@@ -99,7 +99,13 @@ where
     content.append(&identity_section.frame);
 
     let password_section = sections::password::build();
-    let security_section = sections::security_prefs::build(pin_cache.borrow().is_some());
+    let pin_active = Rc::new(Cell::new(pin_cache.borrow().as_ref().is_some_and(
+        |cache| {
+            !cache.is_exhausted()
+                && !cache.is_expired(crate::ui::dialogs::pin_unlock_dialog::PIN_HARD_TIMEOUT)
+        },
+    )));
+    let security_section = sections::security_prefs::build(pin_active.get());
     let twofa_section = sections::twofa::build();
     let protection_group = adw::PreferencesGroup::new();
     protection_group.add_css_class("profile-group");
@@ -137,6 +143,7 @@ where
     let security_section_for_i18n = security_section.clone();
     let twofa_section_for_i18n = twofa_section.clone();
     let preferences_section_for_i18n = preferences_section.clone();
+    let pin_active_for_i18n = Rc::clone(&pin_active);
 
     let on_language_changed_for_i18n = Rc::clone(&on_language_changed);
     let apply_profile_i18n: Rc<dyn Fn()> = Rc::new(move || {
@@ -149,6 +156,7 @@ where
         identity_section_for_i18n.refresh_i18n();
         password_section_for_i18n.refresh_i18n();
         security_section_for_i18n.refresh_i18n();
+        security_section_for_i18n.set_pin_active(pin_active_for_i18n.get());
         twofa_section_for_i18n.refresh_i18n();
         preferences_section_for_i18n.refresh_i18n();
         data_section_for_i18n.refresh_i18n();
@@ -164,12 +172,12 @@ where
     let refresh_protection: Rc<dyn Fn()> = {
         let summary = summary_section.clone();
         let twofa_stack = twofa_section.stack.clone();
-        let pin_cache = Rc::clone(&pin_cache);
+        let pin_active = Rc::clone(&pin_active);
         let security = security_section.clone();
         Rc::new(move || {
             summary.set_protection([
                 twofa_stack.visible_child_name().as_deref() == Some("enabled"),
-                pin_cache.borrow().is_some(),
+                pin_active.get(),
                 security.auto_lock_enabled(),
             ]);
         })
@@ -179,12 +187,17 @@ where
         twofa_section
             .stack
             .connect_visible_child_name_notify(move |_| refresh());
-        let refresh = Rc::clone(&refresh_protection);
-        security_section
-            .pin_status_badge
-            .connect_label_notify(move |_| refresh());
     }
     refresh_protection();
+    let refresh_pin_state: Rc<dyn Fn(bool)> = {
+        let security = security_section.clone();
+        let refresh = Rc::clone(&refresh_protection);
+        Rc::new(move |active| {
+            pin_active.set(active);
+            security.set_pin_active(active);
+            refresh();
+        })
+    };
 
     let begin_critical_operation: Rc<dyn Fn()> = {
         let counter = Rc::clone(&critical_ops_in_flight);
@@ -574,7 +587,6 @@ where
     let win_for_pin = window.clone();
     let session_for_pin = Rc::clone(&session_master_key);
     let pin_cache_for_setup = Rc::clone(&pin_cache);
-    let pin_status_badge_for_setup = security_section.pin_status_badge.clone();
     let on_pin_state_for_setup = Rc::clone(&on_pin_state_changed);
     security_section.pin_setup_button.connect_clicked(move |_| {
         let key_snapshot = {
@@ -586,10 +598,8 @@ where
         };
         let currently_active = pin_cache_for_setup.borrow().is_some();
         let pin_cache_for_created = Rc::clone(&pin_cache_for_setup);
-        let badge_for_created = pin_status_badge_for_setup.clone();
         let on_pin_state_for_created = Rc::clone(&on_pin_state_for_setup);
         let pin_cache_for_disabled = Rc::clone(&pin_cache_for_setup);
-        let badge_for_disabled = pin_status_badge_for_setup.clone();
         let on_pin_state_for_disabled = Rc::clone(&on_pin_state_for_setup);
         let dialog = crate::ui::dialogs::pin_setup_dialog::PinSetupDialog::new(
             &win_for_pin,
@@ -597,16 +607,10 @@ where
             user_id,
             move |new_cache| {
                 *pin_cache_for_created.borrow_mut() = Some(new_cache);
-                badge_for_created.set_text(heelonvault_core::tr!("pin-status-active").as_str());
-                badge_for_created.remove_css_class("status-role-disabled");
-                badge_for_created.add_css_class("status-role-user");
                 on_pin_state_for_created(true);
             },
             move || {
                 let _ = pin_cache_for_disabled.borrow_mut().take();
-                badge_for_disabled.set_text(heelonvault_core::tr!("pin-status-inactive").as_str());
-                badge_for_disabled.remove_css_class("status-role-user");
-                badge_for_disabled.add_css_class("status-role-disabled");
                 on_pin_state_for_disabled(false);
             },
             currently_active,
@@ -714,7 +718,6 @@ where
     let security_status_for_rotate = password_section.status_label.clone();
     let session_for_rotate = Rc::clone(&session_master_key);
     let pin_cache_for_rotate = Rc::clone(&pin_cache);
-    let pin_badge_for_rotate = security_section.pin_status_badge.clone();
     let on_pin_state_for_rotate = Rc::clone(&on_pin_state_changed);
     password_section.rotate_button.connect_clicked(move |_| {
         // Exactly as typed: the login screen does not trim, so trimming here could store a
@@ -784,7 +787,6 @@ where
         let security_status_for_result = security_status_for_rotate.clone();
         let session_for_result = Rc::clone(&session_for_rotate);
         let pin_cache_for_result = Rc::clone(&pin_cache_for_rotate);
-        let pin_badge_for_result = pin_badge_for_rotate.clone();
         let on_pin_state_for_result = Rc::clone(&on_pin_state_for_rotate);
         glib::MainContext::default().spawn_local(async move {
             match receiver.await {
@@ -803,10 +805,6 @@ where
                     let pin_was_active =
                         key_changed && pin_cache_for_result.borrow_mut().take().is_some();
                     if pin_was_active {
-                        pin_badge_for_result
-                            .set_text(heelonvault_core::tr!("pin-status-inactive").as_str());
-                        pin_badge_for_result.remove_css_class("status-role-user");
-                        pin_badge_for_result.add_css_class("status-role-disabled");
                         on_pin_state_for_result(false);
                     }
                     current_for_result.set_text("");
@@ -870,5 +868,6 @@ where
     ProfileViewWidgets {
         container,
         back_button,
+        refresh_pin_state,
     }
 }

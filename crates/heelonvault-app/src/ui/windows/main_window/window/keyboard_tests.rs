@@ -38,7 +38,14 @@ pub(in crate::ui::windows::main_window) fn native_keyboard_scenario()
         gtk4::Button::with_label("outside list").upcast(),
     ];
     for input in &inputs[1..] {
-        content.append(input);
+        if input.is::<adw::EntryRow>() {
+            let rows = gtk4::ListBox::new();
+            rows.set_selection_mode(gtk4::SelectionMode::None);
+            rows.append(input);
+            content.append(&rows);
+        } else {
+            content.append(input);
+        }
     }
     let flow = gtk4::FlowBox::builder()
         .selection_mode(gtk4::SelectionMode::Single)
