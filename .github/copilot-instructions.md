@@ -1,5 +1,9 @@
 # Copilot Instructions - Zero Technical Debt Policy
 
+> The canonical, complete agent guide for this repository is **[AGENTS.md](../AGENTS.md)**
+> at the repo root (architecture, commands, security invariants, qualification and release
+> workflow). This file keeps Copilot-specific rules; edit AGENTS.md for shared changes.
+
 ## Core rule
 
 This repository follows a strict zero-technical-debt and zero-security-warning policy.
@@ -13,7 +17,7 @@ Any change that introduces unresolved debt must be rejected.
 4. `cargo test --locked --all-targets --no-run`
 5. `cargo audit` with **0 warnings**
 6. `cargo deny check advisories` with **0 violations**
-7. CI checks must be green on Linux, Fedora, macOS, and Windows
+7. CI checks must be green on the active platforms: Linux (Wayland-only graphical certification, X11 not certified) and Windows 11; macOS distribution is paused (its workflow is disabled) — see AGENTS.md
 
 ## Dependency policy
 
