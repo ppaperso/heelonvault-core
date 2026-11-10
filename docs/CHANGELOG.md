@@ -21,6 +21,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ### Corrections d'interface
 
+- Éditeur de secrets : indication des modifications non enregistrées et confirmation continuer/abandonner avant Retour, Annuler, navigation latérale, ouverture d'un autre éditeur ou fermeture. Ctrl+S conserve la validation et la garde d'enregistrement existantes. Le chargement initial ne peut plus écraser une saisie ; le verrouillage abandonne le brouillon et invalide les retours UI tardifs. Aucun brouillon enregistré sur disque.
 - Éditeur de secrets : pendant un enregistrement ou une suppression, le formulaire et les boutons restent désactivés jusqu'au résultat (garde RAII dans le nouveau module `operation.rs`) ; l'ouverture d'un autre éditeur pendant l'opération est refusée avec un message explicite. En cas d'échec, le formulaire est réactivé pour correction ou nouvel essai.
 - Badge PIN : le bouton PIN de l'en-tête et la section Profil & Sécurité (dont la coche du récapitul des protections) se mettent à jour ensemble, y compris à l'expiration du cache, via un canal unique `refresh_pin_state`.
 - Message de fermeture de fenêtre pendant une opération généralisé (« opération sur les données »), nouvelle chaîne traduite `add-edit-operation-in-progress` (FR/EN).

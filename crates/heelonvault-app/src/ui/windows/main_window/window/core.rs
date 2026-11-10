@@ -140,6 +140,7 @@ where
 
     // ── 2. UI construction ────────────────────────────────────────────────────
     let window = views::build_main_window(application);
+    let editor_navigation = super::super::editor_navigation::EditorNavigation::new(&window);
     let (
         header_bar,
         title_box,
@@ -252,6 +253,7 @@ where
         session_master_key: Rc::clone(&session_master_key),
         show_passwords_in_edit: Rc::clone(&show_passwords_in_edit),
         critical_operations: Rc::clone(&critical_ops_in_flight),
+        navigation: editor_navigation.clone(),
         main_stack: center_panel.main_stack.clone(),
         editor_host: editor_host.clone(),
         toast_overlay: toast_overlay.clone(),
@@ -274,12 +276,15 @@ where
             navigation: sidebar_panel.security_nav.clone(),
             open_editor: Rc::clone(&open_editor),
             toast: toast_overlay.clone(),
+            editor_navigation: editor_navigation.clone(),
         },
     );
     *security_invalidate.borrow_mut() = Some(Rc::clone(&security.invalidate));
     let clear_security: Rc<dyn Fn()> = {
         let editor_host = editor_host.clone();
+        let editor_navigation = editor_navigation.clone();
         Rc::new(move || {
+            editor_navigation.force_discard();
             (security.clear)();
             while let Some(child) = editor_host.first_child() {
                 editor_host.remove(&child);
@@ -292,6 +297,7 @@ where
         &window,
         Rc::clone(&critical_ops_in_flight),
         Rc::clone(&on_logout),
+        editor_navigation.clone(),
     );
 
     events::setup_profile_popover_handlers(
@@ -406,6 +412,7 @@ where
         &center_panel.main_stack,
         center_panel.secret_flow.clone(),
         filter_runtime.clone(),
+        editor_navigation.clone(),
     );
 
     events::setup_multivault_toggle_handler(
@@ -422,6 +429,7 @@ where
         Rc::clone(&active_vault_id),
         Rc::clone(&vault_selection_sync),
         Rc::clone(&refresh_secrets),
+        editor_navigation.clone(),
     );
 
     vault_list::setup_create_vault_button(
@@ -475,6 +483,7 @@ where
             &center_panel.main_stack,
             &sidebar_panel.administration_button,
             &sidebar_panel.teams_button,
+            editor_navigation.clone(),
         ))
     } else {
         None
@@ -533,6 +542,7 @@ where
         &sidebar_panel.profile_security_button,
         build_stack_switch(&center_panel.main_stack, "users_view"),
         build_stack_switch(&center_panel.main_stack, "teams_view"),
+        editor_navigation.clone(),
     );
 
     let refresh_pin_state = pin_badge::build_pin_state_callback(
@@ -571,6 +581,10 @@ where
                 .chain(std::iter::once(pin_refresh_i18n))
                 .chain(certification_refresh)
                 .chain(std::iter::once(security.refresh_i18n))
+                .chain(std::iter::once({
+                    let navigation = editor_navigation.clone();
+                    Rc::new(move || navigation.refresh_i18n()) as Rc<dyn Fn()>
+                }))
                 .chain(std::iter::once(updates.refresh_i18n))
                 .collect(),
         },

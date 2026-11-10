@@ -227,6 +227,11 @@ add-edit-vault-badge-target = TARGET
 add-edit-vaults-empty = No other vault
 
 add-edit-button-back = ← Back
+editor-unsaved = Unsaved changes
+editor-discard-title = Discard changes?
+editor-discard-body = Changes to this secret have not been saved. Security locking takes priority and discards the draft.
+editor-keep-editing = Keep editing
+editor-discard = Discard changes
 add-edit-button-cancel = Cancel
 add-edit-button-save-create = Save
 add-edit-button-save-edit = Update

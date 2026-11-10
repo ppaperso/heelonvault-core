@@ -85,6 +85,23 @@ La recette Windows et les contrôles Rust/sécurité ne changent pas.
 5. Après une erreur de suppression, l'entrée reste consultable et une nouvelle tentative
    est possible.
 
+### Modifications non enregistrées (éditeur)
+
+1. Sur une base de démonstration, attendre le chargement : aucun indicateur de modification.
+   Pendant le chargement, aucune saisie ni sauvegarde possible ; Retour reste disponible.
+2. Modifier puis rétablir titre, notes, secret, type, coffre, validité et accès santé :
+   l'indicateur apparaît puis disparaît. Contrôler FR et EN.
+3. Modifier puis tenter Retour, Annuler, autre coffre, catégorie, audit, Centre de sécurité,
+   Profil, utilisateurs/équipes (administrateur), autre éditeur et fermeture de fenêtre.
+   Continuer (choix par défaut, fermeture du dialogue comprise) conserve saisie, page,
+   coffre et filtres ; Abandonner effectue uniquement la navigation demandée.
+4. Ctrl+S depuis un champ ou les notes respecte les champs invalides et le blocage pendant
+   une sauvegarde. Succès : sortie sans confirmation ; erreur : brouillon conservé et nouvel
+   essai possible. Aucun dialogue dupliqué en cas de clics répétés.
+5. Verrouiller automatiquement ou par PIN pendant une saisie, une confirmation ou un
+   chargement : abandon immédiat, aucune restauration au déverrouillage. Terminer une
+   sauvegarde après verrouillage ne doit ni afficher de toast ni naviguer la nouvelle session.
+
 ## 4. Presse-papiers
 
 1. `Ctrl+C` sur la carte active copie le mot de passe ; `Ctrl+L` le login ; `Ctrl+U` ouvre l'URL.

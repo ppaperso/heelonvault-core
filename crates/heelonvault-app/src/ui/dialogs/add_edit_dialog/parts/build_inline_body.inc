@@ -2,6 +2,7 @@
         let on_saved: Rc<dyn Fn(String)> = Rc::new(on_saved);
     let on_deleted: Rc<dyn Fn(String)> = Rc::new(on_deleted);
         let on_cancel: Rc<dyn Fn()> = Rc::new(on_cancel);
+        let editor_master_key = Rc::new(std::cell::RefCell::new(zeroize::Zeroizing::new(admin_master_key)));
 
         let container = gtk4::ScrolledWindow::builder()
             .vexpand(true)
@@ -18,6 +19,12 @@
             .margin_end(16)
             .build();
         root.add_css_class("add-edit-dialog");
+        let dirty_label = gtk4::Label::new(Some(heelonvault_core::tr!("editor-unsaved").as_str()));
+        dirty_label.set_visible(false);
+        dirty_label.set_wrap(true);
+        dirty_label.set_halign(Align::Start);
+        dirty_label.add_css_class("warning");
+        let lifecycle = EditorState::new(&root, &dirty_label);
 
         let header_card = gtk4::Frame::new(None);
         header_card.add_css_class("login-hero");
@@ -75,6 +82,7 @@
 
         header_text.append(&title);
         header_text.append(&subtitle);
+        header_text.append(&dirty_label);
         header_box.append(&back_button);
         header_box.append(&header_icon);
         header_box.append(&header_text);
@@ -82,6 +90,7 @@
 
         let form_card = gtk4::Frame::new(None);
         form_card.add_css_class("login-card");
+        form_card.set_sensitive(false);
 
         let form_box = gtk4::Box::builder()
             .orientation(Orientation::Vertical)
@@ -161,6 +170,18 @@
             Self::build_password_panel(mode, show_passwords_in_edit);
         let initial_password_snapshot: Rc<std::cell::RefCell<Option<String>>> =
             Rc::new(std::cell::RefCell::new(None));
+        let snapshot_to_clear = Rc::downgrade(&initial_password_snapshot);
+        let key_to_clear = Rc::downgrade(&editor_master_key);
+        lifecycle.set_clear_sensitive(move || {
+            if let Some(key) = key_to_clear.upgrade() {
+                zeroize::Zeroize::zeroize(&mut *key.borrow_mut());
+            }
+            if let Some(snapshot) = snapshot_to_clear.upgrade()
+                && let Some(mut value) = snapshot.borrow_mut().take()
+            {
+                zeroize::Zeroize::zeroize(&mut value);
+            }
+        });
         dynamic_stack.add_titled(&password_panel, Some("password"), "password");
 
         let (api_token_panel, api_token_entry, api_provider_entry) = Self::build_api_token_panel();
@@ -386,6 +407,7 @@
             let btn = save_button.downgrade();
             let password_for_check = password_entry.downgrade();
             let busy = Rc::clone(&operation_busy);
+            let lifecycle = lifecycle.clone();
             let initial_password_snapshot_for_check = Rc::clone(&initial_password_snapshot);
             let is_edit_mode = matches!(mode, DialogMode::Edit(_));
             let check: Rc<dyn Fn()> = Rc::new(move || {
@@ -426,7 +448,7 @@
                         // Not password type: always allow
                         true
                     };
-                btn.set_sensitive(!busy.get() && can_save);
+                btn.set_sensitive(lifecycle.ready() && !busy.get() && can_save);
             });
             check();
             let c = Rc::clone(&check);
@@ -441,8 +463,23 @@
             &container,
             &delete_button,
             &save_spinner,
-            refresh_save,
+            Rc::clone(&refresh_save),
         );
+        let on_loaded: Rc<dyn Fn()> = {
+            let lifecycle = lifecycle.clone();
+            let form = form_card.downgrade();
+            let refresh_save = Rc::clone(&refresh_save);
+            Rc::new(move || {
+                if !lifecycle.active() {
+                    return;
+                }
+                lifecycle.finish_loading();
+                if let Some(form) = form.upgrade() {
+                    form.set_sensitive(true);
+                }
+                refresh_save();
+            })
+        };
 
         let title_for_save = title_entry.clone();
         let category_for_save = category_entry.clone();
@@ -470,11 +507,12 @@
         let on_saved_for_save = Rc::clone(&on_saved);
         let on_cancel_for_save = Rc::clone(&on_cancel);
         let mode_for_save = mode;
-        let admin_master_for_save_seed = admin_master_key.clone();
+        let admin_master_for_save_seed = Rc::clone(&editor_master_key);
         let initial_password_snapshot_for_save = Rc::clone(&initial_password_snapshot);
         let selected_target_vault_for_save = Rc::clone(&target_vault_id_state);
+        let lifecycle_for_save = lifecycle.clone();
         save_button.connect_clicked(move |_| {
-            if operation_for_save.busy.get() {
+            if !lifecycle_for_save.ready() || operation_for_save.busy.get() {
                 return;
             }
             error_for_save.set_visible(false);
@@ -606,7 +644,7 @@
             let secret_service_for_task = Arc::clone(&secret_for_save);
             let vault_service_for_task = Arc::clone(&vault_for_save);
             let runtime_for_task = runtime_for_save.clone();
-            let admin_master_for_task = admin_master_for_save_seed.clone();
+            let admin_master_for_task = admin_master_for_save_seed.borrow().clone();
             let title_for_task = title.clone();
             let title_for_result = title.clone();
             let metadata_for_task = metadata_json.clone();
@@ -680,14 +718,14 @@
                             .open_vault_for_user(
                                 admin_user_id,
                                 target_vault_id,
-                                SecretBox::new(Box::new(admin_master_for_task.clone())),
+                                SecretBox::new(Box::new(admin_master_for_task.to_vec())),
                             )
                             .await?;
                         let destination_vault_key = vault_service_for_task
                             .open_vault_for_user(
                                 admin_user_id,
                                 effective_target_vault_id,
-                                SecretBox::new(Box::new(admin_master_for_task.clone())),
+                                SecretBox::new(Box::new(admin_master_for_task.to_vec())),
                             )
                             .await?;
                         secret_service_for_task
@@ -723,7 +761,7 @@
                         .open_vault_for_user(
                             admin_user_id,
                             effective_target_vault_id,
-                            SecretBox::new(Box::new(admin_master_for_task.clone())),
+                            SecretBox::new(Box::new(admin_master_for_task.to_vec())),
                         )
                         .await?;
 
@@ -770,9 +808,15 @@
             let error_for_result = error_for_save.clone();
             let on_saved_for_result = Rc::clone(&on_saved_for_save);
             let on_cancel_for_result = Rc::clone(&on_cancel_for_save);
+            let lifecycle = lifecycle_for_save.clone();
             glib::MainContext::default().spawn_local(async move {
-                match pending.wait(receiver).await {
+                let result = pending.wait(receiver).await;
+                if !lifecycle.active() {
+                    return;
+                }
+                match result {
                     Ok(Ok(_)) => {
+                        lifecycle.mark_saved();
                         on_saved_for_result(title_for_result);
                         on_cancel_for_result();
                     }
@@ -800,8 +844,12 @@
             let title_for_delete = title_entry.clone();
             let on_deleted_for_delete = Rc::clone(&on_deleted);
             let on_cancel_for_delete = Rc::clone(&on_cancel);
+            let lifecycle_for_delete = lifecycle.clone();
 
             delete_button.connect_clicked(move |_| {
+                if !lifecycle_for_delete.ready() {
+                    return;
+                }
                 let Some(pending) = operation_for_delete.begin() else {
                     return;
                 };
@@ -822,9 +870,15 @@
                 let on_deleted_for_result = Rc::clone(&on_deleted_for_delete);
                 let on_cancel_for_result = Rc::clone(&on_cancel_for_delete);
                 let title_for_result = title_for_delete.text().trim().to_string();
+                let lifecycle = lifecycle_for_delete.clone();
                 glib::MainContext::default().spawn_local(async move {
-                    match pending.wait(receiver).await {
+                    let result = pending.wait(receiver).await;
+                    if !lifecycle.active() {
+                        return;
+                    }
+                    match result {
                         Ok(Ok(())) => {
+                            lifecycle.mark_saved();
                             on_deleted_for_result(title_for_result);
                             on_cancel_for_result();
                         }
@@ -917,7 +971,9 @@
         root.append(&form_card);
         container.set_child(Some(&root));
 
-        {
+        container.add_controller(lifecycle.save_shortcut(&save_button));
+
+        if !matches!(mode, DialogMode::Edit(_)) {
             let runtime_for_vaults = runtime_handle.clone();
             let vault_service_for_vaults = Arc::clone(&vault_service);
             let pills_row_for_vaults = vault_pills_row.clone();
@@ -925,6 +981,9 @@
             let target_state_for_vaults = Rc::clone(&target_vault_id_state);
             let choices_for_vaults = Rc::clone(&vault_choices_state);
             let source_for_vaults = Rc::clone(&source_vault_id_state);
+            let lifecycle_for_vaults = lifecycle.clone();
+            let on_loaded = Rc::clone(&on_loaded);
+            let error_for_vaults = error_label.clone();
 
             let (sender, receiver) = tokio::sync::oneshot::channel();
             std::thread::spawn(move || {
@@ -935,15 +994,31 @@
             });
 
             glib::MainContext::default().spawn_local(async move {
-                if let Ok(Ok(vaults)) = receiver.await {
+                let result = receiver.await;
+                if !lifecycle_for_vaults.active() {
+                    return;
+                }
+                match result {
+                Ok(Ok(vaults)) => {
                     let choices = vaults
                         .into_iter()
                         .map(|vault| (vault.id, vault.name))
                         .collect::<Vec<(Uuid, String)>>();
+                    if let DialogMode::CreateInVault(id) = mode
+                        && !choices.iter().any(|(choice, _)| *choice == id)
+                    {
+                        error!("requested editor vault is unavailable");
+                        error_for_vaults.set_text(heelonvault_core::tr!("add-edit-error-load-failed").as_str());
+                        error_for_vaults.set_visible(true);
+                        return;
+                    }
                     *choices_for_vaults.borrow_mut() = choices.clone();
 
                     if source_for_vaults.borrow().is_none() {
-                        *target_state_for_vaults.borrow_mut() = choices.first().map(|(id, _)| *id);
+                        *target_state_for_vaults.borrow_mut() = match mode {
+                            DialogMode::CreateInVault(id) => Some(id),
+                            _ => choices.first().map(|(id, _)| *id),
+                        };
                     }
 
                     while let Some(child) = pills_row_for_vaults.first_child() {
@@ -981,6 +1056,18 @@
                     let has_choices = !choices_for_vaults.borrow().is_empty();
                     vaults_label_for_vaults.set_visible(has_choices);
                     pills_row_for_vaults.set_visible(has_choices);
+                    on_loaded();
+                }
+                Ok(Err(error)) => {
+                    error!(%error, "secret editor vault loading failed");
+                    error_for_vaults.set_text(heelonvault_core::tr!("add-edit-error-load-failed").as_str());
+                    error_for_vaults.set_visible(true);
+                }
+                Err(error) => {
+                    error!(%error, "secret editor vault load task lost");
+                    error_for_vaults.set_text(heelonvault_core::tr!("add-edit-error-load-failed").as_str());
+                    error_for_vaults.set_visible(true);
+                }
                 }
             });
         }
@@ -993,7 +1080,7 @@
                 Arc::clone(&secret_service),
                 Arc::clone(&vault_service),
                 admin_user_id,
-                admin_master_key.clone(),
+                editor_master_key.borrow().to_vec(),
                 show_passwords_in_edit,
                 secret_id,
                 title_entry.clone(),
@@ -1018,8 +1105,10 @@
                             Rc::clone(&vault_choices_state),
                             vaults_label.clone(),
                             vault_pills_row.clone(),
+                            lifecycle.clone(),
+                            on_loaded,
             );
         }
 
-        AddEditInlineView { container }
+        AddEditInlineView { container, state: lifecycle }
 }

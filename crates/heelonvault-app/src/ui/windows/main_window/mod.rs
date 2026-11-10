@@ -150,6 +150,8 @@ struct SecurityNavigation {
     new_pill: gtk4::Label,
 }
 
+mod editor_navigation;
+
 #[derive(Clone)]
 struct SidebarWidgets {
     frame: gtk4::Frame,
@@ -226,6 +228,8 @@ mod native_gtk_tests {
         gtk4::gio::resources_register_include!("heelonvault.gresource")?;
         crate::ui::dialogs::add_edit_dialog::native_password_hint_scenario();
         crate::ui::dialogs::add_edit_dialog::native_operation_scenario()?;
+        crate::ui::dialogs::add_edit_dialog::native_lifecycle_scenario();
+        super::editor_navigation::EditorNavigation::native_navigation_scenario()?;
         super::window::keyboard_tests::native_keyboard_scenario()?;
         super::security_center::tests::native_security_center_scenario()?;
         let (profile, _, _, _) = super::window::views::build_profile_button("Patrick");

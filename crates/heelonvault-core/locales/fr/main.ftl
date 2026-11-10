@@ -227,6 +227,11 @@ add-edit-vault-badge-target = CIBLE
 add-edit-vaults-empty = Aucun autre coffre
 
 add-edit-button-back = ← Retour
+editor-unsaved = Modifications non enregistrées
+editor-discard-title = Abandonner les modifications ?
+editor-discard-body = Les modifications de ce secret ne sont pas enregistrées. Le verrouillage de sécurité reste prioritaire et abandonne le brouillon.
+editor-keep-editing = Continuer la modification
+editor-discard = Abandonner les modifications
 add-edit-button-cancel = Annuler
 add-edit-button-save-create = Enregistrer
 add-edit-button-save-edit = Mettre à jour
