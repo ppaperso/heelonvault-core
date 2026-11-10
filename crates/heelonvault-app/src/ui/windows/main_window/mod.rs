@@ -224,6 +224,8 @@ mod native_gtk_tests {
     #[test]
     #[ignore = "requires a graphical display; run explicitly for native GTK validation"]
     fn native_gtk_smoke() -> Result<(), Box<dyn std::error::Error>> {
+        // Locale-switching scenarios must restore an application language, not the runner's C locale.
+        assert!(heelonvault_core::i18n::set_language("en"));
         libadwaita::init()?;
         gtk4::gio::resources_register_include!("heelonvault.gresource")?;
         crate::ui::dialogs::add_edit_dialog::native_password_hint_scenario();
