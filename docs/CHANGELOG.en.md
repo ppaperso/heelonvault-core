@@ -21,6 +21,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ### Interface fixes
 
+- Secret lists: obsolete load successes and failures are rejected after a newer request or security lock. Reloading clears old rows, actions and counters. MultiVault now distinguishes complete, partial, unavailable and empty results, counts inaccessible vaults and unreadable entries, and offers a retry. A live summary shows visible/loaded entries and active category, audit and search filters; audit counts cover loaded entries only.
 - Secret editor: unsaved-change indicator and keep/discard confirmation before Back, Cancel, sidebar navigation, another editor or window closure. Ctrl+S uses the existing save validation and pending guard. Initial loading cannot overwrite user input; security locking discards the draft and invalidates late UI completions. No draft is saved to disk.
 - Secret editor: while saving or deleting, the form and buttons stay disabled until the result arrives (RAII guard in the new `operation.rs` module); opening another editor during the operation is explicitly refused. On failure, the form is re-enabled to correct or retry.
 - PIN badge: the header PIN button and the Profile & Security section (including the protection-summary checkmark) now update together, including on cache expiry, through a single `refresh_pin_state` channel.

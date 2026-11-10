@@ -112,7 +112,7 @@ pub fn build_refresh(
 
         center
             .main_stack
-            .page(&center.stack)
+            .page(&center.entries_page)
             .set_title(heelonvault_core::tr!("main-stack-secrets").as_str());
         center
             .main_stack

@@ -23,7 +23,10 @@ use heelonvault_core::models::SecretItem;
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
 
+use super::list_load::{Coverage, ListLoadState, LoadGeneration};
 use super::{FilterRuntime, SecretFilterMeta, SecretKind, SecretRowView, search_filter};
+#[cfg(test)]
+pub(super) mod native_tests;
 
 /// Strength verdict, language-independent: the label is only translated for display.
 pub(super) fn is_weak_password(secret_value: &str) -> bool {
@@ -71,7 +74,7 @@ fn finalize_rows(analyzed: Vec<(SecretRowView, Option<SecretFingerprint>)>) -> V
 /// The secret value is decrypted only to derive the strength verdict and the fingerprint,
 /// then wiped (it stays inside the `SecretBox` returned by the service). The row itself never
 /// carries the value: copying decrypts it again on demand.
-/// Returns `None` if the secret cannot be opened (wrong key, corrupt, etc.).
+/// Returns an error if the secret cannot be opened (wrong key, corrupt, etc.).
 async fn build_secret_row<TSecret>(
     item: SecretItem,
     secret_service: &Arc<TSecret>,
@@ -79,43 +82,47 @@ async fn build_secret_row<TSecret>(
     vault_name: String,
     vault_access: (bool, bool, bool),
     weak_verdicts: &mut HashMap<SecretFingerprint, bool>,
-) -> Option<(SecretRowView, Option<SecretFingerprint>)>
+) -> Result<(SecretRowView, Option<SecretFingerprint>), AppError>
 where
     TSecret: SecretService + Send + Sync + 'static,
 {
-    let secret_result = secret_service
+    let secret = secret_service
         .get_secret(
             item.id,
             SecretBox::new(Box::new(vault_key.expose_secret().clone())),
         )
-        .await;
-    let (has_secret, is_weak, fingerprint) = match &secret_result {
-        Ok(secret) => {
-            let bytes = secret.secret_value.expose_secret().as_slice();
-            let text = std::str::from_utf8(bytes).ok();
-            let is_password = matches!(
-                item.secret_type,
-                heelonvault_core::models::SecretType::Password
-            );
-            let has_secret = !bytes.is_empty() && (!is_password || text.is_some());
-            let fingerprint = if is_password && has_secret {
-                secret_fingerprint(bytes)
-            } else {
-                None
-            };
-            // The estimator runs once per distinct password of this load; the verdicts are
-            // dropped with the loader, like the fingerprints.
-            let is_weak = match (text, fingerprint) {
-                (Some(text), Some(fingerprint)) => *weak_verdicts
-                    .entry(fingerprint)
-                    .or_insert_with(|| is_weak_password(text)),
-                _ => false,
-            };
-            (has_secret, is_weak, fingerprint)
-        }
-        Err(_) => (false, false, None),
+        .await?;
+    let (has_secret, is_weak, fingerprint) = {
+        let bytes = secret.secret_value.expose_secret().as_slice();
+        let is_password = matches!(
+            item.secret_type,
+            heelonvault_core::models::SecretType::Password
+        );
+        let text = if is_password {
+            Some(
+                std::str::from_utf8(bytes)
+                    .map_err(|_| AppError::Storage("password payload is not UTF-8".to_string()))?,
+            )
+        } else {
+            None
+        };
+        let has_secret = !bytes.is_empty();
+        let fingerprint = if is_password && has_secret {
+            secret_fingerprint(bytes)
+        } else {
+            None
+        };
+        // The estimator runs once per distinct password of this load; the verdicts are
+        // dropped with the loader, like the fingerprints.
+        let is_weak = match (text, fingerprint) {
+            (Some(text), Some(fingerprint)) => *weak_verdicts
+                .entry(fingerprint)
+                .or_insert_with(|| is_weak_password(text)),
+            _ => false,
+        };
+        (has_secret, is_weak, fingerprint)
     };
-    drop(secret_result);
+    drop(secret);
 
     let (login, email, url, notes, category, has_health_access_marker) =
         match item.metadata_json.as_deref() {
@@ -241,7 +248,7 @@ where
         vault_name,
         vault_access,
     };
-    Some((row, fingerprint))
+    Ok((row, fingerprint))
 }
 
 /// Everything the secret list needs to load, render and act on secrets.
@@ -263,6 +270,10 @@ pub(super) struct SecretFlowContext<TSecret, TVault> {
     pub(super) editor_launcher: Rc<RefCell<Option<Rc<dyn Fn(DialogMode)>>>>,
     /// Last loaded rows (metadata only, never secret values), re-rendered on layout change.
     pub(super) last_loaded: RefCell<Option<Rc<LoadedSecrets>>>,
+    pub(super) generation: LoadGeneration,
+    pub(super) load_state: Cell<ListLoadState>,
+    pub(super) load_status: gtk4::Label,
+    pub(super) retry_load: gtk4::Button,
 }
 
 /// Result of one list load, kept to rebuild the widgets without touching the database.
@@ -274,6 +285,133 @@ pub(super) struct LoadedSecrets {
     usage_counts: HashMap<Uuid, Rc<Cell<u32>>>,
     no_selection: bool,
     is_global: bool,
+    coverage: Coverage,
+}
+
+fn clear_rows<TSecret, TVault>(ctx: &SecretFlowContext<TSecret, TVault>) {
+    *ctx.last_loaded.borrow_mut() = None;
+    ctx.filter_runtime.load_ready.set(false);
+    ctx.filter_runtime.filter_summary.set_visible(false);
+    ctx.filter_runtime.meta_by_widget.borrow_mut().clear();
+    ctx.filter_runtime.actions_by_widget.borrow_mut().clear();
+    ctx.filter_runtime.filtered_status_page.set_visible(false);
+    for label in [
+        &ctx.filter_runtime.audit_all_count_label,
+        &ctx.filter_runtime.audit_weak_count_label,
+        &ctx.filter_runtime.audit_duplicate_count_label,
+        &ctx.filter_runtime.total_count_label,
+        &ctx.filter_runtime.non_compliant_count_label,
+        &ctx.filter_runtime.incomplete_count_label,
+        &ctx.filter_runtime.never_used_count_label,
+    ] {
+        label.set_text("-");
+    }
+    while let Some(child) = ctx.secret_flow.first_child() {
+        ctx.secret_flow.remove(&child);
+    }
+}
+
+fn set_load_state<TSecret, TVault>(ctx: &SecretFlowContext<TSecret, TVault>, state: ListLoadState) {
+    ctx.load_state.set(state);
+    refresh_load_i18n(ctx);
+}
+
+pub(super) fn refresh_load_i18n<TSecret, TVault>(ctx: &SecretFlowContext<TSecret, TVault>) {
+    let state = ctx.load_state.get();
+    ctx.load_status.set_text(&state.message());
+    if matches!(state, ListLoadState::Ready { .. })
+        && ctx
+            .last_loaded
+            .borrow()
+            .as_ref()
+            .is_some_and(|loaded| loaded.no_selection)
+    {
+        ctx.load_status
+            .set_text(heelonvault_core::tr!("main-no-vault-selected-title").as_str());
+    }
+    ctx.retry_load
+        .set_label(heelonvault_core::tr!("main-list-retry").as_str());
+    let retry = matches!(state, ListLoadState::Failed)
+        || matches!(state, ListLoadState::Ready { coverage, .. } if coverage.partial());
+    ctx.retry_load.set_visible(retry);
+    if retry {
+        ctx.load_status.add_css_class("warning");
+    } else {
+        ctx.load_status.remove_css_class("warning");
+    }
+    let keys = match state {
+        ListLoadState::Loading => Some((
+            "main-secrets-loading-title",
+            "main-secrets-loading-description",
+        )),
+        ListLoadState::Locked => Some((
+            "main-session-locked-title",
+            "main-session-locked-description",
+        )),
+        ListLoadState::Failed => Some((
+            "main-list-unavailable-title",
+            "main-list-unavailable-description",
+        )),
+        ListLoadState::Ready { coverage, .. }
+            if coverage.partial()
+                && ctx
+                    .last_loaded
+                    .borrow()
+                    .as_ref()
+                    .is_some_and(|loaded| loaded.rows.is_empty()) =>
+        {
+            Some((
+                "main-list-partial-empty-title",
+                "main-list-partial-empty-description",
+            ))
+        }
+        ListLoadState::Ready { .. } => {
+            if ctx
+                .last_loaded
+                .borrow()
+                .as_ref()
+                .is_some_and(|loaded| loaded.no_selection)
+            {
+                Some((
+                    "main-no-vault-selected-title",
+                    "main-no-vault-selected-description",
+                ))
+            } else {
+                Some(("main-empty-title", "main-empty-description"))
+            }
+        }
+        ListLoadState::Idle => None,
+    };
+    if let Some((title, body)) = keys {
+        ctx.empty_title.set_text(&heelonvault_core::i18n::tr(title));
+        ctx.empty_copy.set_text(&heelonvault_core::i18n::tr(body));
+    }
+    if ctx.filter_runtime.load_ready.get() {
+        search_filter::apply_filters(&ctx.secret_flow, &ctx.filter_runtime);
+    }
+}
+
+fn show_load_failure<TSecret, TVault>(ctx: &SecretFlowContext<TSecret, TVault>) {
+    clear_rows(ctx);
+    set_load_state(ctx, ListLoadState::Failed);
+    ctx.stack.set_visible_child_name("empty");
+}
+
+pub(super) fn invalidate_secret_flow<TSecret, TVault>(ctx: &SecretFlowContext<TSecret, TVault>) {
+    ctx.generation.invalidate();
+    clear_rows(ctx);
+    set_load_state(ctx, ListLoadState::Locked);
+    ctx.stack.set_visible_child_name("empty");
+}
+
+pub(super) fn prepare_secret_flow<TSecret, TVault>(
+    ctx: &SecretFlowContext<TSecret, TVault>,
+) -> super::list_load::LoadTicket {
+    let ticket = ctx.generation.begin();
+    clear_rows(ctx);
+    set_load_state(ctx, ListLoadState::Loading);
+    ctx.stack.set_visible_child_name("empty");
+    ticket
 }
 
 /// Load the secrets of the active vault (or of every vault when `search_all_vaults`) in a
@@ -291,19 +429,13 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
     let vault_service = Arc::clone(&ctx.vault_service);
     let admin_user_id = ctx.user_id;
     let active_vault_id = Rc::clone(&ctx.active_vault_id);
-    let empty_title = ctx.empty_title.clone();
-    let empty_copy = ctx.empty_copy.clone();
-    let stack = ctx.stack.clone();
-
-    empty_title.set_text(heelonvault_core::tr!("main-secrets-loading-title").as_str());
-    empty_copy.set_text(heelonvault_core::tr!("main-secrets-loading-description").as_str());
-    stack.set_visible_child_name("empty");
-
     let runtime_for_loader = runtime_handle.clone();
     let secret_for_loader = Arc::clone(&secret_service);
     let vault_for_loader = Arc::clone(&vault_service);
     let admin_master_for_loader = admin_master_key;
     let selected_vault_id = *active_vault_id.borrow();
+    let ticket = prepare_secret_flow(ctx);
+    let cancelled = ticket.cancellation();
 
     let (sender, receiver) = tokio::sync::oneshot::channel();
     std::thread::spawn(move || {
@@ -313,21 +445,38 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                 Vec<SecretRowView>,
                 bool,
                 bool,
+                Coverage,
             ),
             heelonvault_core::errors::AppError,
         > = runtime_for_loader.block_on(async move {
             if search_all_vaults {
                 // ── Global cross-vault search ─────────────────────────────────
                 let vaults = vault_for_loader.list_user_vaults(admin_user_id).await?;
+                let mut coverage = Coverage {
+                    vaults: vaults.len(),
+                    ..Coverage::default()
+                };
                 let mut all_rows: Vec<(SecretRowView, Option<SecretFingerprint>)> = Vec::new();
                 let mut weak_verdicts = HashMap::new();
                 for vault in vaults {
+                    if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+                        break;
+                    }
                     let access = match vault_for_loader
                         .get_vault_access_for_user(admin_user_id, vault.id)
-                        .await?
+                        .await
                     {
-                        Some(a) => a,
-                        None => continue,
+                        Ok(Some(a)) => a,
+                        Ok(None) => {
+                            coverage.failed_vaults += 1;
+                            tracing::warn!("secret list vault access unavailable");
+                            continue;
+                        }
+                        Err(error) => {
+                            coverage.failed_vaults += 1;
+                            tracing::warn!(%error, "secret list vault access failed");
+                            continue;
+                        }
                     };
                     let vault_key = match vault_for_loader
                         .open_vault_for_user(
@@ -338,16 +487,28 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                         .await
                     {
                         Ok(k) => k,
-                        Err(_) => continue,
+                        Err(error) => {
+                            coverage.failed_vaults += 1;
+                            tracing::warn!(%error, "secret list vault opening failed");
+                            continue;
+                        }
                     };
                     let items = match secret_for_loader.list_by_vault(vault.id).await {
                         Ok(i) => i,
-                        Err(_) => continue,
+                        Err(error) => {
+                            coverage.failed_vaults += 1;
+                            tracing::warn!(%error, "secret list vault listing failed");
+                            continue;
+                        }
                     };
+                    coverage.loaded_vaults += 1;
                     let is_shared = vault.owner_user_id != admin_user_id;
                     let can_write = access.role.can_write();
                     let can_admin = access.role.can_admin();
                     for item in items {
+                        if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+                            break;
+                        }
                         let row = build_secret_row(
                             item,
                             &secret_for_loader,
@@ -357,25 +518,33 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                             &mut weak_verdicts,
                         )
                         .await;
-                        if let Some(r) = row {
-                            all_rows.push(r);
+                        match row {
+                            Ok(row) => all_rows.push(row),
+                            Err(error) => {
+                                coverage.failed_items += 1;
+                                tracing::warn!(%error, "secret list item analysis failed");
+                            }
                         }
                     }
                 }
-                Ok((None, finalize_rows(all_rows), false, true))
+                Ok((None, finalize_rows(all_rows), false, true, coverage))
             } else {
                 // ── Single-vault mode (normal) ────────────────────────────────
                 let vaults = vault_for_loader.list_user_vaults(admin_user_id).await?;
                 let resolved_selected_id =
                     selected_vault_id.or_else(|| vaults.first().map(|vault| vault.id));
                 let Some(selected_id) = resolved_selected_id else {
-                    return Ok((None, Vec::new(), true, false));
+                    return Ok((None, Vec::new(), true, false, Coverage::default()));
                 };
 
                 let selected_vault = match vaults.into_iter().find(|vault| vault.id == selected_id)
                 {
                     Some(value) => value,
-                    None => return Ok((None, Vec::new(), false, false)),
+                    None => {
+                        return Err(AppError::Authorization(
+                            heelonvault_core::errors::AccessDeniedReason::VaultAccessDenied,
+                        ));
+                    }
                 };
                 let access = vault_for_loader
                     .get_vault_access_for_user(admin_user_id, selected_vault.id)
@@ -401,8 +570,16 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                 let items = secret_for_loader.list_by_vault(selected_vault.id).await?;
                 let mut rows = Vec::with_capacity(items.len());
                 let mut weak_verdicts = HashMap::new();
+                let mut coverage = Coverage {
+                    vaults: 1,
+                    loaded_vaults: 1,
+                    ..Coverage::default()
+                };
                 for item in items {
-                    if let Some(r) = build_secret_row(
+                    if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+                        break;
+                    }
+                    match build_secret_row(
                         item,
                         &secret_for_loader,
                         &vault_key,
@@ -412,10 +589,14 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                     )
                     .await
                     {
-                        rows.push(r);
+                        Ok(row) => rows.push(row),
+                        Err(error) => {
+                            coverage.failed_items += 1;
+                            tracing::warn!(%error, "secret list item analysis failed");
+                        }
                     }
                 }
-                Ok((vault_state, finalize_rows(rows), false, false))
+                Ok((vault_state, finalize_rows(rows), false, false, coverage))
             }
         });
         let _ = sender.send(result);
@@ -423,8 +604,18 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
 
     let ctx_for_receiver = Rc::clone(ctx);
     glib::MainContext::default().spawn_local(async move {
-        match receiver.await {
-            Ok(Ok((vault_state, rows, no_selection, is_global))) => {
+        let result = receiver.await;
+        if !ctx_for_receiver.generation.accepts(
+            &ticket,
+            !ctx_for_receiver.session_master_key.borrow().is_empty(),
+        ) {
+            return;
+        }
+        match result {
+            Ok(Ok((_, _, _, _, coverage))) if coverage.failed() => {
+                show_load_failure(&ctx_for_receiver);
+            }
+            Ok(Ok((vault_state, rows, no_selection, is_global, coverage))) => {
                 let usage_counts = rows
                     .iter()
                     .map(|row| (row.secret_id, Rc::new(Cell::new(row.usage_count))))
@@ -435,16 +626,18 @@ pub(super) fn refresh_secret_flow<TSecret, TVault>(
                     usage_counts,
                     no_selection,
                     is_global,
+                    coverage,
                 });
                 *ctx_for_receiver.last_loaded.borrow_mut() = Some(Rc::clone(&loaded));
                 render_secret_rows(&ctx_for_receiver, &loaded);
             }
-            Ok(Err(_)) | Err(_) => {
-                *ctx_for_receiver.last_loaded.borrow_mut() = None;
-                empty_title.set_text(heelonvault_core::tr!("main-list-unavailable-title").as_str());
-                empty_copy
-                    .set_text(heelonvault_core::tr!("main-list-unavailable-description").as_str());
-                stack.set_visible_child_name("empty");
+            Ok(Err(error)) => {
+                tracing::warn!(%error, "secret list loading failed");
+                show_load_failure(&ctx_for_receiver);
+            }
+            Err(error) => {
+                tracing::error!(%error, "secret list worker ended without a result");
+                show_load_failure(&ctx_for_receiver);
             }
         }
     });
@@ -459,6 +652,10 @@ where
     TSecret: SecretService + Send + Sync + 'static,
     TVault: VaultService + Send + Sync + 'static,
 {
+    if ctx.session_master_key.borrow().is_empty() {
+        invalidate_secret_flow(ctx);
+        return false;
+    }
     let loaded = ctx.last_loaded.borrow().clone();
     match loaded {
         Some(loaded) => {
@@ -592,6 +789,7 @@ fn render_secret_rows<TSecret, TVault>(
         usage_counts,
         no_selection,
         is_global,
+        coverage,
     } = loaded;
     let usage_of = |row: &SecretRowView| -> Rc<Cell<u32>> {
         usage_counts
@@ -600,6 +798,14 @@ fn render_secret_rows<TSecret, TVault>(
             .unwrap_or_else(|| Rc::new(Cell::new(row.usage_count)))
     };
     let (vault_state, no_selection, is_global) = (*vault_state, *no_selection, *is_global);
+    set_load_state(
+        ctx,
+        ListLoadState::Ready {
+            coverage: *coverage,
+            global: is_global,
+        },
+    );
+    ctx.filter_runtime.load_ready.set(true);
     let active_vault_for_receiver = Rc::clone(&ctx.active_vault_id);
     let secret_flow = ctx.secret_flow.clone();
     let stack = ctx.stack.clone();
@@ -626,6 +832,7 @@ fn render_secret_rows<TSecret, TVault>(
     }
 
     if no_selection {
+        search_filter::apply_filters(&ctx.secret_flow, &ctx.filter_runtime);
         empty_title.set_text(heelonvault_core::tr!("main-no-vault-selected-title").as_str());
         empty_copy.set_text(heelonvault_core::tr!("main-no-vault-selected-description").as_str());
         stack.set_visible_child_name("empty");
@@ -649,6 +856,8 @@ fn render_secret_rows<TSecret, TVault>(
     filter_runtime.audit_duplicate_count_label.set_text("0");
     filter_runtime.total_count_label.set_text("0");
     filter_runtime.non_compliant_count_label.set_text("0");
+    filter_runtime.incomplete_count_label.set_text("0");
+    filter_runtime.never_used_count_label.set_text("0");
     filter_runtime.filtered_status_page.set_visible(false);
 
     while let Some(child) = secret_flow.first_child() {
@@ -656,8 +865,7 @@ fn render_secret_rows<TSecret, TVault>(
     }
 
     if items.is_empty() {
-        empty_title.set_text(heelonvault_core::tr!("main-empty-title").as_str());
-        empty_copy.set_text(heelonvault_core::tr!("main-empty-description").as_str());
+        refresh_load_i18n(ctx);
         stack.set_visible_child_name("empty");
         return;
     }

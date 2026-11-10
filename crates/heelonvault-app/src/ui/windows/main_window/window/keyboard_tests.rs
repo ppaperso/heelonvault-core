@@ -155,6 +155,8 @@ pub(in crate::ui::windows::main_window) fn native_keyboard_scenario()
     }
 
     let filter = FilterRuntime {
+        load_ready: Rc::new(Cell::new(true)),
+        filter_summary: gtk4::Label::new(None),
         meta_by_widget: Rc::default(),
         actions_by_widget: Rc::default(),
         search_text: Rc::default(),

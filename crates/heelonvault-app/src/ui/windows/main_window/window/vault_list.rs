@@ -42,7 +42,9 @@ pub fn find_vault_row(list: &gtk4::ListBox, vault_id: Uuid) -> Option<gtk4::List
 }
 
 pub struct VaultListDeps<TSecret, TVault> {
+    pub generation: Rc<super::super::list_load::LoadGeneration>,
     pub window: adw::ApplicationWindow,
+    pub toast_overlay: adw::ToastOverlay,
     pub runtime_handle: Handle,
     pub secret_service: Arc<TSecret>,
     pub vault_service: Arc<TVault>,
@@ -58,6 +60,7 @@ pub struct VaultListDeps<TSecret, TVault> {
     pub default_vault_creation: Rc<Cell<bool>>,
     /// Prevents concurrent refresh operations from overlapping and duplicating vault rows.
     pub refresh_in_progress: Rc<Cell<bool>>,
+    pub refresh_pending: Rc<Cell<bool>>,
     /// Reloads the secret list once the vault sections settle.
     pub refresh_secrets: Rc<dyn Fn()>,
     /// Filled with the full refresh so mutations (delete) can re-run it.
@@ -164,11 +167,16 @@ where
     TVault: VaultService + Send + Sync + 'static,
 {
     Rc::new(move || {
+        if deps.session_master_key.borrow().is_empty() {
+            return;
+        }
         // Prevent concurrent refresh operations to avoid duplicating vault rows
         if deps.refresh_in_progress.get() {
+            deps.refresh_pending.set(true);
             return;
         }
         deps.refresh_in_progress.set(true);
+        let ticket = deps.generation.begin();
 
         let delete_vault_action = build_delete_vault_action(
             deps.window.clone(),
@@ -244,7 +252,7 @@ where
 
                 Ok::<_, heelonvault_core::errors::AppError>((owned_with_counts, shared_with_counts))
             });
-            let _ = sender.send((result, can_attempt_default_create));
+            let _ = sender.send(result);
         });
 
         let my_vaults_list = deps.my_vaults_list.clone();
@@ -255,17 +263,44 @@ where
         let default_vault_creation = Rc::clone(&deps.default_vault_creation);
         let refresh_secrets = Rc::clone(&deps.refresh_secrets);
         let refresh_in_progress = Rc::clone(&deps.refresh_in_progress);
+        let generation = Rc::clone(&deps.generation);
+        let session_key = Rc::clone(&deps.session_master_key);
+        let refresh_pending = Rc::clone(&deps.refresh_pending);
+        let refresh_after_mutation = Rc::clone(&deps.refresh_after_mutation);
+        let toast_overlay = deps.toast_overlay.clone();
         glib::MainContext::default().spawn_local(async move {
-            let Ok((result, attempted_default_create)) = receiver.await else {
+            let result = receiver.await;
+            if !generation.accepts(&ticket, !session_key.borrow().is_empty()) {
+                return;
+            }
+            refresh_in_progress.set(false);
+            default_vault_creation.set(false);
+            if refresh_pending.replace(false)
+                && let Some(refresh) = refresh_after_mutation.borrow().as_ref()
+            {
+                refresh();
+                return;
+            }
+            let Ok(result) = result else {
+                tracing::error!("vault list worker ended without reporting a result");
                 selection_sync.set(false);
+                toast_overlay.add_toast(adw::Toast::new(&heelonvault_core::tr!(
+                    "main-vaults-load-failed"
+                )));
+                refresh_secrets();
                 return;
             };
-            if attempted_default_create {
-                default_vault_creation.set(false);
-            }
-            let Ok((owned_vaults, shared_vaults)) = result else {
-                selection_sync.set(false);
-                return;
+            let (owned_vaults, shared_vaults) = match result {
+                Ok(vaults) => vaults,
+                Err(error) => {
+                    tracing::warn!(%error, "vault sidebar loading failed");
+                    selection_sync.set(false);
+                    toast_overlay.add_toast(adw::Toast::new(&heelonvault_core::tr!(
+                        "main-vaults-load-failed"
+                    )));
+                    refresh_secrets();
+                    return;
+                }
             };
 
             selection_sync.set(true);

@@ -88,6 +88,16 @@ Deleting a secret moves it to the **trash**. Open the trash to restore the entry
 
 Search uses the **active vault** by default. Enable **MultiVault** to search across vaults you can access. Searching does not grant additional permissions.
 
+The list reports whether loading is complete, partial or unavailable. For partial results,
+the banner counts inaccessible vaults and unreadable entries: these are excluded from the
+displayed list and its audit counts. A zero count in this state does **not** prove that the
+vaults are empty or free of security findings. Use **Retry loading** after resolving access
+or data problems. A complete empty result and a loading failure have different messages.
+The filter summary shows visible/loaded entry counts, the selected type and audit filter,
+and whether search is active. Clear filters before concluding that no entry matches.
+During a reload, old entries and copy actions are removed and counts display `-`, not zero;
+late results from a previous scope or locked session cannot repopulate the list.
+
 Plain terms search the title, login, email, URL, notes, category, tags, type and vault name. Matching is case-insensitive and normalizes common accented characters; sufficiently long terms have light typo tolerance. Search does not inspect decrypted secret values.
 
 | Example | Purpose |
