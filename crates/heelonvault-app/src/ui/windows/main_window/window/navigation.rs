@@ -162,7 +162,7 @@ pub struct ProfilePageDeps<TUser, TTotp, TPolicy, TBackup, TBackupApp, TImport, 
 
 /// Build the profile page, register it in the stack and wire the sidebar entry to it.
 ///
-/// Returns the page container so the i18n refresh can retitle it.
+/// Returns the page widgets, including its PIN state refresher.
 #[allow(clippy::too_many_arguments)]
 pub fn setup_profile_page<TUser, TTotp, TPolicy, TBackup, TBackupApp, TImport, TSecret, TVault>(
     deps: ProfilePageDeps<TUser, TTotp, TPolicy, TBackup, TBackupApp, TImport, TSecret, TVault>,
@@ -170,7 +170,7 @@ pub fn setup_profile_page<TUser, TTotp, TPolicy, TBackup, TBackupApp, TImport, T
     profile_security_button: &gtk4::Button,
     on_open_users_view: Rc<dyn Fn()>,
     on_open_teams_view: Rc<dyn Fn()>,
-) -> gtk4::ScrolledWindow
+) -> super::super::ProfileViewWidgets
 where
     TUser: UserService + Send + Sync + 'static,
     TTotp: TotpService + Send + Sync + 'static,
@@ -229,7 +229,7 @@ where
         stack_for_open.set_visible_child_name("profile_view");
     });
 
-    profile_view.container
+    profile_view
 }
 
 /// Translatable widgets of the admin-only pages, kept so the i18n refresh can update them.

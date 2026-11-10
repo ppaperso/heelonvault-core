@@ -5,6 +5,13 @@ Langue : FR | [EN](QUICKSTART.md)
 Ce guide couvre l'installation de HeelonVault sur votre poste et le premier lancement, jusqu'à
 votre premier secret enregistré. Comptez une dizaine de minutes.
 
+**Plateformes actuelles : Linux en priorité, puis Windows 11.** Le développement et la diffusion
+macOS sont temporairement en pause : les contrôles de fenêtres et la copie des secrets dans
+le presse-papiers présentent des problèmes connus. Aucun nouveau DMG n'est construit ni publié,
+y compris manuellement par la CI/CD ; les anciens DMG ne sont pas recommandés en production.
+La reprise sera réévaluée après validation de Linux et Windows 11 sur d'autres machines et en
+production, sans date annoncée.
+
 ## 1. Télécharger
 
 Les paquets sont publiés sur la page
@@ -13,9 +20,8 @@ fichier correspondant à votre système :
 
 | Système | Fichier | Configuration requise |
 | ------- | ------- | --------------------- |
-| Windows | `heelonvault-windows-x86_64-vX.Y.Z.msi` | Windows 10 ou 11, 64 bits, droits administrateur pour l'installation |
-| macOS | `heelonvault-macos-aarch64-vX.Y.Z.dmg` | macOS 13 Ventura ou plus récent, Mac Apple Silicon (M1 et suivants) |
-| Linux | `heelonvault-linux-x86_64-vX.Y.Z.AppImage` | Distribution 64 bits récente (x86_64) |
+| Linux | `heelonvault-linux-x86_64-vX.Y.Z.AppImage` | Distribution 64 bits récente (x86_64), session Wayland ; X11/XWayland non certifiés |
+| Windows 11 | `heelonvault-windows-x86_64-vX.Y.Z.msi` | 64 bits, droits administrateur pour l'installation |
 
 Téléchargez aussi le fichier `.sha256` du même nom : il sert à vérifier que le paquet n'a pas
 été altéré.
@@ -25,12 +31,11 @@ Téléchargez aussi le fichier `.sha256` du même nom : il sert à vérifier que
 Placez le paquet et son fichier `.sha256` dans le même dossier, puis :
 
 - **Linux** : `sha256sum -c heelonvault-linux-x86_64-vX.Y.Z.AppImage.sha256`
-- **macOS** : `shasum -a 256 -c heelonvault-macos-aarch64-vX.Y.Z.dmg.sha256`
 - **Windows** (PowerShell) : comparez la valeur affichée par
   `Get-FileHash .\heelonvault-windows-x86_64-vX.Y.Z.msi -Algorithm SHA256`
   au contenu du fichier `.sha256`.
 
-La commande doit répondre `OK` (Linux, macOS) ou afficher la même empreinte (Windows). Dans le
+La commande doit répondre `OK` (Linux) ou afficher la même empreinte (Windows). Dans le
 cas contraire, ne lancez pas le paquet et téléchargez-le à nouveau.
 
 ## 3. Installer
@@ -47,17 +52,9 @@ cas contraire, ne lancez pas le paquet et téléchargez-le à nouveau.
 
 ### macOS
 
-1. Ouvrez le fichier `.dmg` et faites glisser **HeelonVault** dans le dossier **Applications**.
-2. L'application n'est pas signée par un compte développeur Apple, Gatekeeper la bloque donc au
-   premier lancement :
-   - **macOS 13 et 14** : clic droit (ou Ctrl+clic) sur HeelonVault dans Applications, choisir
-     **Ouvrir**, puis confirmer **Ouvrir** ;
-   - **macOS 15 et suivants** : lancez l'application une première fois, fermez l'avertissement,
-     puis ouvrez **Réglages Système > Confidentialité et sécurité** et cliquez sur
-     **Ouvrir quand même** en face de HeelonVault.
-
-   Cette opération n'est nécessaire qu'une seule fois. Alternative en Terminal :
-   `xattr -cr /Applications/HeelonVault.app`.
+Installation non proposée pendant la pause. Les emplacements macOS ci-dessous sont conservés
+uniquement pour les utilisateurs d'anciens paquets ; ils ne constituent pas une validation
+de cette plateforme.
 
 ### Linux (AppImage)
 

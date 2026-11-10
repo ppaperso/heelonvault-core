@@ -43,6 +43,13 @@ members = ["crates/heelonvault-core"]
 resolver = "2"
 EOF
 
+# Keep security patches identical to the full workspace, without loading Premium.
+awk '
+  /^\[patch.crates-io\]$/ { copying = 1; print; next }
+  copying && /^\[/ { exit }
+  copying { print }
+' "$REPO_ROOT/Cargo.toml" >> "$WORK_DIR/Cargo.toml"
+
 cd "$WORK_DIR"
 echo "[INFO] Standalone heelonvault-core checks in $WORK_DIR"
 

@@ -8,6 +8,16 @@ bibliothèque manquante du paquet serait sinon chargée silencieusement depuis l
 contrôles automatisés (tests, clippy, semver, SBOM) sont décrits dans
 [DEVELOPMENT.fr.md](DEVELOPMENT.fr.md).
 
+**Périmètre de livraison actuel : Linux en priorité (AppImage), puis Windows 11 (MSI).**
+Le développement et la diffusion macOS sont en pause ; les contrôles DMG/macOS ci-dessous
+sont conservés comme exigences avant toute reprise, pas comme validation acquise.
+
+**Certification graphique Linux : Wayland avec avertissements fatals uniquement.**
+X11 non certifié — mono-utilisateur Wayland — à réévaluer à la première externalisation.
+Le défaut GDK/X11 reste une [known-issue #76](https://github.com/ppaperso/heelonvault-core/issues/76),
+pas un blocage de la cible Wayland ni une validation XWayland implicite.
+La recette Windows et les contrôles Rust/sécurité ne changent pas.
+
 ## 1. Installation et premier lancement
 
 1. Vérifier l'empreinte SHA-256 du paquet, l'installer selon [QUICKSTART.fr.md](../QUICKSTART.fr.md).
@@ -61,6 +71,19 @@ contrôles automatisés (tests, clippy, semver, SBOM) sont décrits dans
    conservés ; le choix survit à un redémarrage.
 3. Bouton de tri actif mis en évidence.
 4. Badges en anglais : un mot de passe faible n'est jamais affiché en vert « robuste ».
+
+### Enregistrement et suppression
+
+1. Sur une base de démonstration, lancer un enregistrement lent : l'indicateur reste actif
+   jusqu'au résultat ; le formulaire, Retour et Annuler restent désactivés.
+2. Double-cliquer sur Enregistrer ou Supprimer : une seule opération est exécutée.
+   Une tentative d'ouverture d'un autre éditeur pendant l'opération est refusée explicitement.
+3. Fermer la fenêtre pendant l'opération : la fermeture est différée avec un message.
+   Le verrouillage de sécurité reste indépendant de cette protection.
+4. Provoquer une erreur d'enregistrement : message explicite, champs conservés, formulaire
+   réactivé et bouton Enregistrer soumis à la validation habituelle.
+5. Après une erreur de suppression, l'entrée reste consultable et une nouvelle tentative
+   est possible.
 
 ## 4. Presse-papiers
 
@@ -201,6 +224,9 @@ Sur **chaque paquet natif** (AppImage, MSI et DMG), en français puis en anglais
 Le scénario partagé `native_gtk_smoke` vérifie la stabilité des mesures et positions dans
 les états interactifs et à largeur compacte. Avec `HEELONVAULT_UI_SNAPSHOT_DIR`, il produit
 aussi des captures des boutons, des sélecteurs et du popover, en plus des pages réelles.
+Lancer ce scénario automatisé avec `GTK_IM_MODULE=simple` : il teste le routage clavier,
+pas le service IBus du poste. La recette interactive conserve le module de saisie habituel.
+Les redimensionnements attendent la réponse du compositeur, sans relâcher le seuil de largeur.
 Ces contrôles Linux ne certifient pas les backends Windows/macOS : la recette des trois
 paquets reste obligatoire avant publication. Aucun nouveau widget, moteur de rendu,
 police ou dépendance système n'est requis par cette finition.

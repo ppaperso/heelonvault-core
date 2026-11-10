@@ -64,6 +64,27 @@ cargo test -p heelonvault-core nom_du_test                  # un test
 
 ## Contrôles qualité (ceux de la CI)
 
+Pour les tests de régression GTK natifs sous Linux :
+
+```bash
+dbus-run-session -- bash scripts/run-wayland-tests.sh \
+  cargo test --locked --workspace --all-features native_ -- --ignored --nocapture
+```
+
+Installer `labwc`, `wlr-randr`, `wayland-utils`, `dbus-daemon` et `at-spi2-core`.
+La CI lance la même commande avec un répertoire runtime privé et un compositeur Wayland
+répondant, muni d'un siège d'entrée et d'une sortie 1920×1600. Aucun serveur X n'est requis.
+`G_DEBUG=fatal-warnings` est obligatoire ; les assertions de largeur compacte restent actives.
+Le module de saisie simple isole les tests de routage clavier du démon IBus de la machine ;
+il ne valide pas l'intégration IBus. Pour tester Wayland et le moteur de rendu par défaut
+dans une session graphique, lancer `G_DEBUG=fatal-warnings GTK_IM_MODULE=simple
+GDK_BACKEND=wayland cargo test --locked --workspace --all-features native_ -- --ignored --nocapture`.
+Les réglages de saisie et de rendu en production ne changent pas.
+Wayland est la seule certification graphique Linux bloquante. X11 n'est pas certifié
+([known-issue #76](https://github.com/ppaperso/heelonvault-core/issues/76)) ;
+réévaluer la compatibilité XWayland avant la première externalisation. Voir
+l'[audit des backends](GTK_BACKEND_QUALIFICATION.md). Les contrôles Rust/sécurité et Windows restent requis.
+
 `.cargo/config.toml` impose `-D warnings` et `-D unsafe_code` ; `clippy.toml` interdit
 `unwrap()` / `expect()`. Avant de pousser :
 
@@ -96,9 +117,12 @@ sudo ./scripts/install.sh            # voir docs/UPDATE_GUIDE.md
 sudo env HEELONVAULT_BINARY="$CARGO_TARGET_DIR/release/heelonvault" ./scripts/install.sh
 ```
 
-Les paquets officiels (AppImage, DMG, MSI, SBOM) sont construits par la CI à chaque tag
+Les paquets officiels (AppImage, MSI) et le SBOM sont construits par la CI à chaque tag
 `vX.Y.Z` : voir [RELEASING.md](RELEASING.md). Spécificités Windows :
 [RUNBOOK_WINDOWS_PACKAGING.md](RUNBOOK_WINDOWS_PACKAGING.md).
+
+Linux est prioritaire, suivi de Windows 11. Le workflow DMG macOS est conservé mais désactivé,
+y compris en lancement manuel, pendant la pause de cette plateforme.
 
 Licence premium en développement : sous Linux, un binaire lancé depuis `target/debug` ou
 `target/release` lit `~/.config/heelonvault/license.hvl` au lieu de `/etc/heelonvault/license.hvl`.

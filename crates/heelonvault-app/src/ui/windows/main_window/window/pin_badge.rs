@@ -81,11 +81,29 @@ fn show_inactive(label: &gtk4::Label, button: &gtk4::Button) {
     button.set_tooltip_text(None);
 }
 
-fn remaining_secs(pin_cache: &Rc<RefCell<Option<PinCache>>>) -> Option<u64> {
-    pin_cache
+fn refresh_state(
+    label: &gtk4::Label,
+    button: &gtk4::Button,
+    pin_cache: &Rc<RefCell<Option<PinCache>>>,
+    hard_timeout: Duration,
+    on_state_changed: &dyn Fn(bool),
+) -> Option<u64> {
+    let remaining = pin_cache
         .borrow()
         .as_ref()
-        .map(|cache| cache.remaining(PIN_HARD_TIMEOUT).as_secs())
+        .filter(|cache| !cache.is_exhausted())
+        .map(|cache| cache.remaining(hard_timeout).as_secs())
+        .filter(|seconds| *seconds > 0);
+    if let Some(seconds) = remaining {
+        label.remove_css_class("status-role-disabled");
+        label.add_css_class("status-role-user");
+        apply_visual(label, button, seconds);
+    } else {
+        pin_cache.borrow_mut().take();
+        show_inactive(label, button);
+    }
+    on_state_changed(remaining.is_some());
+    remaining
 }
 
 /// Build the callback invoked whenever the PIN cache is created or dropped.
@@ -93,6 +111,7 @@ pub fn build_pin_state_callback(
     header_pin_label: gtk4::Label,
     header_pin_button: gtk4::Button,
     pin_cache: Rc<RefCell<Option<PinCache>>>,
+    on_state_changed: Rc<dyn Fn(bool)>,
 ) -> Rc<dyn Fn(bool)> {
     let countdown: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
 
@@ -103,31 +122,52 @@ pub fn build_pin_state_callback(
 
         if !active {
             show_inactive(&header_pin_label, &header_pin_button);
+            on_state_changed(false);
             return;
         }
 
-        header_pin_label.remove_css_class("status-role-disabled");
-        header_pin_label.add_css_class("status-role-user");
-        apply_visual(
+        if refresh_state(
             &header_pin_label,
             &header_pin_button,
-            remaining_secs(&pin_cache).unwrap_or_else(|| PIN_HARD_TIMEOUT.as_secs()),
-        );
+            &pin_cache,
+            PIN_HARD_TIMEOUT,
+            on_state_changed.as_ref(),
+        )
+        .is_none()
+        {
+            return;
+        }
 
         let label_for_tick = header_pin_label.clone();
         let button_for_tick = header_pin_button.clone();
         let cache_for_tick = Rc::clone(&pin_cache);
         let countdown_for_tick = Rc::clone(&countdown);
+        let on_state_for_tick = Rc::clone(&on_state_changed);
         let source_id = glib::timeout_add_local(TICK, move || {
-            let remaining = remaining_secs(&cache_for_tick).unwrap_or(0);
-            if remaining == 0 {
-                show_inactive(&label_for_tick, &button_for_tick);
+            if refresh_state(
+                &label_for_tick,
+                &button_for_tick,
+                &cache_for_tick,
+                PIN_HARD_TIMEOUT,
+                on_state_for_tick.as_ref(),
+            )
+            .is_none()
+            {
                 *countdown_for_tick.borrow_mut() = None;
                 return glib::ControlFlow::Break;
             }
-            apply_visual(&label_for_tick, &button_for_tick, remaining);
             glib::ControlFlow::Continue
         });
         *countdown.borrow_mut() = Some(source_id);
     })
+}
+
+#[cfg(test)]
+pub(in crate::ui::windows::main_window) fn expire_for_test(
+    label: &gtk4::Label,
+    button: &gtk4::Button,
+    pin_cache: &Rc<RefCell<Option<PinCache>>>,
+    on_state_changed: &dyn Fn(bool),
+) {
+    assert!(refresh_state(label, button, pin_cache, Duration::ZERO, on_state_changed).is_none());
 }

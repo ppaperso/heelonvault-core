@@ -46,8 +46,8 @@ Téléchargez et vérifiez le nouveau paquet comme pour une première installati
 
 | Système | Procédure |
 | ------- | --------- |
-| Windows | Lancez le nouveau `.msi`. Il remplace la version installée ; inutile de désinstaller d'abord. Un `.msi` plus ancien que la version installée est refusé. |
-| macOS | Glissez la nouvelle application dans **Applications** et choisissez **Remplacer**. L'étape Gatekeeper du premier lancement est à refaire. |
+| Windows 11 | Lancez le nouveau `.msi`. Il remplace la version installée ; inutile de désinstaller d'abord. Un `.msi` plus ancien que la version installée est refusé. |
+| macOS | Diffusion temporairement en pause : aucun nouveau DMG. Les anciens paquets ne sont pas recommandés en production ; voir le [statut macOS](QUICKSTART.fr.md#macos). |
 | Linux (AppImage) | Remplacez l'ancien fichier `.AppImage` par le nouveau, puis rendez-le exécutable (`chmod +x`). |
 
 Vos données ne sont pas touchées par le remplacement de l'application : elles vivent dans un

@@ -38,13 +38,6 @@ multiple-versions = "deny"
 skip = [
   # reqwest/sqlx-core (base64 0.22) vs heelonvault-core/reqwest (base64 0.23)
   { name = "base64",            reason = "sqlx-core 0.9 → base64 0.22 ; reqwest/heelonvault-core → base64 0.23" },
-  # sqlx-core → sha2 0.10 → digest 0.10 ; argon2/ed25519-dalek/totp-rs → sha2 0.11 → digest 0.11
-  { name = "block-buffer",      reason = "pairé avec le split digest 0.10/0.11" },
-  { name = "crypto-common",     reason = "pairé avec le split digest 0.10/0.11" },
-  { name = "digest",            reason = "sqlx-core → sha2 0.10 → digest 0.10 ; argon2/ed25519-dalek/totp-rs → sha2 0.11 → digest 0.11" },
-  { name = "sha2",              reason = "sqlx-core → sha2 0.10 ; argon2/ed25519-dalek/totp-rs → sha2 0.11" },
-  # même split que digest, côté détection CPU (sha2/aes-gcm/argon2/curve25519-dalek)
-  { name = "cpufeatures",       reason = "pairé avec le split sha2 0.10/0.11 (sqlx-core vs argon2/ed25519-dalek/totp-rs)" },
   # fluent-templates et sqlx utilisent des séries flume incompatibles
   { name = "flume",             reason = "fluent-templates → 0.11, sqlx → 0.12 ; migration upstream en attente" },
   # ring utilise encore 0.2 ; rand/uuid/tempfile utilisent 0.4
@@ -64,7 +57,10 @@ skip = [
 ]
 
 [sources]
-# Premium est une dépendance locale ; aucune source Git n'est nécessaire.
+# Premium est local. Seul le correctif SQLx officiel epingle est autorise.
+# Owner: @ppaperso; retrait avant le 2026-11-16 et publication crates.io; #75.
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+required-git-spec = "rev"
+allow-git = ["https://github.com/launchbadge/sqlx"]

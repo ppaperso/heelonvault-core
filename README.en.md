@@ -6,7 +6,8 @@ Language: EN | [FR](README.md)
 
 HeelonVault is a **local-first** desktop secrets manager: passwords, API keys, SSH keys and
 sensitive documents are encrypted and stored on your computer, with no server and no online
-account. Written in Rust, with a GTK4 / libadwaita interface, for Windows, macOS and Linux.
+account. Written in Rust, with a GTK4 / libadwaita interface, with Linux as the primary platform
+and Windows 11 as the second target.
 
 > Distributed under the Apache 2.0 License. See [LICENSE](LICENSE) for software terms and [LEGAL.md](docs/LEGAL.md) for trademark and Authenticity Seal terms.
 
@@ -21,9 +22,17 @@ Download the package for your system from the
 
 | System | Package |
 | ------ | ------- |
-| Windows 10 / 11 (x64) | `heelonvault-windows-x86_64-vX.Y.Z.msi` |
-| macOS 13+ (Apple Silicon) | `heelonvault-macos-aarch64-vX.Y.Z.dmg` |
 | Linux (x86_64) | `heelonvault-linux-x86_64-vX.Y.Z.AppImage` |
+| Windows 11 (x64) | `heelonvault-windows-x86_64-vX.Y.Z.msi` |
+
+**Linux graphical qualification: Wayland only.** X11/XWayland are not certified;
+this scope will be reassessed before the first external deployment.
+
+**macOS development and distribution are temporarily paused.** Window-control and secret
+clipboard-copy issues mean existing DMGs are not recommended for production. CI/CD does not
+build or publish new DMGs, including through manual runs. The code is retained; resumption
+will be reassessed after Linux and Windows 11 have been validated on other machines and in
+production, with no announced date.
 
 Verification, step-by-step install and first launch:
 [Installation and quickstart](docs/QUICKSTART.md).

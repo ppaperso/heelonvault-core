@@ -137,6 +137,7 @@ struct CenterPanelWidgets {
 struct ProfileViewWidgets {
     container: gtk4::ScrolledWindow,
     back_button: gtk4::Button,
+    refresh_pin_state: Rc<dyn Fn(bool)>,
 }
 
 /// Sidebar entry of the security center: label, pending-findings counter and the "New" pill
@@ -224,6 +225,7 @@ mod native_gtk_tests {
         libadwaita::init()?;
         gtk4::gio::resources_register_include!("heelonvault.gresource")?;
         crate::ui::dialogs::add_edit_dialog::native_password_hint_scenario();
+        crate::ui::dialogs::add_edit_dialog::native_operation_scenario()?;
         super::window::keyboard_tests::native_keyboard_scenario()?;
         super::security_center::tests::native_security_center_scenario()?;
         let (profile, _, _, _) = super::window::views::build_profile_button("Patrick");

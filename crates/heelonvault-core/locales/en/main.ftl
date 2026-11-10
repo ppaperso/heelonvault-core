@@ -778,7 +778,8 @@ login-error-generic = Error: { $error }
 
 ## Signed audit reports and window closing
 main-close-busy-title = Operation in progress
-main-close-busy-body = An import or export is in progress. Wait for it to finish before closing the window.
+main-close-busy-body = A data operation is in progress. Wait for it to finish before closing the window.
+add-edit-operation-in-progress = Wait for the current operation to finish before opening another editor.
 certification-menu-label = Certify & Export
 certification-menu-license-required = Certify & Export (Pro license required)
 certification-report-24h = 24-hour report
