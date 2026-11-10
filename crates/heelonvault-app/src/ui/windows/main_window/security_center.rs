@@ -563,6 +563,7 @@ impl View {
 }
 
 pub(super) struct CenterDeps<TSecret, TVault> {
+    pub editor_navigation: super::editor_navigation::EditorNavigation,
     pub runtime: Handle,
     pub secrets: Arc<TSecret>,
     pub vaults: Arc<TVault>,
@@ -831,17 +832,23 @@ where
     let weak = Rc::downgrade(&view);
     let new_pill = deps.navigation.new_pill.clone();
     deps.navigation.button.connect_clicked(move |_| {
-        if new_pill.is_visible() {
-            new_pill.set_visible(false);
-            crate::ui::view_preferences::persist_security_center_seen();
-        }
-        stack.set_visible_child_name("security_center_view");
-        if weak
-            .upgrade()
-            .is_some_and(|view| !view.busy.get() && view.report.borrow().is_none())
-        {
-            start();
-        }
+        let new_pill = new_pill.clone();
+        let stack = stack.clone();
+        let weak = weak.clone();
+        let start = Rc::clone(&start);
+        deps.editor_navigation.request(move || {
+            if new_pill.is_visible() {
+                new_pill.set_visible(false);
+                crate::ui::view_preferences::persist_security_center_seen();
+            }
+            stack.set_visible_child_name("security_center_view");
+            if weak
+                .upgrade()
+                .is_some_and(|view| !view.busy.get() && view.report.borrow().is_none())
+            {
+                start();
+            }
+        });
     });
     let nav_button = deps.navigation.button.clone();
     deps.stack.connect_visible_child_name_notify(move |stack| {
@@ -1044,7 +1051,14 @@ pub(super) mod tests {
             &UserRole::Admin,
         ))?;
         let key = Rc::new(RefCell::new(vec![1; 32]));
+        let window = gtk4::Window::builder()
+            .title("HeelonVault")
+            .default_width(1180)
+            .default_height(850)
+            .child(&toast)
+            .build();
         let center = build(CenterDeps {
+            editor_navigation: super::super::editor_navigation::EditorNavigation::new(&window),
             runtime: runtime.handle().clone(),
             secrets: Arc::clone(&secret_service),
             vaults: Arc::clone(&vault_service),
@@ -1118,12 +1132,6 @@ pub(super) mod tests {
         shell.append(&sidebar.frame);
         shell.append(&panel.frame);
         toast.set_child(Some(&shell));
-        let window = gtk4::Window::builder()
-            .title("HeelonVault")
-            .default_width(1180)
-            .default_height(850)
-            .child(&toast)
-            .build();
         panel
             .main_stack
             .set_visible_child_name("security_center_view");
@@ -1516,6 +1524,13 @@ pub(super) mod tests {
         );
 
         *key.borrow_mut() = vec![1; 32];
+        crate::ui::dialogs::add_edit_dialog::native_inline_scenario(
+            &runtime,
+            Arc::clone(&secret_service),
+            Arc::clone(&vault_service),
+            user_id,
+            secret.id,
+        )?;
         runtime.block_on(sqlx::query("DROP TABLE vaults").execute(&pool))?;
         (center.invalidate)();
         let deadline = std::time::Instant::now() + Duration::from_secs(5);

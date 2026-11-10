@@ -23,7 +23,15 @@ use heelonvault_core::services::password_service::{PasswordService, PasswordServ
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
 
+mod lifecycle;
 mod operation;
+#[cfg(test)]
+mod tests;
+pub(crate) use lifecycle::EditorState;
+#[cfg(test)]
+pub(crate) use lifecycle::native_lifecycle_scenario;
+#[cfg(test)]
+pub(crate) use tests::native_inline_scenario;
 
 #[cfg(test)]
 pub(crate) use operation::native_operation_scenario;
@@ -75,6 +83,7 @@ pub struct AddEditDialog;
 #[allow(dead_code)]
 pub struct AddEditInlineView {
     pub container: gtk4::ScrolledWindow,
+    pub(crate) state: EditorState,
 }
 
 #[allow(dead_code)]
@@ -386,6 +395,8 @@ impl AddEditDialog {
         vault_choices_state: Rc<std::cell::RefCell<Vec<(Uuid, String)>>>,
         vaults_label: gtk4::Label,
         vault_pills_row: gtk4::Box,
+        lifecycle: EditorState,
+        on_loaded: Rc<dyn Fn()>,
     ) where
         TSecret: SecretService + Send + Sync + 'static,
         TVault: VaultService + Send + Sync + 'static,
@@ -393,7 +404,7 @@ impl AddEditDialog {
         type EditLoadResult = Result<
             (
                 heelonvault_core::models::SecretItem,
-                Option<String>,
+                Option<zeroize::Zeroizing<String>>,
                 Uuid,
                 Vec<(Uuid, String)>,
             ),
@@ -401,6 +412,7 @@ impl AddEditDialog {
         >;
 
         // Clones kept outside the first thread for the SecretViewed audit call below.
+        let admin_master_key = zeroize::Zeroizing::new(admin_master_key);
         let secret_for_audit = Arc::clone(&secret_service);
         let runtime_for_audit = runtime_handle.clone();
 
@@ -429,7 +441,7 @@ impl AddEditDialog {
                             .open_vault_for_user(
                                 admin_user_id,
                                 target_vault_id,
-                                SecretBox::new(Box::new(admin_master_key.clone())),
+                                SecretBox::new(Box::new(admin_master_key.to_vec())),
                             )
                             .await?;
                         let decrypted = secret_service
@@ -438,10 +450,10 @@ impl AddEditDialog {
                                 SecretBox::new(Box::new(vault_key.expose_secret().clone())),
                             )
                             .await?;
-                        Some(
+                        Some(zeroize::Zeroizing::new(
                             String::from_utf8(decrypted.secret_value.expose_secret().clone())
                                 .unwrap_or_default(),
-                        )
+                        ))
                     } else {
                         None
                     };
@@ -452,7 +464,11 @@ impl AddEditDialog {
         });
 
         glib::MainContext::default().spawn_local(async move {
-            match receiver.await {
+            let result = receiver.await;
+            if !lifecycle.active() {
+                return;
+            }
+            match result {
                 Ok(Ok((item, existing_password, source_vault_id, vault_choices))) => {
                     *source_vault_id_state.borrow_mut() = Some(source_vault_id);
                     *target_vault_id_state.borrow_mut() = Some(source_vault_id);
@@ -574,11 +590,12 @@ impl AddEditDialog {
                     }
 
                     if let Some(value) = existing_password {
-                        *initial_password_snapshot.borrow_mut() = Some(value.clone());
+                        *initial_password_snapshot.borrow_mut() = Some(value.to_string());
                         password_entry.set_text(value.as_str());
                     }
 
                     validity_days.set_sensitive(!validity_unlimited.is_active());
+                    on_loaded();
 
                     // ── CNIL: log SecretViewed ──────────────────────────────
                     let title_for_audit = item.title.clone();
@@ -594,7 +611,14 @@ impl AddEditDialog {
                         });
                     });
                 }
-                Ok(Err(_)) | Err(_) => {
+                Ok(Err(error)) => {
+                    error!(%error, "secret editor load failed");
+                    error_label
+                        .set_text(heelonvault_core::tr!("add-edit-error-load-failed").as_str());
+                    error_label.set_visible(true);
+                }
+                Err(error) => {
+                    error!(%error, "secret editor load task lost");
                     error_label
                         .set_text(heelonvault_core::tr!("add-edit-error-load-failed").as_str());
                     error_label.set_visible(true);

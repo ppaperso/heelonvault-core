@@ -66,6 +66,18 @@ Pendant un enregistrement ou une suppression, l'éditeur reste désactivé jusqu
 Attendez la fin avant d'ouvrir un autre éditeur ou de fermer la fenêtre. En cas d'échec,
 le formulaire reste disponible pour corriger les informations ou réessayer.
 
+**Ctrl+S** enregistre avec la même validation que le bouton Enregistrer. Le formulaire devient
+modifiable après son chargement initial. **Modifications non enregistrées** disparaît si vous
+rétablissez les valeurs initiales. Retour, Annuler, ouverture d'un autre éditeur, navigation
+latérale et fermeture demandent confirmation avant abandon ; **Continuer la modification**
+est le choix par défaut et ne change ni coffre sélectionné ni filtres.
+**Abandonner les modifications** quitte sans enregistrer.
+
+Le verrouillage de sécurité reste prioritaire : il abandonne le brouillon sans confirmation.
+Aucun brouillon n'est écrit sur disque ni restauré au déverrouillage. Un enregistrement déjà
+lancé peut se terminer, mais son résultat tardif ne peut ni rouvrir l'éditeur ni faire
+naviguer la session verrouillée.
+
 L'indicateur du presse-papiers signale les copies suivies par HeelonVault et leur délai d'effacement ; cliquez dessus pour effacer immédiatement. Il ne garantit ni l'absence de secrets ailleurs en mémoire, ni l'effacement des historiques de presse-papiers ou des copies déjà effectuées par d'autres applications.
 
 Une date de validité aide à repérer les entrées à renouveler : elle ne révoque pas les identifiants chez le service externe. Changez d'abord le secret sur ce service, puis mettez l'entrée à jour.

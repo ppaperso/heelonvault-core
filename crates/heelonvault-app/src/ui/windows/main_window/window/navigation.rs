@@ -108,6 +108,7 @@ fn install_inline_page(
     page_name: &str,
     page_title: &str,
     open_button: &gtk4::Button,
+    navigation: super::super::editor_navigation::EditorNavigation,
 ) {
     let frame = gtk4::Frame::new(None);
     frame.add_css_class("profile-section-frame");
@@ -125,7 +126,9 @@ fn install_inline_page(
     let stack_for_open = main_stack.clone();
     let page_name = page_name.to_string();
     open_button.connect_clicked(move |_| {
-        stack_for_open.set_visible_child_name(page_name.as_str());
+        let stack = stack_for_open.clone();
+        let page = page_name.clone();
+        navigation.request(move || stack.set_visible_child_name(&page));
     });
 }
 
@@ -170,6 +173,7 @@ pub fn setup_profile_page<TUser, TTotp, TPolicy, TBackup, TBackupApp, TImport, T
     profile_security_button: &gtk4::Button,
     on_open_users_view: Rc<dyn Fn()>,
     on_open_teams_view: Rc<dyn Fn()>,
+    navigation: super::super::editor_navigation::EditorNavigation,
 ) -> super::super::ProfileViewWidgets
 where
     TUser: UserService + Send + Sync + 'static,
@@ -226,7 +230,8 @@ where
 
     let stack_for_open = main_stack.clone();
     profile_security_button.connect_clicked(move |_| {
-        stack_for_open.set_visible_child_name("profile_view");
+        let stack = stack_for_open.clone();
+        navigation.request(move || stack.set_visible_child_name("profile_view"));
     });
 
     profile_view
@@ -291,6 +296,7 @@ pub fn setup_admin_pages<TAdmin, TTeam, TVault>(
     main_stack: &gtk4::Stack,
     administration_button: &gtk4::Button,
     teams_button: &gtk4::Button,
+    navigation: super::super::editor_navigation::EditorNavigation,
 ) -> AdminPages
 where
     TAdmin: heelonvault_core::services::admin_service::AdminService + Send + Sync + 'static,
@@ -319,6 +325,7 @@ where
         "users_view",
         heelonvault_core::tr!("main-user-nav").as_str(),
         administration_button,
+        navigation.clone(),
     );
 
     let teams = build_inline_page("main-teams-view-title", "main-teams-view-intro");
@@ -343,6 +350,7 @@ where
         "teams_view",
         heelonvault_core::tr!("main-teams-nav").as_str(),
         teams_button,
+        navigation,
     );
 
     AdminPages { users, teams }

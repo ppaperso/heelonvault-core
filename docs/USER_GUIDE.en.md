@@ -66,6 +66,16 @@ While saving or deleting, the editor stays disabled until the result arrives.
 Wait for completion before opening another editor or closing the window. If the operation
 fails, the form remains available to correct the information or retry.
 
+**Ctrl+S** saves using the same validation as the Save button. The form becomes editable
+only after its initial load. **Unsaved changes** disappears if you restore the original
+values. Back, Cancel, another editor, sidebar navigation and window closure ask before
+discarding changes; **Keep editing** is the default and does not change the selected vault
+or filters. **Discard changes** leaves without saving.
+
+Security locking takes priority: it discards the draft without confirmation. Drafts are
+not written to disk or restored after unlocking. An already started save may still finish,
+but its late result cannot reopen the editor or navigate the locked session.
+
 The clipboard indicator reports copies tracked by HeelonVault and their clearing countdown; click it to clear immediately. It does not guarantee the absence of secrets elsewhere in memory or the removal of clipboard history and copies already made by other applications.
 
 A validity date helps identify entries that need renewing: it does not revoke credentials at the external service. Change the secret on that service first, then update the entry.

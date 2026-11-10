@@ -366,21 +366,18 @@ pub fn setup_vault_selection_handlers(
     active_vault_id: Rc<RefCell<Option<Uuid>>>,
     selection_sync: Rc<Cell<bool>>,
     refresh_secrets: Rc<dyn Fn()>,
+    navigation: super::super::editor_navigation::EditorNavigation,
 ) {
     let shared_list_for_my = sidebar_panel.shared_vaults_list.clone();
     let active_for_my = Rc::clone(&active_vault_id);
     let sync_for_my = Rc::clone(&selection_sync);
     let refresh_for_my = Rc::clone(&refresh_secrets);
     let stack_for_my = main_stack.clone();
-    sidebar_panel
-        .my_vaults_list
-        .connect_row_selected(move |_list, row_opt| {
-            if sync_for_my.get() {
-                return;
-            }
-            if let Some(row) = row_opt
-                && let Some(vault_id) = vault_id_from_row(row)
-            {
+    navigation.guard_selection(
+        &sidebar_panel.my_vaults_list,
+        Rc::clone(&selection_sync),
+        move |row| {
+            if let Some(vault_id) = vault_id_from_row(row) {
                 sync_for_my.set(true);
                 shared_list_for_my.unselect_all();
                 sync_for_my.set(false);
@@ -388,22 +385,19 @@ pub fn setup_vault_selection_handlers(
                 stack_for_my.set_visible_child_name("entries_view");
                 refresh_for_my();
             }
-        });
+        },
+    );
 
     let my_list_for_shared = sidebar_panel.my_vaults_list.clone();
     let active_for_shared = Rc::clone(&active_vault_id);
     let sync_for_shared = Rc::clone(&selection_sync);
     let refresh_for_shared = Rc::clone(&refresh_secrets);
     let stack_for_shared = main_stack.clone();
-    sidebar_panel
-        .shared_vaults_list
-        .connect_row_selected(move |_list, row_opt| {
-            if sync_for_shared.get() {
-                return;
-            }
-            if let Some(row) = row_opt
-                && let Some(vault_id) = vault_id_from_row(row)
-            {
+    navigation.guard_selection(
+        &sidebar_panel.shared_vaults_list,
+        Rc::clone(&selection_sync),
+        move |row| {
+            if let Some(vault_id) = vault_id_from_row(row) {
                 sync_for_shared.set(true);
                 my_list_for_shared.unselect_all();
                 sync_for_shared.set(false);
@@ -411,7 +405,8 @@ pub fn setup_vault_selection_handlers(
                 stack_for_shared.set_visible_child_name("entries_view");
                 refresh_for_shared();
             }
-        });
+        },
+    );
 }
 
 /// Wire the "create vault" button to its modal name prompt.

@@ -16,6 +16,7 @@ use uuid::Uuid;
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
 
+use super::super::editor_navigation::EditorNavigation;
 use crate::ui::dialogs::add_edit_dialog::{AddEditDialog, DialogMode};
 use crate::ui::messages;
 
@@ -28,6 +29,7 @@ pub struct EditorDeps<TSecret, TVault> {
     pub session_master_key: Rc<RefCell<Vec<u8>>>,
     pub show_passwords_in_edit: Rc<Cell<bool>>,
     pub critical_operations: Rc<Cell<u32>>,
+    pub navigation: EditorNavigation,
     pub main_stack: gtk4::Stack,
     pub editor_host: gtk4::Box,
     pub toast_overlay: adw::ToastOverlay,
@@ -60,70 +62,74 @@ where
     TSecret: SecretService + Send + Sync + 'static,
     TVault: VaultService + Send + Sync + 'static,
 {
-    let operation_busy = Rc::new(Cell::new(false));
+    let deps = Rc::new(deps);
     Rc::new(move |mode| {
-        if operation_busy.get() {
-            deps.toast_overlay.add_toast(adw::Toast::new(
-                heelonvault_core::tr!("add-edit-operation-in-progress").as_str(),
-            ));
-            return;
-        }
-        let Some(master_key) =
-            super::super::MainWindow::snapshot_session_master_key(&deps.session_master_key)
-        else {
-            info!("secret editor blocked: session is locked");
-            return;
-        };
+        let deps = Rc::clone(&deps);
+        deps.navigation.clone().request(move || {
+            let Some(master_key) =
+                super::super::MainWindow::snapshot_session_master_key(&deps.session_master_key)
+            else {
+                info!("secret editor blocked: session is locked");
+                return;
+            };
 
-        while let Some(child) = deps.editor_host.first_child() {
-            deps.editor_host.remove(&child);
-        }
+            while let Some(child) = deps.editor_host.first_child() {
+                deps.editor_host.remove(&child);
+            }
 
-        let stack_for_cancel = deps.main_stack.clone();
-        let return_page =
-            if deps.main_stack.visible_child_name().as_deref() == Some("security_center_view") {
+            let stack_for_cancel = deps.main_stack.clone();
+            let return_page = if deps.main_stack.visible_child_name().as_deref()
+                == Some("security_center_view")
+            {
                 "security_center_view"
             } else {
                 "entries_view"
             };
-        let refresh_on_return = Rc::clone(&deps.refresh_entries);
-        let inline_view = AddEditDialog::build_inline(
-            deps.runtime_handle.clone(),
-            Arc::clone(&deps.secret_service),
-            Arc::clone(&deps.vault_service),
-            deps.user_id,
-            master_key,
-            deps.show_passwords_in_edit.get(),
-            mode,
-            Rc::clone(&operation_busy),
-            Rc::clone(&deps.critical_operations),
-            move || {
-                stack_for_cancel.set_visible_child_name(return_page);
-                if return_page == "security_center_view" {
-                    refresh_on_return();
-                }
-            },
-            {
-                let refresh_after_save = Rc::clone(&deps.refresh_entries);
-                let toast_overlay = deps.toast_overlay.clone();
-                move |saved_title: String| {
-                    refresh_after_save();
-                    let message = messages::toast_secret_saved(saved_title.as_str());
-                    toast_overlay.add_toast(adw::Toast::new(message.as_str()));
-                }
-            },
-            {
-                let refresh_after_delete = Rc::clone(&deps.refresh_entries);
-                let toast_overlay = deps.toast_overlay.clone();
-                move |deleted_title: String| {
-                    refresh_after_delete();
-                    let message = messages::toast_secret_deleted(deleted_title.as_str());
-                    toast_overlay.add_toast(adw::Toast::new(message.as_str()));
-                }
-            },
-        );
+            let refresh_on_return = Rc::clone(&deps.refresh_entries);
+            let navigation_for_cancel = deps.navigation.clone();
+            let inline_view = AddEditDialog::build_inline(
+                deps.runtime_handle.clone(),
+                Arc::clone(&deps.secret_service),
+                Arc::clone(&deps.vault_service),
+                deps.user_id,
+                master_key,
+                deps.show_passwords_in_edit.get(),
+                mode,
+                deps.navigation.busy(),
+                Rc::clone(&deps.critical_operations),
+                move || {
+                    let stack = stack_for_cancel.clone();
+                    let refresh = Rc::clone(&refresh_on_return);
+                    navigation_for_cancel.request(move || {
+                        stack.set_visible_child_name(return_page);
+                        if return_page == "security_center_view" {
+                            refresh();
+                        }
+                    });
+                },
+                {
+                    let refresh_after_save = Rc::clone(&deps.refresh_entries);
+                    let toast_overlay = deps.toast_overlay.clone();
+                    move |saved_title: String| {
+                        refresh_after_save();
+                        let message = messages::toast_secret_saved(saved_title.as_str());
+                        toast_overlay.add_toast(adw::Toast::new(message.as_str()));
+                    }
+                },
+                {
+                    let refresh_after_delete = Rc::clone(&deps.refresh_entries);
+                    let toast_overlay = deps.toast_overlay.clone();
+                    move |deleted_title: String| {
+                        refresh_after_delete();
+                        let message = messages::toast_secret_deleted(deleted_title.as_str());
+                        toast_overlay.add_toast(adw::Toast::new(message.as_str()));
+                    }
+                },
+            );
 
-        deps.editor_host.append(&inline_view.container);
-        deps.main_stack.set_visible_child_name("secret_editor_view");
+            deps.editor_host.append(&inline_view.container);
+            deps.navigation.install(inline_view.state);
+            deps.main_stack.set_visible_child_name("secret_editor_view");
+        });
     })
 }

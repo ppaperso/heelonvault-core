@@ -21,6 +21,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ### Interface fixes
 
+- Secret editor: unsaved-change indicator and keep/discard confirmation before Back, Cancel, sidebar navigation, another editor or window closure. Ctrl+S uses the existing save validation and pending guard. Initial loading cannot overwrite user input; security locking discards the draft and invalidates late UI completions. No draft is saved to disk.
 - Secret editor: while saving or deleting, the form and buttons stay disabled until the result arrives (RAII guard in the new `operation.rs` module); opening another editor during the operation is explicitly refused. On failure, the form is re-enabled to correct or retry.
 - PIN badge: the header PIN button and the Profile & Security section (including the protection-summary checkmark) now update together, including on cache expiry, through a single `refresh_pin_state` channel.
 - Window-close busy message generalized ("a data operation is in progress"), new translated string `add-edit-operation-in-progress` (FR/EN).

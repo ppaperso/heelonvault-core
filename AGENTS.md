@@ -123,6 +123,10 @@ Integration tests live under `crates/heelonvault-core/tests/` (plus repo-consist
 
 ### Session/runtime notes
 
+- Secret editor: `EditorState` fingerprints the loaded form (no plaintext baseline), and
+  `EditorNavigation` confirms before leaving or changing sidebar selection. Security clearing
+  bypasses confirmation, wipes the draft and invalidates late editor callbacks; never route
+  auto-lock through the unsaved-change prompt.
 - Closing the main window and auto-lock both trigger a clean logout back to the login screen.
 - A successful first-run bootstrap does **not** open a session; bootstrap and `close_request` must share the same completion flag, or closing the wizard quits the app.
 - Secret list: two layouts (`SecretViewMode::Grid`/`List`) on the same `secret_flow` FlowBox; keep filter/sort/shortcuts layout-agnostic — switching modes re-renders from the last load (`SecretListCallbacks::rerender`), no DB access.

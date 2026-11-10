@@ -38,6 +38,7 @@ pub fn setup_window_close_handler(
     window: &adw::ApplicationWindow,
     critical_ops_in_flight: Rc<Cell<u32>>,
     on_logout: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
+    navigation: super::super::editor_navigation::EditorNavigation,
 ) {
     let critical_ops_for_close = Rc::clone(&critical_ops_in_flight);
     let on_logout_for_close = Rc::clone(&on_logout);
@@ -57,17 +58,18 @@ pub fn setup_window_close_handler(
             return glib::Propagation::Stop;
         }
 
-        crate::ui::window_sizing::persist_main_window_state(
-            win.width(),
-            win.height(),
-            win.is_fullscreen(),
-        );
-
-        info!("main window state persisted, routing close request to logout flow");
-
-        if let Some(callback) = on_logout_for_close.borrow().as_ref() {
-            callback();
-        }
+        let win = win.clone();
+        let on_logout = Rc::clone(&on_logout_for_close);
+        navigation.request(move || {
+            crate::ui::window_sizing::persist_main_window_state(
+                win.width(),
+                win.height(),
+                win.is_fullscreen(),
+            );
+            if let Some(callback) = on_logout.borrow().as_ref() {
+                callback();
+            }
+        });
         glib::Propagation::Stop
     });
 }
@@ -409,44 +411,45 @@ pub fn setup_sidebar_filter_handlers(
     main_stack: &gtk4::Stack,
     secret_flow: gtk4::FlowBox,
     filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
+    navigation: super::super::editor_navigation::EditorNavigation,
 ) {
     let flow_for_category = secret_flow.clone();
     let filter_for_category = filter_runtime.clone();
     let stack_for_category = main_stack.clone();
-    sidebar_panel
-        .category_list
-        .connect_row_selected(move |_list, row_opt| {
-            if let Some(row) = row_opt {
-                stack_for_category.set_visible_child_name("entries_view");
-                let category = match row.index() {
-                    1 => SecretCategoryFilter::Password,
-                    2 => SecretCategoryFilter::ApiToken,
-                    3 => SecretCategoryFilter::SshKey,
-                    4 => SecretCategoryFilter::SecureDocument,
-                    _ => SecretCategoryFilter::All,
-                };
-                filter_for_category.selected_category.set(category);
-            }
+    navigation.guard_selection(
+        &sidebar_panel.category_list,
+        Rc::new(Cell::new(false)),
+        move |row| {
+            stack_for_category.set_visible_child_name("entries_view");
+            let category = match row.index() {
+                1 => SecretCategoryFilter::Password,
+                2 => SecretCategoryFilter::ApiToken,
+                3 => SecretCategoryFilter::SshKey,
+                4 => SecretCategoryFilter::SecureDocument,
+                _ => SecretCategoryFilter::All,
+            };
+            filter_for_category.selected_category.set(category);
             apply_filters(&flow_for_category, &filter_for_category);
-        });
+        },
+    );
 
     let flow_for_audit = secret_flow;
     let filter_for_audit = filter_runtime;
     let stack_for_audit = main_stack.clone();
-    sidebar_panel
-        .audit_list
-        .connect_row_selected(move |_list, row_opt| {
-            if let Some(row) = row_opt {
-                stack_for_audit.set_visible_child_name("entries_view");
-                let audit = match row.index() {
-                    1 => AuditFilter::Weak,
-                    2 => AuditFilter::Duplicate,
-                    _ => AuditFilter::All,
-                };
-                filter_for_audit.selected_audit.set(audit);
-            }
+    navigation.guard_selection(
+        &sidebar_panel.audit_list,
+        Rc::new(Cell::new(false)),
+        move |row| {
+            stack_for_audit.set_visible_child_name("entries_view");
+            let audit = match row.index() {
+                1 => AuditFilter::Weak,
+                2 => AuditFilter::Duplicate,
+                _ => AuditFilter::All,
+            };
+            filter_for_audit.selected_audit.set(audit);
             apply_filters(&flow_for_audit, &filter_for_audit);
-        });
+        },
+    );
 }
 
 /// Update the visual state of sort buttons
