@@ -130,6 +130,7 @@ Integration tests live under `crates/heelonvault-core/tests/` (plus repo-consist
 - Closing the main window and auto-lock both trigger a clean logout back to the login screen.
 - A successful first-run bootstrap does **not** open a session; bootstrap and `close_request` must share the same completion flag, or closing the wizard quits the app.
 - Secret list: two layouts (`SecretViewMode::Grid`/`List`) on the same `secret_flow` FlowBox; keep filter/sort/shortcuts layout-agnostic — switching modes re-renders from the last load (`SecretListCallbacks::rerender`), no DB access.
+- Secret-list loads are generation-scoped: reload and lock clear cached rows/actions/counters, and obsolete successes/errors cannot mutate the UI. MultiVault coverage counts failed vaults/items explicitly; audit counts describe loaded entries only, never inaccessible data.
 - CSV import: 3-phase UI (preview → progress → summary); rejected rows go to `HEELONVAULT_LOG_DIR/csv_import_rejects_*.txt`.
 - Search: Unicode-normalized index over title/login/email/URL/notes/category/tags/type, field-scoped syntax (`email:`, `tag:`, `type:`), light fuzzy tolerance.
 

@@ -38,6 +38,8 @@ pub(super) struct SecretFilterMeta {
 
 #[derive(Clone)]
 pub(super) struct FilterRuntime {
+    pub(super) load_ready: Rc<Cell<bool>>,
+    pub(super) filter_summary: gtk4::Label,
     pub(super) meta_by_widget: Rc<RefCell<HashMap<String, SecretFilterMeta>>>,
     pub(super) actions_by_widget: Rc<RefCell<HashMap<String, SecretQuickActions>>>,
     pub(super) search_text: Rc<RefCell<String>>,

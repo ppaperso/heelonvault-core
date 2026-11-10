@@ -72,6 +72,26 @@ La recette Windows et les contrôles Rust/sécurité ne changent pas.
 3. Bouton de tri actif mis en évidence.
 4. Badges en anglais : un mot de passe faible n'est jamais affiché en vert « robuste ».
 
+### Chargements et résultats MultiCoffre
+
+Utiliser uniquement une base de démonstration ; les tests natifs injectent les lenteurs,
+erreurs d'accès, d'ouverture, de lecture et les entrées illisibles sans altérer de données réelles.
+
+1. Passer rapidement du coffre A au coffre B et activer/désactiver MultiCoffre :
+   seuls les derniers résultats s'affichent, même si une ancienne requête termine en erreur.
+   Pendant le chargement, aucune ancienne entrée/action de copie et compteurs `-`.
+2. Coffre inaccessible ou entrée illisible : bandeau partiel avec nombres d'échecs,
+   entrées lisibles conservées, bouton de nouvelle tentative ; jamais de bilan « tout sain ».
+3. Tous les coffres indisponibles : erreur et nouvelle tentative, pas « coffre vide ».
+   Distinguer une liste vide complète d'une liste partielle sans entrée lisible.
+4. Appliquer type, audit et recherche : résumé affichées/chargées exact, état des filtres
+   explicite ; aucun résultat filtré ne masque le bandeau partiel. Cartes/liste et FR/EN
+   conservent cet état ; vérifier textes et bouton à largeur compacte.
+5. Verrouiller pendant un chargement, puis déverrouiller : aucune ancienne réponse ne
+   réaffiche d'entrée ; une nouvelle demande recharge le périmètre courant.
+6. Après restauration des accès dans la base de démonstration, réessayer :
+   bandeau complet, compteurs recalculés, bouton de nouvelle tentative masqué.
+
 ### Enregistrement et suppression
 
 1. Sur une base de démonstration, lancer un enregistrement lent : l'indicateur reste actif

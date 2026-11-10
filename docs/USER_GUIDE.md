@@ -90,6 +90,18 @@ Une suppression place le secret dans la **corbeille**. Ouvrez-la pour restaurer 
 
 La recherche porte par défaut sur le **coffre actif**. Activez **MultiCoffre** pour chercher dans les coffres auxquels vous avez accès. Une recherche ne donne aucun droit supplémentaire.
 
+La liste indique si le chargement est complet, partiel ou indisponible. En cas de résultats
+partiels, le bandeau compte les coffres inaccessibles et les entrées illisibles : ils sont
+exclus de la liste affichée et de ses compteurs d'audit. Un compteur nul dans cet état ne
+prouve **pas** que les coffres sont vides ou sans problème de sécurité. Utilisez
+**Réessayer le chargement** après avoir résolu les problèmes d'accès ou de données.
+Un résultat vide complet et un échec de chargement ont des messages distincts.
+Le résumé des filtres indique les entrées affichées/chargées, le type et le filtre d'audit
+sélectionnés, ainsi que l'activation d'une recherche. Retirez les filtres avant de conclure
+qu'aucune entrée ne correspond. Pendant un rechargement, les anciennes entrées et actions
+de copie sont retirées et les compteurs affichent `-`, pas zéro ; un résultat tardif d'un
+ancien périmètre ou d'une session verrouillée ne peut pas repeupler la liste.
+
 Les termes simples recherchent dans le titre, l'identifiant, l'e-mail, l'URL, les notes, la catégorie, les tags, le type et le nom du coffre. La recherche ignore la casse et normalise notamment les accents courants ; une légère tolérance aux fautes s'applique aux termes suffisamment longs. Elle ne recherche pas dans les valeurs secrètes déchiffrées.
 
 | Exemple | Usage |
