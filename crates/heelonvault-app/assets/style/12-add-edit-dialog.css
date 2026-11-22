@@ -203,3 +203,89 @@ frame.add-edit-footer-card {
     font-weight: 700;
     color: @hv_brand_800;
 }
+
+/* ── Category and tags: one row of badges ─────────────────────────────── */
+.classification-field {
+    min-height: 46px;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 16px;
+    border: 1px solid alpha(@hv_brand_200, 0.95);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.classification-field:focus-within {
+    border-color: @hv_brand_500;
+    box-shadow: 0 0 0 2px alpha(@hv_brand_500, 0.18);
+}
+
+text.classification-input {
+    min-height: 34px;
+    color: @hv_text;
+}
+
+.classification-chip {
+    padding: 1px 2px 1px 10px;
+    border-radius: 999px;
+    background: alpha(@hv_brand_500, 0.12);
+    border: 1px solid alpha(@hv_brand_500, 0.26);
+    color: @hv_brand_800;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.classification-chip-category {
+    background: alpha(@hv_brand_green, 0.14);
+    border-color: alpha(@hv_brand_green, 0.32);
+}
+
+button.classification-chip-remove {
+    min-width: 20px;
+    min-height: 20px;
+    padding: 0;
+    color: inherit;
+}
+
+button.classification-chip-remove image {
+    -gtk-icon-size: 12px;
+}
+
+flowbox.classification-tags flowboxchild,
+.classification-field flowboxchild {
+    padding: 0;
+    background: transparent;
+}
+
+.classification-counter {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: @hv_text_subtle;
+}
+
+.classification-counter-full {
+    color: @hv_warning_strong;
+}
+
+.classification-header {
+    min-height: 20px;
+}
+
+button.classification-help {
+    min-width: 18px;
+    min-height: 18px;
+    padding: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: @hv_brand_600;
+    border: 1px solid alpha(@hv_brand_500, 0.35);
+}
+
+.classification-help-text {
+    margin: 12px;
+    font-size: 0.88rem;
+}
+
+.classification-suggestions row:selected {
+    background: alpha(@hv_brand_500, 0.16);
+    color: @hv_brand_900;
+}

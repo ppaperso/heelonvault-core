@@ -23,7 +23,7 @@ For subsequent sign-ins, enter your username and master password. If two-factor 
 
 ## Find your way around
 
-- **Sidebar:** select a vault, open the trash, security center and profile; administration entries depend on your permissions.
+- **Sidebar:** select a vault, filter by secret **type** (passwords, API tokens, SSH keys, documents), open the trash, security center and profile; administration entries depend on your permissions.
 - **Main area:** search, filter, sort and browse secrets within the selected scope.
 - **Window controls:** add a secret, change the layout and monitor clipboard-related exposure; component screenshots do not necessarily show all these elements.
 - **Editor and profile pages:** work without losing sidebar navigation, then return to your entries.
@@ -42,6 +42,8 @@ For subsequent sign-ins, enter your username and master password. If two-factor 
 2. Select the type and enter a title and the required value.
 3. Complete useful fields: login, URL, notes, category, tags or validity, as offered by the form.
 4. Save, then check that the entry appears in the correct vault.
+
+The **category** (one, for example "Work") and **tags** (up to 5, for example "prod", "client-a") help you find secrets; they are independent of the type. Type to pick a value already used in the displayed vaults or create one: Enter, Tab or a comma turns it into a badge, the cross or Backspace removes it. The **?** button explains their use. Then search them with `category:` and `tag:`.
 
 | Type | What to enter | Important |
 | --- | --- | --- |

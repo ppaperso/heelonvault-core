@@ -273,6 +273,7 @@ where
         editor_host: editor_host.clone(),
         toast_overlay: toast_overlay.clone(),
         refresh_entries: Rc::clone(&refresh_entries),
+        classification: Rc::clone(&secret_list.classification),
     }));
     let open_editor = editor_launcher
         .borrow()
