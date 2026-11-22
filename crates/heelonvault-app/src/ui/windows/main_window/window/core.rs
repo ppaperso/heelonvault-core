@@ -476,6 +476,7 @@ where
             Arc::clone(&license_service),
             runtime_handle.clone(),
             database_pool.clone(),
+            Arc::new(crate::ui::local_time::GlibLocalTimeZone),
         ));
         let report_customer_name = license
             .customer_name()

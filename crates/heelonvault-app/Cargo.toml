@@ -1,6 +1,6 @@
 [package]
 name = "heelonvault-app"
-version = "2.1.1"
+version = "3.0.0"
 edition = "2024"
 rust-version = "1.98"
 authors = ["ppaperso <ppaperso@users.noreply.github.com>"]
@@ -42,7 +42,6 @@ heelonvault-premium = { path = "../../../heelonvault-premium", optional = true }
 # les transitive deps — le binaire doit les déclarer explicitement.
 sqlx    = { path = "../sqlx-shim" }
 secrecy = "0.10"
-chrono  = { version = "0.4", features = ["std"] }
 uuid    = { version = "1.16", features = ["serde", "v4"] }
 directories   = "6.0"
 

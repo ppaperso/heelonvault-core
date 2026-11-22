@@ -1,6 +1,6 @@
 [package]
 name = "heelonvault-core"
-version = "2.1.1"
+version = "3.0.0"
 edition = "2024"
 rust-version = "1.98"
 authors = ["ppaperso <ppaperso@users.noreply.github.com>"]
@@ -17,7 +17,7 @@ name = "heelonvault_core"
 path = "src/lib.rs"
 
 [dependencies]
-sqlx = { version = "0.9", default-features = false, features = [
+sqlx = { version = "0.9.1", default-features = false, features = [
     "runtime-tokio", "tls-rustls-ring-webpki", "sqlite", "migrate", "time", "uuid"
 ] }
 
@@ -46,7 +46,6 @@ tokio         = { version = "1.53", features = ["macros", "rt-multi-thread", "sy
 trait-variant = "0.1"
 
 # --- Datetime ---
-chrono = { version = "0.4", features = ["std"] }
 time   = { version = "0.3", features = ["serde", "formatting", "parsing"] }
 
 # --- Import CSV / données ---

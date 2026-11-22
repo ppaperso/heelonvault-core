@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result, anyhow};
-use chrono::Local;
 use directories::ProjectDirs;
 use gtk4::gdk;
 use gtk4::gio;
@@ -224,7 +223,7 @@ impl DailyLogFileWriter {
 
     /// Returns the current local date as `YYYYMMDD` (no hyphens).
     fn date_stamp_local() -> String {
-        Local::now().format("%Y%m%d").to_string()
+        ui::local_time::today_stamp()
     }
 
     fn path_for(log_dir: &std::path::Path, base_name: &str, date_stamp: &str) -> PathBuf {
@@ -919,13 +918,13 @@ fn install_application_css() {
 
 /// Custom timer for `tracing_subscriber` that formats each log record timestamp
 /// as RFC 3339 in the system's local timezone (e.g. `2026-03-17T14:40:06+01:00`).
-/// Using `chrono::Local` avoids the `SAFETY` caveats of `time::UtcOffset::current_local_offset()`
-/// in a multi-threaded context.
+/// Goes through GLib (`ui::local_time`): `time::UtcOffset::current_local_offset()`
+/// fails once the Tokio runtime has started extra threads.
 struct LocalRfc3339Timer;
 
 impl FormatTime for LocalRfc3339Timer {
     fn format_time(&self, w: &mut tracing_subscriber::fmt::format::Writer<'_>) -> std::fmt::Result {
-        write!(w, "{}", Local::now().to_rfc3339())
+        write!(w, "{}", ui::local_time::now_rfc3339())
     }
 }
 

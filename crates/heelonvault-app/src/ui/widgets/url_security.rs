@@ -195,7 +195,7 @@ pub(crate) fn attach(entry: &gtk4::Entry, row: &gtk4::Box, runtime: Handle) {
                         ("result", I18nArg::Str(&tr(key))),
                         (
                             "time",
-                            I18nArg::Str(&chrono::Local::now().format("%H:%M").to_string()),
+                            I18nArg::Str(&crate::ui::local_time::now_formatted("%H:%M")),
                         ),
                     ],
                 ));

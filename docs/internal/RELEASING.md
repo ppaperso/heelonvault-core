@@ -37,13 +37,11 @@ Les pré-versions (`X.Y.Z-rc.N`) sont taguées pour produire les paquets de test
 
 ## Checklist de livraison
 
-**Blocage crates.io — [#75](https://github.com/ppaperso/heelonvault-core/issues/75).**
-La correction de RUSTSEC-2026-0459 utilise le commit SQLx officiel
-`10462fa4414c6c7f1ed1d39bb31678e3b726878c` et `libsqlite3-sys` corrigé dans les deux dépôts.
-Exception approuvée : responsable @ppaperso, retrait au plus tard le 16 novembre 2026,
-et avant toute publication crates.io. Remplacer les patches Git par une version SQLx publiée,
-retirer l'autorisation de source Git et régénérer les deux lockfiles et le SBOM.
-La validation des paquets desktop peut continuer ; un dry-run Cargo n'annule pas ce blocage :
+**Correction SQLite — [#75](https://github.com/ppaperso/heelonvault-core/issues/75) (résolu).**
+RUSTSEC-2026-0459 est corrigé par SQLx 0.9.1 publié sur crates.io, qui embarque SQLite 3.54.1
+(`libsqlite3-sys` 0.39.1) ; `release_2_1_1_compatibility.rs` vérifie SQLite ≥ 3.54.0.
+Aucune source Git ne subsiste dans `[patch.crates-io]` et `cargo-deny` n'en autorise aucune.
+Ne jamais réintroduire un patch Git pour contourner un avis sans exception tracée et datée :
 les patches de workspace ne sont pas transmis aux utilisateurs de la crate publiée.
 
 **Qualification graphique Linux : Wayland uniquement — [#76](https://github.com/ppaperso/heelonvault-core/issues/76).**

@@ -47,8 +47,11 @@ pub struct License {
 impl License {
     /// Check if license is still valid (not expired).
     pub fn is_valid(&self) -> bool {
-        match chrono::DateTime::parse_from_rfc3339(&self.expiration_date) {
-            Ok(expiration) => chrono::Utc::now() <= expiration.with_timezone(&chrono::Utc),
+        match time::OffsetDateTime::parse(
+            &self.expiration_date,
+            &time::format_description::well_known::Rfc3339,
+        ) {
+            Ok(expiration) => time::OffsetDateTime::now_utc() <= expiration,
             Err(_) => false,
         }
     }

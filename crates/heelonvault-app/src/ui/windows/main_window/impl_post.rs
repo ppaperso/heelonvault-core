@@ -167,53 +167,38 @@ impl MainWindow {
         dialog.present();
     }
 
-    // Phase 5a: not yet called from main.rs service error paths. Owner: ppaadmin | Due: Phase 5b
-    // Phase 5a: not yet called from main.rs service error paths. Owner: ppaadmin | Due: Phase 5b
-    pub(in crate::ui::windows::main_window) fn format_login_timestamp_fr(raw: &str) -> String {
-        const MONTHS: [&str; 12] = [
-            "janvier",
-            "fevrier",
-            "mars",
-            "avril",
-            "mai",
-            "juin",
-            "juillet",
-            "aout",
-            "septembre",
-            "octobre",
-            "novembre",
-            "decembre",
+    /// Renders a login timestamp (stored in UTC) in the local zone, in the
+    /// active UI language; returns the raw value if it cannot be parsed.
+    pub(in crate::ui::windows::main_window) fn format_login_timestamp(raw: &str) -> String {
+        let Some(value) = crate::ui::local_time::parse_utc_timestamp(raw)
+            .and_then(crate::ui::local_time::to_local)
+        else {
+            return raw.to_string();
+        };
+        let month = value.month();
+        if !(1..=12).contains(&month) {
+            return raw.to_string();
+        }
+        let month_label = heelonvault_core::i18n::tr(&format!("month-{month}"));
+        let hour = format!("{:02}", value.hour());
+        let minute = format!("{:02}", value.minute());
+        let args = [
+            (
+                "day",
+                heelonvault_core::i18n::I18nArg::Num(i64::from(value.day_of_month())),
+            ),
+            ("month", heelonvault_core::i18n::I18nArg::Str(&month_label)),
+            (
+                "year",
+                heelonvault_core::i18n::I18nArg::Num(i64::from(value.year())),
+            ),
+            ("hour", heelonvault_core::i18n::I18nArg::Str(&hour)),
+            ("minute", heelonvault_core::i18n::I18nArg::Str(&minute)),
         ];
-
-        let parsed_local = DateTime::parse_from_rfc3339(raw)
-            .map(|value| value.with_timezone(&Local))
-            .or_else(|_| {
-                NaiveDateTime::parse_from_str(raw, "%Y-%m-%dT%H:%M:%S").map(|naive| {
-                    DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc).with_timezone(&Local)
-                })
-            })
-            .or_else(|_| {
-                NaiveDateTime::parse_from_str(raw, "%Y-%m-%d %H:%M:%S").map(|naive| {
-                    DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc).with_timezone(&Local)
-                })
-            });
-
-        match parsed_local {
-            Ok(value) => {
-                let month_label = MONTHS
-                    .get(value.month0() as usize)
-                    .copied()
-                    .unwrap_or("mois");
-                format!(
-                    "{} {} {} - {:02}h{:02}",
-                    value.day(),
-                    month_label,
-                    value.year(),
-                    value.hour(),
-                    value.minute()
-                )
-            }
-            Err(_) => raw.to_string(),
+        if heelonvault_core::i18n::current_language().starts_with("fr") {
+            heelonvault_core::i18n::tr_args("login-history-date-fr", &args)
+        } else {
+            heelonvault_core::i18n::tr_args("login-history-date-en", &args)
         }
     }
 
@@ -307,7 +292,7 @@ impl MainWindow {
 					}
 
 					for entry in entries {
-						let formatted_login = Self::format_login_timestamp_fr(entry.login_at.as_str());
+						let formatted_login = Self::format_login_timestamp(entry.login_at.as_str());
 						let mut line = formatted_login;
 						if let Some(device) = entry
 							.device_info

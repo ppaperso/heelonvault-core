@@ -37,14 +37,12 @@ Pre-releases (`X.Y.Z-rc.N`) are tagged to build test packages; they are not publ
 
 ## Release checklist
 
-**crates.io blocker — [#75](https://github.com/ppaperso/heelonvault-core/issues/75).**
-The RUSTSEC-2026-0459 remediation uses official SQLx commit
-`10462fa4414c6c7f1ed1d39bb31678e3b726878c` and fixed `libsqlite3-sys` in both repositories.
-Approved exception: owner @ppaperso, removal due no later than 16 November 2026,
-and before any crates.io publication. Replace the Git patches with a published SQLx release,
-remove the Git-source allowance and regenerate both lockfiles and the SBOM.
-Desktop package validation may continue; a Cargo dry run does not clear this blocker:
-workspace patches are not inherited by consumers of the published crate.
+**SQLite remediation — [#75](https://github.com/ppaperso/heelonvault-core/issues/75) (resolved).**
+RUSTSEC-2026-0459 is fixed by SQLx 0.9.1 from crates.io, which bundles SQLite 3.54.1
+(`libsqlite3-sys` 0.39.1); `release_2_1_1_compatibility.rs` asserts SQLite ≥ 3.54.0.
+No `[patch.crates-io]` Git source remains and `cargo-deny` allows none. Never reintroduce
+a Git patch to work around an advisory without a tracked, dated exception: workspace patches
+are not inherited by consumers of the published crate.
 
 **Linux graphical qualification: Wayland only — [#76](https://github.com/ppaperso/heelonvault-core/issues/76).**
 Wayland with `G_DEBUG=fatal-warnings` is the only blocking Linux graphical certification;

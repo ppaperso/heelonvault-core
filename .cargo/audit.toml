@@ -1,0 +1,17 @@
+# cargo-audit configuration (read from this directory, so it also applies to
+# `cargo audit --file ../heelonvault-premium/Cargo.lock` run from here).
+#
+# TEMPORARY EXCEPTION — do not extend without a new approval.
+#   Advisory  : RUSTSEC-2026-0543 (chrono is unmaintained)
+#   Rationale : HeelonVault code no longer depends on chrono. The only remaining
+#               path is zxcvbn 3.1.1, which depends on chrono for wasm32 targets
+#               only; it is never compiled into a shipped binary. cargo-audit
+#               reads Cargo.lock without target filtering, so it still reports it
+#               (cargo-deny prunes it through `[graph] targets` in deny.toml,
+#               and still fails if chrono re-enters any shipped target).
+#   Exit      : zxcvbn release without chrono (upstream change), or replacement.
+#   Owner     : @ppaperso
+#   Due date  : 2026-12-22 (one month maximum, approved by the owner)
+#   Tracking  : https://github.com/ppaperso/heelonvault-core/issues/82
+[advisories]
+ignore = ["RUSTSEC-2026-0543"]

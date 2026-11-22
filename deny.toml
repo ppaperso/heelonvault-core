@@ -2,6 +2,18 @@
 # Documentation: https://embarkstudios.github.io/cargo-deny/
 # Issues: #28, #40 - enforce supply-chain policy in CI
 
+[graph]
+# Targets HeelonVault actually builds and ships (Linux AppImage, Windows MSI on
+# MSYS2 UCRT64; macOS paused but kept so its dependencies stay audited).
+# Dependencies reachable only from other targets (e.g. zxcvbn's wasm32-only
+# chrono, RUSTSEC-2026-0543) are not compiled into any shipped binary.
+# Add a target here before shipping on it.
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-pc-windows-gnu",
+  "aarch64-apple-darwin",
+]
+
 [advisories]
 # Bloc toutes les vulnérabilités connues (CVE) — zéro tolérance
 version = 2
@@ -52,15 +64,13 @@ skip = [
   { name = "syn",               reason = "split de versions majeures syn entre les proc-macros upstream" },
   # gtk4-rs 0.11 (gdk4-sys) → system-deps 7 ; cairo/gio/glib/pango-sys 0.22 → system-deps 9
   { name = "system-deps",       reason = "gdk4-sys 0.11 → system-deps 7 ; cairo/gio/glib/pango-sys 0.22 → system-deps 9" },
-  # windows-sys : split des bindings Windows SDK entre ring/rustls et les autres
-  { name = "windows-sys",              reason = "ring/rustls sur une version Windows SDK ; reste de l'écosystème sur une autre" },
 ]
 
 [sources]
-# Premium est local. Seul le correctif SQLx officiel epingle est autorise.
-# Owner: @ppaperso; retrait avant le 2026-11-16 et publication crates.io; #75.
+# Premium est local ; toutes les autres dépendances viennent de crates.io.
+# Aucune source Git n'est autorisée (l'épinglage SQLx de #75 est retiré).
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 required-git-spec = "rev"
-allow-git = ["https://github.com/launchbadge/sqlx"]
+allow-git = []
