@@ -1298,6 +1298,25 @@ pub(super) mod tests {
                     false
                 }
                 assert!(choose_type(editor.container.upcast_ref(), index as u32));
+                fn find_url_entry(widget: &gtk4::Widget) -> Option<gtk4::Entry> {
+                    if widget.has_css_class("dialog-url-entry") {
+                        return widget.clone().downcast::<gtk4::Entry>().ok();
+                    }
+                    let mut child = widget.first_child();
+                    while let Some(current) = child {
+                        if let Some(entry) = find_url_entry(&current) {
+                            return Some(entry);
+                        }
+                        child = current.next_sibling();
+                    }
+                    None
+                }
+                if name == "editor-password" {
+                    // Fictitious address, so the guide shows the URL badge row.
+                    find_url_entry(editor.container.upcast_ref())
+                        .ok_or("missing URL entry")?
+                        .set_text("https://accounts.example.com");
+                }
                 panel
                     .main_stack
                     .add_named(&editor.container, Some("documentation-editor"));

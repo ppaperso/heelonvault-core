@@ -270,7 +270,9 @@
             heelonvault_core::tr!("add-edit-field-url-placeholder").as_str(),
             "dialog-url-entry",
         );
-        crate::ui::widgets::url_security::attach(&url_entry, &url_row, runtime_handle.clone());
+        let url_check =
+            crate::ui::widgets::url_security::attach(&url_entry, &url_row, runtime_handle.clone());
+        lifecycle.on_refresh_i18n(move || url_check.refresh_i18n());
 
         let notes_label = gtk4::Label::new(Some(heelonvault_core::tr!("add-edit-field-notes-label").as_str()));
         notes_label.add_css_class("login-field-label");
