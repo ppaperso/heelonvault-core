@@ -34,6 +34,8 @@ pub struct EditorDeps<TSecret, TVault> {
     pub editor_host: gtk4::Box,
     pub toast_overlay: adw::ToastOverlay,
     pub refresh_entries: Rc<dyn Fn()>,
+    /// Categories and tags already used, offered while typing.
+    pub classification: Rc<dyn Fn() -> crate::ui::widgets::classification::Suggestions>,
 }
 
 /// Create the editor host container and register it as the `secret_editor_view` stack page.
@@ -127,6 +129,9 @@ where
                 },
             );
 
+            inline_view
+                .classification
+                .set_suggestions((deps.classification)());
             deps.editor_host.append(&inline_view.container);
             deps.navigation.install(inline_view.state);
             deps.main_stack.set_visible_child_name("secret_editor_view");

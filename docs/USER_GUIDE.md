@@ -23,7 +23,7 @@ Aux connexions suivantes, saisissez votre identifiant et votre mot de passe maî
 
 ## Se repérer dans l'interface
 
-- **Barre latérale :** sélectionner un coffre, accéder à la corbeille, au centre de sécurité et au profil ; les entrées d'administration dépendent de vos droits.
+- **Barre latérale :** sélectionner un coffre, filtrer par **type** de secret (mots de passe, tokens API, clés SSH, documents), accéder à la corbeille, au centre de sécurité et au profil ; les entrées d'administration dépendent de vos droits.
 - **Zone centrale :** rechercher, filtrer, trier et consulter les secrets du périmètre sélectionné.
 - **Commandes de la fenêtre :** ajouter un secret, changer l'affichage et suivre l'exposition liée au presse-papiers ; tous ces éléments ne figurent pas nécessairement dans les captures de composants.
 - **Pages d'édition et de profil :** travailler sans perdre la navigation latérale, puis revenir aux entrées.
@@ -42,6 +42,8 @@ Les modes **cartes** et **liste** affichent les mêmes secrets et conservent la 
 2. Sélectionnez le type et renseignez le titre ainsi que la valeur requise.
 3. Complétez les champs utiles : identifiant, URL, notes, catégorie, tags ou validité, selon le formulaire.
 4. Enregistrez, puis vérifiez que l'entrée apparaît dans le bon coffre.
+
+La **catégorie** (une seule, par exemple « Travail ») et les **tags** (jusqu'à 5, par exemple « prod », « client-a ») servent à retrouver vos secrets ; ils sont indépendants du type. Tapez pour choisir une valeur déjà utilisée dans les coffres affichés ou en créer une : Entrée, Tab ou une virgule la transforment en pastille, la croix ou Retour arrière la retirent. Le bouton **?** rappelle leur usage. Recherchez-les ensuite avec `category:` et `tag:`.
 
 | Type | À renseigner | Point d'attention |
 | --- | --- | --- |

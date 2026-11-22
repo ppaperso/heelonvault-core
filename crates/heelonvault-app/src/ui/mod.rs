@@ -5,6 +5,7 @@ pub mod entitlements;
 pub mod license_badge;
 pub mod local_time;
 pub mod messages;
+pub mod search_text;
 pub mod sensitive_clipboard;
 pub mod theme;
 #[cfg(test)]

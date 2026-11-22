@@ -1298,13 +1298,13 @@ pub(super) mod tests {
                     false
                 }
                 assert!(choose_type(editor.container.upcast_ref(), index as u32));
-                fn find_url_entry(widget: &gtk4::Widget) -> Option<gtk4::Entry> {
-                    if widget.has_css_class("dialog-url-entry") {
+                fn find_entry(widget: &gtk4::Widget, class: &str) -> Option<gtk4::Entry> {
+                    if widget.has_css_class(class) {
                         return widget.clone().downcast::<gtk4::Entry>().ok();
                     }
                     let mut child = widget.first_child();
                     while let Some(current) = child {
-                        if let Some(entry) = find_url_entry(&current) {
+                        if let Some(entry) = find_entry(&current, class) {
                             return Some(entry);
                         }
                         child = current.next_sibling();
@@ -1312,10 +1312,16 @@ pub(super) mod tests {
                     None
                 }
                 if name == "editor-password" {
-                    // Fictitious address, so the guide shows the URL badge row.
-                    find_url_entry(editor.container.upcast_ref())
-                        .ok_or("missing URL entry")?
-                        .set_text("https://accounts.example.com");
+                    // Fictitious values, so the guide shows the badge rows.
+                    for (class, value) in [
+                        ("dialog-url-entry", "https://accounts.example.com"),
+                        ("dialog-category-entry", "Demo"),
+                        ("dialog-tags-entry", "prod, client-a"),
+                    ] {
+                        find_entry(editor.container.upcast_ref(), class)
+                            .ok_or("missing editor entry")?
+                            .set_text(value);
+                    }
                 }
                 panel
                     .main_stack

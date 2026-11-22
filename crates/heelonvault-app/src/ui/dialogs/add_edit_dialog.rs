@@ -84,6 +84,8 @@ pub struct AddEditDialog;
 pub struct AddEditInlineView {
     pub container: gtk4::ScrolledWindow,
     pub(crate) state: EditorState,
+    /// Category/tags row; receives suggestions from the loaded secrets.
+    pub(crate) classification: crate::ui::widgets::classification::ClassificationField,
 }
 
 #[allow(dead_code)]

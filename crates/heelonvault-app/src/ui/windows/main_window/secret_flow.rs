@@ -666,6 +666,25 @@ where
     }
 }
 
+/// Categories and tags already used in the last load (metadata only), offered by
+/// the editor while typing. Empty when nothing is loaded or the session is locked.
+pub(super) fn classification_suggestions<TSecret, TVault>(
+    ctx: &SecretFlowContext<TSecret, TVault>,
+) -> crate::ui::widgets::classification::Suggestions {
+    if ctx.session_master_key.borrow().is_empty() {
+        return Default::default();
+    }
+    let loaded = ctx.last_loaded.borrow().clone();
+    loaded.map_or_else(Default::default, |loaded| {
+        crate::ui::widgets::classification::Suggestions::collect(
+            loaded
+                .rows
+                .iter()
+                .map(|row| (row.category.as_str(), row.tags.as_str())),
+        )
+    })
+}
+
 /// What to do with the outcome of an on-demand decryption.
 #[derive(Debug, PartialEq, Eq)]
 enum CopyDecision {

@@ -236,6 +236,7 @@ mod native_gtk_tests {
         crate::ui::dialogs::add_edit_dialog::native_operation_scenario()?;
         crate::ui::dialogs::add_edit_dialog::native_lifecycle_scenario();
         crate::ui::widgets::url_security::native_url_check_scenario()?;
+        crate::ui::widgets::classification::native_classification_scenario()?;
         super::editor_navigation::EditorNavigation::native_navigation_scenario()?;
         super::window::keyboard_tests::native_keyboard_scenario()?;
         super::security_center::tests::native_security_center_scenario()?;

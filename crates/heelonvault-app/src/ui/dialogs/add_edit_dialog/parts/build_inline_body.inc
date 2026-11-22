@@ -106,16 +106,17 @@
             heelonvault_core::tr!("add-edit-field-title-placeholder").as_str(),
             "dialog-title-entry",
         );
-        let (category_row, category_entry) = Self::build_labeled_entry(
-            heelonvault_core::tr!("add-edit-field-category-label").as_str(),
-            heelonvault_core::tr!("add-edit-field-category-placeholder").as_str(),
-            "dialog-category-entry",
-        );
-        let (tags_row, tags_entry) = Self::build_labeled_entry(
-            heelonvault_core::tr!("add-edit-field-tags-label").as_str(),
-            heelonvault_core::tr!("add-edit-field-tags-placeholder").as_str(),
-            "dialog-tags-entry",
-        );
+        // Canonical category/tags values, edited through the badge row below.
+        let category_entry = gtk4::Entry::new();
+        category_entry.add_css_class("dialog-category-entry");
+        let tags_entry = gtk4::Entry::new();
+        tags_entry.add_css_class("dialog-tags-entry");
+        let classification =
+            crate::ui::widgets::classification::build(&category_entry, &tags_entry);
+        {
+            let classification = classification.clone();
+            lifecycle.on_refresh_i18n(move || classification.refresh_i18n());
+        }
 
         let type_label = gtk4::Label::new(Some(heelonvault_core::tr!("add-edit-field-type-label").as_str()));
         type_label.add_css_class("login-field-label");
@@ -929,8 +930,7 @@
             .margin_end(12)
             .build();
         info_box.append(&title_row);
-        info_box.append(&category_row);
-        info_box.append(&tags_row);
+        info_box.append(&classification.root);
         info_box.append(&username_row);
         info_box.append(&url_row);
         info_box.append(&notes_label);
@@ -1112,5 +1112,9 @@
             );
         }
 
-        AddEditInlineView { container, state: lifecycle }
+        AddEditInlineView {
+            container,
+            state: lifecycle,
+            classification,
+        }
 }

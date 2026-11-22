@@ -49,6 +49,8 @@ pub struct SecretListCallbacks {
     /// Rebuild the widgets from the last load (no database access, no decryption); returns
     /// `false` when nothing has been loaded yet.
     pub rerender: Rc<dyn Fn() -> bool>,
+    /// Categories and tags of the last load, offered by the secret editor.
+    pub classification: Rc<dyn Fn() -> crate::ui::widgets::classification::Suggestions>,
 }
 
 /// Build the secret list callbacks, sharing one context between reload and re-render.
@@ -112,6 +114,10 @@ where
             }
         })
     };
+    let classification: Rc<dyn Fn() -> crate::ui::widgets::classification::Suggestions> = {
+        let ctx = Rc::clone(&ctx);
+        Rc::new(move || secret_flow::classification_suggestions(&ctx))
+    };
     let refresh_i18n: Rc<dyn Fn()> = Rc::new(move || secret_flow::refresh_load_i18n(&ctx));
 
     SecretListCallbacks {
@@ -120,5 +126,6 @@ where
         clear,
         prepare,
         refresh_i18n,
+        classification,
     }
 }
