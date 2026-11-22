@@ -5,7 +5,6 @@ use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use chrono::Local;
 use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita as adw;
@@ -17,6 +16,7 @@ use heelonvault_core::errors::AppError;
 use heelonvault_core::i18n::I18nArg;
 use heelonvault_core::services::backup_service::{BackupMetadata, RecoveryKeyBundle};
 
+use crate::ui::local_time;
 use crate::ui::sensitive_clipboard;
 
 #[allow(dead_code)]
@@ -560,7 +560,7 @@ impl RecoveryKeyExportDialog {
                     gtk4::cairo::FontWeight::Normal,
                 );
                 cr.set_font_size(11.0);
-                let printed_at = Local::now().format("%d/%m/%Y %H:%M").to_string();
+                let printed_at = local_time::now_formatted("%d/%m/%Y %H:%M");
                 cr.move_to(36.0, y);
                 let _ = cr.show_text(format!("{}: {}", date_label.as_str(), printed_at).as_str());
 
@@ -643,7 +643,7 @@ impl RecoveryKeyExportDialog {
                     format!(
                         "{}: {}\n\n",
                         heelonvault_core::tr!("profile-export-print-date"),
-                        Local::now().format("%d/%m/%Y %H:%M")
+                        local_time::now_formatted("%d/%m/%Y %H:%M")
                     )
                     .as_str(),
                 );

@@ -7,10 +7,19 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [Unreleased]
+## [3.0.0] — unreleased
+
+### Breaking changes (`heelonvault-core` API)
+
+- Major version 3.0.0 for the whole product: `chrono` is removed from the public API. `IpRateLimitStatus::locked_until` and `IpLoginAttempt::timestamp` (`repositories::ip_rate_limit_repository`) are now `time::OffsetDateTime`. The redundant `unsafe impl Send/Sync` on `IpRateLimitStatus` (and their `#[allow(unsafe_code)]`) are removed: the type is `Send + Sync` automatically.
+- New public trait `services::local_time_zone::LocalTimeZone` (implementations `UtcTimeZone` and `FixedOffsetTimeZone`): the library no longer reads the local time zone itself; the binary injects an implementation backed by the system tz database.
 
 ### Security and dependencies
 
+- RUSTSEC-2026-0543 (`chrono` unmaintained) remediation, which had blocked the scheduled supply-chain run since 2026-11-12: `chrono` is removed from core, the application and premium in favour of `time`, already in the tree (no new dependency). Instants are still stored and compared in UTC with the same persisted formats (RFC 3339; `login_attempts_ip` keeps the `+00:00` suffix, now fixed-width so that lexicographic SQL comparison follows chronological order).
+- Local time: the application goes through GLib (`ui::local_time`, `GlibLocalTimeZone`), which is thread-safe and applies the DST rules of each instant; explicit UTC fallback if the zone is unavailable. Log timestamps and daily rotation unchanged.
+- `cargo-deny`: `[graph] targets` restricts the analysis to shipped targets (Linux x86_64, Windows x86_64 GNU, macOS aarch64 kept). The only remaining path to `chrono`, `zxcvbn` 3.1.1 on `wasm32` only, is not compiled into any shipped binary. `cargo-audit` cannot filter by target: temporary exception limited to RUSTSEC-2026-0543 in `.cargo/audit.toml`, owner @ppaperso, due 2026-12-22 (#82). `cargo-deny` still fails if `chrono` re-enters a shipped target.
+- RUSTSEC-2026-0486 remediation: `rustix` 1.1.5 → 1.1.6 in both lockfiles. SBOM regenerated.
 - RUSTSEC-2026-0459 (SQLite) remediation: the official SQLx commit `10462fa4414c6c7f1ed1d39bb31678e3b726878c` (with a patched `libsqlite3-sys`) is pinned via `[patch.crates-io]`, in this repository and in `heelonvault-premium`. `cargo-deny` allows only that Git source, and only pinned by `rev`; `scripts/check-core-standalone.sh` propagates the same patch to the standalone build. Removal due no later than 2026-11-16 and before any crates.io publication (#75). SBOM regenerated.
 - New compatibility test `crates/heelonvault-core/tests/release_2_1_1_compatibility.rs`: bundled SQLite version ≥ 3.54.0, historical schema pinned by SHA-256 digest, fixed synthetic ciphertext vectors decrypted for all four secret types, backup/restore into a separate database. Vectors are never regenerated to accommodate a format change.
 
@@ -21,6 +30,8 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ### Interface fixes
 
+- Login history: the date follows the interface language (keys `login-history-date-*` and `month-*`, previously unused) instead of hard-coded French month names, and the time is converted to the local zone with the offset in force at that date.
+- CSV import reject report: timestamp in explicit UTC (`Z`) in the file name and header, since the library cannot read the local zone soundly.
 - Secret lists: obsolete load successes and failures are rejected after a newer request or security lock. Reloading clears old rows, actions and counters. MultiVault now distinguishes complete, partial, unavailable and empty results, counts inaccessible vaults and unreadable entries, and offers a retry. A live summary shows visible/loaded entries and active category, audit and search filters; audit counts cover loaded entries only.
 - Secret editor: unsaved-change indicator and keep/discard confirmation before Back, Cancel, sidebar navigation, another editor or window closure. Ctrl+S uses the existing save validation and pending guard. Initial loading cannot overwrite user input; security locking discards the draft and invalidates late UI completions. No draft is saved to disk.
 - Secret editor: while saving or deleting, the form and buttons stay disabled until the result arrives (RAII guard in the new `operation.rs` module); opening another editor during the operation is explicitly refused. On failure, the form is re-enabled to correct or retry.

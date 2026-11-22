@@ -2,7 +2,6 @@ use std::fs;
 use std::path::Path;
 use std::sync::{Arc, mpsc::Sender as ProgressSender};
 
-use chrono::Local;
 use secrecy::{ExposeSecret, SecretBox};
 use serde::Serialize;
 use tracing::{error, info};
@@ -392,12 +391,28 @@ impl ImportServiceImpl {
             ))
         })?;
 
-        let timestamp = Local::now().format("%Y%m%d_%H%M%S");
+        // A library cannot read the local UTC offset soundly in a multi-threaded
+        // process, so the report is stamped in UTC (explicit `Z` suffix).
+        let generated_at = time::OffsetDateTime::now_utc();
+        let timestamp = format!(
+            "{:04}{:02}{:02}_{:02}{:02}{:02}Z",
+            generated_at.year(),
+            u8::from(generated_at.month()),
+            generated_at.day(),
+            generated_at.hour(),
+            generated_at.minute(),
+            generated_at.second()
+        );
+        let generated_at = generated_at
+            .format(&time::format_description::well_known::Rfc3339)
+            .map_err(|error| {
+                AppError::Storage(format!("failed to format report timestamp: {error}"))
+            })?;
         let report_path = report_dir.join(format!("csv_import_rejects_{timestamp}.txt"));
 
         let mut lines = vec![
             "HeelonVault CSV Import Reject Report".to_string(),
-            format!("Generated at: {}", Local::now().to_rfc3339()),
+            format!("Generated at: {generated_at}"),
             format!("Source file: {}", csv_file_path.display()),
             format!("Rejected rows: {}", rejects.len()),
             String::new(),

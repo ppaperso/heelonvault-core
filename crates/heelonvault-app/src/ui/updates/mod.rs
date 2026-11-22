@@ -154,7 +154,7 @@ impl Checker {
         if matches!(*self.status.borrow(), Status::Checking) {
             return;
         }
-        let now = chrono::Utc::now().timestamp();
+        let now = time::OffsetDateTime::now_utc().unix_timestamp();
         if !manual && !due(&self.preferences.borrow(), now) {
             return;
         }

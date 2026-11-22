@@ -7,10 +7,19 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [Unreleased]
+## [3.0.0] — non publiée
+
+### Changements incompatibles (API de `heelonvault-core`)
+
+- Version majeure 3.0.0 pour tout le produit : `chrono` est retiré de l'API publique. `IpRateLimitStatus::locked_until` et `IpLoginAttempt::timestamp` (`repositories::ip_rate_limit_repository`) sont désormais des `time::OffsetDateTime`. Les `unsafe impl Send/Sync` superflus de `IpRateLimitStatus` (et leurs `#[allow(unsafe_code)]`) sont supprimés : le type est `Send + Sync` automatiquement.
+- Nouveau trait public `services::local_time_zone::LocalTimeZone` (implémentations `UtcTimeZone` et `FixedOffsetTimeZone`) : la bibliothèque ne lit plus le fuseau local elle-même ; le binaire injecte une implémentation adossée à la base tz du système.
 
 ### Sécurité et dépendances
 
+- Correction de l'avis RUSTSEC-2026-0543 (`chrono` non maintenu), qui bloquait la supply-chain planifiée depuis le 2026-11-12 : `chrono` est retiré de core, de l'application et de premium au profit de `time`, déjà présent dans l'arbre (aucune nouvelle dépendance). Les instants restent stockés et comparés en UTC, avec les mêmes formats persistés (RFC 3339 ; `login_attempts_ip` conserve le suffixe `+00:00`, désormais à largeur fixe pour que la comparaison SQL lexicographique suive l'ordre chronologique).
+- Heure locale : l'application passe par GLib (`ui::local_time`, `GlibLocalTimeZone`), sûr en multi-thread et appliquant les règles d'heure d'été de chaque instant ; repli explicite en UTC si le fuseau est indisponible. Horodatage des journaux et rotation quotidienne inchangés.
+- `cargo-deny` : `[graph] targets` limite l'analyse aux cibles livrées (Linux x86_64, Windows x86_64 GNU, macOS aarch64 conservé). Le seul chemin restant vers `chrono`, `zxcvbn` 3.1.1 sur `wasm32` uniquement, n'est compilé dans aucun binaire livré. `cargo-audit` ne filtre pas par cible : exception temporaire limitée à RUSTSEC-2026-0543 dans `.cargo/audit.toml`, responsable @ppaperso, échéance 2026-12-22 (#82). `cargo-deny` échoue toujours si `chrono` revient sur une cible livrée.
+- Correction de l'avis RUSTSEC-2026-0486 : `rustix` 1.1.5 → 1.1.6 dans les deux fichiers de verrouillage. SBOM régénéré.
 - Correction de l'avis RUSTSEC-2026-0459 (SQLite) : épinglage du commit SQLx officiel `10462fa4414c6c7f1ed1d39bb31678e3b726878c` (avec `libsqlite3-sys` corrigé) via `[patch.crates-io]`, dans ce dépôt et dans `heelonvault-premium`. `cargo-deny` n'autorise que cette source Git, et uniquement épinglée par `rev` ; `scripts/check-core-standalone.sh` propage le même patch au build autonome. Retrait au plus tard le 2026-11-16 et avant toute publication crates.io (#75). SBOM régénéré.
 - Nouveau test de compatibilité `crates/heelonvault-core/tests/release_2_1_1_compatibility.rs` : version SQLite embarquée ≥ 3.54.0, schéma historique figé par empreinte SHA-256, déchiffrement de vecteurs synthétiques fixes pour les quatre types de secrets, sauvegarde/restauration vers une base distincte. Les vecteurs ne sont jamais régénérés pour accompagner un changement de format.
 
@@ -21,6 +30,8 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ### Corrections d'interface
 
+- Historique des connexions : la date suit la langue de l'interface (clés `login-history-date-*` et `month-*`, jusque-là inutilisées) au lieu de noms de mois français codés en dur, et l'heure est convertie dans le fuseau local avec le décalage en vigueur à cette date.
+- Rapport de rejets d'import CSV : horodatage en UTC explicite (`Z`) dans le nom du fichier et l'en-tête, la bibliothèque ne pouvant pas lire le fuseau local de façon sûre.
 - Liste des secrets : les succès et échecs de chargement obsolètes sont rejetés après une nouvelle demande ou un verrouillage. Le rechargement efface les anciennes lignes, actions et compteurs. MultiCoffre distingue résultats complets, partiels, indisponibles et vides, compte les coffres inaccessibles et les entrées illisibles, et propose de réessayer. Un résumé actualisé indique les entrées affichées/chargées et les filtres de type, d'audit et de recherche ; les compteurs d'audit portent uniquement sur les entrées chargées.
 - Éditeur de secrets : indication des modifications non enregistrées et confirmation continuer/abandonner avant Retour, Annuler, navigation latérale, ouverture d'un autre éditeur ou fermeture. Ctrl+S conserve la validation et la garde d'enregistrement existantes. Le chargement initial ne peut plus écraser une saisie ; le verrouillage abandonne le brouillon et invalide les retours UI tardifs. Aucun brouillon enregistré sur disque.
 - Éditeur de secrets : pendant un enregistrement ou une suppression, le formulaire et les boutons restent désactivés jusqu'au résultat (garde RAII dans le nouveau module `operation.rs`) ; l'ouverture d'un autre éditeur pendant l'opération est refusée avec un message explicite. En cas d'échec, le formulaire est réactivé pour correction ou nouvel essai.

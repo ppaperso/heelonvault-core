@@ -1593,10 +1593,9 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "heelonvault-app"
-version = "2.1.1"
+version = "3.0.0"
 dependencies = [
  "anyhow",
- "chrono",
  "directories",
  "embed-resource",
  "getrandom 0.4.3",
@@ -1628,14 +1627,13 @@ dependencies = [
 
 [[package]]
 name = "heelonvault-core"
-version = "2.1.1"
+version = "3.0.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
  "argon2",
  "base64 0.23.1",
  "bip39",
- "chrono",
  "criterion",
  "csv",
  "encoding_rs",
@@ -1669,11 +1667,10 @@ dependencies = [
 
 [[package]]
 name = "heelonvault-premium"
-version = "2.1.1"
+version = "3.0.0"
 dependencies = [
  "aes",
  "base64 0.23.1",
- "chrono",
  "directories",
  "ed25519-dalek",
  "getrandom 0.4.3",
@@ -1685,6 +1682,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx 0.9.0 (git+https://github.com/launchbadge/sqlx?rev=10462fa4414c6c7f1ed1d39bb31678e3b726878c)",
+ "time",
  "tokio",
  "tracing",
  "urlencoding",
@@ -1694,7 +1692,7 @@ dependencies = [
 
 [[package]]
 name = "heelonvault-url-check"
-version = "2.1.1"
+version = "3.0.0"
 dependencies = [
  "thiserror",
  "tokio",
@@ -2942,9 +2940,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "1.1.5"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d"
+checksum = "e5e76742e5294153d4dde1207dbec5bdd81eef6fabdc0d2118babadabfd858aa"
 dependencies = [
  "bitflags",
  "errno",

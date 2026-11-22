@@ -3,6 +3,7 @@ pub mod dialogs;
 pub(crate) mod doc_screenshots;
 pub mod entitlements;
 pub mod license_badge;
+pub mod local_time;
 pub mod messages;
 pub mod sensitive_clipboard;
 pub mod theme;

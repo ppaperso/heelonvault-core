@@ -356,7 +356,7 @@ where
                     || !self.reject_replay_and_record(
                         username,
                         code,
-                        chrono::Utc::now().timestamp(),
+                        time::OffsetDateTime::now_utc().unix_timestamp(),
                     )?
                 {
                     return Ok(false);
@@ -386,7 +386,7 @@ where
             return Ok(false);
         }
 
-        let now_ts = chrono::Utc::now().timestamp();
+        let now_ts = time::OffsetDateTime::now_utc().unix_timestamp();
         self.reject_replay_and_record(username, code, now_ts)
     }
 }

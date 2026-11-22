@@ -543,7 +543,7 @@ impl View {
             .set_model(Some(&gtk4::StringList::new(&strings)));
         self.vaults.set_selected(selection);
         self.updating_vaults.set(false);
-        *self.completed_at.borrow_mut() = Some(chrono::Local::now().format("%H:%M").to_string());
+        *self.completed_at.borrow_mut() = Some(crate::ui::local_time::now_formatted("%H:%M"));
         *self.report.borrow_mut() = Some(report);
         self.render();
         let weak = Rc::downgrade(self);

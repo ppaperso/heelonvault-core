@@ -10,7 +10,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use chrono::{DateTime, Datelike, Local, NaiveDateTime, Timelike, Utc};
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{Align, Orientation};

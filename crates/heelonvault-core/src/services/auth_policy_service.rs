@@ -1,4 +1,3 @@
-use chrono::Utc;
 use sqlx::{Row, SqlitePool};
 use tracing::{error, info};
 
@@ -110,7 +109,7 @@ impl AuthPolicyService for SqlxAuthPolicyService {
         let failed_attempts: i64 = row.try_get("failed_attempts")?;
         let last_attempt_at: Option<i64> = row.try_get("last_attempt_at")?;
 
-        let now_ts = Utc::now().timestamp();
+        let now_ts = time::OffsetDateTime::now_utc().unix_timestamp();
         Ok(AuthPolicyState {
             failed_attempts,
             remaining_lock_secs: Self::remaining_lock_secs(
@@ -130,7 +129,7 @@ impl AuthPolicyService for SqlxAuthPolicyService {
         }
 
         self.ensure_row_exists(username).await?;
-        let now_ts = Utc::now().timestamp();
+        let now_ts = time::OffsetDateTime::now_utc().unix_timestamp();
 
         sqlx::query(
             "UPDATE auth_policy
