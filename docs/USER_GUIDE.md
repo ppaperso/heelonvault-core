@@ -282,6 +282,8 @@ Quand une mise à jour est proposée, ouvrez les notes et téléchargements de l
 
 Le diagnostic local d'une URL signale par exemple HTTP, une syntaxe invalide ou un domaine internationalisé. **HTTPS ne prouve pas qu'un site est digne de confiance.**
 
+Dans l'éditeur, ce diagnostic s'affiche sous le champ URL sous forme de pastille : neutre pour une adresse HTTPS non vérifiée, orange pour un point d'attention (HTTP, hôte interne, domaine internationalisé), rouge pour une URL à corriger. Survolez une pastille pour lire le détail ; le bouton ⓘ regroupe les explications. Le bouton **Vérifier** n'apparaît que pour une adresse HTTPS publique ; une seconde pastille indique alors le résultat du contrôle en ligne, avec son heure dans l'infobulle. Ce résultat reste affiché si vous revenez sur le secret pendant la session, tant que l'hôte (protocole, domaine, port) ne change pas ; il n'est jamais enregistré et disparaît au verrouillage ou à la déconnexion. Sans URL, rien ne s'affiche.
+
 Dans l'éditeur, un contrôle en ligne DNS/TLS est facultatif et demande votre accord **pour chaque contrôle**. Le résolveur DNS et le serveur cible peuvent observer le domaine et votre adresse IP. Le contrôle contacte l'hôte, pas la page : il n'envoie ni chemin, ni paramètres, ni secret, ni cookie, ni identifiant. Les adresses internes sont bloquées.
 
 Un certificat TLS valide ne garantit ni la réputation du site, ni l'existence de la page. Une erreur réseau ne prouve pas que le domaine est malveillant. Le centre de sécurité n'effectue pas ces connexions.

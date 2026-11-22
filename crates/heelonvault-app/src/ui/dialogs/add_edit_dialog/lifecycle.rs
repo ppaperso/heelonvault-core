@@ -14,6 +14,8 @@ struct State {
     root: glib::WeakRef<gtk4::Widget>,
     dirty_label: glib::WeakRef<gtk4::Label>,
     clear_sensitive: RefCell<Option<Box<dyn Fn()>>>,
+    /// Extra widgets of the editor that own live-retranslated text.
+    i18n_refreshers: RefCell<Vec<Box<dyn Fn()>>>,
 }
 
 impl EditorState {
@@ -25,6 +27,7 @@ impl EditorState {
             root: root.as_ref().downgrade(),
             dirty_label: dirty_label.downgrade(),
             clear_sensitive: RefCell::new(None),
+            i18n_refreshers: RefCell::new(Vec::new()),
         }))
     }
 
@@ -40,9 +43,16 @@ impl EditorState {
         *self.0.clear_sensitive.borrow_mut() = Some(Box::new(clear));
     }
 
+    pub(crate) fn on_refresh_i18n(&self, refresh: impl Fn() + 'static) {
+        self.0.i18n_refreshers.borrow_mut().push(Box::new(refresh));
+    }
+
     pub(crate) fn refresh_i18n(&self) {
         if let Some(label) = self.0.dirty_label.upgrade() {
             label.set_text(heelonvault_core::tr!("editor-unsaved").as_str());
+        }
+        for refresh in self.0.i18n_refreshers.borrow().iter() {
+            refresh();
         }
     }
 

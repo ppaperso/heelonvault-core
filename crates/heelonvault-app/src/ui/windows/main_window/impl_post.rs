@@ -91,6 +91,7 @@ impl MainWindow {
     pub fn clear_sensitive_session(&self) {
         (self.clear_security)();
         crate::ui::sensitive_clipboard::clear_now();
+        crate::ui::widgets::url_security::forget_session_checks();
         self.deactivate_auto_lock();
         self.clear_pin_cache();
         {
@@ -109,6 +110,7 @@ impl MainWindow {
     pub fn lock_session_keep_pin(&self) {
         (self.clear_security)();
         crate::ui::sensitive_clipboard::clear_now();
+        crate::ui::widgets::url_security::forget_session_checks();
         self.deactivate_auto_lock();
         {
             let mut key = self.session_master_key.borrow_mut();
@@ -129,6 +131,7 @@ impl MainWindow {
         (self.clear_security)();
         // Auto-lock reaches the PIN dialog without going through lock_session_keep_pin.
         crate::ui::sensitive_clipboard::clear_now();
+        crate::ui::widgets::url_security::forget_session_checks();
         if let Some(callback) = self.on_pin_lock.borrow().as_ref() {
             callback();
         }

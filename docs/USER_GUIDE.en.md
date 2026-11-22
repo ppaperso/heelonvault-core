@@ -278,6 +278,8 @@ When an update is offered, open the official release notes and downloads, then u
 
 Local URL diagnostics highlight issues such as HTTP, invalid syntax or an internationalized domain. **HTTPS does not prove a site is trustworthy.**
 
+In the editor, this assessment appears under the URL field as a badge: neutral for an unchecked HTTPS address, orange for a point of attention (HTTP, internal host, internationalized domain), red for a URL to fix. Hover a badge for details; the ⓘ button gathers the explanations. The **Check** button only appears for a public HTTPS address; a second badge then shows the online check result, with its time in the tooltip. This result stays displayed if you return to the secret during the session, as long as the host (scheme, domain, port) is unchanged; it is never saved and is cleared when the session locks or you sign out. Without a URL, nothing is shown.
+
 In the editor, an online DNS/TLS check is optional and requests consent **for each check**. The DNS resolver and destination server may observe the domain and your IP address. The check contacts the host, not the page: it sends no path, query parameters, secret, cookie or login. Internal addresses are blocked.
 
 A valid TLS certificate guarantees neither the site's reputation nor the page's existence. A network failure is not proof that a domain is malicious. The security center does not make these connections.
