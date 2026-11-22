@@ -67,10 +67,10 @@ skip = [
 ]
 
 [sources]
-# Premium est local. Seul le correctif SQLx officiel epingle est autorise.
-# Owner: @ppaperso; retrait avant le 2026-11-16 et publication crates.io; #75.
+# Premium est local ; toutes les autres dépendances viennent de crates.io.
+# Aucune source Git n'est autorisée (l'épinglage SQLx de #75 est retiré).
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 required-git-spec = "rev"
-allow-git = ["https://github.com/launchbadge/sqlx"]
+allow-git = []

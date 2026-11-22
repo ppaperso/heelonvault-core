@@ -92,9 +92,13 @@ Integration tests live under `crates/heelonvault-core/tests/` (plus repo-consist
     a tracked blocking issue. Report output must remain deterministic and preserve its
     cryptographic integrity markers (hash/signature).
 
-## Security patch in progress (do not "clean up")
+## SQLite advisory (resolved)
 
-- `[patch.crates-io]` pins `launchbadge/sqlx` at rev `10462fa4414c6c7f1ed1d39bb31678e3b726878c` (RUSTSEC-2026-0459, patched `libsqlite3-sys`) in **both repos**; `deny.toml` allows only that Git source, pinned by `rev`. Replace it with a published SQLx release accepting fixed SQLite **by 2026-11-16 or before crates.io publication, whichever comes first** (#75). Never simply delete the patch or restore vulnerable SQLite. If no fixed release exists by the deadline, keep publication blocked and report it; a passing publish dry-run does not clear this blocker. `crates/heelonvault-core/tests/release_2_1_1_compatibility.rs` asserts the bundled SQLite is ≥ 3.54.0.
+- RUSTSEC-2026-0459 is fixed by SQLx 0.9.1 from crates.io (bundled SQLite 3.54.1 via `libsqlite3-sys` 0.39.1). The former Git pin is gone (#75) and `deny.toml` allows no Git source. Never restore vulnerable SQLite or reintroduce a Git patch without a tracked, dated exception. `crates/heelonvault-core/tests/release_2_1_1_compatibility.rs` asserts the bundled SQLite is ≥ 3.54.0.
+
+## Temporary advisory exception (do not extend silently)
+
+- `.cargo/audit.toml` ignores RUSTSEC-2026-0543 (chrono unmaintained) only because `zxcvbn` 3.1.1 still depends on chrono for `wasm32` targets, which we never ship; `cargo-deny` uses `[graph] targets` and still fails if chrono re-enters a shipped target. Owner @ppaperso, due **2026-12-22**, tracked in #82 (upstream: shssoichiro/zxcvbn-rs#100). Remove the exception when a fixed zxcvbn is released; do not extend it without a new decision in #82.
 
 ## Security invariants (never break)
 
