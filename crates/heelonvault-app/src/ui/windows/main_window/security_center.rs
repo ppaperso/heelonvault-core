@@ -1223,6 +1223,17 @@ pub(super) mod tests {
                 can_edit: true,
                 can_delete: true,
                 vault_name: "Demo".into(),
+                // Fictitious classification on the first card, so the guide shows badges.
+                category: if login.starts_with("camille") {
+                    "Demo".into()
+                } else {
+                    String::new()
+                },
+                tags: if login.starts_with("camille") {
+                    "prod, client-a, finance, demo".into()
+                } else {
+                    String::new()
+                },
             })
             .collect();
             panel.main_stack.set_visible_child_name("entries_view");

@@ -941,6 +941,8 @@ fn render_secret_rows<TSecret, TVault>(
             can_edit: !item_shared || item_can_write,
             can_delete: !item_shared || item_can_admin,
             vault_name: item.vault_name.clone(),
+            category: item.category.clone(),
+            tags: item.tags.clone(),
         };
 
         let card = Rc::new(SecretCard::new(card_data, filter_runtime.view_mode.get()));
@@ -1190,7 +1192,9 @@ fn render_secret_rows<TSecret, TVault>(
                 if let Some(picked) = card_widget_for_pick.pick(x, y, gtk4::PickFlags::DEFAULT) {
                     let mut current = Some(picked);
                     while let Some(widget) = current {
-                        if widget.has_css_class("secret-card-action-btn") {
+                        if widget.has_css_class("secret-card-action-btn")
+                            || widget.has_css_class("secret-card-chip")
+                        {
                             return;
                         }
                         current = widget.parent();

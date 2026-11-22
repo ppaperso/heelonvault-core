@@ -43,7 +43,7 @@ For subsequent sign-ins, enter your username and master password. If two-factor 
 3. Complete useful fields: login, URL, notes, category, tags or validity, as offered by the form.
 4. Save, then check that the entry appears in the correct vault.
 
-The **category** (one, for example "Work") and **tags** (up to 5, for example "prod", "client-a") help you find secrets; they are independent of the type. Type to pick a value already used in the displayed vaults or create one: Enter, Tab or a comma turns it into a badge, the cross or Backspace removes it. The **?** button explains their use. Then search them with `category:` and `tag:`.
+The **category** (one, for example "Work") and **tags** (up to 5, for example "prod", "client-a") help you find secrets; they are independent of the type. Type to pick a value already used in the displayed vaults or create one: Enter, Tab or a comma turns it into a badge, the cross or Backspace removes it. The **?** button explains their use. On the dashboard, the category and first tags appear as badges on each card (the category and a "+N" counter in list mode); click a badge to run the matching search, for example `tag:prod`. You can also search them directly with `category:` and `tag:`.
 
 | Type | What to enter | Important |
 | --- | --- | --- |

@@ -43,7 +43,7 @@ Les modes **cartes** et **liste** affichent les mêmes secrets et conservent la 
 3. Complétez les champs utiles : identifiant, URL, notes, catégorie, tags ou validité, selon le formulaire.
 4. Enregistrez, puis vérifiez que l'entrée apparaît dans le bon coffre.
 
-La **catégorie** (une seule, par exemple « Travail ») et les **tags** (jusqu'à 5, par exemple « prod », « client-a ») servent à retrouver vos secrets ; ils sont indépendants du type. Tapez pour choisir une valeur déjà utilisée dans les coffres affichés ou en créer une : Entrée, Tab ou une virgule la transforment en pastille, la croix ou Retour arrière la retirent. Le bouton **?** rappelle leur usage. Recherchez-les ensuite avec `category:` et `tag:`.
+La **catégorie** (une seule, par exemple « Travail ») et les **tags** (jusqu'à 5, par exemple « prod », « client-a ») servent à retrouver vos secrets ; ils sont indépendants du type. Tapez pour choisir une valeur déjà utilisée dans les coffres affichés ou en créer une : Entrée, Tab ou une virgule la transforment en pastille, la croix ou Retour arrière la retirent. Le bouton **?** rappelle leur usage. Sur le tableau de bord, la catégorie et les premiers tags s'affichent en pastilles sur chaque carte (la catégorie et un compteur « +N » en mode liste) ; cliquez sur une pastille pour lancer la recherche correspondante, par exemple `tag:prod`. Vous pouvez aussi les rechercher directement avec `category:` et `tag:`.
 
 | Type | À renseigner | Point d'attention |
 | --- | --- | --- |
