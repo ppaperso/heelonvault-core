@@ -127,6 +127,7 @@ where
     let vault_selection_sync = Rc::new(Cell::new(false));
     let default_vault_creation = Rc::new(Cell::new(false));
     let vault_list_refresh_in_progress = Rc::new(Cell::new(false));
+    let vault_list_refresh_pending = Rc::new(Cell::new(false));
 
     // Deferred callbacks: these break construction cycles where a widget needs a callback
     // that can only be built once that same widget exists.
@@ -164,6 +165,8 @@ where
     let sidebar_panel = sidebar::build_sidebar_panel();
 
     let filter_runtime = FilterRuntime {
+        load_ready: Rc::new(Cell::new(false)),
+        filter_summary: center_panel.filter_summary.clone(),
         meta_by_widget: Rc::new(RefCell::new(HashMap::new())),
         actions_by_widget: Rc::new(RefCell::new(HashMap::new())),
         search_text: Rc::new(RefCell::new(String::new())),
@@ -207,6 +210,8 @@ where
         toast_overlay: toast_overlay.clone(),
         filter_runtime: filter_runtime.clone(),
         editor_launcher: Rc::clone(&editor_launcher),
+        load_status: center_panel.load_status.clone(),
+        retry_load: center_panel.retry_load.clone(),
     });
     let secret_reload = Rc::clone(&secret_list.reload);
 
@@ -215,10 +220,17 @@ where
         let is_global_search = Rc::clone(&is_global_search);
         Rc::new(move || reload(is_global_search.get()))
     };
+    {
+        let refresh = Rc::clone(&refresh_secrets);
+        center_panel.retry_load.connect_clicked(move |_| refresh());
+    }
 
     // The full refresh reloads the vault sections, which chain into the secret list.
+    let vault_load_generation = Rc::new(super::super::list_load::LoadGeneration::default());
     let refresh_entries = vault_list::build_refresh_vault_sections(vault_list::VaultListDeps {
+        generation: Rc::clone(&vault_load_generation),
         window: window.clone(),
+        toast_overlay: toast_overlay.clone(),
         runtime_handle: runtime_handle.clone(),
         secret_service: Arc::clone(&secret_service),
         vault_service: Arc::clone(&vault_service),
@@ -231,12 +243,15 @@ where
         selection_sync: Rc::clone(&vault_selection_sync),
         default_vault_creation: Rc::clone(&default_vault_creation),
         refresh_in_progress: Rc::clone(&vault_list_refresh_in_progress),
+        refresh_pending: Rc::clone(&vault_list_refresh_pending),
         refresh_secrets: Rc::clone(&refresh_secrets),
         refresh_after_mutation: Rc::clone(&refresh_after_mutation),
     });
     let refresh_entries: Rc<dyn Fn()> = {
         let invalidate = Rc::clone(&security_invalidate);
+        let prepare = Rc::clone(&secret_list.prepare);
         Rc::new(move || {
+            prepare();
             refresh_entries();
             if let Some(callback) = invalidate.borrow().as_ref() {
                 callback();
@@ -283,7 +298,17 @@ where
     let clear_security: Rc<dyn Fn()> = {
         let editor_host = editor_host.clone();
         let editor_navigation = editor_navigation.clone();
+        let clear_list = Rc::clone(&secret_list.clear);
+        let vault_load_generation = Rc::clone(&vault_load_generation);
+        let vault_refresh_in_progress = Rc::clone(&vault_list_refresh_in_progress);
+        let vault_refresh_pending = Rc::clone(&vault_list_refresh_pending);
+        let default_vault_creation = Rc::clone(&default_vault_creation);
         Rc::new(move || {
+            vault_load_generation.invalidate();
+            vault_refresh_in_progress.set(false);
+            vault_refresh_pending.set(false);
+            default_vault_creation.set(false);
+            clear_list();
             editor_navigation.force_discard();
             (security.clear)();
             while let Some(child) = editor_host.first_child() {
@@ -581,6 +606,7 @@ where
                 .chain(std::iter::once(pin_refresh_i18n))
                 .chain(certification_refresh)
                 .chain(std::iter::once(security.refresh_i18n))
+                .chain(std::iter::once(secret_list.refresh_i18n))
                 .chain(std::iter::once({
                     let navigation = editor_navigation.clone();
                     Rc::new(move || navigation.refresh_i18n()) as Rc<dyn Fn()>
@@ -660,7 +686,10 @@ fn build_stack_switch(main_stack: &gtk4::Stack, page_name: &'static str) -> Rc<d
 }
 
 /// Install the filter and sort predicates backing the secret flow box.
-fn install_flow_filter_and_sort(secret_flow: &gtk4::FlowBox, filter_runtime: &FilterRuntime) {
+pub(in crate::ui::windows::main_window) fn install_flow_filter_and_sort(
+    secret_flow: &gtk4::FlowBox,
+    filter_runtime: &FilterRuntime,
+) {
     let runtime_for_filter = filter_runtime.clone();
     secret_flow.set_filter_func(move |child| {
         let Some(content) = child.child() else {

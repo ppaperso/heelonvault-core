@@ -3,7 +3,7 @@
 //! A single parameterized reload backs both the normal (active vault) refresh and the
 //! multivault "search everywhere" reload — they only differ by the `all_vaults` flag.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -34,10 +34,15 @@ pub struct SecretRefreshDeps<TSecret, TVault> {
     pub toast_overlay: adw::ToastOverlay,
     pub filter_runtime: FilterRuntime,
     pub editor_launcher: Rc<RefCell<Option<Rc<dyn Fn(DialogMode)>>>>,
+    pub load_status: gtk4::Label,
+    pub retry_load: gtk4::Button,
 }
 
 /// Callbacks driving the secret list.
 pub struct SecretListCallbacks {
+    pub clear: Rc<dyn Fn()>,
+    pub prepare: Rc<dyn Fn()>,
+    pub refresh_i18n: Rc<dyn Fn()>,
     /// Reload from the database. The `bool` selects cross-vault search: `false` reloads the
     /// active vault, `true` reloads every vault the user can read.
     pub reload: Rc<dyn Fn(bool)>,
@@ -70,6 +75,10 @@ where
         filter_runtime: deps.filter_runtime,
         editor_launcher: deps.editor_launcher,
         last_loaded: RefCell::new(None),
+        generation: super::super::list_load::LoadGeneration::default(),
+        load_state: Cell::new(super::super::list_load::ListLoadState::Idle),
+        load_status: deps.load_status,
+        retry_load: deps.retry_load,
     });
 
     let ctx_for_reload = Rc::clone(&ctx);
@@ -78,19 +87,38 @@ where
         let Some(master_key) =
             super::super::MainWindow::snapshot_session_master_key(&ctx.session_master_key)
         else {
-            *ctx.last_loaded.borrow_mut() = None;
-            ctx.empty_title
-                .set_text(heelonvault_core::tr!("main-session-locked-title").as_str());
-            ctx.empty_copy
-                .set_text(heelonvault_core::tr!("main-session-locked-description").as_str());
-            ctx.stack.set_visible_child_name("empty");
+            secret_flow::invalidate_secret_flow(ctx);
             return;
         };
 
         secret_flow::refresh_secret_flow(ctx, Zeroizing::new(master_key), all_vaults);
     });
 
-    let rerender: Rc<dyn Fn() -> bool> = Rc::new(move || secret_flow::rerender_secret_flow(&ctx));
+    let rerender: Rc<dyn Fn() -> bool> = {
+        let ctx = Rc::clone(&ctx);
+        Rc::new(move || secret_flow::rerender_secret_flow(&ctx))
+    };
+    let clear: Rc<dyn Fn()> = {
+        let ctx = Rc::clone(&ctx);
+        Rc::new(move || secret_flow::invalidate_secret_flow(&ctx))
+    };
+    let prepare: Rc<dyn Fn()> = {
+        let ctx = Rc::clone(&ctx);
+        Rc::new(move || {
+            if ctx.session_master_key.borrow().is_empty() {
+                secret_flow::invalidate_secret_flow(&ctx);
+            } else {
+                secret_flow::prepare_secret_flow(&ctx);
+            }
+        })
+    };
+    let refresh_i18n: Rc<dyn Fn()> = Rc::new(move || secret_flow::refresh_load_i18n(&ctx));
 
-    SecretListCallbacks { reload, rerender }
+    SecretListCallbacks {
+        reload,
+        rerender,
+        clear,
+        prepare,
+        refresh_i18n,
+    }
 }

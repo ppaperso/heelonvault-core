@@ -1531,6 +1531,12 @@ pub(super) mod tests {
             user_id,
             secret.id,
         )?;
+        super::super::secret_flow::native_tests::scenario(
+            &runtime,
+            Arc::clone(&secret_service),
+            Arc::clone(&vault_service),
+            user_id,
+        )?;
         runtime.block_on(sqlx::query("DROP TABLE vaults").execute(&pool))?;
         (center.invalidate)();
         let deadline = std::time::Instant::now() + Duration::from_secs(5);

@@ -111,6 +111,10 @@ pub struct MainWindow {
 #[derive(Clone)]
 struct CenterPanelWidgets {
     frame: gtk4::Frame,
+    entries_page: gtk4::Box,
+    load_status: gtk4::Label,
+    filter_summary: gtk4::Label,
+    retry_load: gtk4::Button,
     main_stack: gtk4::Stack,
     stack: gtk4::Stack,
     list_page: gtk4::Box,
@@ -151,6 +155,7 @@ struct SecurityNavigation {
 }
 
 mod editor_navigation;
+mod list_load;
 
 #[derive(Clone)]
 struct SidebarWidgets {
