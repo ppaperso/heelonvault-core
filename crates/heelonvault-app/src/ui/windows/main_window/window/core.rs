@@ -432,6 +432,20 @@ where
         center_panel.secret_flow.clone(),
         filter_runtime.clone(),
     );
+    // Category/tag badges of the cards fill the search with their query.
+    {
+        let action =
+            gtk4::gio::SimpleAction::new("search-classification", Some(glib::VariantTy::STRING));
+        let search_entry = search_entry.clone();
+        action.connect_activate(move |_, query| {
+            if let Some(query) = query.and_then(|value| value.get::<String>()) {
+                search_entry.set_text(&query);
+                search_entry.set_position(-1);
+                search_entry.grab_focus();
+            }
+        });
+        window.add_action(&action);
+    }
 
     events::setup_sidebar_filter_handlers(
         &sidebar_panel,

@@ -5,6 +5,23 @@ use uuid::Uuid;
 
 pub use crate::ui::view_preferences::SecretViewMode;
 
+/// Window action filling the search field with a `category:`/`tag:` query.
+/// Registered as `search-classification` on the main window (`window/core.rs`).
+pub(crate) const SEARCH_CLASSIFICATION_ACTION: &str = "win.search-classification";
+/// Tags shown on a grid card / list row before a "+N" badge.
+const GRID_VISIBLE_TAGS: usize = 3;
+/// The list row has one flexible column: only the category fits, tags go into "+N".
+const LIST_VISIBLE_TAGS: usize = 0;
+
+/// Search query matching one category or tag. The search splits on whitespace and
+/// its normalization reads `-` as a space, so `client a` becomes `tag:client-a`.
+pub(crate) fn classification_query(field: &str, value: &str) -> String {
+    format!(
+        "{field}:{}",
+        value.split_whitespace().collect::<Vec<_>>().join("-")
+    )
+}
+
 #[allow(dead_code)]
 fn build_action_button(icon_candidates: &[&str], fallback_glyph: &str, tooltip: &str) -> Button {
     let button = Button::new();
@@ -132,6 +149,9 @@ pub struct SecretRowData {
     pub can_delete: bool,
     /// When non-empty, show a vault badge (used during cross-vault search).
     pub vault_name: String,
+    /// Category and comma-separated tags (metadata), shown as clickable badges.
+    pub category: String,
+    pub tags: String,
 }
 
 /// A widget displaying one secret item, as a grid card or as a compact list row.
@@ -264,6 +284,9 @@ impl SecretCard {
 
         card_box.append(&header_row);
         card_box.append(&info_box);
+        if let Some(chips) = Self::build_classification(data, GRID_VISIBLE_TAGS) {
+            card_box.append(&chips);
+        }
         card_box.append(&badges_box);
         card_box.append(&separator);
         card_box.append(&actions.actions_box);
@@ -314,6 +337,9 @@ impl SecretCard {
         ));
 
         // Only flexible column: every column before it has a fixed width, so rows line up.
+        if let Some(chips) = Self::build_classification(data, LIST_VISIBLE_TAGS) {
+            badges_box.append(&chips);
+        }
         badges_box.set_hexpand(true);
         badges_box.set_valign(Align::Center);
         badges_box.add_css_class("secret-card-row-badges");
@@ -332,6 +358,71 @@ impl SecretCard {
         row_box.append(actions_box);
 
         row_box
+    }
+
+    /// One clickable badge running the matching search.
+    fn build_chip(field: &str, value: &str, category: bool) -> Button {
+        let label = Label::new(Some(value));
+        label.set_single_line_mode(true);
+        label.set_ellipsize(EllipsizeMode::End);
+        label.set_max_width_chars(14);
+        let button = Button::new();
+        button.set_child(Some(&label));
+        button.add_css_class("flat");
+        button.add_css_class("secret-card-chip");
+        if category {
+            button.add_css_class("secret-card-chip-category");
+        }
+        let query = classification_query(field, value);
+        button.set_tooltip_text(Some(&heelonvault_core::i18n::tr_args(
+            "secret-card-chip-search",
+            &[("query", heelonvault_core::i18n::I18nArg::Str(&query))],
+        )));
+        button.connect_clicked(move |button| {
+            use gtk4::glib::prelude::ToVariant;
+            // Absent outside the main window (e.g. isolated widget tests): nothing to do.
+            if let Err(error) =
+                button.activate_action(SEARCH_CLASSIFICATION_ACTION, Some(&query.to_variant()))
+            {
+                tracing::debug!(%error, "classification search action unavailable");
+            }
+        });
+        button
+    }
+
+    /// Category then tags, `visible_tags` at most followed by a "+N" badge listing
+    /// the others. `None` when the secret has neither.
+    fn build_classification(data: &SecretRowData, visible_tags: usize) -> Option<gtk4::Box> {
+        let category = data.category.trim();
+        let tags = crate::ui::widgets::classification::parse_tags(&data.tags);
+        if category.is_empty() && tags.is_empty() {
+            return None;
+        }
+        let chips = gtk4::Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(4)
+            .build();
+        chips.add_css_class("secret-card-chips");
+        if !category.is_empty() {
+            chips.append(&Self::build_chip("category", category, true));
+        }
+        for tag in tags.iter().take(visible_tags) {
+            chips.append(&Self::build_chip("tag", tag, false));
+        }
+        if tags.len() > visible_tags {
+            let hidden = &tags[visible_tags..];
+            let more = Label::new(Some(&heelonvault_core::i18n::tr_args(
+                "secret-card-chip-more",
+                &[(
+                    "count",
+                    heelonvault_core::i18n::I18nArg::Num(hidden.len() as i64),
+                )],
+            )));
+            more.add_css_class("secret-card-chip-more");
+            more.set_tooltip_text(Some(&hidden.join(", ")));
+            chips.append(&more);
+        }
+        Some(chips)
     }
 
     /// Status badges. `compact` (list layout) keeps only the risk-relevant ones; the usage
@@ -511,5 +602,177 @@ impl SecretCard {
     #[allow(dead_code)]
     pub fn get_open_url_button(&self) -> Option<Button> {
         self.open_url_button.clone()
+    }
+}
+
+/// Native GTK check of the classification badges (run from `native_gtk_smoke`).
+#[cfg(test)]
+pub(crate) fn native_card_classification_scenario() -> Result<(), Box<dyn std::error::Error>> {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    fn data(category: &str, tags: &str) -> SecretRowData {
+        SecretRowData {
+            secret_id: Uuid::new_v4(),
+            icon_name: "hv-key-symbolic".into(),
+            type_label: "Password".into(),
+            title: "Demo".into(),
+            created_at: String::new(),
+            login: "demo".into(),
+            url: String::new(),
+            has_secret: true,
+            is_password: true,
+            color_class: "secret-type-password".into(),
+            is_weak: false,
+            is_health_access: false,
+            usage_count: 0,
+            is_duplicate: false,
+            is_incomplete: false,
+            is_shared_vault: false,
+            can_edit: true,
+            can_delete: true,
+            vault_name: String::new(),
+            category: category.into(),
+            tags: tags.into(),
+        }
+    }
+    fn collect(widget: &gtk4::Widget, class: &str, found: &mut Vec<gtk4::Widget>) {
+        if widget.has_css_class(class) {
+            found.push(widget.clone());
+        }
+        let mut child = widget.first_child();
+        while let Some(current) = child {
+            collect(&current, class, found);
+            child = current.next_sibling();
+        }
+    }
+
+    // The card resolves `win.*` through its ancestors, like inside the main window.
+    let host = gtk4::Box::new(Orientation::Vertical, 0);
+    let actions = gtk4::gio::SimpleActionGroup::new();
+    let received = Rc::new(RefCell::new(Vec::<String>::new()));
+    let action =
+        gtk4::gio::SimpleAction::new("search-classification", Some(gtk4::glib::VariantTy::STRING));
+    let sink = Rc::clone(&received);
+    action.connect_activate(move |_, query| {
+        if let Some(query) = query.and_then(|value| value.get::<String>()) {
+            sink.borrow_mut().push(query);
+        }
+    });
+    actions.add_action(&action);
+    host.insert_action_group("win", Some(&actions));
+    // Rooted like the real cards, so action lookup walks a complete hierarchy.
+    let window = gtk4::Window::new();
+    window.set_child(Some(&host));
+
+    let tags = "prod, client a, finance, demo, legacy";
+    for (mode, visible) in [
+        (SecretViewMode::Grid, GRID_VISIBLE_TAGS),
+        (SecretViewMode::List, LIST_VISIBLE_TAGS),
+    ] {
+        let card = SecretCard::new(data("Travail", tags), mode);
+        host.append(&card.get_widget());
+        let mut chips = Vec::new();
+        collect(
+            card.get_widget().upcast_ref(),
+            "secret-card-chip",
+            &mut chips,
+        );
+        assert_eq!(chips.len(), 1 + visible, "category + visible tags");
+        let mut more = Vec::new();
+        collect(
+            card.get_widget().upcast_ref(),
+            "secret-card-chip-more",
+            &mut more,
+        );
+        let more = more
+            .first()
+            .and_then(|widget| widget.clone().downcast::<Label>().ok())
+            .ok_or("missing +N badge")?;
+        assert_eq!(
+            more.text(),
+            heelonvault_core::i18n::tr_args(
+                "secret-card-chip-more",
+                &[(
+                    "count",
+                    heelonvault_core::i18n::I18nArg::Num((5 - visible) as i64)
+                )],
+            )
+        );
+        received.borrow_mut().clear();
+        for chip in &chips {
+            chip.clone()
+                .downcast::<Button>()
+                .map_err(|_| "chip is not a button")?
+                .emit_clicked();
+        }
+        let expected: Vec<String> = std::iter::once("category:Travail".to_string())
+            .chain(
+                ["tag:prod", "tag:client-a", "tag:finance"]
+                    .into_iter()
+                    .take(visible)
+                    .map(String::from),
+            )
+            .collect();
+        assert_eq!(*received.borrow(), expected);
+        host.remove(&card.get_widget());
+    }
+
+    window.set_child(gtk4::Widget::NONE);
+    window.destroy();
+    let plain = SecretCard::new(data("", ""), SecretViewMode::Grid);
+    let mut none = Vec::new();
+    collect(
+        plain.get_widget().upcast_ref(),
+        "secret-card-chips",
+        &mut none,
+    );
+    assert!(none.is_empty(), "no badge row without category or tags");
+    Ok(())
+}
+
+#[cfg(test)]
+mod classification_tests {
+    use super::*;
+
+    #[test]
+    fn badge_queries_survive_the_whitespace_tokenizer() {
+        assert_eq!(classification_query("tag", "prod"), "tag:prod");
+        assert_eq!(classification_query("tag", " client  a "), "tag:client-a");
+        assert_eq!(
+            classification_query("category", "Travail"),
+            "category:Travail"
+        );
+    }
+
+    #[test]
+    fn badge_keys_exist_in_both_catalogs() {
+        for lang in ["fr", "en"] {
+            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../heelonvault-core/locales")
+                .join(lang)
+                .join("main.ftl");
+            let catalog = std::fs::read_to_string(&path).unwrap_or_default();
+            for key in ["secret-card-chip-search", "secret-card-chip-more"] {
+                assert!(
+                    catalog
+                        .lines()
+                        .any(|line| line.split_once(" =").is_some_and(|(id, _)| id == key)),
+                    "{key} missing in {lang}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_action_name_matches_the_window_registration() {
+        let core = include_str!("../windows/main_window/window/core.rs");
+        let name = SEARCH_CLASSIFICATION_ACTION
+            .strip_prefix("win.")
+            .unwrap_or_default();
+        assert!(
+            core.contains(&format!("\"{name}\"")),
+            "action {name} not registered"
+        );
     }
 }

@@ -161,6 +161,8 @@ pub(crate) fn native_theme_scenario(
         can_edit: true,
         can_delete: true,
         vault_name: String::new(),
+        category: String::new(),
+        tags: String::new(),
     };
     let card = SecretCard::new(data.clone(), SecretViewMode::Grid);
     let flow = gtk4::FlowBox::builder()
