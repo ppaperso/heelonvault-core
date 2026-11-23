@@ -17,6 +17,7 @@
     <file alias="scalable/actions/hv-grid-symbolic.svg">icons/symbolic/hv-grid-symbolic.svg</file>
     <file alias="scalable/actions/hv-info-symbolic.svg">icons/symbolic/hv-info-symbolic.svg</file>
     <file alias="scalable/actions/hv-key-symbolic.svg">icons/symbolic/hv-key-symbolic.svg</file>
+    <file alias="scalable/actions/hv-passphrase-symbolic.svg">icons/symbolic/hv-passphrase-symbolic.svg</file>
     <file alias="scalable/actions/hv-link-symbolic.svg">icons/symbolic/hv-link-symbolic.svg</file>
     <file alias="scalable/actions/hv-list-symbolic.svg">icons/symbolic/hv-list-symbolic.svg</file>
     <file alias="scalable/actions/hv-lock-symbolic.svg">icons/symbolic/hv-lock-symbolic.svg</file>

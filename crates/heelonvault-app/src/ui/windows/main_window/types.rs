@@ -28,6 +28,8 @@ pub(super) struct SecretFilterMeta {
     pub(super) type_text: String,
     pub(super) vault_name_text: String,
     pub(super) kind: SecretKind,
+    /// Password item stored as a passphrase.
+    pub(super) is_passphrase: bool,
     pub(super) original_rank: usize,
     pub(super) is_weak: bool,
     pub(super) is_duplicate: bool,
@@ -76,6 +78,8 @@ pub(super) struct SecretRowView {
     /// The secret has a non-empty value (enables the copy action).
     pub(super) has_secret: bool,
     pub(super) kind: SecretKind,
+    /// Password item stored as a passphrase (metadata `password_kind`).
+    pub(super) is_passphrase: bool,
     pub(super) color_class: String,
     pub(super) is_weak: bool,
     /// Same value as another secret of the same load (computed in the loader thread).

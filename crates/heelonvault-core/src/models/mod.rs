@@ -7,7 +7,7 @@ pub mod vault;
 
 pub use audit_log::{AuditAction, AuditLogEntry};
 pub use license::{License, LicenseTier, SignedLicense};
-pub use secret_item::{BlobStorage, SecretItem, SecretType};
+pub use secret_item::{BlobStorage, PasswordKind, SecretItem, SecretType};
 pub use team::{Team, TeamMember, TeamMemberRole};
 pub use user::{User, UserRole};
 pub use vault::{AccessibleVault, Vault, VaultAccessKind, VaultShareRole};

@@ -1213,6 +1213,7 @@ pub(super) mod tests {
                 url: "https://example.test".into(),
                 has_secret: true,
                 is_password: color == "secret-type-password",
+                is_passphrase: false,
                 color_class: color.into(),
                 is_weak: false,
                 is_health_access: false,

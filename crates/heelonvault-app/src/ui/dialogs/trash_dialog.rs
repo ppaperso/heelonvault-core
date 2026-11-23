@@ -268,10 +268,12 @@ impl TrashDialog {
                         .await?;
                     let mut rows = Vec::with_capacity(items.len());
                     for item in items {
-                        let login = item
+                        let metadata = item
                             .metadata_json
                             .as_deref()
-                            .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+                            .and_then(|raw| serde_json::from_str::<Value>(raw).ok());
+                        let login = metadata
+                            .as_ref()
                             .and_then(|value| {
                                 value
                                     .get("login")
@@ -279,6 +281,10 @@ impl TrashDialog {
                                     .map(ToString::to_string)
                             })
                             .unwrap_or_default();
+                        let is_passphrase = metadata.as_ref().is_some_and(|value| {
+                            heelonvault_core::models::PasswordKind::from_metadata(value)
+                                == heelonvault_core::models::PasswordKind::Passphrase
+                        });
 
                         rows.push(TrashRowView {
                             secret_id: item.id,
@@ -287,6 +293,9 @@ impl TrashDialog {
                                 heelonvault_core::tr!("trash-secret-fallback-title")
                             }),
                             type_label: match item.secret_type {
+                                heelonvault_core::models::SecretType::Password if is_passphrase => {
+                                    heelonvault_core::tr!("secret-type-passphrase")
+                                }
                                 heelonvault_core::models::SecretType::Password => {
                                     heelonvault_core::tr!("secret-type-password")
                                 }

@@ -63,6 +63,7 @@ use self::types::{FilterRuntime, SecretFilterMeta, SecretRowView};
 enum SecretCategoryFilter {
     All,
     Password,
+    Passphrase,
     ApiToken,
     SshKey,
     SecureDocument,
@@ -175,6 +176,7 @@ struct SidebarWidgets {
     audit_duplicate_label: gtk4::Label,
     category_all_label: gtk4::Label,
     category_passwords_label: gtk4::Label,
+    category_passphrases_label: gtk4::Label,
     category_api_tokens_label: gtk4::Label,
     category_ssh_keys_label: gtk4::Label,
     category_documents_label: gtk4::Label,
@@ -233,6 +235,8 @@ mod native_gtk_tests {
         libadwaita::init()?;
         gtk4::gio::resources_register_include!("heelonvault.gresource")?;
         crate::ui::dialogs::add_edit_dialog::native_password_hint_scenario();
+        crate::ui::dialogs::add_edit_dialog::native_password_panel_scenario()?;
+        crate::ui::widgets::password_generator::native_generator_scenario()?;
         crate::ui::dialogs::add_edit_dialog::native_operation_scenario()?;
         crate::ui::dialogs::add_edit_dialog::native_lifecycle_scenario();
         crate::ui::widgets::url_security::native_url_check_scenario()?;

@@ -55,6 +55,7 @@ pub(super) fn apply_filters(secret_flow: &gtk4::FlowBox, filter_runtime: &Filter
     let category = match filter_runtime.selected_category.get() {
         SecretCategoryFilter::All => heelonvault_core::tr!("main-category-all"),
         SecretCategoryFilter::Password => heelonvault_core::tr!("main-category-passwords"),
+        SecretCategoryFilter::Passphrase => heelonvault_core::tr!("main-category-passphrases"),
         SecretCategoryFilter::ApiToken => heelonvault_core::tr!("main-category-api-tokens"),
         SecretCategoryFilter::SshKey => heelonvault_core::tr!("main-category-ssh-keys"),
         SecretCategoryFilter::SecureDocument => heelonvault_core::tr!("main-category-documents"),
@@ -392,6 +393,7 @@ mod tests {
             type_text: String::new(),
             vault_name_text: normalize_search_text(vault_name),
             kind: SecretKind::Password,
+            is_passphrase: false,
             original_rank: 0,
             is_weak: false,
             is_duplicate: false,

@@ -128,6 +128,10 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
             "hv-key-symbolic",
         ),
         (
+            heelonvault_core::tr!("main-category-passphrases"),
+            "hv-passphrase-symbolic",
+        ),
+        (
             heelonvault_core::tr!("main-category-api-tokens"),
             "hv-code-symbolic",
         ),
@@ -254,9 +258,10 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
         audit_duplicate_label,
         category_all_label: category_labels[0].clone(),
         category_passwords_label: category_labels[1].clone(),
-        category_api_tokens_label: category_labels[2].clone(),
-        category_ssh_keys_label: category_labels[3].clone(),
-        category_documents_label: category_labels[4].clone(),
+        category_passphrases_label: category_labels[2].clone(),
+        category_api_tokens_label: category_labels[3].clone(),
+        category_ssh_keys_label: category_labels[4].clone(),
+        category_documents_label: category_labels[5].clone(),
         audit_all_badge,
         audit_weak_badge,
         audit_duplicate_badge,
@@ -304,6 +309,9 @@ pub(super) fn refresh_i18n(sidebar: &SidebarWidgets) {
     sidebar
         .category_passwords_label
         .set_text(heelonvault_core::tr!("main-category-passwords").as_str());
+    sidebar
+        .category_passphrases_label
+        .set_text(heelonvault_core::tr!("main-category-passphrases").as_str());
     sidebar
         .category_api_tokens_label
         .set_text(heelonvault_core::tr!("main-category-api-tokens").as_str());

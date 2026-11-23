@@ -15,6 +15,7 @@ pub mod ip_rate_limit_service;
 pub mod license_provider;
 pub mod local_time_zone;
 pub mod login_history_service;
+pub mod password_generator;
 pub mod password_service;
 pub mod pin_cache_service;
 pub mod recovery_service;

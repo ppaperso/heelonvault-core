@@ -1,23 +1,27 @@
-use getrandom::fill;
 use secrecy::{ExposeSecret, SecretBox};
 
 use crate::errors::AppError;
+use crate::services::password_generator::{GeneratorRecipe, PasswordRecipe};
 
 const MIN_PASSWORD_LENGTH: usize = 16;
 const MAX_PASSWORD_LENGTH: usize = 128;
 const DEFAULT_GENERATED_PASSWORD_LENGTH: usize = 24;
 const PASSWORD_STRENGTH_MAX: u8 = 100;
 
-const LOWERCASE_CHARSET: &[u8] = b"abcdefghijkmnopqrstuvwxyz";
-const UPPERCASE_CHARSET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ";
-const DIGIT_CHARSET: &[u8] = b"23456789";
-const SYMBOL_CHARSET: &[u8] = b"!@#$%^&*()-_=+[]{}:;,.?/";
-
 #[trait_variant::make(PasswordService: Send)]
 pub trait LocalPasswordService {
     fn validate_password_policy(&self, password: &SecretBox<Vec<u8>>) -> Result<(), AppError>;
     fn score_password_strength(&self, password: &SecretBox<Vec<u8>>) -> Result<u8, AppError>;
     fn generate_password(&self, length: usize) -> Result<SecretBox<Vec<u8>>, AppError>;
+
+    /// Generates a password or passphrase from a recipe; refuses recipes below the
+    /// entropy floor (`password_generator::MIN_GENERATED_ENTROPY_BITS`).
+    fn generate_from_recipe(
+        &self,
+        recipe: &GeneratorRecipe,
+    ) -> Result<SecretBox<Vec<u8>>, AppError> {
+        recipe.generate()
+    }
 }
 
 pub struct PasswordServiceImpl;
@@ -67,39 +71,6 @@ impl PasswordServiceImpl {
         }
 
         Ok(())
-    }
-
-    fn random_index(bound: usize) -> Result<usize, AppError> {
-        if bound == 0 {
-            return Err(AppError::Validation(
-                "random selection bound must be greater than zero".to_string(),
-            ));
-        }
-
-        let bound_u32 = u32::try_from(bound).map_err(|_| {
-            AppError::Validation("random selection bound exceeds supported size".to_string())
-        })?;
-
-        let zone = u32::MAX - (u32::MAX % bound_u32);
-
-        loop {
-            let mut random_bytes = [0_u8; 4];
-            fill(&mut random_bytes)
-                .map_err(|err| AppError::Validation(format!("random generation failed: {err}")))?;
-            let candidate = u32::from_le_bytes(random_bytes);
-            if candidate < zone {
-                let index_u32 = candidate % bound_u32;
-                let index = usize::try_from(index_u32).map_err(|_| {
-                    AppError::Validation("random index conversion failed".to_string())
-                })?;
-                return Ok(index);
-            }
-        }
-    }
-
-    fn sample_from_charset(charset: &[u8]) -> Result<u8, AppError> {
-        let index = Self::random_index(charset.len())?;
-        Ok(charset[index])
     }
 }
 
@@ -223,35 +194,14 @@ impl PasswordService for PasswordServiceImpl {
 
         Self::validate_length(requested_length)?;
 
-        let mut password = Vec::with_capacity(requested_length);
-        password.push(Self::sample_from_charset(LOWERCASE_CHARSET)?);
-        password.push(Self::sample_from_charset(UPPERCASE_CHARSET)?);
-        password.push(Self::sample_from_charset(DIGIT_CHARSET)?);
-        password.push(Self::sample_from_charset(SYMBOL_CHARSET)?);
-
-        let mut combined_charset = Vec::with_capacity(
-            LOWERCASE_CHARSET.len()
-                + UPPERCASE_CHARSET.len()
-                + DIGIT_CHARSET.len()
-                + SYMBOL_CHARSET.len(),
-        );
-        combined_charset.extend_from_slice(LOWERCASE_CHARSET);
-        combined_charset.extend_from_slice(UPPERCASE_CHARSET);
-        combined_charset.extend_from_slice(DIGIT_CHARSET);
-        combined_charset.extend_from_slice(SYMBOL_CHARSET);
-
-        while password.len() < requested_length {
-            password.push(Self::sample_from_charset(combined_charset.as_slice())?);
-        }
-
-        let mut index = password.len();
-        while index > 1 {
-            index -= 1;
-            let swap_index = Self::random_index(index + 1)?;
-            password.swap(index, swap_index);
-        }
-
-        let secret_password = SecretBox::new(Box::new(password));
+        let length = u16::try_from(requested_length).map_err(|_| {
+            AppError::Validation("password length exceeds supported size".to_string())
+        })?;
+        let recipe = PasswordRecipe {
+            length,
+            ..PasswordRecipe::default()
+        };
+        let secret_password = GeneratorRecipe::Password(recipe).generate()?;
         PasswordService::validate_password_policy(self, &secret_password)?;
         Ok(secret_password)
     }
