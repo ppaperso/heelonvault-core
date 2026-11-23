@@ -7,7 +7,7 @@ Building, running and testing HeelonVault from source. For contribution rules, s
 
 ## Prerequisites
 
-- **Rust**: install [rustup](https://rustup.rs/); the `1.99.1` toolchain pinned by
+- **Rust**: install [rustup](https://rustup.rs/); the `1.100.0` toolchain pinned by
   `rust-toolchain.toml` is picked up automatically.
 - **GTK4 and libadwaita development files**:
   - Ubuntu / Debian: `sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev`
@@ -20,8 +20,8 @@ Building, running and testing HeelonVault from source. For contribution rules, s
   `scripts/check-core-standalone.sh` (see [CONTRIBUTING.md](../../CONTRIBUTING.md)).
 
 ```bash
-rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
-rustc --version   # 1.99.1
+rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
+rustc --version   # 1.100.0
 ```
 
 The minimum supported Rust version remains 1.98 (`rust-version` in the manifests).

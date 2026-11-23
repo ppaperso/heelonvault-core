@@ -16,6 +16,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security and dependencies
 
+- Pinned the development and release toolchain to Rust 1.100.0 in both repositories (#93), with no code change; the minimum supported Rust version remains 1.98 and CI still checks compilation under 1.98.0 separately. The unused `cargo-deny` entry of `[workspace.dependencies]` (the tool is installed by CI), reported by the new Cargo lint `unused_workspace_dependencies`, is removed; the lockfile is unchanged.
 - RUSTSEC-2026-0592 remediation (stack overflow in `Url::origin()` on nested `blob:` URLs): `url` 2.5.8 → 2.5.9 (and `form_urlencoded` 1.2.2 → 1.2.3) in both lockfiles. SBOM regenerated.
 - RUSTSEC-2026-0543 (`chrono` unmaintained) remediation, which had blocked the scheduled supply-chain run since 2026-11-12: `chrono` is removed from core, the application and premium in favour of `time`, already in the tree (no new dependency). Instants are still stored and compared in UTC with the same persisted formats (RFC 3339; `login_attempts_ip` keeps the `+00:00` suffix, now fixed-width so that lexicographic SQL comparison follows chronological order).
 - Local time: the application goes through GLib (`ui::local_time`, `GlibLocalTimeZone`), which is thread-safe and applies the DST rules of each instant; explicit UTC fallback if the zone is unavailable. Log timestamps and daily rotation unchanged.

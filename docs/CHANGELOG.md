@@ -16,6 +16,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
 
 ### Sécurité et dépendances
 
+- Toolchain de développement et de livraison épinglée sur Rust 1.100.0 dans les deux dépôts (#93), sans modification du code ; la version minimale supportée reste Rust 1.98 et la CI vérifie toujours séparément la compilation sous 1.98.0. L'entrée `cargo-deny` de `[workspace.dependencies]`, inutilisée (l'outil est installé par la CI) et signalée par le nouveau lint Cargo `unused_workspace_dependencies`, est retirée ; le fichier de verrouillage ne change pas.
 - Correction de l'avis RUSTSEC-2026-0592 (dépassement de pile dans `Url::origin()` sur des URL `blob:` imbriquées) : `url` 2.5.8 → 2.5.9 (et `form_urlencoded` 1.2.2 → 1.2.3) dans les deux fichiers de verrouillage. SBOM régénéré.
 - Correction de l'avis RUSTSEC-2026-0543 (`chrono` non maintenu), qui bloquait la supply-chain planifiée depuis le 2026-11-12 : `chrono` est retiré de core, de l'application et de premium au profit de `time`, déjà présent dans l'arbre (aucune nouvelle dépendance). Les instants restent stockés et comparés en UTC, avec les mêmes formats persistés (RFC 3339 ; `login_attempts_ip` conserve le suffixe `+00:00`, désormais à largeur fixe pour que la comparaison SQL lexicographique suive l'ordre chronologique).
 - Heure locale : l'application passe par GLib (`ui::local_time`, `GlibLocalTimeZone`), sûr en multi-thread et appliquant les règles d'heure d'été de chaque instant ; repli explicite en UTC si le fuseau est indisponible. Horodatage des journaux et rotation quotidienne inchangés.
