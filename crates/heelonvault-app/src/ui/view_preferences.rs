@@ -19,9 +19,10 @@ const FILE_NAME: &str = "ui_view_preferences.json";
 #[serde(rename_all = "snake_case")]
 pub enum SecretViewMode {
     /// Multi-column grid of cards (historical layout).
-    #[default]
     Grid,
-    /// One compact row per secret, columns aligned.
+    /// One compact row per secret, columns aligned (default: scans faster, shows the copy
+    /// counter on every row).
+    #[default]
     List,
 }
 
@@ -109,5 +110,20 @@ fn save(preferences: &ViewPreferences) {
 
     if let Err(error) = fs::write(&path, payload) {
         warn!(path = %path.display(), %error, "failed to persist view preferences");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SecretViewMode, ViewPreferences};
+
+    #[test]
+    fn list_is_the_default_view_and_saved_choices_are_kept() -> Result<(), serde_json::Error> {
+        assert_eq!(SecretViewMode::default(), SecretViewMode::List);
+        let fresh: ViewPreferences = serde_json::from_str("{}")?;
+        assert_eq!(fresh.secret_view_mode, SecretViewMode::List);
+        let saved: ViewPreferences = serde_json::from_str(r#"{"secret_view_mode":"grid"}"#)?;
+        assert_eq!(saved.secret_view_mode, SecretViewMode::Grid);
+        Ok(())
     }
 }

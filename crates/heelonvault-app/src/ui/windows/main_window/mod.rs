@@ -78,7 +78,9 @@ enum AuditFilter {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SecretSortMode {
-    Recent,
+    /// Most copied first (default). The load already orders rows by copy count, so this
+    /// keeps that order (`original_rank`) stable while the user copies.
+    Usage,
     Title,
     Risk,
 }
@@ -129,7 +131,7 @@ struct CenterPanelWidgets {
     status_incomplete_badge: gtk4::Label,
     status_never_used_chip: gtk4::Box,
     status_never_used_badge: gtk4::Label,
-    sort_recent_button: gtk4::Button,
+    sort_usage_button: gtk4::Button,
     sort_title_button: gtk4::Button,
     sort_risk_button: gtk4::Button,
     view_grid_button: gtk4::Button,

@@ -342,35 +342,35 @@ pub fn setup_trash_button_handler<TSecret, TVault>(
 
 /// Setup the sort button handlers
 ///
-/// Connects click handlers to the sort buttons (recent, title, risk).
+/// Connects click handlers to the sort buttons (copy count, title, risk).
 pub fn setup_sort_button_handlers(
-    sort_recent_button: &gtk4::Button,
+    sort_usage_button: &gtk4::Button,
     sort_title_button: &gtk4::Button,
     sort_risk_button: &gtk4::Button,
     secret_flow: gtk4::FlowBox,
     filter_runtime: crate::ui::windows::main_window::types::FilterRuntime,
 ) {
-    let flow_for_recent_sort = secret_flow.clone();
-    let filter_for_recent_sort = filter_runtime.clone();
-    let recent_button = sort_recent_button.clone();
+    let flow_for_usage_sort = secret_flow.clone();
+    let filter_for_usage_sort = filter_runtime.clone();
+    let usage_button = sort_usage_button.clone();
     let title_button = sort_title_button.clone();
     let risk_button = sort_risk_button.clone();
-    sort_recent_button.connect_clicked(move |_| {
-        filter_for_recent_sort
+    sort_usage_button.connect_clicked(move |_| {
+        filter_for_usage_sort
             .selected_sort
-            .set(crate::ui::windows::main_window::SecretSortMode::Recent);
+            .set(crate::ui::windows::main_window::SecretSortMode::Usage);
         update_sort_button_states(
-            &recent_button,
+            &usage_button,
             &title_button,
             &risk_button,
-            crate::ui::windows::main_window::SecretSortMode::Recent,
+            crate::ui::windows::main_window::SecretSortMode::Usage,
         );
-        apply_filters(&flow_for_recent_sort, &filter_for_recent_sort);
+        apply_filters(&flow_for_usage_sort, &filter_for_usage_sort);
     });
 
     let flow_for_title_sort = secret_flow.clone();
     let filter_for_title_sort = filter_runtime.clone();
-    let recent_button = sort_recent_button.clone();
+    let usage_button = sort_usage_button.clone();
     let title_button = sort_title_button.clone();
     let risk_button = sort_risk_button.clone();
     sort_title_button.connect_clicked(move |_| {
@@ -378,7 +378,7 @@ pub fn setup_sort_button_handlers(
             .selected_sort
             .set(crate::ui::windows::main_window::SecretSortMode::Title);
         update_sort_button_states(
-            &recent_button,
+            &usage_button,
             &title_button,
             &risk_button,
             crate::ui::windows::main_window::SecretSortMode::Title,
@@ -388,7 +388,7 @@ pub fn setup_sort_button_handlers(
 
     let flow_for_risk_sort = secret_flow.clone();
     let filter_for_risk_sort = filter_runtime.clone();
-    let recent_button = sort_recent_button.clone();
+    let usage_button = sort_usage_button.clone();
     let title_button = sort_title_button.clone();
     let risk_button = sort_risk_button.clone();
     sort_risk_button.connect_clicked(move |_| {
@@ -396,7 +396,7 @@ pub fn setup_sort_button_handlers(
             .selected_sort
             .set(crate::ui::windows::main_window::SecretSortMode::Risk);
         update_sort_button_states(
-            &recent_button,
+            &usage_button,
             &title_button,
             &risk_button,
             crate::ui::windows::main_window::SecretSortMode::Risk,
@@ -455,7 +455,7 @@ pub fn setup_sidebar_filter_handlers(
 
 /// Update the visual state of sort buttons
 pub fn update_sort_button_states(
-    recent_button: &gtk4::Button,
+    usage_button: &gtk4::Button,
     title_button: &gtk4::Button,
     risk_button: &gtk4::Button,
     selected: SecretSortMode,
@@ -463,13 +463,13 @@ pub fn update_sort_button_states(
     use crate::ui::windows::main_window::SecretSortMode;
 
     // Remove active class from all buttons first
-    recent_button.remove_css_class(SORT_BUTTON_ACTIVE_CLASS);
+    usage_button.remove_css_class(SORT_BUTTON_ACTIVE_CLASS);
     title_button.remove_css_class(SORT_BUTTON_ACTIVE_CLASS);
     risk_button.remove_css_class(SORT_BUTTON_ACTIVE_CLASS);
 
     // Add active class to the selected button
     match selected {
-        SecretSortMode::Recent => recent_button.add_css_class(SORT_BUTTON_ACTIVE_CLASS),
+        SecretSortMode::Usage => usage_button.add_css_class(SORT_BUTTON_ACTIVE_CLASS),
         SecretSortMode::Title => title_button.add_css_class(SORT_BUTTON_ACTIVE_CLASS),
         SecretSortMode::Risk => risk_button.add_css_class(SORT_BUTTON_ACTIVE_CLASS),
     }

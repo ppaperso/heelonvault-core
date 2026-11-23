@@ -217,7 +217,7 @@ where
         search_text: Rc::new(RefCell::new(String::new())),
         selected_category: Rc::new(Cell::new(super::super::SecretCategoryFilter::All)),
         selected_audit: Rc::new(Cell::new(super::super::AuditFilter::All)),
-        selected_sort: Rc::new(Cell::new(super::super::SecretSortMode::Recent)),
+        selected_sort: Rc::new(Cell::new(super::super::SecretSortMode::Usage)),
         view_mode: Rc::new(Cell::new(SecretViewMode::Grid)),
         audit_all_count_label: sidebar.audit_all_badge,
         audit_weak_count_label: sidebar.audit_weak_badge,

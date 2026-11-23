@@ -108,10 +108,10 @@ pub(super) fn build_center_panel(view_mode: SecretViewMode) -> CenterPanelWidget
         .build();
     sort_switch.add_css_class("vault-secret-sort-switch");
 
-    let sort_recent_button = build_status_sort_button("view-sort-descending-symbolic");
+    let sort_usage_button = build_status_sort_button("hv-copy-symbolic");
     let sort_title_button = build_status_sort_button("insert-text-symbolic");
     let sort_risk_button = build_status_sort_button("hv-warning-symbolic");
-    sort_switch.append(&sort_recent_button);
+    sort_switch.append(&sort_usage_button);
     sort_switch.append(&sort_title_button);
     sort_switch.append(&sort_risk_button);
 
@@ -224,7 +224,7 @@ pub(super) fn build_center_panel(view_mode: SecretViewMode) -> CenterPanelWidget
         status_incomplete_badge,
         status_never_used_chip,
         status_never_used_badge,
-        sort_recent_button,
+        sort_usage_button,
         sort_title_button,
         sort_risk_button,
         view_grid_button,

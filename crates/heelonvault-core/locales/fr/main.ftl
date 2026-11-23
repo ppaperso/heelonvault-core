@@ -377,7 +377,7 @@ main-status-total-tooltip = Nombre total de secrets dans ce coffre
 main-status-noncompliant-tooltip = Secrets non conformes: faibles ou en doublon
 main-status-incomplete-tooltip = Nombre de secrets incomplets (sans login ou URL)
 main-status-never-used-tooltip = Nombre de secrets jamais utilisés (compteur à 0)
-main-sort-recent-tooltip = Trier par récence
+main-sort-usage-tooltip = Trier par nombre de copies (les plus copiés en premier)
 main-sort-title-tooltip = Trier par nom
 main-sort-risk-tooltip = Trier par risque
 main-view-grid-tooltip = Affichage en cartes
@@ -621,6 +621,11 @@ main-panic-confirm = Effacer et quitter
 secret-card-duplicate-badge = DOUBLON
 secret-card-chip-search = Rechercher { $query }
 secret-card-chip-more = +{ $count }
+secret-card-usage-tooltip = { $count ->
+    [0] Jamais copié
+    [one] Copié 1 fois
+   *[other] Copié { $count } fois
+}
 secret-card-health-badge = Santé
 secret-card-incomplete-badge = Incomplet
 secret-card-shared-badge = Partagé

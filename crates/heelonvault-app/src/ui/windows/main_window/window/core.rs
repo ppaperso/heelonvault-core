@@ -172,7 +172,7 @@ where
         search_text: Rc::new(RefCell::new(String::new())),
         selected_category: Rc::new(Cell::new(SecretCategoryFilter::All)),
         selected_audit: Rc::new(Cell::new(AuditFilter::All)),
-        selected_sort: Rc::new(Cell::new(SecretSortMode::Recent)),
+        selected_sort: Rc::new(Cell::new(SecretSortMode::Usage)),
         view_mode: Rc::new(Cell::new(view_mode)),
         audit_all_count_label: sidebar_panel.audit_all_badge.clone(),
         audit_weak_count_label: sidebar_panel.audit_weak_badge.clone(),
@@ -401,7 +401,7 @@ where
     );
 
     events::setup_sort_button_handlers(
-        &center_panel.sort_recent_button,
+        &center_panel.sort_usage_button,
         &center_panel.sort_title_button,
         &center_panel.sort_risk_button,
         center_panel.secret_flow.clone(),
@@ -667,7 +667,7 @@ where
         view_mode,
     );
     events::update_sort_button_states(
-        &center_panel.sort_recent_button,
+        &center_panel.sort_usage_button,
         &center_panel.sort_title_button,
         &center_panel.sort_risk_button,
         filter_runtime.selected_sort.get(),
@@ -789,7 +789,7 @@ pub(in crate::ui::windows::main_window) fn install_flow_filter_and_sort(
         };
 
         match runtime_for_sort.selected_sort.get() {
-            SecretSortMode::Recent => left_meta
+            SecretSortMode::Usage => left_meta
                 .original_rank
                 .cmp(&right_meta.original_rank)
                 .into(),
