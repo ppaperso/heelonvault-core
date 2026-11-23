@@ -159,6 +159,17 @@ pub struct SecretRowData {
     pub tags: String,
 }
 
+/// "Copied N times", translated at display time.
+fn usage_tooltip(count: u32) -> String {
+    heelonvault_core::i18n::tr_args(
+        "secret-card-usage-tooltip",
+        &[(
+            "count",
+            heelonvault_core::i18n::I18nArg::Num(i64::from(count)),
+        )],
+    )
+}
+
 /// A widget displaying one secret item, as a grid card or as a compact list row.
 ///
 /// Grid layout (top → bottom):
@@ -169,7 +180,7 @@ pub struct SecretRowData {
 ///   actions_box: [🔑 copy_password] [👤 copy_login?] [🌐 open_url?]
 ///
 /// List layout (left → right, fixed-width columns so rows line up):
-///   [type icon] [title] [login] [domain] [health · duplicate? · vault?] [actions]
+///   [type icon] [title] [login] [domain] [copies · health · duplicate? · vault?] [actions]
 #[allow(dead_code)]
 pub struct SecretCard {
     card_box: gtk4::Box,
@@ -447,14 +458,36 @@ impl SecretCard {
         Some(chips)
     }
 
-    /// Status badges. `compact` (list layout) keeps only the risk-relevant ones; the usage
-    /// badge is still built so `update_usage_count` stays valid, just not displayed.
+    /// Copy counter: copy icon and count, "Copied N times" as tooltip. Returns the badge and
+    /// its count label (updated in place by `update_usage_count`).
+    fn build_usage_badge(count: u32) -> (gtk4::Box, Label) {
+        let badge = gtk4::Box::new(Orientation::Horizontal, 4);
+        badge.add_css_class("secret-badge");
+        badge.add_css_class("badge-usage");
+        badge.set_valign(Align::Center);
+        let icon = gtk4::Image::from_icon_name("hv-copy-symbolic");
+        icon.set_pixel_size(12);
+        let label = Label::new(Some(&count.to_string()));
+        label.set_single_line_mode(true);
+        label.add_css_class("badge-usage-count");
+        badge.append(&icon);
+        badge.append(&label);
+        badge.set_tooltip_text(Some(&usage_tooltip(count)));
+        (badge, label)
+    }
+
+    /// Status badges. `compact` (list layout) keeps the copy counter first, so it lines up
+    /// on every row, then only the risk-relevant badges.
     fn build_badges(data: &SecretRowData, compact: bool) -> (gtk4::Box, Label) {
         let badges_box = gtk4::Box::builder()
             .orientation(Orientation::Horizontal)
             .spacing(6)
             .build();
         badges_box.add_css_class("secret-card-badges");
+        let (usage_box, usage_badge) = Self::build_usage_badge(data.usage_count);
+        if compact {
+            badges_box.append(&usage_box);
+        }
 
         // Health badge
         let strength_text = if data.has_secret {
@@ -486,13 +519,9 @@ impl SecretCard {
             badges_box.append(&access_badge);
         }
 
-        // Usage badge
-        let usage_badge = Label::new(Some(&format!("↗ {}", data.usage_count)));
-        usage_badge.set_single_line_mode(true);
-        usage_badge.add_css_class("secret-badge");
-        usage_badge.add_css_class("badge-usage");
+        // Usage badge (grid: after the strength badge)
         if !compact {
-            badges_box.append(&usage_badge);
+            badges_box.append(&usage_box);
         }
 
         // Duplicate badge
@@ -608,7 +637,10 @@ impl SecretCard {
 
     #[allow(dead_code)]
     pub fn update_usage_count(&self, new_count: u32) {
-        self.usage_badge.set_label(&format!("↗ {}", new_count));
+        self.usage_badge.set_label(&new_count.to_string());
+        if let Some(badge) = self.usage_badge.parent() {
+            badge.set_tooltip_text(Some(&usage_tooltip(new_count)));
+        }
     }
 
     #[allow(dead_code)]
@@ -702,6 +734,26 @@ pub(crate) fn native_card_classification_scenario() -> Result<(), Box<dyn std::e
             &mut chips,
         );
         assert_eq!(chips.len(), 1 + visible, "category + visible tags");
+        // The copy counter is shown in both layouts and follows live updates.
+        let mut usage = Vec::new();
+        collect(card.get_widget().upcast_ref(), "badge-usage", &mut usage);
+        let usage = usage.first().ok_or("missing copy counter")?;
+        assert_eq!(
+            usage.tooltip_text().as_deref(),
+            Some(usage_tooltip(0).as_str())
+        );
+        card.update_usage_count(3);
+        let mut counts = Vec::new();
+        collect(usage, "badge-usage-count", &mut counts);
+        let count = counts
+            .first()
+            .and_then(|widget| widget.clone().downcast::<Label>().ok())
+            .ok_or("missing copy count")?;
+        assert_eq!(count.text(), "3");
+        assert_eq!(
+            usage.tooltip_text().as_deref(),
+            Some(usage_tooltip(3).as_str())
+        );
         let mut more = Vec::new();
         collect(
             card.get_widget().upcast_ref(),

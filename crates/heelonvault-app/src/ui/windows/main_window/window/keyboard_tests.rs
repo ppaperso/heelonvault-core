@@ -162,7 +162,7 @@ pub(in crate::ui::windows::main_window) fn native_keyboard_scenario()
         search_text: Rc::default(),
         selected_category: Rc::new(Cell::new(SecretCategoryFilter::All)),
         selected_audit: Rc::new(Cell::new(AuditFilter::All)),
-        selected_sort: Rc::new(Cell::new(SecretSortMode::Recent)),
+        selected_sort: Rc::new(Cell::new(SecretSortMode::Usage)),
         view_mode: Rc::new(Cell::new(crate::ui::view_preferences::SecretViewMode::Grid)),
         audit_all_count_label: gtk4::Label::new(None),
         audit_weak_count_label: gtk4::Label::new(None),

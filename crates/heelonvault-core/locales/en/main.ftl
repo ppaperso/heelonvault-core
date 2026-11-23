@@ -377,7 +377,7 @@ main-status-total-tooltip = Total number of secrets in this vault
 main-status-noncompliant-tooltip = Non-compliant secrets: weak or duplicated
 main-status-incomplete-tooltip = Number of incomplete secrets (missing login or URL)
 main-status-never-used-tooltip = Number of secrets never used (usage count is 0)
-main-sort-recent-tooltip = Sort by recency
+main-sort-usage-tooltip = Sort by copy count (most copied first)
 main-sort-title-tooltip = Sort by title
 main-sort-risk-tooltip = Sort by risk
 main-view-grid-tooltip = Card view
@@ -621,6 +621,11 @@ main-panic-confirm = Wipe and quit
 secret-card-duplicate-badge = Duplicate
 secret-card-chip-search = Search { $query }
 secret-card-chip-more = +{ $count }
+secret-card-usage-tooltip = { $count ->
+    [0] Never copied
+    [one] Copied once
+   *[other] Copied { $count } times
+}
 secret-card-health-badge = Health
 secret-card-incomplete-badge = Incomplete
 secret-card-shared-badge = Shared

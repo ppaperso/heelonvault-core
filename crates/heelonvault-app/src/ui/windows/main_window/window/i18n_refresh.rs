@@ -79,8 +79,8 @@ pub fn build_refresh(
         center.status_never_used_chip.set_tooltip_text(Some(
             heelonvault_core::tr!("main-status-never-used-tooltip").as_str(),
         ));
-        center.sort_recent_button.set_tooltip_text(Some(
-            heelonvault_core::tr!("main-sort-recent-tooltip").as_str(),
+        center.sort_usage_button.set_tooltip_text(Some(
+            heelonvault_core::tr!("main-sort-usage-tooltip").as_str(),
         ));
         center.sort_title_button.set_tooltip_text(Some(
             heelonvault_core::tr!("main-sort-title-tooltip").as_str(),
