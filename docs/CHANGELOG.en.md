@@ -16,6 +16,7 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 
 ### Security and dependencies
 
+- RUSTSEC-2026-0592 remediation (stack overflow in `Url::origin()` on nested `blob:` URLs): `url` 2.5.8 → 2.5.9 (and `form_urlencoded` 1.2.2 → 1.2.3) in both lockfiles. SBOM regenerated.
 - RUSTSEC-2026-0543 (`chrono` unmaintained) remediation, which had blocked the scheduled supply-chain run since 2026-11-12: `chrono` is removed from core, the application and premium in favour of `time`, already in the tree (no new dependency). Instants are still stored and compared in UTC with the same persisted formats (RFC 3339; `login_attempts_ip` keeps the `+00:00` suffix, now fixed-width so that lexicographic SQL comparison follows chronological order).
 - Local time: the application goes through GLib (`ui::local_time`, `GlibLocalTimeZone`), which is thread-safe and applies the DST rules of each instant; explicit UTC fallback if the zone is unavailable. Log timestamps and daily rotation unchanged.
 - `cargo-deny`: `[graph] targets` restricts the analysis to shipped targets (Linux x86_64, Windows x86_64 GNU, macOS aarch64 kept). The only remaining path to `chrono`, `zxcvbn` 3.1.1 on `wasm32` only, is not compiled into any shipped binary. `cargo-audit` cannot filter by target: temporary exception limited to RUSTSEC-2026-0543 in `.cargo/audit.toml`, owner @ppaperso, due 2026-12-22 (#82). `cargo-deny` still fails if `chrono` re-enters a shipped target.
