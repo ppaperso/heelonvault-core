@@ -261,9 +261,19 @@ editor-keep-editing = Continuer la modification
 editor-discard = Abandonner les modifications
 main-list-retry = Réessayer le chargement
 main-vaults-load-failed = Impossible de charger la navigation des coffres. Actualisez pour réessayer.
-main-list-filter-summary = { $visible }/{ $loaded } entrées chargées affichées · { $category } · Audit : { $audit } · { $search }
-main-list-search-active = Recherche active
-main-list-search-inactive = Sans recherche
+main-list-pill-loading = Chargement…
+main-list-pill-failed = Liste indisponible
+main-list-pill-partial = Partiel · { $loaded }/{ $total } coffres
+main-list-pill-unreadable = { $items ->
+    [one] 1 entrée illisible
+   *[other] { $items } entrées illisibles
+}
+main-list-pill-global = MultiCoffre · { $total } coffres
+main-filter-count = { $visible }/{ $loaded }
+main-filter-count-tooltip = { $visible } entrées affichées sur { $loaded } chargées
+main-filter-chip-search = « { $query } »
+main-filter-chip-remove = Retirer ce filtre
+main-filter-clear-all = Tout effacer
 main-list-complete = Coffre chargé. Les compteurs portent sur les entrées chargées.
 main-list-complete-global = Tous les coffres sont chargés ({ $loaded }/{ $total }). Les compteurs portent sur les entrées chargées.
 main-list-partial = Résultats partiels : { $loaded }/{ $total } coffres chargés ; { $failed } coffres indisponibles, { $items } entrées illisibles. Les compteurs et contrôles portent uniquement sur les entrées chargées.

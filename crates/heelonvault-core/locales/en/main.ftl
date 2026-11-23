@@ -261,9 +261,19 @@ editor-keep-editing = Keep editing
 editor-discard = Discard changes
 main-list-retry = Retry loading
 main-vaults-load-failed = Vault navigation could not be loaded. Refresh to retry.
-main-list-filter-summary = Showing { $visible }/{ $loaded } loaded entries · { $category } · Audit: { $audit } · { $search }
-main-list-search-active = Search active
-main-list-search-inactive = No search
+main-list-pill-loading = Loading…
+main-list-pill-failed = List unavailable
+main-list-pill-partial = Partial · { $loaded }/{ $total } vaults
+main-list-pill-unreadable = { $items ->
+    [one] 1 unreadable entry
+   *[other] { $items } unreadable entries
+}
+main-list-pill-global = MultiVault · { $total } vaults
+main-filter-count = { $visible }/{ $loaded }
+main-filter-count-tooltip = { $visible } entries shown out of { $loaded } loaded
+main-filter-chip-search = “{ $query }”
+main-filter-chip-remove = Remove this filter
+main-filter-clear-all = Clear all
 main-list-complete = Vault loaded. Counts refer to loaded entries.
 main-list-complete-global = All vaults loaded ({ $loaded }/{ $total }). Counts refer to loaded entries.
 main-list-partial = Partial results: { $loaded }/{ $total } vaults loaded; { $failed } vaults unavailable, { $items } entries unreadable. Counts and checks cover loaded entries only.
