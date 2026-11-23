@@ -192,32 +192,9 @@ pub(super) fn build_center_panel(view_mode: SecretViewMode) -> CenterPanelWidget
         .build();
     main_stack.set_transition_duration(200);
     let entries_page = gtk4::Box::new(Orientation::Vertical, 6);
-    let load_row = gtk4::Box::builder()
-        .orientation(Orientation::Horizontal)
-        .spacing(8)
-        .margin_start(12)
-        .margin_end(12)
-        .margin_top(6)
-        .build();
-    let load_status = gtk4::Label::builder()
-        .wrap(true)
-        .xalign(0.0)
-        .hexpand(true)
-        .build();
-    let retry_load = gtk4::Button::with_label(heelonvault_core::tr!("main-list-retry").as_str());
-    retry_load.set_visible(false);
-    load_row.append(&load_status);
-    load_row.append(&retry_load);
-    entries_page.append(&load_row);
-    let filter_summary = gtk4::Label::builder()
-        .wrap(true)
-        .xalign(0.0)
-        .margin_start(12)
-        .margin_end(12)
-        .build();
-    filter_summary.add_css_class("dim-label");
-    filter_summary.set_visible(false);
-    entries_page.append(&filter_summary);
+    // Status and filter chips: hidden unless there is something to report.
+    let (chip_row, load_status, retry_load, filter_chips) = super::list_chips::build_row();
+    entries_page.append(&chip_row);
     entries_page.append(&entries_stack);
     main_stack.add_titled(
         &entries_page,
@@ -231,7 +208,7 @@ pub(super) fn build_center_panel(view_mode: SecretViewMode) -> CenterPanelWidget
         frame: center_frame,
         entries_page,
         load_status,
-        filter_summary,
+        filter_chips,
         retry_load,
         main_stack,
         stack: entries_stack,

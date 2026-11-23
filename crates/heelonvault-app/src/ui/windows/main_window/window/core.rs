@@ -166,7 +166,7 @@ where
 
     let filter_runtime = FilterRuntime {
         load_ready: Rc::new(Cell::new(false)),
-        filter_summary: center_panel.filter_summary.clone(),
+        filter_chips: center_panel.filter_chips.clone(),
         meta_by_widget: Rc::new(RefCell::new(HashMap::new())),
         actions_by_widget: Rc::new(RefCell::new(HashMap::new())),
         search_text: Rc::new(RefCell::new(String::new())),
@@ -442,6 +442,31 @@ where
                 search_entry.set_text(&query);
                 search_entry.set_position(-1);
                 search_entry.grab_focus();
+            }
+        });
+        window.add_action(&action);
+    }
+
+    // Filter chips above the list: each one clears its filter through the same widgets
+    // (sidebar rows, search entry) a user would use, so their handlers stay the only path.
+    {
+        let action =
+            gtk4::gio::SimpleAction::new("clear-list-filter", Some(glib::VariantTy::STRING));
+        let category_list = sidebar_panel.category_list.clone();
+        let audit_list = sidebar_panel.audit_list.clone();
+        let search_entry = search_entry.clone();
+        action.connect_activate(move |_, target| {
+            let target = target
+                .and_then(|value| value.get::<String>())
+                .unwrap_or_default();
+            if matches!(target.as_str(), "type" | "all") {
+                category_list.select_row(category_list.row_at_index(0).as_ref());
+            }
+            if matches!(target.as_str(), "audit" | "all") {
+                audit_list.select_row(audit_list.row_at_index(0).as_ref());
+            }
+            if matches!(target.as_str(), "search" | "all") {
+                search_entry.set_text("");
             }
         });
         window.add_action(&action);

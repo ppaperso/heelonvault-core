@@ -310,7 +310,7 @@ pub(super) struct LoadedSecrets {
 fn clear_rows<TSecret, TVault>(ctx: &SecretFlowContext<TSecret, TVault>) {
     *ctx.last_loaded.borrow_mut() = None;
     ctx.filter_runtime.load_ready.set(false);
-    ctx.filter_runtime.filter_summary.set_visible(false);
+    super::list_chips::hide_filters(&ctx.filter_runtime.filter_chips);
     ctx.filter_runtime.meta_by_widget.borrow_mut().clear();
     ctx.filter_runtime.actions_by_widget.borrow_mut().clear();
     ctx.filter_runtime.filtered_status_page.set_visible(false);
@@ -337,27 +337,13 @@ fn set_load_state<TSecret, TVault>(ctx: &SecretFlowContext<TSecret, TVault>, sta
 
 pub(super) fn refresh_load_i18n<TSecret, TVault>(ctx: &SecretFlowContext<TSecret, TVault>) {
     let state = ctx.load_state.get();
-    ctx.load_status.set_text(&state.message());
-    if matches!(state, ListLoadState::Ready { .. })
+    let no_selection = matches!(state, ListLoadState::Ready { .. })
         && ctx
             .last_loaded
             .borrow()
             .as_ref()
-            .is_some_and(|loaded| loaded.no_selection)
-    {
-        ctx.load_status
-            .set_text(heelonvault_core::tr!("main-no-vault-selected-title").as_str());
-    }
-    ctx.retry_load
-        .set_label(heelonvault_core::tr!("main-list-retry").as_str());
-    let retry = matches!(state, ListLoadState::Failed)
-        || matches!(state, ListLoadState::Ready { coverage, .. } if coverage.partial());
-    ctx.retry_load.set_visible(retry);
-    if retry {
-        ctx.load_status.add_css_class("warning");
-    } else {
-        ctx.load_status.remove_css_class("warning");
-    }
+            .is_some_and(|loaded| loaded.no_selection);
+    super::list_chips::render_load(&ctx.load_status, &ctx.retry_load, state, no_selection);
     let keys = match state {
         ListLoadState::Loading => Some((
             "main-secrets-loading-title",

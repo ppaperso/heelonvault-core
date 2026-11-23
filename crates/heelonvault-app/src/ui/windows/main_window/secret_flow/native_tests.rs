@@ -211,7 +211,7 @@ where
     let sidebar = super::super::sidebar::build_sidebar_panel();
     let filters = FilterRuntime {
         load_ready: Rc::new(Cell::new(false)),
-        filter_summary: panel.filter_summary,
+        filter_chips: panel.filter_chips,
         meta_by_widget: Rc::new(RefCell::new(HashMap::new())),
         actions_by_widget: Rc::new(RefCell::new(HashMap::new())),
         search_text: Rc::new(RefCell::new(String::new())),
@@ -361,26 +361,36 @@ where
             .set(super::super::SecretCategoryFilter::Password);
         search_filter::apply_filters(&ctx.secret_flow, &ctx.filter_runtime);
         assert!(ctx.filter_runtime.filtered_status_page.is_visible());
+        // An active filter shows its chip and the visible/loaded counter.
+        assert!(ctx.filter_runtime.filter_chips.is_visible());
+        let chips = chip_texts(ctx.filter_runtime.filter_chips.upcast_ref());
+        assert!(chips.contains("0/1"), "{chips}");
         assert!(
-            ctx.filter_runtime
-                .filter_summary
-                .text()
-                .replace(['\u{2068}', '\u{2069}'], "")
-                .contains("0/1")
+            chips.contains(&heelonvault_core::tr!("main-category-passwords")),
+            "{chips}"
         );
+        let mut type_chip = None;
+        let mut child = ctx.filter_runtime.filter_chips.first_child();
+        while let Some(current) = child {
+            if let Some(button) = current.downcast_ref::<gtk4::Button>()
+                && button.action_name().as_deref()
+                    == Some(super::super::list_chips::CLEAR_FILTER_ACTION)
+            {
+                type_chip = button
+                    .action_target_value()
+                    .and_then(|value| value.get::<String>());
+            }
+            child = current.next_sibling();
+        }
+        assert_eq!(type_chip.as_deref(), Some("type"));
         assert!(ctx.load_status.has_css_class("warning"));
         ctx.filter_runtime
             .selected_category
             .set(super::super::SecretCategoryFilter::All);
         ctx.filter_runtime.view_mode.set(SecretViewMode::List);
         assert!(rerender_secret_flow(&ctx));
-        assert!(
-            ctx.filter_runtime
-                .filter_summary
-                .text()
-                .replace(['\u{2068}', '\u{2069}'], "")
-                .contains("1/1")
-        );
+        // No filter: no chip, no sentence.
+        assert!(!ctx.filter_runtime.filter_chips.is_visible());
         ctx.filter_runtime.view_mode.set(SecretViewMode::Grid);
     }
     let (release, _) = controlled.gate()?;
@@ -528,13 +538,9 @@ where
             },
         }
     );
-    assert!(
-        ctx.filter_runtime
-            .filter_summary
-            .text()
-            .replace(['\u{2068}', '\u{2069}'], "")
-            .contains("1/1")
-    );
+    assert!(!ctx.filter_runtime.filter_chips.is_visible());
+    let pill_text = ctx.load_status.text().replace(['\u{2068}', '\u{2069}'], "");
+    assert!(pill_text.contains("1/1"), "{pill_text}");
     wait(|| ctx.load_status.width() > 0)?;
     assert!(
         window.width() <= 820,
@@ -546,24 +552,38 @@ where
     for lang in ["fr", "en"] {
         assert!(heelonvault_core::i18n::set_language(lang));
         refresh_load_i18n(&ctx);
+        // Short pill text; the full sentence stays available as the pill tooltip.
+        let pill = ctx.load_status.parent().ok_or("missing load pill")?;
+        assert!(pill.is_visible());
         assert_eq!(
-            ctx.load_status.text().as_str(),
-            ctx.load_state.get().message()
+            pill.tooltip_text().as_deref(),
+            Some(ctx.load_state.get().message().as_str())
         );
         assert!(window.measure(gtk4::Orientation::Horizontal, -1).0 <= 820);
-        let load_row = ctx.load_status.parent().ok_or("missing load row")?;
+        let load_row = pill.parent().ok_or("missing load row")?;
+        assert!(load_row.is_visible());
         assert!(load_row.measure(gtk4::Orientation::Horizontal, -1).0 <= 560);
-        assert!(
-            ctx.filter_runtime
-                .filter_summary
-                .measure(gtk4::Orientation::Horizontal, -1)
-                .0
-                <= 560
-        );
     }
     assert!(heelonvault_core::i18n::set_language(&language));
     invalidate_secret_flow(&ctx);
     sidebar_tests::scenario(runtime, &ctx, &controlled, &first, &second)?;
     window.close();
     Ok(())
+}
+
+/// Every label text under `widget`, space separated (chip contents).
+fn chip_texts(widget: &gtk4::Widget) -> String {
+    let mut texts = Vec::new();
+    fn collect(widget: &gtk4::Widget, texts: &mut Vec<String>) {
+        if let Some(label) = widget.downcast_ref::<gtk4::Label>() {
+            texts.push(label.text().replace(['\u{2068}', '\u{2069}'], ""));
+        }
+        let mut child = widget.first_child();
+        while let Some(current) = child {
+            collect(&current, texts);
+            child = current.next_sibling();
+        }
+    }
+    collect(widget, &mut texts);
+    texts.join(" ")
 }

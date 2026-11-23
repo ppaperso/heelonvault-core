@@ -3,7 +3,7 @@ use std::time::Duration;
 use gtk4::glib;
 use gtk4::prelude::*;
 
-use super::{AuditFilter, FilterRuntime, SecretCategoryFilter, SecretFilterMeta};
+use super::{FilterRuntime, SecretFilterMeta};
 
 pub(super) fn apply_filters(secret_flow: &gtk4::FlowBox, filter_runtime: &FilterRuntime) {
     if !filter_runtime.load_ready.get() {
@@ -52,36 +52,17 @@ pub(super) fn apply_filters(secret_flow: &gtk4::FlowBox, filter_runtime: &Filter
     filter_runtime
         .filtered_status_page
         .set_visible(visible_count == 0);
-    let category = match filter_runtime.selected_category.get() {
-        SecretCategoryFilter::All => heelonvault_core::tr!("main-category-all"),
-        SecretCategoryFilter::Password => heelonvault_core::tr!("main-category-passwords"),
-        SecretCategoryFilter::Passphrase => heelonvault_core::tr!("main-category-passphrases"),
-        SecretCategoryFilter::ApiToken => heelonvault_core::tr!("main-category-api-tokens"),
-        SecretCategoryFilter::SshKey => heelonvault_core::tr!("main-category-ssh-keys"),
-        SecretCategoryFilter::SecureDocument => heelonvault_core::tr!("main-category-documents"),
-    };
-    let audit = match filter_runtime.selected_audit.get() {
-        AuditFilter::All => heelonvault_core::tr!("main-audit-all"),
-        AuditFilter::Weak => heelonvault_core::tr!("main-audit-weak"),
-        AuditFilter::Duplicate => heelonvault_core::tr!("main-audit-duplicates"),
-    };
-    let search = if filter_runtime.search_text.borrow().trim().is_empty() {
-        heelonvault_core::tr!("main-list-search-inactive")
-    } else {
-        heelonvault_core::tr!("main-list-search-active")
-    };
-    use heelonvault_core::i18n::{I18nArg, tr_args};
-    filter_runtime.filter_summary.set_text(&tr_args(
-        "main-list-filter-summary",
-        &[
-            ("visible", I18nArg::Num(visible_count)),
-            ("loaded", I18nArg::Num(audit_all_count as i64)),
-            ("category", I18nArg::Str(&category)),
-            ("audit", I18nArg::Str(&audit)),
-            ("search", I18nArg::Str(&search)),
-        ],
-    ));
-    filter_runtime.filter_summary.set_visible(true);
+    let search = filter_runtime.search_text.borrow().clone();
+    super::list_chips::render_filters(
+        &filter_runtime.filter_chips,
+        &super::list_chips::ActiveFilters {
+            category: filter_runtime.selected_category.get(),
+            audit: filter_runtime.selected_audit.get(),
+            search: &search,
+            visible: visible_count,
+            loaded: audit_all_count,
+        },
+    );
 }
 
 pub(super) fn update_audit_badge(label: &gtk4::Label, value: usize) {
