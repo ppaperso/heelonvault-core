@@ -11,7 +11,7 @@ use uuid::Uuid;
 use zeroize::Zeroize;
 
 use crate::errors::AppError;
-use crate::models::{SecretItem, SecretType};
+use crate::models::{PasswordKind, SecretItem, SecretType};
 use crate::services::crypto_service::{CryptoService, CryptoServiceImpl};
 use crate::services::secret_service::{SecretService, decode_secret_payload};
 use crate::services::vault_service::VaultService;
@@ -212,6 +212,8 @@ pub struct SecurityEntry {
     pub findings: Vec<Finding>,
     /// Ephemeral report-local group number; never a password hash.
     pub reuse_group: Option<usize>,
+    /// Kind of a password item (metadata `password_kind`); `None` for other secret types.
+    pub password_kind: Option<PasswordKind>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -229,6 +231,14 @@ impl SecurityReport {
         self.entries
             .iter()
             .filter(|entry| !entry.findings.is_empty())
+            .count()
+    }
+
+    /// Analyzed password items of the given kind (passwords and passphrases are told apart).
+    pub fn password_kind_count(&self, kind: PasswordKind) -> usize {
+        self.entries
+            .iter()
+            .filter(|entry| entry.password_kind == Some(kind))
             .count()
     }
 
@@ -282,6 +292,21 @@ fn expiry_finding(raw: &str, now: OffsetDateTime) -> Option<Finding> {
         Ok(_) => None,
         Err(_) => Some(Finding::InvalidExpiry),
     }
+}
+
+/// Kind of a password item read from its metadata; invalid metadata counts as a password.
+fn password_kind(item: &SecretItem) -> Option<PasswordKind> {
+    if !matches!(item.secret_type, SecretType::Password) {
+        return None;
+    }
+    Some(
+        item.metadata_json
+            .as_deref()
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+            .map_or(PasswordKind::Password, |value| {
+                PasswordKind::from_metadata(&value)
+            }),
+    )
 }
 
 fn metadata_findings(item: &SecretItem, now: OffsetDateTime) -> Vec<Finding> {
@@ -357,6 +382,7 @@ where
         for item in items {
             control.check()?;
             let mut findings = metadata_findings(&item, now);
+            let kind = password_kind(&item);
             if matches!(item.secret_type, SecretType::Password) {
                 let decrypted = match decode_secret_payload(&item.secret_blob) {
                     Ok(payload) => crypto.decrypt(&payload, &key).await,
@@ -392,6 +418,7 @@ where
                 vault_name: vault.name.clone(),
                 findings,
                 reuse_group: None,
+                password_kind: kind,
             });
             report.analyzed += 1;
             control.processed.store(report.analyzed, Ordering::Release);

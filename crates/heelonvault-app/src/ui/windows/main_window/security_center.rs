@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use gtk4::{Align, Orientation, glib, prelude::*};
 use heelonvault_core::i18n::{I18nArg, tr, tr_args};
+use heelonvault_core::models::PasswordKind;
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::security_center::{
     self, Finding, ScanControl, SecurityEntry, SecurityReport,
@@ -42,6 +43,10 @@ struct View {
     nav: super::SecurityNavigation,
     cards: Vec<MetricCard>,
     vaults: gtk4::DropDown,
+    /// Password kind filter of the list (all, passwords, passphrases).
+    kinds: gtk4::DropDown,
+    /// Passwords / passphrases analyzed, under the coverage line.
+    composition: gtk4::Label,
     results: gtk4::Box,
     more: gtk4::Button,
     limit: Cell<usize>,
@@ -51,6 +56,7 @@ struct View {
     generation: Cell<u64>,
     selected: Cell<Filter>,
     selected_vault: Cell<Option<Uuid>>,
+    selected_kind: Cell<KindFilter>,
     updating_vaults: Cell<bool>,
     expanded: Rc<RefCell<BTreeSet<Uuid>>>,
     scroll: gtk4::Adjustment,
@@ -201,6 +207,63 @@ impl Filter {
     /// Reuse groups are only meaningful when every member of a group is listed.
     fn groups_reuse(self) -> bool {
         matches!(self, Self::All | Self::Reused)
+    }
+}
+
+/// Password kind filter: passwords and passphrases are told apart, other types are listed
+/// only under "all".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum KindFilter {
+    All,
+    Password,
+    Passphrase,
+}
+
+impl KindFilter {
+    const ALL: [Self; 3] = [Self::All, Self::Password, Self::Passphrase];
+
+    fn from_index(index: u32) -> Self {
+        usize::try_from(index)
+            .ok()
+            .and_then(|index| Self::ALL.get(index).copied())
+            .unwrap_or(Self::All)
+    }
+
+    fn index(self) -> u32 {
+        match self {
+            Self::All => 0,
+            Self::Password => 1,
+            Self::Passphrase => 2,
+        }
+    }
+
+    fn labels() -> [String; 3] {
+        [
+            tr("security-center-kinds-all"),
+            tr("main-category-passwords"),
+            tr("main-category-passphrases"),
+        ]
+    }
+
+    fn matches(self, entry: &SecurityEntry) -> bool {
+        match self {
+            Self::All => true,
+            Self::Password => entry.password_kind == Some(PasswordKind::Password),
+            Self::Passphrase => entry.password_kind == Some(PasswordKind::Passphrase),
+        }
+    }
+}
+
+fn is_passphrase(entry: &SecurityEntry) -> bool {
+    entry.password_kind == Some(PasswordKind::Passphrase)
+}
+
+/// Detailed reason of a finding, worded for passphrases when relevant.
+fn entry_finding_key(entry: &SecurityEntry, finding: Finding) -> &'static str {
+    match finding {
+        Finding::WeakPassword if is_passphrase(entry) => "security-finding-weak-passphrase",
+        Finding::ReusedPassword if is_passphrase(entry) => "security-finding-reused-passphrase",
+        _ => finding_key(finding),
     }
 }
 
@@ -355,6 +418,9 @@ impl View {
         self.more.set_visible(false);
         self.vaults
             .set_tooltip_text(Some(&tr("security-center-vaults")));
+        self.kinds
+            .set_tooltip_text(Some(&tr("security-center-kinds")));
+        self.composition.set_visible(false);
         while let Some(child) = self.results.first_child() {
             self.results.remove(&child);
         }
@@ -410,17 +476,39 @@ impl View {
                 ),
             ],
         ));
+        self.composition.set_text(&tr_args(
+            "security-center-composition",
+            &[
+                (
+                    "passwords",
+                    I18nArg::Num(
+                        i64::try_from(report.password_kind_count(PasswordKind::Password))
+                            .unwrap_or(i64::MAX),
+                    ),
+                ),
+                (
+                    "passphrases",
+                    I18nArg::Num(
+                        i64::try_from(report.password_kind_count(PasswordKind::Passphrase))
+                            .unwrap_or(i64::MAX),
+                    ),
+                ),
+            ],
+        ));
+        self.composition.set_visible(true);
         if !report.is_complete() {
             self.results
                 .append(&label("security-center-partial", "security-notice"));
         }
         let vault_id = self.selected_vault.get();
+        let kind = self.selected_kind.get();
         let mut selected: Vec<_> = report
             .entries
             .iter()
             .filter(|entry| {
                 matches_filter(entry, self.selected.get())
                     && vault_id.is_none_or(|id| entry.vault_id == id)
+                    && kind.matches(entry)
             })
             .collect();
         selected.sort_by(|left, right| {
@@ -486,6 +574,12 @@ impl View {
         vault.set_xalign(0.0);
         vault.add_css_class("dim-label");
         meta.append(&vault);
+        if is_passphrase(entry) {
+            let chip = gtk4::Label::new(Some(&tr("secret-type-passphrase")));
+            chip.add_css_class("security-chip");
+            chip.add_css_class("security-chip-passphrase");
+            meta.append(&chip);
+        }
         for &finding in &entry.findings {
             let chip = gtk4::Label::new(Some(&tr(short_finding_key(finding))));
             chip.add_css_class("security-chip");
@@ -498,7 +592,7 @@ impl View {
         let details = gtk4::Box::new(Orientation::Vertical, 10);
         details.add_css_class("security-finding-detail");
         for &finding in &entry.findings {
-            details.append(&label(finding_key(finding), "security-reason"));
+            details.append(&label(entry_finding_key(entry, finding), "security-reason"));
         }
         details.append(&label("security-center-correction-help", "dim-label"));
         let edit = gtk4::Button::with_label(&tr("security-center-edit"));
@@ -640,6 +734,12 @@ where
         nav: deps.navigation.clone(),
         cards: Filter::ALL.into_iter().map(MetricCard::new).collect(),
         vaults: gtk4::DropDown::from_strings(&[&tr("security-center-vaults")]),
+        kinds: {
+            let labels = KindFilter::labels();
+            let refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+            gtk4::DropDown::from_strings(&refs)
+        },
+        composition: label("security-center-scope", "security-coverage"),
         results: gtk4::Box::new(Orientation::Vertical, 12),
         more: gtk4::Button::with_label(&tr("security-center-more")),
         limit: Cell::new(50),
@@ -649,6 +749,7 @@ where
         generation: Cell::new(0),
         selected: Cell::new(Filter::All),
         selected_vault: Cell::new(None),
+        selected_kind: Cell::new(KindFilter::All),
         updating_vaults: Cell::new(false),
         expanded: Rc::new(RefCell::new(BTreeSet::new())),
         scroll: page.vadjustment(),
@@ -669,6 +770,7 @@ where
     hero_text.set_hexpand(true);
     hero_text.append(&view.summary);
     hero_text.append(&view.coverage);
+    hero_text.append(&view.composition);
     let actions = gtk4::Box::new(Orientation::Horizontal, 8);
     view.refresh.add_css_class("suggested-action");
     actions.append(&view.refresh);
@@ -698,7 +800,23 @@ where
         });
     }
     view.root.append(&cards);
-    view.root.append(&view.vaults);
+    let list_filters = gtk4::Box::new(Orientation::Horizontal, 8);
+    list_filters.add_css_class("security-list-filters");
+    list_filters.append(&view.vaults);
+    list_filters.append(&view.kinds);
+    view.root.append(&list_filters);
+    let weak = Rc::downgrade(&view);
+    view.kinds.connect_selected_notify(move |dropdown| {
+        if let Some(view) = weak.upgrade() {
+            if view.updating_vaults.get() {
+                return;
+            }
+            view.selected_kind
+                .set(KindFilter::from_index(dropdown.selected()));
+            view.limit.set(50);
+            view.render();
+        }
+    });
     view.root.append(&view.results);
     view.root.append(&view.more);
     view.root.append(&view.privacy);
@@ -866,6 +984,12 @@ where
             if let Some(model) = view.vaults.model().and_downcast::<gtk4::StringList>() {
                 model.splice(0, 1, &[&tr("security-center-vaults")]);
             }
+            let labels = KindFilter::labels();
+            let refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+            view.updating_vaults.set(true);
+            view.kinds.set_model(Some(&gtk4::StringList::new(&refs)));
+            view.kinds.set_selected(view.selected_kind.get().index());
+            view.updating_vaults.set(false);
         }) as Rc<dyn Fn()>
     };
     let invalidate = {
@@ -901,6 +1025,10 @@ where
         view.failed.set(false);
         *view.completed_at.borrow_mut() = None;
         view.selected_vault.set(None);
+        view.selected_kind.set(KindFilter::All);
+        view.updating_vaults.set(true);
+        view.kinds.set_selected(KindFilter::All.index());
+        view.updating_vaults.set(false);
         view.expanded.borrow_mut().clear();
         view.vaults.set_model(Some(&gtk4::StringList::new(&[&tr(
             "security-center-vaults",
@@ -945,6 +1073,37 @@ pub(super) mod tests {
         entry.findings = findings;
         entry.reuse_group = reuse_group;
         entry
+    }
+
+    #[test]
+    fn kind_filter_and_passphrase_wording() {
+        let mut entry = fixture_entry("", Uuid::nil(), "", vec![Finding::WeakPassword], None);
+        assert!(KindFilter::All.matches(&entry));
+        assert!(!KindFilter::Password.matches(&entry), "not a password item");
+        entry.password_kind = Some(PasswordKind::Password);
+        assert!(KindFilter::Password.matches(&entry));
+        assert_eq!(
+            entry_finding_key(&entry, Finding::WeakPassword),
+            "security-finding-weak"
+        );
+        entry.password_kind = Some(PasswordKind::Passphrase);
+        assert!(KindFilter::Passphrase.matches(&entry));
+        assert!(!KindFilter::Password.matches(&entry));
+        assert_eq!(
+            entry_finding_key(&entry, Finding::WeakPassword),
+            "security-finding-weak-passphrase"
+        );
+        assert_eq!(
+            entry_finding_key(&entry, Finding::ReusedPassword),
+            "security-finding-reused-passphrase"
+        );
+        assert_eq!(
+            entry_finding_key(&entry, Finding::Expired),
+            "security-finding-expired"
+        );
+        for kind in KindFilter::ALL {
+            assert_eq!(KindFilter::from_index(kind.index()), kind);
+        }
     }
 
     #[test]
@@ -1128,6 +1287,48 @@ pub(super) mod tests {
         center.view.set_report(original.clone());
         assert_eq!(center.view.selected_vault.get(), Some(vault_id));
         center.view.vaults.set_selected(0);
+
+        // Passwords and passphrases are counted and filtered separately.
+        let mut kinds = original.clone();
+        for entry in &mut kinds.entries {
+            entry.password_kind = match entry.title.as_str() {
+                "Boutique" => Some(PasswordKind::Passphrase),
+                "Messagerie" | "Portail client" => Some(PasswordKind::Password),
+                _ => None,
+            };
+        }
+        center.view.set_report(kinds);
+        assert!(center.view.composition.is_visible());
+        assert_eq!(
+            center.view.composition.text().as_str(),
+            tr_args(
+                "security-center-composition",
+                &[
+                    ("passwords", I18nArg::Num(2)),
+                    ("passphrases", I18nArg::Num(1))
+                ],
+            )
+        );
+        center
+            .view
+            .kinds
+            .set_selected(KindFilter::Passphrase.index());
+        assert_eq!(center.view.selected_kind.get(), KindFilter::Passphrase);
+        let only = center.view.results.first_child().ok_or("missing result")?;
+        assert!(only.next_sibling().is_none(), "one passphrase listed");
+        center.view.kinds.set_selected(KindFilter::Password.index());
+        let mut listed = 0;
+        let mut child = center.view.results.first_child();
+        while let Some(current) = child {
+            listed += 1;
+            child = current.next_sibling();
+        }
+        assert_eq!(listed, 2, "Messagerie (reuse group) and Portail client");
+        (center.refresh_i18n)();
+        assert_eq!(center.view.kinds.selected(), KindFilter::Password.index());
+        (center.clear)();
+        assert_eq!(center.view.selected_kind.get(), KindFilter::All);
+        center.view.set_report(original.clone());
         let shell = gtk4::Box::new(Orientation::Horizontal, 16);
         shell.append(&sidebar.frame);
         shell.append(&panel.frame);

@@ -2,7 +2,7 @@ mod support;
 
 use std::sync::Arc;
 
-use heelonvault_core::models::{SecretType, UserRole, VaultShareRole};
+use heelonvault_core::models::{PasswordKind, SecretType, UserRole, VaultShareRole};
 use heelonvault_core::repositories::secret_repository::{SecretRepository, SqlxSecretRepository};
 use heelonvault_core::repositories::team_repository::SqlxTeamRepository;
 use heelonvault_core::repositories::user_repository::{SqlxUserRepository, UserRepository};
@@ -171,6 +171,97 @@ fn batch_scan_reports_reuse_expiry_invalid_data_and_type_boundaries() -> TestRes
         assert!(invalid.findings.contains(&Finding::Unreadable));
         assert!(!format!("{report:?}").contains(shared_password));
         assert_eq!(control.processed(), 4);
+        Ok(())
+    })
+}
+
+#[test]
+fn passwords_and_passphrases_are_counted_separately() -> TestResult {
+    use heelonvault_core::services::password_generator::{
+        GeneratorRecipe, PassphraseCapitalization, PassphraseRecipe,
+    };
+    use secrecy::ExposeSecret;
+
+    tokio::runtime::Runtime::new()?.block_on(async {
+        let account = support::bootstrap_account().await?;
+        let key = [7_u8; 32];
+        let vault =
+            support::create_vault(&account.pool, account.user_id, &account.account_key, &key)
+                .await?;
+        let secrets = SecretServiceImpl::new(
+            SqlxSecretRepository::new(account.pool.clone()),
+            support::fast_crypto(),
+            Arc::new(NoOpAuditLogService),
+        );
+        let vaults = VaultServiceImpl::new(
+            SqlxVaultRepository::new(account.pool.clone()),
+            SqlxVaultRepository::new(account.pool.clone()),
+            SqlxUserRepository::new(account.pool.clone()),
+            SqlxTeamRepository::new(account.pool.clone()),
+            Arc::new(NoOpAuditLogService),
+            support::fast_crypto(),
+        );
+        // A lowercase generated passphrase: long, two character classes at most.
+        let mut recipe = PassphraseRecipe::default();
+        recipe.capitalization = PassphraseCapitalization::None;
+        recipe.digits = 0;
+        recipe.symbols = 0;
+        let passphrase = GeneratorRecipe::Passphrase(recipe).generate()?;
+        let passphrase = String::from_utf8(passphrase.expose_secret().clone())?;
+        for (kind, metadata, value) in [
+            (
+                SecretType::Password,
+                r#"{"password_kind":"passphrase"}"#,
+                passphrase.as_str(),
+            ),
+            (
+                SecretType::Password,
+                r#"{"password_kind":"password"}"#,
+                "eW8!rK2#qL7$vN4@zT9",
+            ),
+            (SecretType::Password, "{}", "Password123!"),
+            (SecretType::ApiToken, "{}", "token-value"),
+        ] {
+            secrets
+                .create_secret(
+                    vault,
+                    kind,
+                    Some("item".to_string()),
+                    Some(metadata.to_string()),
+                    None,
+                    None,
+                    support::secret(value),
+                    SecretBox::new(Box::new(key.to_vec())),
+                )
+                .await?;
+        }
+        let report = analyze(
+            &secrets,
+            &vaults,
+            account.user_id,
+            SecretBox::new(Box::new(account.account_key.clone())),
+            OffsetDateTime::parse("2026-10-18T08:00:00Z", &Rfc3339)?,
+            &ScanControl::default(),
+        )
+        .await?;
+        assert_eq!(report.analyzed, 4);
+        assert_eq!(report.password_kind_count(PasswordKind::Password), 2);
+        assert_eq!(report.password_kind_count(PasswordKind::Passphrase), 1);
+        let passphrase_entry = report
+            .entries
+            .iter()
+            .find(|entry| entry.password_kind == Some(PasswordKind::Passphrase))
+            .ok_or("missing passphrase entry")?;
+        assert!(!passphrase_entry.findings.contains(&Finding::WeakPassword));
+        assert_eq!(
+            report
+                .entries
+                .iter()
+                .filter(|entry| entry.password_kind.is_none())
+                .count(),
+            1,
+            "API tokens have no password kind"
+        );
         Ok(())
     })
 }
