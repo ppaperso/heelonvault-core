@@ -90,6 +90,9 @@ On first start, a wizard creates the vault's administrator account:
 
 - **Create a secret**: **Add** button in the top-right corner, then pick the type (password, API
   key, SSH key, secure document…). The **+** button in the sidebar creates a new vault instead.
+- **Generate a password or a passphrase**: in the editor, choose **Password** or **Passphrase**,
+  then **Generate**; adjust the length or number of words and click **Use**. The generator never
+  goes below 80 bits of entropy (CNIL minimum).
 - **Copy a password**: select the card, then `Ctrl+C`. The clipboard is cleared automatically
   after 20 seconds; the clipboard icon in the header bar shows the countdown, and clicking it
   clears the clipboard at once.

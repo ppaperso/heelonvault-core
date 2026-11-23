@@ -1,11 +1,12 @@
 //! Display preferences of the main window that survive restarts (secret list layout, whether
-//! the security center has already been discovered).
+//! the security center has already been discovered, last password generator settings).
 //!
 //! Stored next to the window size state, per installation. A missing or unreadable file
 //! silently falls back to the defaults: these are conveniences, never security settings.
 
 use std::fs;
 
+use heelonvault_core::services::password_generator::{PassphraseRecipe, PasswordRecipe};
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -31,6 +32,11 @@ struct ViewPreferences {
     /// The security center was opened at least once: its "New" pill is no longer shown.
     #[serde(default)]
     security_center_seen: bool,
+    /// Last generator settings (recipes hold no secret material).
+    #[serde(default)]
+    generator_password: Option<PasswordRecipe>,
+    #[serde(default)]
+    generator_passphrase: Option<PassphraseRecipe>,
 }
 
 fn load() -> ViewPreferences {
@@ -60,6 +66,27 @@ pub fn persist_security_center_seen() {
         return;
     }
     preferences.security_center_seen = true;
+    save(&preferences);
+}
+
+/// Last password and passphrase generator settings, if any were saved.
+pub fn load_generator_recipes() -> (Option<PasswordRecipe>, Option<PassphraseRecipe>) {
+    let preferences = load();
+    (
+        preferences.generator_password,
+        preferences.generator_passphrase,
+    )
+}
+
+pub fn persist_generator_recipes(password: &PasswordRecipe, passphrase: &PassphraseRecipe) {
+    let mut preferences = load();
+    if preferences.generator_password.as_ref() == Some(password)
+        && preferences.generator_passphrase.as_ref() == Some(passphrase)
+    {
+        return;
+    }
+    preferences.generator_password = Some(password.clone());
+    preferences.generator_passphrase = Some(passphrase.clone());
     save(&preferences);
 }
 

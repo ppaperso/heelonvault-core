@@ -87,6 +87,8 @@ impl EditorState {
                     dropdown.connect_selected_notify(move |_| state.refresh());
                 } else if let Some(check) = field.downcast_ref::<gtk4::CheckButton>() {
                     check.connect_toggled(move |_| state.refresh());
+                } else if let Some(toggle) = field.downcast_ref::<gtk4::ToggleButton>() {
+                    toggle.connect_toggled(move |_| state.refresh());
                 } else if let Some(editable) = field.dynamic_cast_ref::<gtk4::Editable>() {
                     editable.connect_changed(move |_| state.refresh());
                 } else if let Some(password) = field.downcast_ref::<gtk4::PasswordEntry>() {
@@ -157,12 +159,17 @@ impl EditorState {
 }
 
 fn visit_fields(widget: &gtk4::Widget, visitor: &mut impl FnMut(&gtk4::Widget)) {
+    // Generator settings are not part of the edited secret.
+    if widget.has_css_class(crate::ui::widgets::password_generator::FINGERPRINT_SKIP_CLASS) {
+        return;
+    }
     if widget.is::<gtk4::Entry>()
         || widget.is::<gtk4::PasswordEntry>()
         || widget.is::<gtk4::SpinButton>()
         || widget.is::<gtk4::TextView>()
         || widget.is::<gtk4::DropDown>()
         || widget.is::<gtk4::CheckButton>()
+        || widget.is::<gtk4::ToggleButton>()
     {
         visitor(widget);
         return;
@@ -184,6 +191,9 @@ fn field_text(widget: &gtk4::Widget) -> glib::GString {
     }
     if let Some(check) = widget.downcast_ref::<gtk4::CheckButton>() {
         return if check.is_active() { "1" } else { "0" }.into();
+    }
+    if let Some(toggle) = widget.downcast_ref::<gtk4::ToggleButton>() {
+        return if toggle.is_active() { "1" } else { "0" }.into();
     }
     if let Some(editable) = widget.dynamic_cast_ref::<gtk4::Editable>() {
         return editable.text();

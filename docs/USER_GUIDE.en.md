@@ -47,10 +47,25 @@ The **category** (one, for example "Work") and **tags** (up to 5, for example "p
 
 | Type | What to enter | Important |
 | --- | --- | --- |
-| **Password** | Password, login and account information | Use the generator and strength indicator; prefer a unique value for each service. |
+| **Password** | Password or passphrase, login and account information | Use the generator and strength indicator; prefer a unique value for each service. |
 | **API token** | Token and provider | Changing a token in HeelonVault does not renew it with the provider. |
 | **SSH key** | Private key; public key and passphrase if needed | Do not confuse the public key you distribute with the private key you must protect. |
 | **Secure document** | Document path and optional MIME type | The current form stores the **path as the secret value**, not the file's contents. It is not an encrypted attachment or a document backup. |
+
+### Generate a password or a passphrase
+
+Above the field, choose **Password** (random characters) or **Passphrase** (random words, easier to remember and to type). The choice is saved with the entry: it tells them apart on the dashboard and in search.
+
+The **Generate** button opens the generator, which proposes a value at once:
+
+- **Password**: length, character classes (lowercase, uppercase, digits, symbols) and exclusion of look-alike characters (`l`, `I`, `O`, `0`, `1`). At least one character of each enabled class is guaranteed.
+- **Passphrase**: number of words, language (English, or French without accents so it is easy to type on any keyboard), separator, capitalization, extra digits and symbols.
+
+The preview colors digits and symbols to ease reading. Strength is shown in entropy bits with the ANSSI level (below 64 bits: very weak; 64 to 80: weak; 80 to 100: medium; 100 and above: strong). The generator never goes below **80 bits**, the minimum recommended by the French data protection authority (CNIL) for a password used alone: the minimum length or number of words adapts to the selected options. The defaults exceed 100 bits.
+
+**Regenerate** proposes another value; **Use** puts it in the field. If the field already holds a different value, the application asks for confirmation before replacing it. The last settings used are remembered on this computer (never the generated value). When a generated value is saved, its settings are saved too: when editing, the generator reuses them so you can renew the value the same way.
+
+You can still type or paste a value yourself, for example to meet a site's rules. The strength indicator then shows the character classes present, or the number of words for a passphrase. From 20 characters on, character classes are no longer required, but a few common words glued together are still reported as weak.
 
 ![Editing a fictitious password](images/user-guide/en/editor-password.png)
 
@@ -108,11 +123,12 @@ Plain terms search the title, login, email, URL, notes, category, tags, type and
 | `email:example.com` | Limit the term to the email field |
 | `tag:work` | Search tags |
 | `type:api` | Search a secret type |
+| `type:passphrase` | List passphrases |
 | `vault:team` | Restrict by vault name within the loaded scope |
 | `title:portal login:alice` | Combine criteria |
 | `#health` or `#sante` | Find healthcare-related accounts (medical services, health insurance…), not security findings |
 
-The prefixes `url:`, `notes:` and `category:` are also available. Combine search with filters, sorting and vault selection; if results are empty, first remove filters and check the scope.
+The prefixes `url:`, `notes:` and `category:` are also available. In the sidebar, the **Types** section separates **Passwords** and **Passphrases**; on the dashboard, a passphrase carries a **Passphrase** badge that runs this search when clicked. Combine search with filters, sorting and vault selection; if results are empty, first remove filters and check the scope.
 
 ![Searching demonstration entries](images/user-guide/en/search.png)
 

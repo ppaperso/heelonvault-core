@@ -120,6 +120,9 @@ const LIST_INFO_CHARS: i32 = 22;
 /// Fixed width of the actions column, room for the three quick actions.
 const LIST_ACTIONS_WIDTH: i32 = 132;
 
+/// Search run by the passphrase badge (`type:` field, see `search_filter`).
+pub const PASSPHRASE_QUERY: &str = "type:passphrase";
+
 /// Represents a secret for display purposes
 // Phase 5a migration: several fields are written but not yet read (UI wiring incomplete).
 // Owner: ppaadmin | Due: Phase 5b | Tracked: Open Core Phase 5b milestone
@@ -136,6 +139,8 @@ pub struct SecretRowData {
     /// The secret has a value to copy. The value itself is never handed to the widget.
     pub has_secret: bool,
     pub is_password: bool,
+    /// Password item stored as a passphrase (metadata `password_kind`).
+    pub is_passphrase: bool,
     pub color_class: String,
     // Mock fields for badges (will be linked to DB later)
     /// Password strength verdict; the badge label is translated at display time.
@@ -362,6 +367,24 @@ impl SecretCard {
 
     /// One clickable badge running the matching search.
     fn build_chip(field: &str, value: &str, category: bool) -> Button {
+        let button = Self::build_query_chip(value, classification_query(field, value));
+        if category {
+            button.add_css_class("secret-card-chip-category");
+        }
+        button
+    }
+
+    /// Badge marking a passphrase; a click lists every passphrase.
+    fn build_passphrase_chip() -> Button {
+        let button = Self::build_query_chip(
+            &heelonvault_core::tr!("secret-type-passphrase"),
+            PASSPHRASE_QUERY.to_string(),
+        );
+        button.add_css_class("secret-card-chip-passphrase");
+        button
+    }
+
+    fn build_query_chip(value: &str, query: String) -> Button {
         let label = Label::new(Some(value));
         label.set_single_line_mode(true);
         label.set_ellipsize(EllipsizeMode::End);
@@ -370,10 +393,6 @@ impl SecretCard {
         button.set_child(Some(&label));
         button.add_css_class("flat");
         button.add_css_class("secret-card-chip");
-        if category {
-            button.add_css_class("secret-card-chip-category");
-        }
-        let query = classification_query(field, value);
         button.set_tooltip_text(Some(&heelonvault_core::i18n::tr_args(
             "secret-card-chip-search",
             &[("query", heelonvault_core::i18n::I18nArg::Str(&query))],
@@ -395,7 +414,7 @@ impl SecretCard {
     fn build_classification(data: &SecretRowData, visible_tags: usize) -> Option<gtk4::Box> {
         let category = data.category.trim();
         let tags = crate::ui::widgets::classification::parse_tags(&data.tags);
-        if category.is_empty() && tags.is_empty() {
+        if category.is_empty() && tags.is_empty() && !data.is_passphrase {
             return None;
         }
         let chips = gtk4::Box::builder()
@@ -403,6 +422,9 @@ impl SecretCard {
             .spacing(4)
             .build();
         chips.add_css_class("secret-card-chips");
+        if data.is_passphrase {
+            chips.append(&Self::build_passphrase_chip());
+        }
         if !category.is_empty() {
             chips.append(&Self::build_chip("category", category, true));
         }
@@ -622,6 +644,7 @@ pub(crate) fn native_card_classification_scenario() -> Result<(), Box<dyn std::e
             url: String::new(),
             has_secret: true,
             is_password: true,
+            is_passphrase: false,
             color_class: "secret-type-password".into(),
             is_weak: false,
             is_health_access: false,

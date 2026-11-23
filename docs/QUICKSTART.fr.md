@@ -94,6 +94,9 @@ Au premier démarrage, un assistant crée le compte administrateur du coffre :
 - **Créer un secret** : bouton **Ajouter** en haut à droite, puis choisissez le type (mot de
   passe, clé API, clé SSH, document sécurisé…). Le bouton **+** de la barre latérale, lui, crée
   un nouveau coffre.
+- **Générer un mot de passe ou une phrase de passe** : dans l'éditeur, choisissez **Mot de passe**
+  ou **Phrase de passe** puis **Générer** ; réglez la longueur ou le nombre de mots et cliquez
+  **Utiliser**. Le générateur ne descend jamais sous 80 bits d'entropie (minimum CNIL).
 - **Copier un mot de passe** : sélectionnez la carte puis `Ctrl+C`. Le presse-papiers est vidé
   automatiquement après 20 secondes ; l'icône de presse-papiers de la barre d'en-tête montre le
   compte à rebours, un clic l'efface immédiatement.

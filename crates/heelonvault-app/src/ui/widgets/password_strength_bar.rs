@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use gtk4::prelude::*;
 use heelonvault_core::i18n::{I18nArg, tr, tr_args};
-use heelonvault_core::services::security_center::assess_password;
+use heelonvault_core::services::security_center::{CLASS_FREE_MIN_LENGTH, assess_password};
 use libadwaita as adw;
 use libadwaita::prelude::*;
 
@@ -47,8 +47,12 @@ impl Criteria {
 // The ANSSI-aligned policy cap (length × character classes) lives in
 // `heelonvault_core::services::security_center`, shared with the security center and the list.
 
-/// Human-readable label for the ANSSI policy score.
-fn anssi_hint(len: usize, categories: usize, zxcvbn_score: i32) -> String {
+/// Human-readable label for the ANSSI policy score. From [`CLASS_FREE_MIN_LENGTH`] on, classes
+/// are no longer required and the hint follows the final score (estimator included).
+fn anssi_hint(len: usize, categories: usize, zxcvbn_score: i32, final_score: i32) -> String {
+    if len >= CLASS_FREE_MIN_LENGTH {
+        return score_hint(final_score);
+    }
     if len < 12 {
         return tr_args(
             "password-hint-too-short",
@@ -75,12 +79,23 @@ fn anssi_hint(len: usize, categories: usize, zxcvbn_score: i32) -> String {
         return tr("password-hint-for-robust");
     }
     // All ANSSI requirements met — relay zxcvbn signal
-    tr(match zxcvbn_score {
+    score_hint(zxcvbn_score)
+}
+
+fn score_hint(score: i32) -> String {
+    tr(match score {
         0 | 1 => "password-hint-score-good",
         2 => "password-hint-score-medium",
         3 => "password-hint-score-solid",
         _ => "password-hint-score-robust",
     })
+}
+
+/// Words of a passphrase: runs of at least two letters (separators, digits and symbols split).
+fn word_count(text: &str) -> usize {
+    text.split(|c: char| !c.is_alphabetic())
+        .filter(|word| word.chars().count() >= 2)
+        .count()
 }
 
 // ─── Shared widget state ────────────────────────────────────────────────────
@@ -93,6 +108,11 @@ struct StrengthState {
     badge_lower: gtk4::Label,
     badge_digit: gtk4::Label,
     badge_spec: gtk4::Label,
+    badge_row: gtk4::Box,
+    /// Word count shown instead of the class badges for passphrases.
+    words: gtk4::Label,
+    passphrase_mode: Cell<bool>,
+    last_text_words: Cell<usize>,
     username: RefCell<String>,
     trim_input: Cell<bool>,
     /// Score observed at the last update — written by update_view, read by gate_button.
@@ -165,8 +185,16 @@ impl PasswordStrengthBar {
         hint.add_css_class("caption");
         hint.add_css_class("password-strength-hint");
 
+        let words = gtk4::Label::new(None);
+        words.set_halign(gtk4::Align::Start);
+        words.add_css_class("psb-badge");
+        words.add_css_class("psb-badge-on");
+        words.add_css_class("password-strength-words");
+        words.set_visible(false);
+
         root.append(&level);
         root.append(&badge_row);
+        root.append(&words);
         root.append(&hint);
 
         Self {
@@ -178,6 +206,10 @@ impl PasswordStrengthBar {
                 badge_lower,
                 badge_digit,
                 badge_spec,
+                badge_row,
+                words,
+                passphrase_mode: Cell::new(false),
+                last_text_words: Cell::new(0),
                 username: RefCell::new(String::new()),
                 trim_input: Cell::new(true),
                 last_score: RefCell::new(0),
@@ -188,6 +220,28 @@ impl PasswordStrengthBar {
     /// Current policy score (0–4). Useful to gate a button externally.
     pub fn last_score(&self) -> i32 {
         *self.state.last_score.borrow()
+    }
+
+    /// Passphrases show their word count instead of the character-class badges.
+    pub fn set_passphrase_mode(&self, passphrase: bool) {
+        self.state.passphrase_mode.set(passphrase);
+        Self::apply_mode(&self.state);
+    }
+
+    /// Re-applies translated labels (word count).
+    pub fn refresh_i18n(&self) {
+        Self::apply_mode(&self.state);
+    }
+
+    fn apply_mode(state: &StrengthState) {
+        let passphrase = state.passphrase_mode.get();
+        state.badge_row.set_visible(!passphrase);
+        state.words.set_visible(passphrase);
+        let count = i64::try_from(state.last_text_words.get()).unwrap_or(i64::MAX);
+        state.words.set_label(&tr_args(
+            "password-hint-words",
+            &[("count", I18nArg::Num(count))],
+        ));
     }
 
     pub fn for_stored_passwords() -> Self {
@@ -313,8 +367,11 @@ impl PasswordStrengthBar {
         state.level.set_value(f64::from(score));
         *state.last_score.borrow_mut() = score;
 
+        state.last_text_words.set(word_count(trimmed));
+        Self::apply_mode(state);
+
         // 4 — Hint
-        let hint = anssi_hint(len, cats, zxcvbn_score);
+        let hint = anssi_hint(len, cats, zxcvbn_score, score);
         // Append a zxcvbn warning on top of the ANSSI hint when criteria are met
         let hint = if cap >= 4 {
             if let Some(extra) = &assessment.feedback {
@@ -347,5 +404,28 @@ impl PasswordStrengthBar {
             "password-feedback-generic"
         };
         tr(key)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{anssi_hint, word_count};
+    use heelonvault_core::i18n::tr;
+
+    #[test]
+    fn word_count_splits_on_separators_digits_and_symbols() {
+        assert_eq!(word_count(""), 0);
+        assert_eq!(word_count("Orbite-tigre.nuage_velo sable7!Cobalt"), 6);
+        assert_eq!(word_count("a-b-c"), 0, "single letters are not words");
+        assert_eq!(word_count("Éléphant-rose"), 2);
+    }
+
+    #[test]
+    fn long_values_no_longer_ask_for_categories() {
+        // Below the class-free length, missing classes are reported.
+        assert_ne!(anssi_hint(16, 1, 4, 2), tr("password-hint-score-robust"));
+        // From 20 characters on, the hint follows the final score only.
+        assert_eq!(anssi_hint(30, 1, 4, 4), tr("password-hint-score-robust"));
+        assert_eq!(anssi_hint(24, 1, 3, 2), tr("password-hint-score-medium"));
     }
 }

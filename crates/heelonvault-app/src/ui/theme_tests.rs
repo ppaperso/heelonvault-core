@@ -151,6 +151,7 @@ pub(crate) fn native_theme_scenario(
         url: "https://example.test".into(),
         has_secret: true,
         is_password: true,
+        is_passphrase: false,
         color_class: "secret-type-password".into(),
         is_weak: false,
         is_health_access: false,

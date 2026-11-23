@@ -17,9 +17,9 @@ use tokio::runtime::Handle;
 use tracing::{error, warn};
 use uuid::Uuid;
 
+use crate::ui::widgets::password_generator::{self, PasswordGenerator};
 use crate::ui::widgets::password_strength_bar::PasswordStrengthBar;
-use heelonvault_core::models::SecretType;
-use heelonvault_core::services::password_service::{PasswordService, PasswordServiceImpl};
+use heelonvault_core::models::{PasswordKind, SecretType};
 use heelonvault_core::services::secret_service::SecretService;
 use heelonvault_core::services::vault_service::VaultService;
 
@@ -58,15 +58,141 @@ pub(crate) fn native_password_hint_scenario() {
         DialogMode::Edit(Uuid::nil()),
     ] {
         for show_passwords in [false, true] {
-            let (panel, entry, _) = AddEditDialog::build_password_panel(mode, show_passwords);
+            let panel = AddEditDialog::build_password_panel(mode, show_passwords);
+            let entry = panel.entry.clone();
             assert_eq!(
-                has_hint(panel.upcast_ref()),
+                has_hint(panel.frame.upcast_ref()),
                 matches!(mode, DialogMode::Edit(_)) && !show_passwords,
                 "{mode:?}, show_passwords_in_edit={show_passwords}"
             );
             assert!(entry.text().is_empty());
         }
     }
+}
+
+/// Password panel of the editor: value, kind selector, generator and strength bar.
+#[derive(Clone)]
+pub(crate) struct PasswordPanel {
+    pub(crate) frame: gtk4::Frame,
+    pub(crate) entry: gtk4::PasswordEntry,
+    pub(crate) strength_bar: PasswordStrengthBar,
+    kind_password: gtk4::ToggleButton,
+    kind_passphrase: gtk4::ToggleButton,
+    generate_button: gtk4::ToggleButton,
+    pub(crate) generator: PasswordGenerator,
+}
+
+impl PasswordPanel {
+    pub(crate) fn kind(&self) -> PasswordKind {
+        if self.kind_passphrase.is_active() {
+            PasswordKind::Passphrase
+        } else {
+            PasswordKind::Password
+        }
+    }
+
+    pub(crate) fn set_kind(&self, kind: PasswordKind) {
+        match kind {
+            PasswordKind::Passphrase => self.kind_passphrase.set_active(true),
+            _ => self.kind_password.set_active(true),
+        }
+    }
+
+    /// Kind and generator recipe to store in the item metadata. The recipe is kept only when
+    /// the value comes from the generator (`applied`) or is unchanged (`loaded`).
+    pub(crate) fn metadata_entries(
+        &self,
+        password_unchanged: bool,
+        loaded_recipe: Option<&Value>,
+    ) -> Vec<(String, Value)> {
+        let mut entries = vec![(
+            PasswordKind::METADATA_KEY.to_string(),
+            Value::String(self.kind().as_metadata_value().to_string()),
+        )];
+        let recipe = match self.generator.applied_recipe() {
+            Some(recipe) => serde_json::to_value(recipe).ok(),
+            None if password_unchanged => loaded_recipe.cloned(),
+            None => None,
+        };
+        if let Some(recipe) = recipe {
+            entries.push((PasswordKind::RECIPE_METADATA_KEY.to_string(), recipe));
+        }
+        entries
+    }
+
+    pub(crate) fn refresh_i18n(&self) {
+        self.kind_password
+            .set_label(&heelonvault_core::tr!("password-kind-password"));
+        self.kind_passphrase
+            .set_label(&heelonvault_core::tr!("password-kind-passphrase"));
+        self.kind_passphrase
+            .set_tooltip_text(Some(&heelonvault_core::tr!(
+                "password-kind-passphrase-tooltip"
+            )));
+        self.generate_button
+            .set_label(&heelonvault_core::tr!("add-edit-password-generate"));
+        self.generator.refresh_i18n();
+        self.strength_bar.refresh_i18n();
+    }
+}
+
+/// Kind selector, metadata entries and fingerprint exclusion of the password panel.
+#[cfg(test)]
+pub(crate) fn native_password_panel_scenario() -> Result<(), Box<dyn std::error::Error>> {
+    let panel = AddEditDialog::build_password_panel(DialogMode::Create, false);
+    let root = gtk4::Box::new(Orientation::Vertical, 0);
+    root.append(&panel.frame);
+    let dirty_label = gtk4::Label::new(None);
+    let state = EditorState::new(&root, &dirty_label);
+    state.finish_loading();
+
+    // Generator settings are not part of the secret: the editor stays clean.
+    panel.generator.settings_widget().set_active(false);
+    panel.generator.settings_widget().set_active(true);
+    panel.generate_button.set_active(true);
+    assert!(panel.generator.is_open());
+    assert!(
+        !state.dirty(),
+        "generator settings must not mark the editor dirty"
+    );
+
+    // The kind is part of the item.
+    panel.set_kind(PasswordKind::Passphrase);
+    assert!(state.dirty());
+    assert_eq!(panel.kind(), PasswordKind::Passphrase);
+    assert!(panel.strength_bar.root().first_child().is_some());
+
+    panel.generator.click_use();
+    assert!(
+        !panel.generate_button.is_active(),
+        "toggle follows the closed panel"
+    );
+    let entries = panel.metadata_entries(false, None);
+    let lookup = |key: &str| {
+        entries
+            .iter()
+            .find(|(candidate, _)| candidate == key)
+            .map(|(_, value)| value.clone())
+    };
+    assert_eq!(
+        lookup(PasswordKind::METADATA_KEY),
+        Some(Value::String("passphrase".to_string()))
+    );
+    let recipe = lookup(PasswordKind::RECIPE_METADATA_KEY).ok_or("missing recipe")?;
+    assert_eq!(
+        recipe.get("kind").and_then(Value::as_str),
+        Some("passphrase")
+    );
+
+    // Edited by hand: no recipe, unless the stored value is unchanged.
+    panel.entry.set_text("Manual-Passphrase-Value-2026");
+    assert_eq!(panel.metadata_entries(false, None).len(), 1);
+    let loaded = Value::String("loaded".to_string());
+    assert!(panel.metadata_entries(true, Some(&loaded)).contains(&(
+        PasswordKind::RECIPE_METADATA_KEY.to_string(),
+        loaded.clone()
+    )));
+    Ok(())
 }
 
 #[allow(dead_code)]
@@ -144,10 +270,7 @@ impl AddEditDialog {
         (box_widget, entry)
     }
 
-    fn build_password_panel(
-        mode: DialogMode,
-        show_passwords_in_edit: bool,
-    ) -> (gtk4::Frame, gtk4::PasswordEntry, PasswordStrengthBar) {
+    fn build_password_panel(mode: DialogMode, show_passwords_in_edit: bool) -> PasswordPanel {
         let frame = gtk4::Frame::new(None);
         frame.add_css_class("dialog-type-frame");
 
@@ -165,6 +288,30 @@ impl AddEditDialog {
         ));
         password_label.add_css_class("login-field-label");
         password_label.set_halign(Align::Start);
+        password_label.set_hexpand(true);
+
+        // Password | Passphrase: what the stored value is (saved in the metadata) and which
+        // generator the panel shows.
+        let kind_password = gtk4::ToggleButton::new();
+        let kind_passphrase = gtk4::ToggleButton::new();
+        for button in [&kind_password, &kind_passphrase] {
+            button.add_css_class("add-edit-type-pill");
+            button.add_css_class("password-kind-pill");
+        }
+        kind_passphrase.set_group(Some(&kind_password));
+        kind_password.set_active(true);
+        let kind_row = gtk4::Box::builder()
+            .orientation(Orientation::Horizontal)
+            .halign(Align::End)
+            .spacing(6)
+            .build();
+        kind_row.add_css_class("password-kind-selector");
+        kind_row.append(&kind_password);
+        kind_row.append(&kind_passphrase);
+
+        let label_row = gtk4::Box::new(Orientation::Horizontal, 8);
+        label_row.append(&password_label);
+        label_row.append(&kind_row);
 
         let password_row = gtk4::Box::builder()
             .orientation(Orientation::Horizontal)
@@ -178,28 +325,30 @@ impl AddEditDialog {
             .build();
         password_entry.add_css_class("login-entry");
 
-        let generate_button =
-            gtk4::Button::with_label(heelonvault_core::tr!("add-edit-password-generate").as_str());
+        let generator = PasswordGenerator::new(&password_entry);
+        let generate_button = gtk4::ToggleButton::new();
         generate_button.add_css_class("secondary-pill");
-
-        let generated_password_entry = password_entry.clone();
-        generate_button.connect_clicked(move |_| {
-            let (sender, receiver) = tokio::sync::oneshot::channel();
-            std::thread::spawn(move || {
-                let service = PasswordServiceImpl::new();
-                let result = service.generate_password(24);
-                let _ = sender.send(result);
+        generate_button.add_css_class("password-generator-toggle");
+        generate_button.add_css_class(password_generator::FINGERPRINT_SKIP_CLASS);
+        {
+            let generator = generator.clone();
+            generate_button.connect_toggled(move |button| {
+                generator.set_open(button.is_active());
             });
-
-            let entry_for_result = generated_password_entry.clone();
-            glib::MainContext::default().spawn_local(async move {
-                if let Ok(Ok(value)) = receiver.await
-                    && let Ok(text) = String::from_utf8(value.expose_secret().clone())
-                {
-                    entry_for_result.set_text(&text);
-                }
-            });
-        });
+        }
+        {
+            // The panel closes itself after use: keep the toggle in sync.
+            let button = generate_button.downgrade();
+            generator
+                .widget()
+                .connect_reveal_child_notify(move |revealer| {
+                    if let Some(button) = button.upgrade()
+                        && button.is_active() != revealer.reveals_child()
+                    {
+                        button.set_active(revealer.reveals_child());
+                    }
+                });
+        }
 
         password_row.append(&password_entry);
         password_row.append(&generate_button);
@@ -207,8 +356,23 @@ impl AddEditDialog {
         let strength_bar = PasswordStrengthBar::for_stored_passwords();
         strength_bar.connect_to_password_entry(&password_entry);
 
-        box_widget.append(&password_label);
+        for (button, kind) in [
+            (&kind_password, PasswordKind::Password),
+            (&kind_passphrase, PasswordKind::Passphrase),
+        ] {
+            let generator = generator.clone();
+            let strength_bar = strength_bar.clone();
+            button.connect_toggled(move |button| {
+                if button.is_active() {
+                    generator.set_kind(kind);
+                    strength_bar.set_passphrase_mode(kind == PasswordKind::Passphrase);
+                }
+            });
+        }
+
+        box_widget.append(&label_row);
         box_widget.append(&password_row);
+        box_widget.append(generator.widget());
         if matches!(mode, DialogMode::Edit(_)) && !show_passwords_in_edit {
             let hint_wrap = gtk4::Box::builder()
                 .orientation(Orientation::Horizontal)
@@ -239,7 +403,17 @@ impl AddEditDialog {
         }
         box_widget.append(strength_bar.root());
         frame.set_child(Some(&box_widget));
-        (frame, password_entry, strength_bar)
+        let panel = PasswordPanel {
+            frame,
+            entry: password_entry,
+            strength_bar,
+            kind_password,
+            kind_passphrase,
+            generate_button,
+            generator,
+        };
+        panel.refresh_i18n();
+        panel
     }
 
     fn build_api_token_panel() -> (gtk4::Frame, gtk4::PasswordEntry, gtk4::Entry) {
@@ -379,7 +553,8 @@ impl AddEditDialog {
         category_entry: gtk4::Entry,
         tags_entry: gtk4::Entry,
         type_dropdown: gtk4::DropDown,
-        password_entry: gtk4::PasswordEntry,
+        password_panel: PasswordPanel,
+        loaded_recipe: Rc<std::cell::RefCell<Option<Value>>>,
         initial_password_snapshot: Rc<std::cell::RefCell<Option<String>>>,
         username_entry: gtk4::Entry,
         url_entry: gtk4::Entry,
@@ -403,6 +578,7 @@ impl AddEditDialog {
         TSecret: SecretService + Send + Sync + 'static,
         TVault: VaultService + Send + Sync + 'static,
     {
+        let password_entry = password_panel.entry.clone();
         type EditLoadResult = Result<
             (
                 heelonvault_core::models::SecretItem,
@@ -568,6 +744,20 @@ impl AddEditDialog {
                                     .and_then(Value::as_str)
                                     .unwrap_or_default(),
                             );
+
+                            if matches!(item.secret_type, SecretType::Password) {
+                                password_panel.set_kind(PasswordKind::from_metadata(&value));
+                                if let Some(recipe) = value.get(PasswordKind::RECIPE_METADATA_KEY)
+                                {
+                                    if let Ok(parsed) = serde_json::from_value::<
+                                        heelonvault_core::services::password_generator::GeneratorRecipe,
+                                    >(recipe.clone())
+                                    {
+                                        password_panel.generator.set_recipe(&parsed);
+                                    }
+                                    *loaded_recipe.borrow_mut() = Some(recipe.clone());
+                                }
+                            }
 
                             let unlimited = value
                                 .get("validity_unlimited")

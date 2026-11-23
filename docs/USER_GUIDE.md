@@ -47,10 +47,25 @@ La **catégorie** (une seule, par exemple « Travail ») et les **tags** (jusqu'
 
 | Type | À renseigner | Point d'attention |
 | --- | --- | --- |
-| **Mot de passe** | Mot de passe, identifiant et informations du compte | Utilisez le générateur et l'indicateur de robustesse ; préférez une valeur unique par service. |
+| **Mot de passe** | Mot de passe ou phrase de passe, identifiant et informations du compte | Utilisez le générateur et l'indicateur de robustesse ; préférez une valeur unique par service. |
 | **Token API** | Token et fournisseur | Modifier le token dans HeelonVault ne le renouvelle pas chez le fournisseur. |
 | **Clé SSH** | Clé privée ; clé publique et phrase secrète si nécessaires | Ne confondez pas la clé publique à distribuer avec la clé privée à protéger. |
 | **Document sécurisé** | Chemin du document et type MIME éventuel | Le formulaire actuel enregistre le **chemin comme valeur secrète**, pas le contenu du fichier. Ce n'est pas une pièce jointe chiffrée ni une sauvegarde du document. |
+
+### Générer un mot de passe ou une phrase de passe
+
+Au-dessus du champ, choisissez **Mot de passe** (suite de caractères aléatoires) ou **Phrase de passe** (suite de mots aléatoires, plus facile à retenir et à taper). Ce choix est enregistré avec l'entrée : il sert à distinguer les deux sur le tableau de bord et dans la recherche.
+
+Le bouton **Générer** ouvre le générateur, qui propose aussitôt une valeur :
+
+- **Mot de passe** : longueur, familles de caractères (minuscules, majuscules, chiffres, symboles) et exclusion des caractères ambigus (`l`, `I`, `O`, `0`, `1`). Au moins un caractère de chaque famille cochée est garanti.
+- **Phrase de passe** : nombre de mots, langue (anglais, ou français sans accents pour une saisie facile sur tous les claviers), séparateur, majuscules, chiffres et symboles ajoutés.
+
+L'aperçu colore les chiffres et les symboles pour faciliter la lecture. La robustesse est affichée en bits d'entropie, avec le niveau de l'ANSSI (moins de 64 bits : très faible ; 64 à 80 : faible ; 80 à 100 : moyen ; 100 et plus : fort). Le générateur ne descend jamais sous **80 bits**, le minimum recommandé par la CNIL pour un mot de passe utilisé seul : la longueur ou le nombre de mots minimum s'ajuste aux options choisies. Les réglages par défaut dépassent 100 bits.
+
+**Régénérer** propose une autre valeur ; **Utiliser** la place dans le champ. Si le champ contient déjà une valeur différente, l'application demande confirmation avant de la remplacer. Les derniers réglages utilisés sont mémorisés sur cet ordinateur (jamais la valeur générée). Quand une valeur générée est enregistrée, ses réglages le sont aussi : en modification, le générateur reprend ces réglages pour renouveler la valeur à l'identique.
+
+Vous pouvez toujours saisir ou coller une valeur vous-même, par exemple pour respecter les règles d'un site. L'indicateur de robustesse affiche alors les familles de caractères présentes, ou le nombre de mots pour une phrase de passe. À partir de 20 caractères, les familles de caractères ne sont plus exigées, mais quelques mots courants accolés restent signalés comme faibles.
 
 ![Édition d'un mot de passe fictif](images/user-guide/fr/editor-password.png)
 
@@ -112,11 +127,12 @@ Les termes simples recherchent dans le titre, l'identifiant, l'e-mail, l'URL, le
 | `email:exemple.fr` | Limiter le terme au champ e-mail |
 | `tag:travail` | Chercher dans les tags |
 | `type:api` | Chercher un type de secret |
+| `type:passphrase` ou `type:phrase` | Lister les phrases de passe |
 | `coffre:équipe` | Restreindre au nom du coffre dans le périmètre chargé |
 | `title:portail login:alice` | Combiner des critères |
 | `#sante` ou `#health` | Retrouver les accès liés à la santé (services médicaux, assurance maladie…), pas les alertes de sécurité |
 
-Les préfixes `url:`, `notes:` et `category:` sont également disponibles. Combinez la recherche avec les filtres, le tri et le choix du coffre ; en cas de résultat vide, retirez d'abord les filtres et vérifiez le périmètre.
+Les préfixes `url:`, `notes:` et `category:` sont également disponibles. Dans la barre latérale, la section **Types** sépare **Mots de passe** et **Phrases de passe** ; sur le tableau de bord, une phrase de passe porte une pastille **Phrase de passe** qui lance cette recherche au clic. Combinez la recherche avec les filtres, le tri et le choix du coffre ; en cas de résultat vide, retirez d'abord les filtres et vérifiez le périmètre.
 
 ![Recherche sur des entrées de démonstration](images/user-guide/fr/search.png)
 

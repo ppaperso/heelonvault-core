@@ -54,9 +54,16 @@ pub struct PasswordAssessment {
 /// Scores below this value are reported as weak.
 pub const WEAK_SCORE_THRESHOLD: u8 = 3;
 
-/// Length/character-class cap (ANSSI-aligned), independent of the estimator.
-fn policy_cap(password: &str) -> u8 {
-    let categories = [
+/// From this length on, character classes are no longer required (NIST SP 800-63B-4 and ANSSI
+/// favour length; long passphrases are often lowercase words). Such a password with fewer than
+/// three classes must then get the estimator's top score not to be reported as weak.
+pub const CLASS_FREE_MIN_LENGTH: usize = 20;
+
+/// Highest estimator score (zxcvbn scale 0–4).
+const ESTIMATOR_TOP_SCORE: u8 = 4;
+
+fn category_count(password: &str) -> usize {
+    [
         password.chars().any(char::is_uppercase),
         password.chars().any(char::is_lowercase),
         password.chars().any(|c| c.is_ascii_digit()),
@@ -64,9 +71,16 @@ fn policy_cap(password: &str) -> u8 {
     ]
     .into_iter()
     .filter(|present| *present)
-    .count();
+    .count()
+}
+
+/// Length/character-class cap (ANSSI-aligned), independent of the estimator.
+fn policy_cap(password: &str) -> u8 {
+    let categories = category_count(password);
     let len = password.chars().count();
-    if len < 12 {
+    if len >= CLASS_FREE_MIN_LENGTH {
+        4
+    } else if len < 12 {
         1
     } else if len < 14 {
         if categories >= 4 { 3 } else { 2 }
@@ -93,8 +107,17 @@ pub fn assess_password(password: &str, username: &str) -> PasswordAssessment {
             .map(|warning| warning.to_string())
             .or_else(|| feedback.suggestions().first().map(ToString::to_string))
     });
+    let mut score = estimator_score.min(cap);
+    // A long class-poor password relies on the estimator alone: anything short of its top
+    // score (e.g. a few common words) stays weak.
+    if password.chars().count() >= CLASS_FREE_MIN_LENGTH
+        && category_count(password) < 3
+        && estimator_score < ESTIMATOR_TOP_SCORE
+    {
+        score = score.min(WEAK_SCORE_THRESHOLD - 1);
+    }
     PasswordAssessment {
-        score: estimator_score.min(cap),
+        score,
         estimator_score,
         policy_cap: cap,
         feedback,
@@ -425,12 +448,45 @@ mod tests {
     }
 
     #[test]
+    fn long_passphrases_are_not_capped_by_character_classes() -> Result<(), crate::errors::AppError>
+    {
+        use secrecy::ExposeSecret;
+
+        use crate::services::password_generator::{
+            GeneratorRecipe, PassphraseCapitalization, PassphraseRecipe, WordListLanguage,
+        };
+
+        for language in [WordListLanguage::English, WordListLanguage::French] {
+            let recipe = GeneratorRecipe::Passphrase(PassphraseRecipe {
+                language,
+                capitalization: PassphraseCapitalization::None,
+                digits: 0,
+                symbols: 0,
+                ..PassphraseRecipe::default()
+            });
+            for _ in 0..20 {
+                let secret = recipe.generate()?;
+                let text = String::from_utf8_lossy(secret.expose_secret());
+                assert_eq!(policy_cap(&text), 4);
+                assert!(!is_weak_password(&text), "{language:?}");
+            }
+        }
+        // Length alone is not enough: the estimator still rejects predictable phrases.
+        assert!(is_weak_password("passwordpasswordpassword"));
+        assert!(is_weak_password("onlylowercaseletters"));
+        // Below the threshold, the class requirement still applies.
+        assert_eq!(policy_cap("lowercaseonlyabcxyz"), 2);
+        Ok(())
+    }
+
+    #[test]
     fn fast_weak_verdict_matches_full_assessment() {
         for password in [
             "",
             "short",
             "Password123!",
             "onlylowercaseletters",
+            "correct-horse-battery-staple-orbit",
             "Correct-Horse-42",
             "Éléphant-Rose-2026",
             "eW8!rK2#qL7$vN4@zT9",

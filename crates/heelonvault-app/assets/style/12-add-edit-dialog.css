@@ -289,3 +289,33 @@ button.classification-help {
     background: alpha(@hv_brand_500, 0.16);
     color: @hv_brand_900;
 }
+
+/* Password / passphrase generator panel */
+.add-edit-dialog button.add-edit-type-pill.password-kind-pill {
+    padding: 4px 10px;
+}
+
+.add-edit-dialog button.password-generator-toggle:checked {
+    border-color: alpha(@hv_brand_900, 0.5);
+    background: alpha(@hv_brand_500, 0.18);
+}
+
+.password-generator-panel {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: alpha(@hv_brand_500, 0.06);
+    border: 1px solid alpha(@hv_brand_500, 0.22);
+}
+
+.password-generator-preview {
+    font-size: 1.05rem;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: alpha(@window_fg_color, 0.05);
+}
+
+.password-generator-confirm {
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: alpha(@warning_color, 0.12);
+}

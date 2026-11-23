@@ -726,7 +726,10 @@ pub(in crate::ui::windows::main_window) fn install_flow_filter_and_sort(
 
         let matches_category = match runtime_for_filter.selected_category.get() {
             SecretCategoryFilter::All => true,
-            SecretCategoryFilter::Password => meta.kind == SecretKind::Password,
+            SecretCategoryFilter::Password => {
+                meta.kind == SecretKind::Password && !meta.is_passphrase
+            }
+            SecretCategoryFilter::Passphrase => meta.is_passphrase,
             SecretCategoryFilter::ApiToken => meta.kind == SecretKind::ApiToken,
             SecretCategoryFilter::SshKey => meta.kind == SecretKind::SshKey,
             SecretCategoryFilter::SecureDocument => meta.kind == SecretKind::SecureDocument,

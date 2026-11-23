@@ -178,7 +178,22 @@ where
             ),
         };
 
+    let is_passphrase = matches!(
+        item.secret_type,
+        heelonvault_core::models::SecretType::Password
+    ) && item
+        .metadata_json
+        .as_deref()
+        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+        .is_some_and(|value| {
+            heelonvault_core::models::PasswordKind::from_metadata(&value)
+                == heelonvault_core::models::PasswordKind::Passphrase
+        });
     let (icon_name, type_label_text) = match item.secret_type {
+        heelonvault_core::models::SecretType::Password if is_passphrase => (
+            "hv-passphrase-symbolic",
+            heelonvault_core::tr!("secret-type-passphrase"),
+        ),
         heelonvault_core::models::SecretType::Password => (
             "hv-key-symbolic",
             heelonvault_core::tr!("secret-type-password"),
@@ -197,6 +212,9 @@ where
         ),
     };
     let (color_class, kind) = match item.secret_type {
+        heelonvault_core::models::SecretType::Password if is_passphrase => {
+            ("secret-type-passphrase", SecretKind::Password)
+        }
         heelonvault_core::models::SecretType::Password => {
             ("secret-type-password", SecretKind::Password)
         }
@@ -240,6 +258,7 @@ where
         tags,
         has_secret,
         kind,
+        is_passphrase,
         color_class: color_class.to_string(),
         is_weak,
         is_duplicate: false,
@@ -929,6 +948,7 @@ fn render_secret_rows<TSecret, TVault>(
             url: item.url.clone(),
             has_secret: item.has_secret,
             is_password: item.kind == SecretKind::Password,
+            is_passphrase: item.is_passphrase,
             color_class: item.color_class.clone(),
             is_weak: item.is_weak,
             is_health_access: item.is_health_access,
@@ -1255,6 +1275,9 @@ fn render_secret_rows<TSecret, TVault>(
                     [
                         item.type_label.clone(),
                         match kind {
+                            SecretKind::Password if item.is_passphrase => {
+                                "passphrase phrase phrasedepasse".to_string()
+                            }
                             SecretKind::Password => "password motdepasse mdp".to_string(),
                             SecretKind::ApiToken => "token api acces".to_string(),
                             SecretKind::SshKey => "ssh cle key".to_string(),
@@ -1266,6 +1289,7 @@ fn render_secret_rows<TSecret, TVault>(
                 ),
                 vault_name_text: search_filter::normalize_search_text(item.vault_name.as_str()),
                 kind,
+                is_passphrase: item.is_passphrase,
                 original_rank,
                 is_weak: item.is_weak,
                 is_duplicate,

@@ -423,9 +423,10 @@ pub fn setup_sidebar_filter_handlers(
             stack_for_category.set_visible_child_name("entries_view");
             let category = match row.index() {
                 1 => SecretCategoryFilter::Password,
-                2 => SecretCategoryFilter::ApiToken,
-                3 => SecretCategoryFilter::SshKey,
-                4 => SecretCategoryFilter::SecureDocument,
+                2 => SecretCategoryFilter::Passphrase,
+                3 => SecretCategoryFilter::ApiToken,
+                4 => SecretCategoryFilter::SshKey,
+                5 => SecretCategoryFilter::SecureDocument,
                 _ => SecretCategoryFilter::All,
             };
             filter_for_category.selected_category.set(category);

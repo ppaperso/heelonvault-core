@@ -167,13 +167,23 @@
             .build();
         dynamic_stack.add_css_class("dialog-dynamic-stack");
 
-        let (password_panel, password_entry, password_strength_bar) =
-            Self::build_password_panel(mode, show_passwords_in_edit);
+        let password = Self::build_password_panel(mode, show_passwords_in_edit);
+        let password_entry = password.entry.clone();
+        let password_strength_bar = password.strength_bar.clone();
+        {
+            let password = password.clone();
+            lifecycle.on_refresh_i18n(move || password.refresh_i18n());
+        }
+        // Generator recipe read from the edited item, kept while the password is unchanged.
+        let loaded_recipe: Rc<std::cell::RefCell<Option<Value>>> =
+            Rc::new(std::cell::RefCell::new(None));
         let initial_password_snapshot: Rc<std::cell::RefCell<Option<String>>> =
             Rc::new(std::cell::RefCell::new(None));
         let snapshot_to_clear = Rc::downgrade(&initial_password_snapshot);
         let key_to_clear = Rc::downgrade(&editor_master_key);
+        let generator_to_clear = password.generator.clone();
         lifecycle.set_clear_sensitive(move || {
+            generator_to_clear.wipe();
             if let Some(key) = key_to_clear.upgrade() {
                 zeroize::Zeroize::zeroize(&mut *key.borrow_mut());
             }
@@ -183,7 +193,7 @@
                 zeroize::Zeroize::zeroize(&mut value);
             }
         });
-        dynamic_stack.add_titled(&password_panel, Some("password"), "password");
+        dynamic_stack.add_titled(&password.frame, Some("password"), "password");
 
         let (api_token_panel, api_token_entry, api_provider_entry) = Self::build_api_token_panel();
         dynamic_stack.add_titled(&api_token_panel, Some("api_token"), "api_token");
@@ -495,6 +505,8 @@
         let validity_unlimited_for_save = validity_unlimited.clone();
         let validity_days_for_save = validity_days.clone();
         let password_for_save = password_entry.clone();
+        let password_panel_for_save = password.clone();
+        let loaded_recipe_for_save = Rc::clone(&loaded_recipe);
         let api_token_for_save = api_token_entry.clone();
         let api_provider_for_save = api_provider_entry.clone();
         let ssh_private_for_save = ssh_private_text.clone();
@@ -601,7 +613,21 @@
                             Value::String(secure_doc_mime_for_save.text().trim().to_string()),
                         );
                     }
-                    SecretType::Password => {}
+                    SecretType::Password => {
+                        let entered = password_for_save.text();
+                        let password_unchanged = matches!(mode_for_save, DialogMode::Edit(_))
+                            && (entered.is_empty()
+                                || initial_password_snapshot_for_save
+                                    .borrow()
+                                    .as_ref()
+                                    .is_some_and(|initial| initial.trim() == entered.trim()));
+                        for (key, value) in password_panel_for_save.metadata_entries(
+                            password_unchanged,
+                            loaded_recipe_for_save.borrow().as_ref(),
+                        ) {
+                            metadata.insert(key, value);
+                        }
+                    }
                 }
                 Some(Value::Object(metadata).to_string())
             };
@@ -1089,7 +1115,8 @@
                 category_entry.clone(),
                 tags_entry.clone(),
                 type_dropdown.clone(),
-                password_entry.clone(),
+                password.clone(),
+                Rc::clone(&loaded_recipe),
                 Rc::clone(&initial_password_snapshot),
                 username_entry.clone(),
                 url_entry.clone(),
