@@ -801,6 +801,13 @@ where
                         }
                         changed
                     };
+                    // Older backups open with the old password: take one under the new one.
+                    crate::ui::auto_backup::request(
+                        user_id,
+                        secrecy::ExposeSecret::expose_secret(&new_master_key),
+                        heelonvault_core::services::auto_backup::BackupTrigger::PasswordChange,
+                        |_| {},
+                    );
                     // Only a changed key invalidates the PIN cache, which wraps the session key.
                     let pin_was_active =
                         key_changed && pin_cache_for_result.borrow_mut().take().is_some();

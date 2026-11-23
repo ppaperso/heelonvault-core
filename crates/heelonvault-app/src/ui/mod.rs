@@ -1,3 +1,4 @@
+pub mod auto_backup;
 pub mod dialogs;
 #[cfg(test)]
 pub(crate) mod doc_screenshots;

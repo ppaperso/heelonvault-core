@@ -102,15 +102,16 @@ pub(super) fn reset_auto_lock_timer(
             active_source.remove();
         }
         auto_lock_armed_for_timeout.set(false);
-        {
-            let mut key = session_master_for_timeout.borrow_mut();
-            key.zeroize();
-            key.clear();
-        }
         info!("Auto-lock triggered due to inactivity");
+        // The callback runs first so it can start the close-time backup with the session
+        // key; it never blocks (it shows the PIN dialog or the login screen), and the key is
+        // wiped right after it returns.
         if let Some(callback) = on_auto_lock_for_timeout.borrow().as_ref() {
             callback();
         }
+        let mut key = session_master_for_timeout.borrow_mut();
+        key.zeroize();
+        key.clear();
     });
 
     *auto_lock_source.borrow_mut() = Some(source_id);

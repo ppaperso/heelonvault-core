@@ -259,6 +259,22 @@ async fn a_backup_opens_with_the_password_or_the_phrase_and_reaches_ready_mirror
     assert_eq!(tested.secret_count, 1);
     assert_eq!(std::fs::read_dir(&work).context("work dir")?.count(), 0);
 
+    // Restore path of the login screen: phrase-unlocked copy written to a staging file.
+    assert!(container::is_auto_backup(&bytes));
+    let staging = account.dir.path().join("staging").join("restored.db");
+    let restored = auto_backup::restore_to_file(
+        &account.backups().join(&name),
+        &crypto,
+        &BackupCredential::RecoveryPhrase(account.recovery_phrase.clone()),
+        &staging,
+    )
+    .await?;
+    assert_eq!(restored.user_id, account.user.id);
+    assert_eq!(
+        std::fs::read(&staging).context("staging")?,
+        by_phrase.as_slice()
+    );
+
     let journal = BackupJournal::load(&account.backups());
     assert_eq!(journal.runs.len(), 1);
     assert_eq!(journal.last_success(), Some(&record));

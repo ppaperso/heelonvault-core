@@ -281,6 +281,7 @@ pub(super) fn present_restore_dialog(
 
         let filter = gtk4::FileFilter::new();
         filter.add_pattern("*.hvb");
+        filter.add_pattern("*.hvba");
         filter.set_name(Some(
             heelonvault_core::tr!("login-restore-file-filter").as_str(),
         ));
