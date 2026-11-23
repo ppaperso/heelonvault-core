@@ -48,6 +48,12 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
 - Triggers: at unlock when the last successful backup is older than 24 h, at close when the content changed (fingerprint of entries, copy counters included, vaults, accounts and shares; merely logging in is not a change), manually, and after a master-password change. History in `backup-journal.json` (dates, file names, digests, sizes, counters: no secret). The `VACUUM INTO` snapshot is now shared with the manual export. No new dependency.
 - Application: automatic backups are on by default, in the `backups/` folder next to the database (e.g. `~/.local/share/heelonvault/backups/`). A backup runs in the background at unlock when the last one is older than 24 h, and at logout, window close or lock (auto-lock included) when the content changed; another one follows each master-password change. A discreet message confirms the backup or reports a failure; a failure at close is reported at the next unlock. One backup at a time; quitting waits at most 30 s for a running backup. Administrators only, like the export.
 - Sign-in screen: **Restore my database** also accepts `.hvba` automatic backups, with the same recovery phrase and the same flow (new password, restored database, then restart).
+- New **Backups** page (sidebar, Account section, administrators):
+  - **Status**: a banner shows the overall state (up to date, never backed up, older than 7 days, missed mirror copy, failed, off) with the date of the last verified backup and a **Back up now** button. A pill on the sidebar entry flags a failure, a missed mirror copy or an overdue backup.
+  - **Destinations**: local folder (**Open** button) and mirror folders, such as a folder on a NAS. They are added through a folder chooser and removed in one click; their state (available, missing because the share is not mounted, unreachable) is checked in the background.
+  - **Schedule and retention**: two switches (daily at unlock, on close when changed) and the retention policy.
+  - **Database health**: integrity, references, content, size, schema version, and a restore **Test** button.
+  - **History**: the last 10 backups, with date, trigger, outcome, size and mirror copies.
 
 ### Interface fixes
 

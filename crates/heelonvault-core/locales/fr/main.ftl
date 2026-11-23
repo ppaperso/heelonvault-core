@@ -970,3 +970,81 @@ auto-backup-toast-partial = Sauvegarde locale effectuée ; copie sur le dossier 
 auto-backup-toast-failed = La sauvegarde automatique a échoué ; vos sauvegardes précédentes sont conservées.
 auto-backup-toast-last-partial = La dernière sauvegarde automatique n'a pas pu être copiée sur le dossier miroir.
 auto-backup-toast-last-failed = La dernière sauvegarde automatique a échoué ; vos sauvegardes précédentes sont conservées.
+main-backups-nav = Sauvegardes
+backups-title = Sauvegardes
+backups-subtitle = Sauvegardes automatiques chiffrées, vérifiées, puis copiées dans vos dossiers miroirs.
+backups-now = Sauvegarder maintenant
+backups-running = Sauvegarde en cours…
+backups-status-up-to-date = Sauvegardes à jour
+backups-status-disabled = Sauvegardes automatiques désactivées
+backups-status-never = Aucune sauvegarde pour l'instant
+backups-status-overdue = Dernière sauvegarde trop ancienne
+backups-status-mirror = Dernière copie sur le dossier miroir manquée
+backups-status-failed = La dernière sauvegarde a échoué
+backups-last-success = Dernière sauvegarde vérifiée : { $date }
+backups-no-success = Aucune sauvegarde vérifiée pour l'instant.
+backups-pill-failed = Échec
+backups-pill-mirror = Miroir
+backups-pill-overdue = En retard
+backups-destinations-title = Destinations
+backups-destinations-description = Chaque sauvegarde est d'abord écrite et vérifiée en local, puis copiée dans les dossiers miroirs. HeelonVault ne crée jamais un dossier miroir : s'il est absent (NAS non monté), la copie est reportée à la sauvegarde suivante.
+backups-local-title = Dossier local
+backups-open-folder = Ouvrir
+backups-mirror-add-title = Ajouter un dossier miroir
+backups-mirror-add-subtitle = Par exemple un dossier existant sur votre NAS (/mnt/…).
+backups-mirror-add = Choisir…
+backups-mirror-choose-title = Choisir un dossier miroir
+backups-mirror-remove = Retirer ce dossier miroir
+backups-mirror-checking = Vérification…
+backups-mirror-ready = Disponible
+backups-mirror-missing = Absent : partage non monté ?
+backups-mirror-not-directory = Ce chemin n'est pas un dossier
+backups-mirror-unreachable = Inaccessible
+backups-schedule-title = Planification
+backups-schedule-daily = Chaque jour, au déverrouillage
+backups-schedule-close = À la fermeture, si modifié
+backups-retention-title = Conservation
+backups-retention-value = { $daily } quotidiennes · { $weekly } hebdomadaires · { $monthly } mensuelles, par destination
+backups-health-title = Santé de la base
+backups-health-empty = Disponible après la première sauvegarde.
+backups-health-integrity = Intégrité
+backups-health-references = Références
+backups-health-content = Contenu
+backups-health-content-value = { $secrets ->
+        [one] { $secrets } entrée
+       *[other] { $secrets } entrées
+    } · { $vaults ->
+        [one] { $vaults } coffre
+       *[other] { $vaults } coffres
+    } · { $users ->
+        [one] { $users } compte
+       *[other] { $users } comptes
+    }
+backups-health-size = Taille
+backups-health-size-value = { $database } (journal { $wal })
+backups-health-schema = Version du schéma
+backups-ok = OK
+backups-integrity-issues = Problèmes détectés : { $count }
+backups-references-issues = Références orphelines : { $count }
+backups-restore-test-title = Test de restauration
+backups-restore-test-subtitle = Déchiffre la dernière sauvegarde dans une copie temporaire, la contrôle puis l'efface. La base active n'est pas touchée.
+backups-restore-test = Tester
+backups-restore-test-ok = Restauration vérifiée : { $secrets } entrées lisibles dans la sauvegarde du { $date }.
+backups-restore-test-failed = Échec du test de restauration.
+backups-restore-test-none = Aucune sauvegarde locale à tester.
+backups-history-title = Historique
+backups-history-empty = Aucune sauvegarde pour l'instant.
+backups-history-mirrors = miroirs { $copied }/{ $total }
+backups-history-no-mirror = local uniquement
+backups-trigger-unlock = Déverrouillage
+backups-trigger-close = Fermeture
+backups-trigger-manual = Manuelle
+backups-trigger-password-change = Changement de mot de passe
+backups-outcome-success = Réussie
+backups-outcome-partial = Locale seulement
+backups-outcome-failed = Échec
+backups-outcome-damaged = Base endommagée : sauvegarde refusée
+backups-settings-save-failed = Impossible d'enregistrer les réglages de sauvegarde.
+backups-schedule-description = Les sauvegardes tournent en arrière-plan, sans vous interrompre. Sans aucun déclencheur, seules les sauvegardes manuelles restent possibles.
+backups-schedule-daily-subtitle = Quand la dernière sauvegarde date de plus de 24 h.
+backups-schedule-close-subtitle = À la déconnexion, à la fermeture de la fenêtre ou au verrouillage, si le contenu a changé.

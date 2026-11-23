@@ -42,6 +42,7 @@ use heelonvault_premium::services::license_service::LicenseService;
 
 mod auto_backup;
 mod auto_lock;
+mod backups_page;
 mod center;
 #[cfg(feature = "premium")]
 mod certification;
@@ -190,6 +191,9 @@ struct SidebarWidgets {
     certification_menu_button: gtk4::MenuButton,
     profile_security_label: gtk4::Label,
     profile_security_button: gtk4::Button,
+    backups_label: gtk4::Label,
+    backups_button: gtk4::Button,
+    backups_pill: gtk4::Label,
     teams_label: gtk4::Label,
     teams_button: gtk4::Button,
     administration_label: gtk4::Label,
@@ -220,6 +224,7 @@ mod documentation_tests {
         gtk4::gio::resources_register_include!("heelonvault.gresource")?;
         assert!(heelonvault_core::i18n::set_language(&language));
         super::security_center::tests::native_security_center_scenario()?;
+        super::backups_page::native_backups_scenario()?;
         crate::ui::updates::tests::native_update_scenario()?;
         assert!(heelonvault_core::i18n::set_language(&language));
         super::profile_view::smoke_tests::native_profile_scenario()?;
@@ -249,6 +254,7 @@ mod native_gtk_tests {
         super::editor_navigation::EditorNavigation::native_navigation_scenario()?;
         super::window::keyboard_tests::native_keyboard_scenario()?;
         super::security_center::tests::native_security_center_scenario()?;
+        super::backups_page::native_backups_scenario()?;
         let (profile, _, _, _) = super::window::views::build_profile_button("Patrick");
         crate::ui::theme_tests::native_theme_scenario(profile)?;
         crate::ui::updates::tests::native_update_scenario()?;
