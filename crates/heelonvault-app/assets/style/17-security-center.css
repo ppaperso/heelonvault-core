@@ -200,6 +200,17 @@ button.security-metric.security-metric-selected {
     color: @hv_brand_800;
 }
 
+/* Kind marker, not a finding: same tint as the dashboard passphrase badge. */
+.security-chip-passphrase {
+    background: alpha(@hv_brand_500, 0.16);
+    border: 1px solid alpha(@hv_brand_500, 0.36);
+    color: @hv_brand_800;
+}
+
+.security-list-filters {
+    margin-top: 4px;
+}
+
 .security-notice {
     padding: 10px 14px;
     border-radius: 12px;
