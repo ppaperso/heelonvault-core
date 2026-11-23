@@ -8,7 +8,7 @@ voir [CONTRIBUTING.fr.md](../../CONTRIBUTING.fr.md) ; pour le fonctionnement int
 
 ## Prérequis
 
-- **Rust** : installez [rustup](https://rustup.rs/) ; la toolchain `1.99.1` épinglée par
+- **Rust** : installez [rustup](https://rustup.rs/) ; la toolchain `1.100.0` épinglée par
   `rust-toolchain.toml` est sélectionnée automatiquement.
 - **Fichiers de développement GTK4 et libadwaita** :
   - Ubuntu / Debian : `sudo apt install build-essential pkg-config libgtk-4-dev libadwaita-1-dev`
@@ -21,8 +21,8 @@ voir [CONTRIBUTING.fr.md](../../CONTRIBUTING.fr.md) ; pour le fonctionnement int
   avec `scripts/check-core-standalone.sh` (voir [CONTRIBUTING.fr.md](../../CONTRIBUTING.fr.md)).
 
 ```bash
-rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
-rustc --version   # 1.99.1
+rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
+rustc --version   # 1.100.0
 ```
 
 La version minimale supportée reste Rust 1.98 (`rust-version` dans les manifestes).
