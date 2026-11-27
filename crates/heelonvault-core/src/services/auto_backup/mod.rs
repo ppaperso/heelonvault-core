@@ -402,6 +402,31 @@ async fn backup_steps(
     })
 }
 
+/// Decrypts an automatic backup with the master password or the recovery phrase and writes
+/// the database to `target` (owner-only), e.g. the staging file of a restore. Returns the
+/// backup description.
+pub async fn restore_to_file<C>(
+    backup_path: &Path,
+    crypto: &C,
+    credential: &BackupCredential,
+    target: &Path,
+) -> Result<BackupInfo, AppError>
+where
+    C: crate::services::crypto_service::CryptoService + Send + Sync,
+{
+    let bytes = std::fs::read(backup_path).map_err(AppError::Io)?;
+    let info = container::read_info(&bytes)?;
+    let plaintext = container::open_with_credential(&bytes, crypto, credential).await?;
+    if let Some(parent) = target
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        crate::utils::private_fs::create_private_dir_all(parent).map_err(AppError::Io)?;
+    }
+    crate::utils::private_fs::write_private(target, &plaintext).map_err(AppError::Io)?;
+    Ok(info)
+}
+
 /// Latest backup in the local folder, for the restore test.
 pub fn latest_local_backup(backup_dir: &Path) -> Result<Option<BackupFile>, AppError> {
     Ok(store::list_backups(backup_dir)?.into_iter().next())

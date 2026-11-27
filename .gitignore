@@ -24,6 +24,10 @@ export-csv/
 
 # Backups (SENSITIVE)
 *-backups/
+# Automatic backups and their journal, next to the development database
+data/backups/
+*.hvba
+*.hvb
 backup_*.tar.gz
 backup_before_*/
 backup_pre_migration_*/

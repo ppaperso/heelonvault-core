@@ -64,6 +64,7 @@ use heelonvault_core::services::audit_service::AuditAction;
 use heelonvault_core::services::audit_service::AuditService;
 use heelonvault_core::services::auth_policy_service::{AuthPolicyService, SqlxAuthPolicyService};
 use heelonvault_core::services::auth_service::{AuthService, AuthServiceImpl};
+use heelonvault_core::services::auto_backup::{self, BackupCredential, BackupTrigger};
 use heelonvault_core::services::backup_application_service::BackupApplicationServiceImpl;
 use heelonvault_core::services::backup_service::{BackupService, BackupServiceImpl};
 use heelonvault_core::services::crypto_service::CryptoServiceImpl;
@@ -439,6 +440,11 @@ fn run_application(
         setup_icon_theme();
     });
 
+    ui::auto_backup::install(
+        Arc::clone(&runtime),
+        app_context.pool.clone(),
+        app_context.database_path.clone(),
+    );
     let runtime_handle = runtime.handle().clone();
     let runtime_for_activate = Arc::clone(&runtime);
     let app_context_for_activate = Arc::clone(&app_context);
@@ -580,13 +586,29 @@ fn run_application(
                     })?;
 
                     let recovery_phrase = SecretString::new(recovery_phrase.into_boxed_str());
-                    context_for_restore
-                        .backup_service
-                        .import_hvb_with_recovery_key(
+                    // Automatic backups (`.hvba`) open with the same recovery phrase.
+                    let is_auto_backup = fs::File::open(&backup_file_path)
+                        .and_then(|mut file| {
+                            let mut magic = [0_u8; 4];
+                            std::io::Read::read_exact(&mut file, &mut magic).map(|()| magic)
+                        })
+                        .is_ok_and(|magic| auto_backup::container::is_auto_backup(&magic));
+                    if is_auto_backup {
+                        runtime_for_restore_task.block_on(auto_backup::restore_to_file(
                             backup_file_path.as_path(),
-                            &recovery_phrase,
+                            &context_for_restore.crypto_service,
+                            &BackupCredential::RecoveryPhrase(recovery_phrase.clone()),
                             staging_path.as_path(),
-                        )?;
+                        ))?;
+                    } else {
+                        context_for_restore
+                            .backup_service
+                            .import_hvb_with_recovery_key(
+                                backup_file_path.as_path(),
+                                &recovery_phrase,
+                                staging_path.as_path(),
+                            )?;
+                    }
 
                     let new_password = SecretString::new(new_password.into_boxed_str());
                     let report =
@@ -769,6 +791,9 @@ fn run_application(
                     let active_main_for_logout = Rc::clone(&active_main_for_success);
                     let present_for_logout = Rc::clone(&present_holder_for_logout);
                     main_for_success.set_on_logout(Rc::new(move || {
+                        // Closing, logging out or auto-locking: back up what changed while
+                        // the session key is still available.
+                        main_for_logout.request_auto_backup(BackupTrigger::Close);
                         let user_id = main_for_logout.session_user_id();
                         if main_for_logout.has_pin_cache(user_id, DIALOG_PIN_HARD_TIMEOUT) {
                             // PIN cache valide : verrouiller sans vider le cache,
@@ -795,6 +820,7 @@ fn run_application(
                         // dialog instead of forcing a full master-password re-entry.
                         let user_id = main_for_auto_lock.session_user_id();
                         if main_for_auto_lock.has_pin_cache(user_id, DIALOG_PIN_HARD_TIMEOUT) {
+                            main_for_auto_lock.request_auto_backup(BackupTrigger::Close);
                             main_for_auto_lock.trigger_pin_lock();
                         } else {
                             main_for_auto_lock.trigger_logout();
@@ -855,6 +881,7 @@ fn run_application(
                         );
                     });
                     main_for_success.activate_auto_lock();
+                    main_for_success.request_auto_backup(BackupTrigger::Unlock);
                 },
                 move |created_username: String| {
                     info!("bootstrap completed, presenting login screen");
@@ -886,6 +913,8 @@ fn run_application(
     application.connect_shutdown(move |_| {
         info!("application shutdown requested, closing services");
         ui::sensitive_clipboard::clear_now();
+        // A backup started when the last session closed may still be writing.
+        ui::auto_backup::wait_for_pending(std::time::Duration::from_secs(30));
         app_context_for_shutdown.auth_service.signal_shutdown();
 
         let pool = app_context_for_shutdown.pool.clone();

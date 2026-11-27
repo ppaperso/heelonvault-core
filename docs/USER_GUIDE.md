@@ -242,7 +242,7 @@ Copier, imprimer ou enregistrer la phrase en TXT crée une autre copie sensible 
 
 **Attention : ce parcours remplace la base utilisée par l'application ; il ne fusionne pas les secrets.** Préservez les données actuelles avant de continuer. Les changements postérieurs à la sauvegarde ne seront pas récupérés.
 
-1. Depuis l'écran de connexion, choisissez **Restaurer ma base (.hvb)**.
+1. Depuis l'écran de connexion, choisissez **Récupérer ma base**.
 2. Sélectionnez la sauvegarde et entrez sa phrase de **24 mots**.
 3. Choisissez un nouveau mot de passe maître fort et confirmez-le.
 4. Lancez **Restaurer et redémarrer**, puis reconnectez-vous après redémarrage.

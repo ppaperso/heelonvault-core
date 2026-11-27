@@ -40,6 +40,7 @@ use heelonvault_core::services::vault_service::VaultService;
 #[cfg(feature = "premium")]
 use heelonvault_premium::services::license_service::LicenseService;
 
+mod auto_backup;
 mod auto_lock;
 mod center;
 #[cfg(feature = "premium")]

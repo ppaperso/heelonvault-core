@@ -131,6 +131,11 @@ fn decode_nonce(value: &str) -> Result<[u8; NONCE_LEN], AppError> {
         .map_err(|_| AppError::Validation("backup nonce has an invalid length".to_string()))
 }
 
+/// The bytes start like an automatic backup (and not like a manual `.hvb` export).
+pub fn is_auto_backup(bytes: &[u8]) -> bool {
+    bytes.starts_with(MAGIC)
+}
+
 /// Encrypts a SQLite snapshot into an `.hvba` container.
 pub fn seal(
     sqlite_bytes: &[u8],

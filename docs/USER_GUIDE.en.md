@@ -238,7 +238,7 @@ Copying, printing or saving the phrase as TXT creates another sensitive copy: th
 
 **Warning: this workflow replaces the database used by the application; it does not merge secrets.** Preserve current data before continuing. Changes made after the backup will not be recovered.
 
-1. On the sign-in screen, choose **Restore my database (.hvb)**.
+1. On the sign-in screen, choose **Restore my database**.
 2. Select the backup and enter its **24-word** phrase.
 3. Choose and confirm a strong new master password.
 4. Choose **Restore and restart**, then sign in after the restart.
