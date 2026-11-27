@@ -1,0 +1,71 @@
+/* Backups page: sidebar entry state and pill, status card, mirror and history rows */
+
+button.sidebar-profile-entry.backups-navigation-active {
+    background: alpha(@hv_brand_500, 0.14);
+    border-color: alpha(@hv_brand_600, 0.45);
+    box-shadow: inset 3px 0 0 @hv_brand_600;
+}
+
+/* Failed or overdue backup: same warning scale as the security center counter. */
+.backups-attention-pill {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: @hv_warning_bg;
+    color: @hv_warning_strong;
+    border: 1px solid alpha(@hv_warning, 0.30);
+    font-size: 0.72rem;
+    font-weight: 750;
+}
+
+.backups-status {
+    padding: 16px 18px;
+    border-radius: 16px;
+}
+
+.backups-status.backups-status-ok {
+    border-left: 4px solid @hv_success;
+}
+
+.backups-status.backups-status-ok image {
+    color: @hv_success_strong;
+}
+
+.backups-status.backups-status-neutral {
+    border-left: 4px solid alpha(@hv_text_muted, 0.45);
+}
+
+.backups-status.backups-status-neutral image {
+    color: @hv_text_muted;
+}
+
+.backups-status.backups-status-warning {
+    border-left: 4px solid @hv_warning;
+}
+
+.backups-status.backups-status-warning image {
+    color: @hv_warning_strong;
+}
+
+.backups-status.backups-status-error {
+    border-left: 4px solid @hv_danger;
+}
+
+.backups-status.backups-status-error image {
+    color: @hv_danger_strong;
+}
+
+.backups-mirror-row.backups-mirror-unavailable .subtitle {
+    color: @hv_warning_strong;
+}
+
+.backups-run-ok {
+    color: @hv_success_strong;
+}
+
+.backups-run-warning {
+    color: @hv_warning_strong;
+}
+
+.backups-run-error {
+    color: @hv_danger_strong;
+}

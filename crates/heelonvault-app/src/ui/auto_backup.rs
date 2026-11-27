@@ -82,11 +82,143 @@ pub fn load_settings() -> AutoBackupSettings {
         .unwrap_or_default()
 }
 
+/// Saves the settings (never from tests).
+pub fn save_settings(settings: &AutoBackupSettings) -> std::io::Result<()> {
+    if cfg!(test) {
+        return Ok(());
+    }
+    let path = ui_state_file_path(SETTINGS_FILE);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let payload = serde_json::to_string_pretty(settings).map_err(std::io::Error::other)?;
+    fs::write(path, payload)
+}
+
 /// Run history of the installed database (empty when none).
 pub fn journal() -> BackupJournal {
     backup_dir()
         .map(|dir| BackupJournal::load(&dir))
         .unwrap_or_default()
+}
+
+/// A backup is running.
+pub fn is_running() -> bool {
+    RUNNING.load(Ordering::SeqCst)
+}
+
+/// Overall state shown on the Backups page and by the sidebar pill.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackupStatus {
+    UpToDate,
+    /// Automatic backups are off and nothing failed.
+    Disabled,
+    /// No backup was ever written.
+    Never,
+    /// The last successful backup is older than [`OVERDUE_AFTER`].
+    Overdue,
+    /// The last run was written locally but missed a mirror.
+    MirrorMissed,
+    /// The last run wrote nothing.
+    Failed,
+}
+
+impl BackupStatus {
+    /// Worth a pill in the sidebar.
+    pub fn needs_attention(self) -> bool {
+        matches!(self, Self::Overdue | Self::MirrorMissed | Self::Failed)
+    }
+}
+
+/// Age after which the last successful backup is flagged.
+pub const OVERDUE_AFTER: time::Duration = time::Duration::days(7);
+
+pub fn status(
+    settings: &AutoBackupSettings,
+    journal: &BackupJournal,
+    now: OffsetDateTime,
+) -> BackupStatus {
+    match journal.last_run().map(|run| &run.outcome) {
+        Some(RunOutcome::Success) | None => {}
+        Some(RunOutcome::Partial) => return BackupStatus::MirrorMissed,
+        Some(_) => return BackupStatus::Failed,
+    }
+    if settings.schedule == auto_backup::BackupSchedule::Off {
+        return BackupStatus::Disabled;
+    }
+    match journal.last_success() {
+        None => BackupStatus::Never,
+        Some(run) if now - run.finished_at > OVERDUE_AFTER => BackupStatus::Overdue,
+        Some(_) => BackupStatus::UpToDate,
+    }
+}
+
+/// Checks mirror folders on a worker thread (an automounted share can stall) and reports
+/// on the GTK main loop.
+pub fn check_mirrors(
+    mirrors: Vec<PathBuf>,
+    on_done: impl FnOnce(Vec<(PathBuf, auto_backup::DestinationState)>) + 'static,
+) {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    std::thread::spawn(move || {
+        let states = mirrors
+            .into_iter()
+            .map(|mirror| {
+                let state = auto_backup::store::check_mirror(&mirror);
+                (mirror, state)
+            })
+            .collect::<Vec<_>>();
+        let _ = sender.send(states);
+    });
+    glib::MainContext::default().spawn_local(async move {
+        if let Ok(states) = receiver.await {
+            on_done(states);
+        }
+    });
+}
+
+/// Restore test of the latest local backup with the session key, on a worker thread.
+/// `on_done` gets the tested backup and its health, or `None` when there is nothing to test
+/// or the test failed (logged).
+pub fn test_latest_restore(
+    session_key: &[u8],
+    on_done: impl FnOnce(Result<(auto_backup::BackupFile, auto_backup::DatabaseHealth), ()>) + 'static,
+) {
+    let Some(context) = CONTEXT.get() else {
+        on_done(Err(()));
+        return;
+    };
+    if session_key.is_empty() {
+        on_done(Err(()));
+        return;
+    }
+    let key = Zeroizing::new(session_key.to_vec());
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    std::thread::spawn(move || {
+        let secret = SecretBox::new(Box::new(key.to_vec()));
+        drop(key);
+        let backup_dir = backup_dir_for(&context.db_path);
+        let result = match auto_backup::latest_local_backup(&backup_dir) {
+            Ok(Some(file)) => context
+                .runtime
+                .block_on(auto_backup::health::test_restore(
+                    &file.path,
+                    &secret,
+                    &backup_dir.join(".restore-test"),
+                ))
+                .map(|health| (file, health))
+                .map_err(|error| warn!(%error, "restore test failed")),
+            Ok(None) => Err(()),
+            Err(error) => {
+                warn!(%error, "backup folder unreadable");
+                Err(())
+            }
+        };
+        let _ = sender.send(result);
+    });
+    glib::MainContext::default().spawn_local(async move {
+        on_done(receiver.await.unwrap_or(Err(())));
+    });
 }
 
 /// Clears the running flag even if the worker panics.
@@ -358,6 +490,51 @@ mod tests {
 
     fn journal_at(dir: &Path) -> BackupJournal {
         BackupJournal::load(&dir.join("backups"))
+    }
+
+    /// A journal record; `BackupRunRecord` is `#[non_exhaustive]`, so it is read from JSON.
+    fn record(
+        outcome: &str,
+        finished_at: OffsetDateTime,
+    ) -> Result<BackupRunRecord, Box<dyn std::error::Error>> {
+        let at = finished_at.format(&time::format_description::well_known::Rfc3339)?;
+        Ok(serde_json::from_str(&format!(
+            r#"{{"started_at":"{at}","finished_at":"{at}","trigger":"manual","outcome":{outcome},
+            "file_name":null,"size":0,"sha256":null,"fingerprint":null,"health":null,
+            "mirrors":[],"pruned":0}}"#
+        ))?)
+    }
+
+    #[test]
+    fn the_status_flags_failures_mirrors_and_age() -> Result<(), Box<dyn std::error::Error>> {
+        let now = OffsetDateTime::now_utc();
+        let settings = AutoBackupSettings::default();
+        let mut journal = BackupJournal::default();
+        assert_eq!(status(&settings, &journal, now), BackupStatus::Never);
+        let success = r#"{"result":"success"}"#;
+        journal
+            .runs
+            .push(record(success, now - time::Duration::days(1))?);
+        assert_eq!(status(&settings, &journal, now), BackupStatus::UpToDate);
+        assert_eq!(
+            status(&settings, &journal, now + time::Duration::days(7)),
+            BackupStatus::Overdue
+        );
+        journal.runs.push(record(r#"{"result":"partial"}"#, now)?);
+        assert_eq!(status(&settings, &journal, now), BackupStatus::MirrorMissed);
+        journal
+            .runs
+            .push(record(r#"{"result":"failed","detail":"x"}"#, now)?);
+        assert_eq!(status(&settings, &journal, now), BackupStatus::Failed);
+        assert!(BackupStatus::Failed.needs_attention());
+        let mut off = AutoBackupSettings::default();
+        off.schedule = auto_backup::BackupSchedule::Off;
+        assert_eq!(
+            status(&off, &BackupJournal::default(), now),
+            BackupStatus::Disabled
+        );
+        assert!(!BackupStatus::Disabled.needs_attention());
+        Ok(())
     }
 
     #[test]

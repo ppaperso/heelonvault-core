@@ -17,8 +17,15 @@ impl MainWindow {
             .content()
             .and_downcast::<adw::ToastOverlay>()
             .filter(|_| trigger != BackupTrigger::Close);
+        let window = self.window.clone();
         let key = self.session_master_key.borrow();
         auto_backup::request(self.session_user_id, &key, trigger, move |record| {
+            // Backups page and sidebar pill (absent in widget tests).
+            if let Some(action) =
+                gtk4::gio::prelude::ActionMapExt::lookup_action(&window, "backups-refresh")
+            {
+                action.activate(None);
+            }
             let Some(overlay) = overlay else {
                 return;
             };

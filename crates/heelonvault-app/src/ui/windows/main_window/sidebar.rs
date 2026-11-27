@@ -189,6 +189,36 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     profile_security_button.set_child(Some(&profile_security_inner));
     sidebar_box.append(&profile_security_button);
 
+    // Backups page (administrators); the pill flags a failed or overdue backup.
+    let backups_button = gtk4::Button::new();
+    backups_button.add_css_class("flat");
+    backups_button.add_css_class("sidebar-profile-entry");
+    backups_button.set_halign(Align::Fill);
+    let backups_inner = gtk4::Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(10)
+        .margin_top(8)
+        .margin_bottom(8)
+        .margin_start(10)
+        .margin_end(10)
+        .build();
+    let backups_icon = gtk4::Image::from_icon_name("hv-save-symbolic");
+    backups_icon.set_pixel_size(18);
+    backups_icon.add_css_class("main-sidebar-icon");
+    let backups_label = gtk4::Label::new(Some(heelonvault_core::tr!("main-backups-nav").as_str()));
+    backups_label.add_css_class("main-sidebar-label");
+    backups_label.set_halign(Align::Start);
+    backups_label.set_hexpand(true);
+    let backups_pill = gtk4::Label::new(None);
+    backups_pill.add_css_class("backups-attention-pill");
+    backups_pill.set_visible(false);
+    backups_inner.append(&backups_icon);
+    backups_inner.append(&backups_label);
+    backups_inner.append(&backups_pill);
+    backups_button.set_child(Some(&backups_inner));
+    backups_button.set_visible(false);
+    sidebar_box.append(&backups_button);
+
     let teams_button = gtk4::Button::new();
     teams_button.add_css_class("flat");
     teams_button.add_css_class("sidebar-profile-entry");
@@ -268,6 +298,9 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
         certification_menu_button,
         profile_security_label,
         profile_security_button,
+        backups_label,
+        backups_button,
+        backups_pill,
         teams_label,
         teams_button,
         administration_label,
@@ -327,6 +360,9 @@ pub(super) fn refresh_i18n(sidebar: &SidebarWidgets) {
     sidebar
         .profile_security_label
         .set_text(heelonvault_core::tr!("main-profile-security").as_str());
+    sidebar
+        .backups_label
+        .set_text(heelonvault_core::tr!("main-backups-nav").as_str());
     sidebar
         .my_vaults_title
         .set_text(heelonvault_core::tr!("main-my-vaults-title").as_str());

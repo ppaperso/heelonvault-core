@@ -296,6 +296,19 @@ where
         },
     );
     *security_invalidate.borrow_mut() = Some(Rc::clone(&security.invalidate));
+    let backups = crate::ui::windows::main_window::backups_page::build(
+        crate::ui::windows::main_window::backups_page::BackupsDeps {
+            window: window.clone(),
+            toast: toast_overlay.clone(),
+            stack: center_panel.main_stack.clone(),
+            nav_button: sidebar_panel.backups_button.clone(),
+            nav_pill: sidebar_panel.backups_pill.clone(),
+            user_id: admin_user_id,
+            key: Rc::clone(&session_master_key),
+            editor_navigation: editor_navigation.clone(),
+            visible: is_admin,
+        },
+    );
     let clear_security: Rc<dyn Fn()> = {
         let editor_host = editor_host.clone();
         let editor_navigation = editor_navigation.clone();
@@ -647,6 +660,7 @@ where
                 .chain(std::iter::once(pin_refresh_i18n))
                 .chain(certification_refresh)
                 .chain(std::iter::once(security.refresh_i18n))
+                .chain(std::iter::once(backups.refresh_i18n))
                 .chain(std::iter::once(secret_list.refresh_i18n))
                 .chain(std::iter::once({
                     let navigation = editor_navigation.clone();

@@ -58,5 +58,6 @@
     <file>style/16-panic.css</file>
     <file>style/17-security-center.css</file>
     <file>style/18-updates.css</file>
+    <file>style/19-backups.css</file>
   </gresource>
 </gresources>

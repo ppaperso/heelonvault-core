@@ -970,3 +970,81 @@ auto-backup-toast-partial = Local backup done; the mirror folder could not be re
 auto-backup-toast-failed = The automatic backup failed; your previous backups are kept.
 auto-backup-toast-last-partial = The last automatic backup could not be copied to the mirror folder.
 auto-backup-toast-last-failed = The last automatic backup failed; your previous backups are kept.
+main-backups-nav = Backups
+backups-title = Backups
+backups-subtitle = Encrypted automatic backups, verified, then copied to your mirror folders.
+backups-now = Back up now
+backups-running = Backup in progress…
+backups-status-up-to-date = Backups up to date
+backups-status-disabled = Automatic backups turned off
+backups-status-never = No backup yet
+backups-status-overdue = Last backup is too old
+backups-status-mirror = Last copy to the mirror folder was missed
+backups-status-failed = The last backup failed
+backups-last-success = Last verified backup: { $date }
+backups-no-success = No verified backup yet.
+backups-pill-failed = Failed
+backups-pill-mirror = Mirror
+backups-pill-overdue = Overdue
+backups-destinations-title = Destinations
+backups-destinations-description = Each backup is first written and verified locally, then copied to the mirror folders. HeelonVault never creates a mirror folder: when it is missing (NAS not mounted), the copy waits for the next backup.
+backups-local-title = Local folder
+backups-open-folder = Open
+backups-mirror-add-title = Add a mirror folder
+backups-mirror-add-subtitle = For example an existing folder on your NAS (/mnt/…).
+backups-mirror-add = Choose…
+backups-mirror-choose-title = Choose a mirror folder
+backups-mirror-remove = Remove this mirror folder
+backups-mirror-checking = Checking…
+backups-mirror-ready = Available
+backups-mirror-missing = Missing: share not mounted?
+backups-mirror-not-directory = This path is not a folder
+backups-mirror-unreachable = Unreachable
+backups-schedule-title = Schedule
+backups-schedule-daily = Daily, at unlock
+backups-schedule-close = On close, when changed
+backups-retention-title = Retention
+backups-retention-value = { $daily } daily · { $weekly } weekly · { $monthly } monthly, per destination
+backups-health-title = Database health
+backups-health-empty = Available after the first backup.
+backups-health-integrity = Integrity
+backups-health-references = References
+backups-health-content = Content
+backups-health-content-value = { $secrets ->
+        [one] { $secrets } entry
+       *[other] { $secrets } entries
+    } · { $vaults ->
+        [one] { $vaults } vault
+       *[other] { $vaults } vaults
+    } · { $users ->
+        [one] { $users } account
+       *[other] { $users } accounts
+    }
+backups-health-size = Size
+backups-health-size-value = { $database } (journal { $wal })
+backups-health-schema = Schema version
+backups-ok = OK
+backups-integrity-issues = Problems found: { $count }
+backups-references-issues = Dangling references: { $count }
+backups-restore-test-title = Restore test
+backups-restore-test-subtitle = Decrypts the latest backup into a temporary copy, checks it, then deletes it. The live database is not touched.
+backups-restore-test = Test
+backups-restore-test-ok = Restore verified: { $secrets } entries readable in the backup of { $date }.
+backups-restore-test-failed = Restore test failed.
+backups-restore-test-none = No local backup to test.
+backups-history-title = History
+backups-history-empty = No backup yet.
+backups-history-mirrors = mirrors { $copied }/{ $total }
+backups-history-no-mirror = local only
+backups-trigger-unlock = Unlock
+backups-trigger-close = Close
+backups-trigger-manual = Manual
+backups-trigger-password-change = Password change
+backups-outcome-success = Succeeded
+backups-outcome-partial = Local only
+backups-outcome-failed = Failed
+backups-outcome-damaged = Damaged database: backup refused
+backups-settings-save-failed = Backup settings could not be saved.
+backups-schedule-description = Backups run in the background without interrupting you. With no trigger, only manual backups remain.
+backups-schedule-daily-subtitle = When the last backup is older than 24 h.
+backups-schedule-close-subtitle = At logout, window close or lock, when the content changed.
