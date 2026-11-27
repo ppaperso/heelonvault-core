@@ -1,9 +1,5 @@
 /* Base: reset, window background, generic utility classes (accent/success/warning/error/heading), form controls, focus rings */
 
-* {
-        font-family: "Space Grotesk", "Inter", "Cantarell", sans-serif;
-    }
-
     window,
     dialog,
     .background {
@@ -41,24 +37,24 @@
     .title-2,
     .title-3,
     .title-4 {
-        color: @hv_brand_900;
+        color: @hv_text;
     }
 
     entry,
     textview,
     spinbutton {
         border-radius: 12px;
-        border: 1px solid @hv_brand_300;
+        border: 1px solid @hv_border_strong;
         background: @hv_surface;
-        color: @hv_brand_900;
+        color: @hv_text;
         transition: border-color 150ms ease, box-shadow 150ms ease;
     }
 
     entry:focus-within,
     textview:focus-within,
     spinbutton:focus-within {
-        border-color: @hv_brand_600;
-        box-shadow: 0 0 0 3px alpha(@hv_brand_500, 0.16);
+        border-color: @hv_brand_700;
+        box-shadow: 0 0 0 3px alpha(@hv_brand_600, 0.16);
     }
 
     /* Keyboard focus only: mouse clicks do not leave a ring behind. */
@@ -78,10 +74,7 @@
 /* ── Runtime theme rules migrated from main.rs install_application_css() ───── */
 window.app-window,
 window {
-    background:
-        radial-gradient(circle at top left, alpha(@hv_brand_200, 0.55), transparent 42%),
-        radial-gradient(circle at top right, rgba(111, 211, 180, 0.22), transparent 36%),
-        @hv_canvas;
+    background: @hv_canvas;
     color: @hv_text;
 }
 
@@ -112,7 +105,6 @@ label.inline-status-error {
     border-radius: 12px;
     font-size: 0.85em;
     font-weight: 600;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14);
 }
 
 .badge-disabled {

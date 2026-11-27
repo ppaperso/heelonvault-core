@@ -1,11 +1,11 @@
 /* Toasts and tooltips */
 
     toast {
-        background-image: linear-gradient(120deg, @hv_brand_500, @hv_brand_green);
+        background: @hv_text;
         color: @hv_on_brand;
         border-radius: 12px;
-        border: 1px solid alpha(@hv_brand_900, 0.18);
-        box-shadow: 0 10px 24px alpha(@hv_brand_900, 0.22);
+        border: none;
+        box-shadow: 0 4px 12px @hv_shadow_key;
     }
 
     toast label,
@@ -15,19 +15,19 @@
     }
 
     toast button {
-        background: rgba(255, 255, 255, 0.14);
-        border: 1px solid rgba(255, 255, 255, 0.28);
+        background: alpha(@hv_on_brand, 0.12);
+        border: none;
         border-radius: 999px;
         transition: background-color 150ms ease, box-shadow 150ms ease;
     }
 
     toast button:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.22);
-        box-shadow: 0 2px 6px @hv_shadow_key;
+        background: alpha(@hv_on_brand, 0.20);
+        box-shadow: none;
     }
 
     toast button:active:not(:disabled) {
-        background: alpha(@hv_brand_900, 0.22);
+        background: alpha(@hv_on_brand, 0.28);
         box-shadow: none;
     }
 
@@ -36,7 +36,7 @@
         outline-offset: 2px;
     }
 
-    /* ─── TOOLTIPS PREMIUM ─────────────────────────────────────────────── */
+    /* ─── TOOLTIPS ─────────────────────────────────────────────────────── */
 
     tooltip {
         background: transparent;
@@ -44,14 +44,11 @@
     }
 
     tooltip > * {
-        background: linear-gradient(145deg, @hv_brand_900 0%, @hv_brand_900 60%, @hv_brand_700 100%);
+        background: @hv_text;
         color: @hv_on_brand;
-        border-radius: 12px;
-        border: 1px solid alpha(@hv_brand_200, 0.35);
-        box-shadow:
-            0 16px 40px alpha(@hv_brand_900, 0.40),
-            0  4px 12px alpha(@hv_brand_900, 0.25),
-            inset 0 1px 0 rgba(255, 255, 255, 0.10);
+        border-radius: 8px;
+        border: none;
+        box-shadow: 0 2px 8px @hv_shadow_key;
         padding: 0;
     }
 
