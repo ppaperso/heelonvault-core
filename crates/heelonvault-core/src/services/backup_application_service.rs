@@ -13,8 +13,8 @@ use crate::services::access_control::{Action, Resource, check_permission};
 use crate::services::backup_service::{BackupMetadata, BackupService};
 
 /// Deletes the temporary snapshot even if the export fails or panics.
-struct SnapshotGuard {
-    path: PathBuf,
+pub(crate) struct SnapshotGuard {
+    pub(crate) path: PathBuf,
 }
 
 impl Drop for SnapshotGuard {
@@ -94,62 +94,71 @@ where
     }
 
     /// Produces a consistent copy of the live database through `VACUUM INTO`.
-    ///
-    /// Reading the `.db` file directly would miss everything still sitting in the `-wal`
-    /// file, yielding a backup that decrypts cleanly but is missing recent writes.
     async fn snapshot_database(&self, sqlite_db_path: &Path) -> Result<SnapshotGuard, AppError> {
-        let mut snapshot_path = sqlite_db_path.to_path_buf();
-        let snapshot_name = match sqlite_db_path.file_name().and_then(|name| name.to_str()) {
-            Some(name) => format!(".{name}.snapshot"),
-            None => ".heelonvault.snapshot".to_string(),
-        };
-        snapshot_path.set_file_name(snapshot_name);
-
-        // VACUUM INTO refuses to write onto an existing file.
-        if snapshot_path.exists() {
-            fs::remove_file(&snapshot_path).map_err(AppError::Io)?;
-        }
-
-        let guard = SnapshotGuard {
-            path: snapshot_path.clone(),
-        };
-
-        let snapshot_arg = snapshot_path
-            .to_str()
-            .ok_or_else(|| AppError::Validation("database path is not valid UTF-8".to_string()))?;
-
-        // Normalize path separators to forward slashes for SQL compatibility.
-        // SQLite accepts forward slashes on all platforms, including Windows.
-        // Backslashes in Windows paths would be interpreted as SQL escape characters.
-        let snapshot_arg = snapshot_arg.replace('\\', "/");
-
-        // SQLite rejects bound parameters in `VACUUM INTO`, so the path must be inlined.
-        // Rather than escaping, refuse any path that could break out of the literal.
-        if snapshot_arg.contains('\'') || snapshot_arg.contains('\0') {
-            return Err(AppError::Validation(
-                "database path contains characters that cannot be used for a snapshot".to_string(),
-            ));
-        }
-        // `raw_sql` runs the statement unprepared, which VACUUM requires.
-        sqlx::raw_sql(sqlx::AssertSqlSafe(format!("VACUUM INTO '{snapshot_arg}'")))
-            .execute(&self.pool)
-            .await?;
-
-        if !snapshot_path.exists() {
-            return Err(AppError::Storage(
-                "database snapshot was not produced".to_string(),
-            ));
-        }
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&snapshot_path, fs::Permissions::from_mode(0o600))
-                .map_err(AppError::Io)?;
-        }
-
-        Ok(guard)
+        snapshot_database(&self.pool, sqlite_db_path, "snapshot").await
     }
+}
+
+/// Produces a consistent copy of the live database through `VACUUM INTO`.
+///
+/// Reading the `.db` file directly would miss everything still sitting in the `-wal`
+/// file, yielding a backup that decrypts cleanly but is missing recent writes.
+pub(crate) async fn snapshot_database(
+    pool: &SqlitePool,
+    sqlite_db_path: &Path,
+    suffix: &str,
+) -> Result<SnapshotGuard, AppError> {
+    let mut snapshot_path = sqlite_db_path.to_path_buf();
+    let snapshot_name = match sqlite_db_path.file_name().and_then(|name| name.to_str()) {
+        Some(name) => format!(".{name}.{suffix}"),
+        None => format!(".heelonvault.{suffix}"),
+    };
+    snapshot_path.set_file_name(snapshot_name);
+
+    // VACUUM INTO refuses to write onto an existing file.
+    if snapshot_path.exists() {
+        fs::remove_file(&snapshot_path).map_err(AppError::Io)?;
+    }
+
+    let guard = SnapshotGuard {
+        path: snapshot_path.clone(),
+    };
+
+    let snapshot_arg = snapshot_path
+        .to_str()
+        .ok_or_else(|| AppError::Validation("database path is not valid UTF-8".to_string()))?;
+
+    // Normalize path separators to forward slashes for SQL compatibility.
+    // SQLite accepts forward slashes on all platforms, including Windows.
+    // Backslashes in Windows paths would be interpreted as SQL escape characters.
+    let snapshot_arg = snapshot_arg.replace('\\', "/");
+
+    // SQLite rejects bound parameters in `VACUUM INTO`, so the path must be inlined.
+    // Rather than escaping, refuse any path that could break out of the literal.
+    if snapshot_arg.contains('\'') || snapshot_arg.contains('\0') {
+        return Err(AppError::Validation(
+            "database path contains characters that cannot be used for a snapshot".to_string(),
+        ));
+    }
+    // `raw_sql` runs the statement unprepared, which VACUUM requires.
+    sqlx::raw_sql(sqlx::AssertSqlSafe(format!("VACUUM INTO '{snapshot_arg}'")))
+        .execute(pool)
+        .await?;
+
+    if !snapshot_path.exists() {
+        return Err(AppError::Storage(
+            "database snapshot was not produced".to_string(),
+        ));
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&snapshot_path, fs::Permissions::from_mode(0o600))
+            .map_err(AppError::Io)?;
+    }
+
+    Ok(guard)
 }
 
 impl<TUserRepo, TBackupSvc> BackupApplicationService

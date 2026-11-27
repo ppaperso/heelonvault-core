@@ -6,6 +6,7 @@ pub mod audit_report_provider;
 pub mod audit_service;
 pub mod auth_policy_service;
 pub mod auth_service;
+pub mod auto_backup;
 pub mod backup_application_service;
 pub mod backup_service;
 pub mod crypto_service;
