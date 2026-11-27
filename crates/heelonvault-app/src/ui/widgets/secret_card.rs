@@ -12,6 +12,10 @@ pub(crate) const SEARCH_CLASSIFICATION_ACTION: &str = "win.search-classification
 const GRID_VISIBLE_TAGS: usize = 3;
 /// The list row has one flexible column: only the category fits, tags go into "+N".
 const LIST_VISIBLE_TAGS: usize = 0;
+/// Status badges shown on a grid card before a "+N" badge, the most at-risk first.
+const GRID_VISIBLE_BADGES: usize = 2;
+/// The grid title wraps on this many lines before being ellipsized.
+const GRID_TITLE_LINES: i32 = 2;
 
 /// Search query matching one category or tag. The search splits on whitespace and
 /// its normalization reads `-` as a space, so `client a` becomes `tag:client-a`.
@@ -172,12 +176,13 @@ fn usage_tooltip(count: u32) -> String {
 
 /// A widget displaying one secret item, as a grid card or as a compact list row.
 ///
-/// Grid layout (top → bottom):
-///   header_row : [title]
-///   info_box : [login] [domain] (each on its own line, hidden when both empty)
-///   badges_box : health · usage · duplicate? · shared? · vault?
+/// Grid layout (top → bottom), every card of a grid has the same size:
+///   header_row : [type icon] [title, up to two lines] [copies]
+///   info_box : [login] [domain] [vault?] (each on its own line, hidden when all empty)
+///   chips : passphrase? · category · tags
+///   badges_box : two status badges at most, the most at-risk first, then "+N"
 ///   separator
-///   actions_box: [🔑 copy_password] [👤 copy_login?] [🌐 open_url?]
+///   actions_box: [🔑 copy_password] [👤 copy_login?] [🌐 open_url?] (right-aligned)
 ///
 /// List layout (left → right, fixed-width columns so rows line up):
 ///   [type icon] [title] [login] [domain] [copies · health · duplicate? · vault?] [actions]
@@ -208,15 +213,15 @@ impl SecretCard {
             extract_domain(&data.url)
         };
         let title_label = Self::build_title(&data.title);
-        let compact = mode == SecretViewMode::List;
-        let (badges_box, usage_badge) = Self::build_badges(&data, compact);
+        let (usage_box, usage_badge) = Self::build_usage_badge(data.usage_count);
         let actions = Self::build_actions(&data);
 
         let card_box = match mode {
             SecretViewMode::Grid => {
-                Self::assemble_grid(&data, &domain, title_label, badges_box, &actions)
+                Self::assemble_grid(&data, &domain, title_label, usage_box, &actions)
             }
             SecretViewMode::List => {
+                let badges_box = Self::build_row_badges(&data, &usage_box);
                 Self::assemble_row(&data, &domain, title_label, badges_box, &actions)
             }
         };
@@ -247,65 +252,96 @@ impl SecretCard {
         data: &SecretRowData,
         domain: &str,
         title_label: Label,
-        badges_box: gtk4::Box,
+        usage_box: gtk4::Box,
         actions: &CardActions,
     ) -> gtk4::Box {
         let card_box = gtk4::Box::builder()
             .orientation(Orientation::Vertical)
-            .spacing(10)
+            .spacing(8)
             .build();
-        card_box.set_vexpand(false);
+        // Fill the (homogeneous) grid cell, so every card of a grid has the same height.
+        card_box.set_vexpand(true);
         card_box.set_hexpand(false);
-        card_box.set_valign(Align::Start);
+        card_box.set_valign(Align::Fill);
         card_box.add_css_class("secret-card");
+        card_box.add_css_class("secret-card-grid");
         card_box.add_css_class("card");
         card_box.add_css_class(data.color_class.as_str());
 
-        // --- HEADER ROW : title ---
+        // --- HEADER ROW : type icon, title (two lines), copy counter ---
         let header_row = gtk4::Box::builder()
             .orientation(Orientation::Horizontal)
-            .spacing(4)
+            .spacing(10)
             .build();
         header_row.add_css_class("secret-card-header");
+        let type_icon = gtk4::Image::from_icon_name(&data.icon_name);
+        type_icon.set_pixel_size(20);
+        type_icon.set_valign(Align::Start);
+        type_icon.set_tooltip_text(Some(&data.type_label));
+        type_icon.add_css_class("secret-card-type-icon");
+        header_row.append(&type_icon);
+        // The title is what users scan for: wrap it rather than cut it after a few letters.
+        title_label.set_single_line_mode(false);
+        title_label.set_wrap(true);
+        title_label.set_wrap_mode(gtk4::pango::WrapMode::WordChar);
+        title_label.set_lines(GRID_TITLE_LINES);
+        title_label.set_width_chars(14);
+        title_label.set_max_width_chars(26);
+        title_label.set_valign(Align::Start);
         title_label.set_hexpand(true);
+        title_label.set_tooltip_text(Some(&data.title));
         header_row.append(&title_label);
+        usage_box.set_valign(Align::Start);
+        usage_box.add_css_class("secret-card-usage");
+        header_row.append(&usage_box);
 
-        // --- INFO BOX : login (line 1) + domain (line 2) ---
+        // --- INFO BOX : login, domain, vault (one line each) ---
         let info_box = gtk4::Box::builder()
             .orientation(Orientation::Vertical)
             .spacing(2)
             .build();
         info_box.add_css_class("secret-card-info-box");
-        if !data.login.is_empty() {
-            info_box.append(&build_info_row(
-                "hv-user-symbolic",
-                &data.login,
-                "secret-card-login",
-                None,
-            ));
+        let lines = [
+            ("hv-user-symbolic", data.login.as_str(), "secret-card-login"),
+            ("hv-globe-symbolic", domain, "secret-card-domain"),
+            // Origin vault, set during a cross-vault search.
+            (
+                "hv-vault-symbolic",
+                data.vault_name.as_str(),
+                "secret-card-vault",
+            ),
+        ];
+        for (icon, text, class) in lines {
+            if !text.is_empty() {
+                info_box.append(&build_info_row(icon, text, class, None));
+            }
         }
-        if !domain.is_empty() {
-            info_box.append(&build_info_row(
-                "hv-globe-symbolic",
-                domain,
-                "secret-card-domain",
-                None,
-            ));
-        }
-        info_box.set_visible(!data.login.is_empty() || !domain.is_empty());
+        info_box.set_visible(info_box.first_child().is_some());
 
-        // --- SEPARATOR ---
         let separator = Separator::new(gtk4::Orientation::Horizontal);
         separator.add_css_class("secret-card-separator");
+        // Pushes the separator and the actions to the bottom of the card.
+        let spacer = gtk4::Box::new(Orientation::Vertical, 0);
+        spacer.set_vexpand(true);
 
         card_box.append(&header_row);
         card_box.append(&info_box);
         if let Some(chips) = Self::build_classification(data, GRID_VISIBLE_TAGS) {
             card_box.append(&chips);
         }
-        card_box.append(&badges_box);
+        if let Some(badges_box) = Self::build_grid_badges(data) {
+            card_box.append(&badges_box);
+        }
+        card_box.append(&spacer);
         card_box.append(&separator);
-        card_box.append(&actions.actions_box);
+        let actions_box = &actions.actions_box;
+        actions_box.set_halign(Align::End);
+        let mut button = actions_box.first_child();
+        while let Some(child) = button {
+            child.set_hexpand(false);
+            button = child.next_sibling();
+        }
+        card_box.append(actions_box);
         card_box
     }
 
@@ -476,100 +512,132 @@ impl SecretCard {
         (badge, label)
     }
 
-    /// Status badges. `compact` (list layout) keeps the copy counter first, so it lines up
-    /// on every row, then only the risk-relevant badges.
-    fn build_badges(data: &SecretRowData, compact: bool) -> (gtk4::Box, Label) {
+    /// One status badge.
+    fn status_label(text: &str, class: &str) -> Label {
+        let badge = Label::new(Some(text));
+        badge.set_single_line_mode(true);
+        badge.add_css_class("secret-badge");
+        badge.add_css_class(class);
+        badge
+    }
+
+    /// Strength verdict and its badge class, `None` for non-password items.
+    fn strength_status(data: &SecretRowData) -> Option<(String, &'static str)> {
+        if !data.is_password {
+            return None;
+        }
+        Some(if !data.has_secret {
+            (
+                heelonvault_core::tr!("security-password-unavailable"),
+                "dim-label",
+            )
+        } else if data.is_weak {
+            (strength_label(true), "badge-weak")
+        } else {
+            (strength_label(false), "badge-strong")
+        })
+    }
+
+    /// Grid status badges, the most at-risk first: weak, duplicate, incomplete, then the
+    /// informative ones.
+    fn grid_statuses(data: &SecretRowData) -> Vec<(String, &'static str)> {
+        let strength = Self::strength_status(data);
+        let (risky_strength, calm_strength) = match strength {
+            Some(status) if status.1 == "badge-weak" => (Some(status), None),
+            other => (None, other),
+        };
+        let mut statuses: Vec<(String, &'static str)> = Vec::new();
+        statuses.extend(risky_strength);
+        if data.is_duplicate {
+            statuses.push((
+                heelonvault_core::tr!("secret-card-duplicate-badge"),
+                "badge-duplicate",
+            ));
+        }
+        if data.is_incomplete {
+            statuses.push((
+                heelonvault_core::tr!("secret-card-incomplete-badge"),
+                "badge-incomplete",
+            ));
+        }
+        statuses.extend(calm_strength);
+        if data.is_shared_vault {
+            statuses.push((
+                heelonvault_core::tr!("secret-card-shared-badge"),
+                "badge-usage",
+            ));
+        }
+        if data.is_health_access {
+            statuses.push((
+                heelonvault_core::tr!("secret-card-health-badge"),
+                "badge-health",
+            ));
+        }
+        statuses
+    }
+
+    /// Grid badge row: `GRID_VISIBLE_BADGES` at most, the others folded into "+N" with
+    /// their names as tooltip, so the row never pushes the card wider.
+    fn build_grid_badges(data: &SecretRowData) -> Option<gtk4::Box> {
+        let statuses = Self::grid_statuses(data);
+        if statuses.is_empty() {
+            return None;
+        }
         let badges_box = gtk4::Box::builder()
             .orientation(Orientation::Horizontal)
             .spacing(6)
             .build();
         badges_box.add_css_class("secret-card-badges");
-        let (usage_box, usage_badge) = Self::build_usage_badge(data.usage_count);
-        if compact {
-            badges_box.append(&usage_box);
+        for (text, class) in statuses.iter().take(GRID_VISIBLE_BADGES) {
+            badges_box.append(&Self::status_label(text, class));
         }
-
-        // Health badge
-        let strength_text = if data.has_secret {
-            strength_label(data.is_weak)
-        } else {
-            heelonvault_core::tr!("security-password-unavailable")
-        };
-        let health_badge = Label::new(Some(&strength_text));
-        health_badge.set_single_line_mode(true);
-        health_badge.add_css_class("secret-badge");
-        health_badge.add_css_class(if !data.has_secret {
-            "dim-label"
-        } else if data.is_weak {
-            "badge-weak"
-        } else {
-            "badge-strong"
-        });
-        if data.is_password {
-            badges_box.append(&health_badge);
+        if statuses.len() > GRID_VISIBLE_BADGES {
+            let hidden: Vec<&str> = statuses[GRID_VISIBLE_BADGES..]
+                .iter()
+                .map(|(text, _)| text.as_str())
+                .collect();
+            let more = Label::new(Some(&heelonvault_core::i18n::tr_args(
+                "secret-card-chip-more",
+                &[(
+                    "count",
+                    heelonvault_core::i18n::I18nArg::Num(hidden.len() as i64),
+                )],
+            )));
+            more.add_css_class("secret-card-chip-more");
+            more.add_css_class("secret-card-badges-more");
+            more.set_tooltip_text(Some(&hidden.join(", ")));
+            badges_box.append(&more);
         }
+        Some(badges_box)
+    }
 
-        if data.is_health_access && !compact {
-            let access_badge = Label::new(Some(
-                heelonvault_core::tr!("secret-card-health-badge").as_str(),
-            ));
-            access_badge.set_single_line_mode(true);
-            access_badge.add_css_class("secret-badge");
-            access_badge.add_css_class("badge-health");
-            badges_box.append(&access_badge);
+    /// List badges: the copy counter first, so it lines up on every row, then only the
+    /// risk-relevant badges.
+    fn build_row_badges(data: &SecretRowData, usage_box: &gtk4::Box) -> gtk4::Box {
+        let badges_box = gtk4::Box::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(6)
+            .build();
+        badges_box.add_css_class("secret-card-badges");
+        badges_box.append(usage_box);
+        if let Some((text, class)) = Self::strength_status(data) {
+            badges_box.append(&Self::status_label(&text, class));
         }
-
-        // Usage badge (grid: after the strength badge)
-        if !compact {
-            badges_box.append(&usage_box);
-        }
-
-        // Duplicate badge
         if data.is_duplicate {
-            let dup_badge = Label::new(Some(
-                heelonvault_core::tr!("secret-card-duplicate-badge").as_str(),
+            badges_box.append(&Self::status_label(
+                &heelonvault_core::tr!("secret-card-duplicate-badge"),
+                "badge-duplicate",
             ));
-            dup_badge.set_single_line_mode(true);
-            dup_badge.add_css_class("secret-badge");
-            dup_badge.add_css_class("badge-duplicate");
-            badges_box.append(&dup_badge);
         }
-
-        // Incomplete badge: guide users to fill both login and URL metadata.
-        if data.is_incomplete && !compact {
-            let incomplete_badge = Label::new(Some(
-                heelonvault_core::tr!("secret-card-incomplete-badge").as_str(),
-            ));
-            incomplete_badge.set_single_line_mode(true);
-            incomplete_badge.add_css_class("secret-badge");
-            incomplete_badge.add_css_class("badge-incomplete");
-            badges_box.append(&incomplete_badge);
-        }
-
-        if data.is_shared_vault && !compact {
-            let shared_badge = Label::new(Some(
-                heelonvault_core::tr!("secret-card-shared-badge").as_str(),
-            ));
-            shared_badge.set_single_line_mode(true);
-            shared_badge.add_css_class("secret-badge");
-            shared_badge.add_css_class("badge-usage");
-            badges_box.append(&shared_badge);
-        }
-
-        // Vault badge: shown during cross-vault search to identify the origin vault
+        // Vault badge: shown during cross-vault search to identify the origin vault. A plain
+        // label (no icon) so it can shrink with the row's only flexible column.
         if !data.vault_name.is_empty() {
-            let vault_badge = Label::new(Some(&format!("🗄 {}", data.vault_name)));
-            vault_badge.set_single_line_mode(true);
+            let vault_badge = Self::status_label(&data.vault_name, "badge-vault");
             vault_badge.set_ellipsize(EllipsizeMode::End);
-            if compact {
-                vault_badge.set_max_width_chars(18);
-            }
-            vault_badge.add_css_class("secret-badge");
-            vault_badge.add_css_class("badge-vault");
+            vault_badge.set_max_width_chars(18);
             badges_box.append(&vault_badge);
         }
-
-        (badges_box, usage_badge)
+        badges_box
     }
 
     /// Quick actions (daily use): [🔑 copy_password] [👤 copy_login?] [🌐 open_url?].
@@ -792,6 +860,68 @@ pub(crate) fn native_card_classification_scenario() -> Result<(), Box<dyn std::e
         assert_eq!(*received.borrow(), expected);
         host.remove(&card.get_widget());
     }
+
+    // Grid card: the copy counter lives in the header, the title wraps on two lines and
+    // only the two most at-risk statuses are shown, the rest folded into "+N".
+    let mut risky = data("", "");
+    risky.title = "A long title that would be cut after a few letters on one line".into();
+    risky.is_weak = true;
+    risky.is_duplicate = true;
+    risky.is_incomplete = true;
+    risky.is_shared_vault = true;
+    let card = SecretCard::new(risky, SecretViewMode::Grid);
+    let widget: gtk4::Widget = card.get_widget().upcast();
+    let mut headers = Vec::new();
+    collect(&widget, "secret-card-header", &mut headers);
+    let header = headers.first().ok_or("missing grid header")?;
+    let mut header_usage = Vec::new();
+    collect(header, "badge-usage", &mut header_usage);
+    assert_eq!(header_usage.len(), 1, "copy counter in the header");
+    let mut titles = Vec::new();
+    collect(header, "secret-card-title", &mut titles);
+    let title = titles
+        .first()
+        .and_then(|widget| widget.clone().downcast::<Label>().ok())
+        .ok_or("missing title")?;
+    assert!(title.wraps());
+    assert_eq!(title.lines(), GRID_TITLE_LINES);
+    assert_eq!(
+        title.tooltip_text().as_deref(),
+        Some(title.text().as_str()),
+        "full title as tooltip"
+    );
+    let mut rows = Vec::new();
+    collect(&widget, "secret-card-badges", &mut rows);
+    let row = rows.first().ok_or("missing badge row")?;
+    let mut statuses = Vec::new();
+    collect(row, "secret-badge", &mut statuses);
+    let texts: Vec<String> = statuses
+        .iter()
+        .filter_map(|widget| widget.clone().downcast::<Label>().ok())
+        .map(|label| label.text().to_string())
+        .collect();
+    assert_eq!(
+        texts,
+        vec![
+            strength_label(true),
+            heelonvault_core::tr!("secret-card-duplicate-badge")
+        ],
+        "most at-risk statuses first"
+    );
+    let mut folded = Vec::new();
+    collect(row, "secret-card-badges-more", &mut folded);
+    let folded = folded.first().ok_or("missing +N status badge")?;
+    assert_eq!(
+        folded.tooltip_text().as_deref(),
+        Some(
+            format!(
+                "{}, {}",
+                heelonvault_core::tr!("secret-card-incomplete-badge"),
+                heelonvault_core::tr!("secret-card-shared-badge")
+            )
+            .as_str()
+        )
+    );
 
     window.set_child(gtk4::Widget::NONE);
     window.destroy();

@@ -223,7 +223,16 @@ pub(crate) fn native_theme_scenario(
     content.append(&editor);
     let root = gtk4::Box::new(Orientation::Vertical, 0);
     root.append(&header);
-    root.append(&content);
+    // Scrolls vertically like the dashboard: at the compact width a grid card title wraps on
+    // two lines, and a non-scrolling toplevel would then be measured shorter than its content.
+    let scroller = gtk4::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk4::PolicyType::Never)
+        .vscrollbar_policy(gtk4::PolicyType::Automatic)
+        .propagate_natural_height(true)
+        .vexpand(true)
+        .child(&content)
+        .build();
+    root.append(&scroller);
     let window = adw::Window::builder()
         .default_width(760)
         .default_height(560)
