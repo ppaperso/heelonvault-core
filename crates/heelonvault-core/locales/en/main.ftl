@@ -183,7 +183,7 @@ auth-error = Authentication error
     .description = The password or TOTP code is invalid. Please try again.
 
 twofa-badge-disabled = Disabled
-twofa-badge-enabled = Enabled 🔒
+twofa-badge-enabled = Enabled
 
 profile-totp-code-empty-error = TOTP code is required to confirm activation.
 profile-totp-code-format-error = TOTP code must contain exactly 6 digits.
@@ -240,9 +240,9 @@ add-edit-target-vault-label = Target vault: { $name }
 add-edit-target-vault-current = Target vault: { $name } (current)
 add-edit-change-vault-button = Change vault
 add-edit-change-vault-title = Change target vault
-add-edit-vaults-label = VAULTS
-add-edit-vault-badge-current = CURRENT
-add-edit-vault-badge-target = TARGET
+add-edit-vaults-label = Vaults
+add-edit-vault-badge-current = Current
+add-edit-vault-badge-target = Target
 add-edit-vaults-empty = No other vault
 
 add-edit-button-back = ← Back
@@ -887,9 +887,9 @@ certification-report-key-missing = Certification key unavailable. Open the trust
 certification-report-error-title = Generation error
 certification-report-error-body = Could not generate the report: { $error }
 certification-report-interrupted = Report generation was interrupted.
-vault-share-role-read = READ
-vault-share-role-write = WRITE
-vault-share-role-admin = ADMIN
+vault-share-role-read = Read
+vault-share-role-write = Write
+vault-share-role-admin = Admin
 
 ## Password strength meter
 password-hint-too-short = Too short — at least 12 characters ({ $count } entered)

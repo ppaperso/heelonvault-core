@@ -27,7 +27,7 @@
         let lifecycle = EditorState::new(&root, &dirty_label);
 
         let header_card = gtk4::Frame::new(None);
-        header_card.add_css_class("login-hero");
+        header_card.add_css_class("add-edit-header");
 
         let header_box = gtk4::Box::builder()
             .orientation(Orientation::Horizontal)
@@ -50,7 +50,7 @@
             "/com/heelonvault/rust/icons/hicolor/128x128/apps/heelonvault.png",
         );
         header_icon.set_pixel_size(42);
-        header_icon.add_css_class("login-hero-icon");
+        header_icon.add_css_class("add-edit-header-icon");
 
         let header_text = gtk4::Box::builder()
             .orientation(Orientation::Vertical)
@@ -66,7 +66,7 @@
         };
         let title = gtk4::Label::new(Some(inline_header_title_text.as_str()));
         title.add_css_class("title-2");
-        title.add_css_class("login-hero-title");
+        title.add_css_class("add-edit-header-title");
         title.set_halign(Align::Start);
 
         let inline_subtitle_text = match mode {
@@ -76,7 +76,7 @@
             DialogMode::Edit(_) => heelonvault_core::tr!("add-edit-header-subtitle-edit"),
         };
         let subtitle = gtk4::Label::new(Some(inline_subtitle_text.as_str()));
-        subtitle.add_css_class("login-hero-copy");
+        subtitle.add_css_class("add-edit-header-copy");
         subtitle.set_halign(Align::Start);
         subtitle.set_wrap(true);
 
@@ -89,7 +89,7 @@
         header_card.set_child(Some(&header_box));
 
         let form_card = gtk4::Frame::new(None);
-        form_card.add_css_class("login-card");
+        form_card.add_css_class("add-edit-form");
         form_card.set_sensitive(false);
 
         let form_box = gtk4::Box::builder()
@@ -119,7 +119,7 @@
         }
 
         let type_label = gtk4::Label::new(Some(heelonvault_core::tr!("add-edit-field-type-label").as_str()));
-        type_label.add_css_class("login-field-label");
+        type_label.add_css_class("field-label");
         type_label.set_halign(Align::Start);
 
         let type_items =
@@ -286,7 +286,7 @@
         lifecycle.on_refresh_i18n(move || url_check.refresh_i18n());
 
         let notes_label = gtk4::Label::new(Some(heelonvault_core::tr!("add-edit-field-notes-label").as_str()));
-        notes_label.add_css_class("login-field-label");
+        notes_label.add_css_class("field-label");
         notes_label.set_halign(Align::Start);
 
         let notes_scrolled = gtk4::ScrolledWindow::builder()
@@ -310,7 +310,7 @@
 
         let validity_label =
             gtk4::Label::new(Some(heelonvault_core::tr!("add-edit-field-validity-label").as_str()));
-        validity_label.add_css_class("login-field-label");
+        validity_label.add_css_class("field-label");
         validity_label.set_halign(Align::Start);
 
         let validity_box = gtk4::Box::builder()
@@ -338,7 +338,7 @@
         });
 
         let error_label = gtk4::Label::new(None);
-        error_label.add_css_class("login-error");
+        error_label.add_css_class("form-error");
         error_label.set_halign(Align::Start);
         error_label.set_wrap(true);
 
@@ -351,7 +351,7 @@
             Rc::new(std::cell::RefCell::new(Vec::new()));
 
         let vaults_label = gtk4::Label::new(Some(heelonvault_core::tr!("add-edit-vaults-label").as_str()));
-        vaults_label.add_css_class("login-field-label");
+        vaults_label.add_css_class("field-label");
         vaults_label.add_css_class("add-edit-vaults-label");
         vaults_label.set_halign(Align::Start);
         vaults_label.set_visible(false);

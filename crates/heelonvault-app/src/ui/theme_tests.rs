@@ -229,7 +229,7 @@ pub(crate) fn native_theme_scenario(
     let editor = gtk4::Box::new(Orientation::Vertical, 8);
     editor.add_css_class("add-edit-dialog");
     let hero = gtk4::Box::new(Orientation::Horizontal, 8);
-    hero.add_css_class("login-hero");
+    hero.add_css_class("add-edit-header");
     let back = gtk4::Button::with_label("Retour");
     back.add_css_class("flat");
     back.add_css_class("add-edit-back-btn");
@@ -285,7 +285,7 @@ pub(crate) fn native_theme_scenario(
         settle();
         // Least favorable background in each button's enabled state range.
         assert_text_contrast(&profile_button, "#D6F1E9")?;
-        assert_text_contrast(&back, "#2C7573")?;
+        assert_text_contrast(&back, "#FAFAFB")?;
         assert_text_contrast(&delete, "#C01C28")?;
         for widget in [
             profile_button.upcast_ref::<gtk4::Widget>(),
