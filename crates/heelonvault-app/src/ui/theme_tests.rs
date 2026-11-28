@@ -7,7 +7,7 @@ use libadwaita as adw;
 
 use super::widgets::secret_card::{SecretCard, SecretRowData, SecretViewMode};
 
-fn settle() {
+pub(crate) fn settle() {
     let context = glib::MainContext::default();
     let until = Instant::now() + Duration::from_millis(200);
     while Instant::now() < until {
@@ -55,7 +55,7 @@ fn assert_contrast(
     Ok(())
 }
 
-fn assert_text_contrast(
+pub(crate) fn assert_text_contrast(
     widget: &impl IsA<gtk4::Widget>,
     background: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -71,12 +71,33 @@ fn assert_text_contrast(
     Ok(())
 }
 
+/// Same check restricted to what is drawn: libadwaita rows keep hidden internals (the
+/// entry-row apply button, white on accent) that are never shown on the row background.
+pub(crate) fn assert_mapped_text_contrast(
+    widget: &impl IsA<gtk4::Widget>,
+    background: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let widget = widget.as_ref();
+    if !widget.is_mapped() {
+        return Ok(());
+    }
+    if widget.is::<gtk4::Label>() || widget.is::<gtk4::Image>() {
+        assert_contrast(widget, background)?;
+    }
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        assert_mapped_text_contrast(&current, background)?;
+        child = current.next_sibling();
+    }
+    Ok(())
+}
+
 fn snapshot(window: &adw::Window, name: &str) -> Result<(), Box<dyn std::error::Error>> {
     snapshot_widget(window, window, name)
 }
 
-fn snapshot_widget(
-    window: &adw::Window,
+pub(crate) fn snapshot_widget(
+    window: &impl IsA<gtk4::Window>,
     widget: &impl IsA<gtk4::Widget>,
     name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -91,7 +112,10 @@ fn snapshot_widget(
             f64::from(widget.height()),
         );
         let node = snapshot.to_node().ok_or("empty interaction snapshot")?;
-        let surface = window.surface().ok_or("missing interaction surface")?;
+        let surface = window
+            .as_ref()
+            .surface()
+            .ok_or("missing interaction surface")?;
         let renderer =
             gtk4::gsk::Renderer::for_surface(&surface).ok_or("missing interaction renderer")?;
         renderer

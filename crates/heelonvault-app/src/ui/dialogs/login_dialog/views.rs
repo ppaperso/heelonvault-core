@@ -1,9 +1,8 @@
-use gtk4::prelude::*;
 use gtk4::{
-    Align, InputPurpose, Justification, Orientation, PolicyType, Separator, Stack,
-    StackTransitionType,
+    Align, InputPurpose, Justification, Orientation, PolicyType, Stack, StackTransitionType,
 };
 use libadwaita as adw;
+use libadwaita::prelude::*;
 
 use crate::ui::license_badge::LicenseDisplay;
 use crate::ui::widgets::password_strength_bar::PasswordStrengthBar;
@@ -15,20 +14,24 @@ pub struct LoginDialogWidgets {
     // Container principal
     pub container: gtk4::ScrolledWindow,
 
+    // Barre de titre plate : langue à gauche, nom du produit, fermeture native à droite
+    pub header_bar: adw::HeaderBar,
+    pub language_button: gtk4::MenuButton,
+    pub language_popover: gtk4::Popover,
+    pub language_fr_button: gtk4::ToggleButton,
+    pub language_en_button: gtk4::ToggleButton,
+
     // Shell et root
     pub shell: gtk4::Box,
     pub root: gtk4::Box,
 
-    // Section Hero
-    pub hero_frame: gtk4::Frame,
-    pub hero_box: gtk4::Box,
-    pub hero_top: gtk4::Box,
-    pub hero_icon: gtk4::Image,
-    pub eyebrow_label: gtk4::Label,
-    pub top_plan_badge: gtk4::Label,
+    // En-tête (style « status page »)
+    pub header_box: gtk4::Box,
+    pub brand_icon: gtk4::Image,
     pub title_label: gtk4::Label,
     pub subtitle_label: gtk4::Label,
-    pub badges_box: gtk4::Box,
+    pub meta_box: gtk4::Box,
+    pub version_label: gtk4::Label,
     #[cfg(feature = "premium")]
     pub license_seal: gtk4::Box,
     /// "Certifié par Heelonys" caption of the seal (empty label in Community).
@@ -37,31 +40,20 @@ pub struct LoginDialogWidgets {
     pub license_badge: gtk4::Label,
     pub license: LicenseDisplay,
 
-    // Section Formulaire
-    pub form_card: gtk4::Frame,
+    // Formulaire
     pub form_box: gtk4::Box,
 
-    // Sélecteur de langue
-    pub language_row: gtk4::Box,
-    pub language_label: gtk4::Label,
-    pub language_buttons: gtk4::Box,
-    pub language_fr_button: gtk4::ToggleButton,
-    pub language_en_button: gtk4::ToggleButton,
-
-    // Teaser CPS
-    pub cps_frame: gtk4::Frame,
-    pub cps_box: gtk4::Box,
+    // Teaser CPS (ligne atténuée + badge « À venir »)
+    pub cps_row: gtk4::Box,
     pub cps_image: gtk4::Image,
-    pub cps_info: gtk4::Box,
     pub cps_name: gtk4::Label,
     pub cps_sub: gtk4::Label,
     pub cps_badge: gtk4::Label,
 
     // Champs de connexion
-    pub username_label: gtk4::Label,
-    pub username_entry: gtk4::Entry,
-    pub password_label: gtk4::Label,
-    pub password_entry: gtk4::PasswordEntry,
+    pub credentials_list: gtk4::ListBox,
+    pub username_entry: adw::EntryRow,
+    pub password_entry: adw::PasswordEntryRow,
     pub strength_label: gtk4::Label,
 
     // Bouton de restauration
@@ -76,17 +68,14 @@ pub struct LoginDialogWidgets {
     pub psc_complete_button: gtk4::Button,
 
     // Boxes pour les étapes
-    pub credentials_box: gtk4::Box,
     pub credentials_step_box: gtk4::Box,
     pub totp_step_box: gtk4::Box,
 
     // Widgets TOTP
     pub totp_back_button: gtk4::Button,
-    pub totp_spacer: Separator,
     pub totp_icon: gtk4::Image,
     pub totp_title: gtk4::Label,
     pub totp_subtitle: gtk4::Label,
-    pub totp_entry_wrap: gtk4::Box,
     pub totp_entry: gtk4::Entry,
 
     // Stack pour les étapes
@@ -95,18 +84,14 @@ pub struct LoginDialogWidgets {
     // Message d'erreur
     pub error_label: gtk4::Label,
 
-    // Boutons
+    // Boutons : action principale puis liens secondaires
     pub button_box: gtk4::Box,
+    pub links_box: gtk4::Box,
     pub back_button: gtk4::Button,
     pub submit_button: gtk4::Button,
     pub button_content: gtk4::Box,
     pub submit_spinner: gtk4::Spinner,
     pub button_label: gtk4::Label,
-
-    // Strip de sécurité
-    pub sec_strip: gtk4::Box,
-    pub sec_dot: gtk4::Label,
-    pub sec_text: gtk4::Label,
 
     // Clamp
     pub clamp: adw::Clamp,
@@ -114,14 +99,12 @@ pub struct LoginDialogWidgets {
     // Widgets Bootstrap - Identity
     pub init_identity_box: gtk4::Box,
     pub init_step_label_1: gtk4::Label,
-    pub init_sep_1: Separator,
-    pub init_username_label: gtk4::Label,
-    pub init_username_entry: gtk4::Entry,
-    pub init_password_label: gtk4::Label,
-    pub init_password_entry: gtk4::PasswordEntry,
+    pub init_identity_list: gtk4::ListBox,
+    pub init_username_entry: adw::EntryRow,
+    pub init_password_entry: adw::PasswordEntryRow,
+    pub init_confirm_entry: adw::PasswordEntryRow,
     pub init_strength_bar: PasswordStrengthBar,
-    pub init_confirm_label: gtk4::Label,
-    pub init_confirm_entry: gtk4::PasswordEntry,
+    pub init_password_hint: gtk4::Label,
 
     // Widgets Bootstrap - Oath
     pub init_oath_box: gtk4::Box,
@@ -148,10 +131,48 @@ pub struct LoginDialogWidgets {
     pub init_pending_label: gtk4::Label,
 }
 
+/// Libellé du sélecteur de langue : la langue active, dans sa propre langue.
+fn current_language_name() -> String {
+    if heelonvault_core::i18n::current_language()
+        .to_ascii_lowercase()
+        .starts_with("en")
+    {
+        heelonvault_core::tr!("login-language-en")
+    } else {
+        heelonvault_core::tr!("login-language-fr")
+    }
+}
+
+/// Champ de formulaire libadwaita précédé d'une icône neutre.
+fn entry_row(title: &str, icon_name: &str) -> adw::EntryRow {
+    let row = adw::EntryRow::builder().title(title).build();
+    let icon = gtk4::Image::from_icon_name(icon_name);
+    icon.add_css_class("login-row-icon");
+    row.add_prefix(&icon);
+    row
+}
+
+fn password_row(title: &str) -> adw::PasswordEntryRow {
+    let row = adw::PasswordEntryRow::builder().title(title).build();
+    let icon = gtk4::Image::from_icon_name("hv-lock-symbolic");
+    icon.add_css_class("login-row-icon");
+    row.add_prefix(&icon);
+    row
+}
+
+fn boxed_list() -> gtk4::ListBox {
+    let list = gtk4::ListBox::builder()
+        .selection_mode(gtk4::SelectionMode::None)
+        .build();
+    list.add_css_class("boxed-list");
+    list.add_css_class("login-boxed-list");
+    list
+}
+
 /// Construit l'interface utilisateur complète de la dialogue de connexion.
 ///
 /// Cette fonction crée tous les widgets nécessaires pour l'interface de connexion,
-/// y compris la section hero, le formulaire de connexion, les sections TOTP et bootstrap.
+/// y compris l'en-tête, le formulaire de connexion, les sections TOTP et bootstrap.
 ///
 /// # Arguments
 /// * `license` - Licence affichée (badge Community ou sceau Professionnel)
@@ -160,94 +181,122 @@ pub struct LoginDialogWidgets {
 /// # Returns
 /// Une structure `LoginDialogWidgets` contenant tous les widgets créés.
 pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> LoginDialogWidgets {
+    // ─── Barre de titre ──────────────────────────────────────────────────────────
+    let header_bar = adw::HeaderBar::new();
+    header_bar.add_css_class("flat");
+    header_bar.add_css_class("login-headerbar");
+    // Product name, not translated (same as the window icon caption).
+    let header_title = gtk4::Label::new(Some("HeelonVault"));
+    header_title.add_css_class("heading");
+    header_bar.set_title_widget(Some(&header_title));
+
+    let language_fr_button =
+        gtk4::ToggleButton::with_label(heelonvault_core::tr!("login-language-fr").as_str());
+    language_fr_button.add_css_class("flat");
+    language_fr_button.add_css_class("login-language-choice");
+    let language_en_button =
+        gtk4::ToggleButton::with_label(heelonvault_core::tr!("login-language-en").as_str());
+    language_en_button.add_css_class("flat");
+    language_en_button.add_css_class("login-language-choice");
+    language_en_button.set_group(Some(&language_fr_button));
+
+    // Définir la langue active initiale
+    let current_lang = heelonvault_core::i18n::current_language();
+    if current_lang.to_ascii_lowercase().starts_with("en") {
+        language_en_button.set_active(true);
+    } else {
+        language_fr_button.set_active(true);
+    }
+
+    let language_choices = gtk4::Box::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(2)
+        .build();
+    language_choices.append(&language_fr_button);
+    language_choices.append(&language_en_button);
+    let language_popover = gtk4::Popover::new();
+    language_popover.set_child(Some(&language_choices));
+
+    let language_button = gtk4::MenuButton::builder()
+        .label(current_language_name().as_str())
+        .tooltip_text(heelonvault_core::tr!("login-language-label").as_str())
+        .popover(&language_popover)
+        .build();
+    language_button.add_css_class("flat");
+    language_button.add_css_class("login-language-button");
+    header_bar.pack_start(&language_button);
+
     // ─── Section Shell ────────────────────────────────────────────────────────────
     let shell = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .margin_top(24)
-        .margin_bottom(24)
-        .margin_start(24)
-        .margin_end(24)
+        .margin_top(12)
+        .margin_bottom(32)
+        .margin_start(16)
+        .margin_end(16)
         .build();
     shell.add_css_class("login-shell");
     shell.set_vexpand(true);
 
     let root = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(20)
+        .spacing(24)
         .halign(Align::Fill)
         .valign(if in_bootstrap_mode {
             Align::Start
         } else {
             Align::Center
         })
+        .vexpand(true)
         .build();
     root.add_css_class("login-panel");
 
-    // ─── Section Hero ────────────────────────────────────────────────────────────
-    let hero_frame = gtk4::Frame::new(None);
-    hero_frame.add_css_class("login-hero");
-
-    let hero_box = gtk4::Box::builder()
+    // ─── En-tête ─────────────────────────────────────────────────────────────────
+    let header_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(10)
-        .margin_top(24)
-        .margin_bottom(28)
-        .margin_start(24)
-        .margin_end(24)
+        .spacing(8)
+        .halign(Align::Fill)
         .build();
+    header_box.add_css_class("login-header");
 
-    let hero_top = gtk4::Box::builder()
-        .orientation(Orientation::Horizontal)
-        .spacing(12)
-        .valign(Align::Center)
-        .build();
-
-    let hero_icon = gtk4::Image::from_resource(
+    let brand_icon = gtk4::Image::from_resource(
         "/com/heelonvault/rust/icons/hicolor/128x128/apps/heelonvault.png",
     );
-    hero_icon.set_pixel_size(44);
-    hero_icon.set_halign(Align::Center);
-    hero_icon.set_valign(Align::Center);
-    hero_icon.add_css_class("login-hero-icon");
-
-    let eyebrow_label = gtk4::Label::new(Some("HeelonVault"));
-    eyebrow_label.add_css_class("login-badge");
-    eyebrow_label.set_halign(Align::Start);
-
-    let top_plan_badge = gtk4::Label::new(Some(&format!("v{}", env!("CARGO_PKG_VERSION"))));
-    top_plan_badge.add_css_class("beta-badge");
-    top_plan_badge.add_css_class("login-beta-badge");
-    top_plan_badge.set_halign(Align::Start);
+    brand_icon.set_pixel_size(if in_bootstrap_mode { 64 } else { 88 });
+    brand_icon.set_halign(Align::Center);
+    brand_icon.set_margin_bottom(8);
+    brand_icon.add_css_class("login-brand-icon");
 
     let title_label = gtk4::Label::new(Some(heelonvault_core::tr!("login-hero-title").as_str()));
     title_label.add_css_class("title-1");
-    title_label.add_css_class("login-hero-title");
-    title_label.set_halign(Align::Start);
+    title_label.add_css_class("login-title");
+    title_label.set_wrap(true);
+    title_label.set_justify(Justification::Center);
+    title_label.set_halign(Align::Center);
 
     let subtitle_label =
         gtk4::Label::new(Some(heelonvault_core::tr!("login-hero-subtitle").as_str()));
-    subtitle_label.add_css_class("login-hero-copy");
+    subtitle_label.add_css_class("login-subtitle");
     subtitle_label.set_wrap(true);
-    subtitle_label.set_halign(Align::Start);
+    subtitle_label.set_justify(Justification::Center);
+    subtitle_label.set_halign(Align::Center);
 
-    // Mode bootstrap: adapter les textes du hero
+    // Mode bootstrap: adapter les textes de l'en-tête
     if in_bootstrap_mode {
         title_label.set_text(heelonvault_core::tr!("init-hero-title").as_str());
         subtitle_label.set_text(heelonvault_core::tr!("init-hero-subtitle").as_str());
     }
 
-    let badges_box = gtk4::Box::builder()
+    // Licence et version : une ligne discrète sous le sous-titre.
+    let meta_box = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
-        .spacing(6)
-        .halign(Align::Start)
+        .spacing(8)
+        .halign(Align::Center)
+        .margin_top(4)
         .build();
 
-    // Badges de fonctionnalités
-    for text in ["AES-256-GCM".to_string(), "2FA TOTP".to_string()] {
-        let badge = gtk4::Label::new(Some(text.as_str()));
-        badge.add_css_class("login-hero-badge");
-        badges_box.append(&badge);
-    }
+    let version_label = gtk4::Label::new(Some(&format!("v{}", env!("CARGO_PKG_VERSION"))));
+    version_label.add_css_class("login-version");
+    version_label.set_valign(Align::Center);
 
     // License seal (Premium) ou badge simple
     #[cfg(feature = "premium")]
@@ -276,7 +325,7 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
             icon_box.append(&shield_icon);
             icon_box.append(&check_dot);
 
-            let divider = Separator::new(Orientation::Vertical);
+            let divider = gtk4::Separator::new(Orientation::Vertical);
             divider.add_css_class("heelonys-seal-divider");
 
             let text_box = gtk4::Box::builder()
@@ -299,16 +348,16 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
             seal.append(&icon_box);
             seal.append(&divider);
             seal.append(&text_box);
-            badges_box.append(&seal);
+            meta_box.append(&seal);
 
             // Retourner un dummy license_badge pour satisfaire la structure
             let dummy_badge = gtk4::Label::new(None);
             (seal, cert_label, dummy_badge)
         } else {
             let lb = gtk4::Label::new(Some(license.badge_text().as_str()));
-            lb.add_css_class("login-hero-badge");
             lb.add_css_class("login-license-badge");
-            badges_box.append(&lb);
+            lb.set_valign(Align::Center);
+            meta_box.append(&lb);
             // Retourner un dummy license_seal
             let dummy_seal = gtk4::Box::builder().build();
             (dummy_seal, gtk4::Label::new(None), lb)
@@ -317,96 +366,38 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     #[cfg(not(feature = "premium"))]
     let license_badge = {
         let lb = gtk4::Label::new(Some(license.badge_text().as_str()));
-        lb.add_css_class("login-hero-badge");
         lb.add_css_class("login-license-badge");
-        badges_box.append(&lb);
+        lb.set_valign(Align::Center);
+        meta_box.append(&lb);
         lb
     };
 
-    // Assemblage de la section hero
-    hero_top.append(&hero_icon);
-    hero_top.append(&eyebrow_label);
-    hero_top.append(&top_plan_badge);
-    hero_box.append(&hero_top);
-    hero_box.append(&title_label);
-    hero_box.append(&subtitle_label);
-    hero_box.append(&badges_box);
-    hero_frame.set_child(Some(&hero_box));
+    meta_box.append(&version_label);
+
+    header_box.append(&brand_icon);
+    header_box.append(&title_label);
+    header_box.append(&subtitle_label);
+    header_box.append(&meta_box);
 
     // ─── Section Formulaire ───────────────────────────────────────────────────────
-    let form_card = gtk4::Frame::new(None);
-    form_card.add_css_class("login-card");
-
     let form_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(14)
-        .margin_top(20)
-        .margin_bottom(20)
-        .margin_start(20)
-        .margin_end(20)
+        .spacing(18)
         .build();
+    form_box.add_css_class("login-form");
 
-    // Sélecteur de langue
-    let language_row = gtk4::Box::builder()
+    // Teaser CPS : ligne atténuée, non interactive
+    let cps_row = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
-        .spacing(10)
-        .halign(Align::Fill)
+        .spacing(12)
         .build();
-
-    let language_label =
-        gtk4::Label::new(Some(heelonvault_core::tr!("login-language-label").as_str()));
-    language_label.add_css_class("login-field-label");
-    language_label.set_halign(Align::Start);
-    language_label.set_hexpand(true);
-
-    let language_buttons = gtk4::Box::builder()
-        .orientation(Orientation::Horizontal)
-        .spacing(6)
-        .halign(Align::End)
-        .build();
-
-    let language_fr_button = gtk4::ToggleButton::with_label("🇫🇷");
-    language_fr_button.add_css_class("login-lang-flag");
-    language_fr_button.set_tooltip_text(Some(heelonvault_core::tr!("login-language-fr").as_str()));
-
-    let language_en_button = gtk4::ToggleButton::with_label("🇬🇧");
-    language_en_button.add_css_class("login-lang-flag");
-    language_en_button.set_tooltip_text(Some(heelonvault_core::tr!("login-language-en").as_str()));
-    language_en_button.set_group(Some(&language_fr_button));
-
-    language_buttons.append(&language_fr_button);
-    language_buttons.append(&language_en_button);
-
-    // Définir la langue active initiale
-    let current_lang = heelonvault_core::i18n::current_language();
-    if current_lang.to_ascii_lowercase().starts_with("en") {
-        language_en_button.set_active(true);
-    } else {
-        language_fr_button.set_active(true);
-    }
-
-    language_row.append(&language_label);
-    language_row.append(&language_buttons);
-
-    // Teaser CPS
-    let cps_frame = gtk4::Frame::new(None);
-    cps_frame.add_css_class("login-cps-teaser");
-    cps_frame.set_sensitive(false);
-
-    let cps_box = gtk4::Box::builder()
-        .orientation(Orientation::Horizontal)
-        .spacing(10)
-        .margin_top(10)
-        .margin_bottom(10)
-        .margin_start(12)
-        .margin_end(12)
-        .build();
+    cps_row.add_css_class("login-cps-row");
+    cps_row.set_sensitive(false);
 
     let cps_image = gtk4::Image::from_resource("/com/heelonvault/rust/images/cps_card.png");
     cps_image.add_css_class("login-cps-image");
-    cps_image.set_pixel_size(40);
-    cps_image.set_size_request(64, 40);
-    cps_image.set_halign(Align::Center);
+    cps_image.set_pixel_size(32);
+    cps_image.set_size_request(48, 32);
     cps_image.set_valign(Align::Center);
 
     let cps_info = gtk4::Box::builder()
@@ -425,43 +416,26 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
 
     let cps_badge = gtk4::Label::new(Some(heelonvault_core::tr!("login-cps-badge").as_str()));
     cps_badge.add_css_class("login-cps-badge");
-    cps_badge.set_halign(Align::End);
     cps_badge.set_valign(Align::Center);
 
     cps_info.append(&cps_name);
     cps_info.append(&cps_sub);
-    cps_box.append(&cps_image);
-    cps_box.append(&cps_info);
-    cps_box.append(&cps_badge);
-    cps_frame.set_child(Some(&cps_box));
+    cps_row.append(&cps_image);
+    cps_row.append(&cps_info);
+    cps_row.append(&cps_badge);
 
-    // Champs de connexion
-    let username_label =
-        gtk4::Label::new(Some(heelonvault_core::tr!("login-username-label").as_str()));
-    username_label.add_css_class("login-field-label");
-    username_label.add_css_class("login-field-label-caps");
-    username_label.set_halign(Align::Start);
+    // Champs de connexion : une liste encadrée libadwaita
+    let username_entry = entry_row(
+        heelonvault_core::tr!("login-username-label").as_str(),
+        "hv-user-symbolic",
+    );
+    username_entry.set_tooltip_text(Some(heelonvault_core::tr!("login-username-hint").as_str()));
 
-    let username_entry = gtk4::Entry::builder()
-        .placeholder_text(heelonvault_core::tr!("login-username-placeholder").as_str())
-        .hexpand(true)
-        .build();
-    username_entry.add_css_class("login-entry");
-    username_entry.set_activates_default(true);
+    let password_entry = password_row(heelonvault_core::tr!("login-password-label").as_str());
 
-    let password_label =
-        gtk4::Label::new(Some(heelonvault_core::tr!("login-password-label").as_str()));
-    password_label.add_css_class("login-field-label");
-    password_label.add_css_class("login-field-label-caps");
-    password_label.set_halign(Align::Start);
-
-    let password_entry = gtk4::PasswordEntry::builder()
-        .placeholder_text(heelonvault_core::tr!("login-password-placeholder").as_str())
-        .hexpand(true)
-        .show_peek_icon(true)
-        .build();
-    password_entry.add_css_class("login-entry");
-    password_entry.set_activates_default(true);
+    let credentials_list = boxed_list();
+    credentials_list.append(&username_entry);
+    credentials_list.append(&password_entry);
 
     let strength_label = gtk4::Label::new(None);
     strength_label.add_css_class("login-strength");
@@ -471,7 +445,7 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     let restore_button =
         gtk4::Button::with_label(heelonvault_core::tr!("login-restore-button").as_str());
     restore_button.add_css_class("flat");
-    restore_button.set_halign(Align::End);
+    restore_button.add_css_class("login-link-accent");
 
     // Widgets PSC (Premium uniquement)
     #[cfg(feature = "premium")]
@@ -488,10 +462,6 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
         .placeholder_text(heelonvault_core::tr!("psc-artifact-placeholder").as_str())
         .hexpand(true)
         .build();
-    #[cfg(feature = "premium")]
-    {
-        psc_artifact_entry.add_css_class("login-entry");
-    }
 
     #[cfg(feature = "premium")]
     let psc_complete_button =
@@ -502,20 +472,9 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     }
 
     // STEP 1: Credentials form
-    let credentials_box = gtk4::Box::builder()
-        .orientation(Orientation::Vertical)
-        .spacing(14)
-        .build();
-
-    credentials_box.append(&username_label);
-    credentials_box.append(&username_entry);
-    credentials_box.append(&password_label);
-    credentials_box.append(&password_entry);
-    credentials_box.append(&strength_label);
-
     let credentials_step_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(14)
+        .spacing(12)
         .build();
 
     // PSC (Pro Santé Connect) désactivé côté UI : ni HEELONVAULT_PSC_CLIENT_ID/SECRET
@@ -530,28 +489,25 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     #[cfg(feature = "premium")]
     {
         let _ = (
-            &cps_frame,
+            &cps_row,
             &psc_start_button,
             &psc_artifact_entry,
             &psc_complete_button,
         );
-        cps_frame.set_visible(false);
+        cps_row.set_visible(false);
     }
     #[cfg(not(feature = "premium"))]
     {
-        cps_frame.set_visible(false);
+        cps_row.set_visible(false);
     }
 
-    credentials_step_box.append(&credentials_box);
-    // Le bouton de restauration n'est visible qu'en mode login normal (pas bootstrap)
-    if !in_bootstrap_mode {
-        credentials_step_box.append(&restore_button);
-    }
+    credentials_step_box.append(&credentials_list);
+    credentials_step_box.append(&strength_label);
 
     // STEP 2: TOTP view
     let totp_step_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(8)
+        .spacing(10)
         .build();
     totp_step_box.add_css_class("login-totp-block");
 
@@ -560,54 +516,44 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     totp_back_button.add_css_class("flat");
     totp_back_button.set_halign(Align::Start);
 
-    let totp_spacer = Separator::new(Orientation::Horizontal);
-    totp_spacer.set_margin_top(8);
-    totp_spacer.set_margin_bottom(8);
-
-    let totp_icon = gtk4::Image::from_icon_name("auth-2fa-symbolic");
-    totp_icon.set_pixel_size(48);
+    let totp_icon = gtk4::Image::from_icon_name("hv-shield-symbolic");
+    totp_icon.set_pixel_size(40);
     totp_icon.set_halign(Align::Center);
     totp_icon.add_css_class("login-totp-icon");
 
     let totp_title = gtk4::Label::new(Some(heelonvault_core::tr!("login-totp-title").as_str()));
-    totp_title.add_css_class("login-field-label");
+    totp_title.add_css_class("title-3");
     totp_title.set_halign(Align::Center);
 
     let totp_subtitle =
         gtk4::Label::new(Some(heelonvault_core::tr!("login-totp-subtitle").as_str()));
-    totp_subtitle.add_css_class("login-support-copy");
+    totp_subtitle.add_css_class("login-subtitle");
     totp_subtitle.set_wrap(true);
     totp_subtitle.set_justify(Justification::Center);
     totp_subtitle.set_halign(Align::Fill);
-
-    let totp_entry_wrap = gtk4::Box::builder()
-        .orientation(Orientation::Vertical)
-        .spacing(0)
-        .halign(Align::Center)
-        .build();
 
     let totp_entry = gtk4::Entry::builder()
         .placeholder_text("000000")
         .max_length(6)
         .input_purpose(InputPurpose::Digits)
         .build();
-    totp_entry.add_css_class("login-entry");
     totp_entry.add_css_class("login-totp-entry");
     totp_entry.set_halign(Align::Center);
     totp_entry.set_width_chars(8);
+    totp_entry.set_margin_top(6);
     gtk4::prelude::EntryExt::set_alignment(&totp_entry, 0.5);
-    totp_entry_wrap.append(&totp_entry);
 
     totp_step_box.append(&totp_back_button);
-    totp_step_box.append(&totp_spacer);
     totp_step_box.append(&totp_icon);
     totp_step_box.append(&totp_title);
     totp_step_box.append(&totp_subtitle);
-    totp_step_box.append(&totp_entry_wrap);
+    totp_step_box.append(&totp_entry);
 
     // Stack pour basculer entre les étapes
     let step_stack = Stack::builder()
-        .transition_type(StackTransitionType::SlideLeft)
+        .transition_type(StackTransitionType::Crossfade)
+        .vhomogeneous(false)
+        .interpolate_size(true)
         .build();
 
     step_stack.add_named(&credentials_step_box, Some("credentials"));
@@ -618,24 +564,23 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     let error_label = gtk4::Label::new(None);
     error_label.add_css_class("login-error");
     error_label.set_wrap(true);
-    error_label.set_halign(Align::Start);
+    error_label.set_justify(Justification::Center);
+    error_label.set_halign(Align::Center);
     error_label.set_visible(false);
 
-    // Boutons
+    // Boutons : l'action principale en pilule, puis des liens plats
     let button_box = gtk4::Box::builder()
-        .orientation(Orientation::Horizontal)
+        .orientation(Orientation::Vertical)
         .spacing(10)
         .build();
 
-    let back_button = gtk4::Button::with_label(heelonvault_core::tr!("login-back-button").as_str());
-    back_button.add_css_class("secondary-pill");
-    back_button.set_hexpand(false);
-
     let submit_button = gtk4::Button::builder()
-        .hexpand(true)
-        .halign(Align::Fill)
+        .halign(Align::Center)
+        .width_request(220)
         .build();
-    submit_button.add_css_class("primary-pill");
+    submit_button.add_css_class("suggested-action");
+    submit_button.add_css_class("pill");
+    submit_button.add_css_class("login-submit");
 
     // Mode bootstrap: bouton désactivé au début (sera activé quand les champs sont valides)
     if in_bootstrap_mode {
@@ -652,7 +597,6 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     submit_spinner.set_visible(false);
 
     let button_label = gtk4::Label::new(Some(heelonvault_core::tr!("login-button").as_str()));
-    button_label.add_css_class("heading");
 
     // Mode bootstrap: adapter le texte du bouton
     if in_bootstrap_mode {
@@ -662,110 +606,87 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     button_content.append(&submit_spinner);
     button_content.append(&button_label);
     submit_button.set_child(Some(&button_content));
-    button_box.append(&back_button);
-    button_box.append(&submit_button);
 
-    // Strip de sécurité
-    let sec_strip = gtk4::Box::builder()
+    let back_button = gtk4::Button::with_label(heelonvault_core::tr!("login-back-button").as_str());
+    back_button.add_css_class("flat");
+    back_button.add_css_class("login-link");
+
+    let links_box = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
-        .spacing(6)
+        .spacing(4)
         .halign(Align::Center)
-        .margin_top(4)
         .build();
+    // Le bouton de restauration n'est proposé qu'à la saisie des identifiants (pas en
+    // bootstrap, pas pendant l'étape TOTP).
+    if !in_bootstrap_mode {
+        links_box.append(&restore_button);
+        let restore_for_step = restore_button.clone();
+        step_stack.connect_visible_child_name_notify(move |stack| {
+            restore_for_step.set_visible(
+                stack
+                    .visible_child_name()
+                    .is_some_and(|n| n == "credentials"),
+            );
+        });
+    }
+    links_box.append(&back_button);
 
-    let sec_dot = gtk4::Label::new(Some("·"));
-    sec_dot.add_css_class("login-sec-dot");
-
-    let sec_text = gtk4::Label::new(Some(heelonvault_core::tr!("login-security-note").as_str()));
-    sec_text.add_css_class("login-support-copy");
-    sec_text.set_halign(Align::Center);
-
-    sec_strip.append(&sec_dot);
-    sec_strip.append(&sec_text);
+    button_box.append(&submit_button);
+    button_box.append(&links_box);
 
     // Assemblage du form_box
     form_box.append(&step_stack);
     form_box.append(&error_label);
     form_box.append(&button_box);
-    form_box.append(&sec_strip);
-    form_box.prepend(&language_row);
-
-    form_card.set_child(Some(&form_box));
+    form_box.append(&cps_row);
 
     // ─── Bootstrap Widgets - Identity Step ────────────────────────────────────────
     let init_identity_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(14)
+        .spacing(10)
         .build();
 
     let init_step_label_1 = gtk4::Label::new(Some(
         heelonvault_core::tr!("init-step-label-identity").as_str(),
     ));
-    init_step_label_1.add_css_class("dim-label");
-    init_step_label_1.set_halign(Align::End);
+    init_step_label_1.add_css_class("login-step-label");
+    init_step_label_1.set_halign(Align::Start);
 
-    let init_sep_1 = Separator::new(Orientation::Horizontal);
+    let init_username_entry = entry_row(
+        heelonvault_core::tr!("init-username-label").as_str(),
+        "hv-user-symbolic",
+    );
+    let init_password_entry = password_row(heelonvault_core::tr!("init-password-label").as_str());
+    let init_confirm_entry = password_row(heelonvault_core::tr!("init-confirm-label").as_str());
 
-    let init_username_label =
-        gtk4::Label::new(Some(heelonvault_core::tr!("init-username-label").as_str()));
-    init_username_label.add_css_class("login-field-label");
-    init_username_label.add_css_class("login-field-label-caps");
-    init_username_label.set_halign(Align::Start);
-
-    let init_username_entry = gtk4::Entry::builder()
-        .placeholder_text(heelonvault_core::tr!("init-username-placeholder").as_str())
-        .hexpand(true)
-        .build();
-    init_username_entry.add_css_class("login-entry");
-
-    let init_password_label =
-        gtk4::Label::new(Some(heelonvault_core::tr!("init-password-label").as_str()));
-    init_password_label.add_css_class("login-field-label");
-    init_password_label.add_css_class("login-field-label-caps");
-    init_password_label.set_halign(Align::Start);
-
-    let init_password_entry = gtk4::PasswordEntry::builder()
-        .placeholder_text(heelonvault_core::tr!("init-password-placeholder").as_str())
-        .hexpand(true)
-        .show_peek_icon(true)
-        .build();
-    init_password_entry.add_css_class("login-entry");
+    let init_identity_list = boxed_list();
+    init_identity_list.append(&init_username_entry);
+    init_identity_list.append(&init_password_entry);
+    init_identity_list.append(&init_confirm_entry);
 
     let init_strength_bar = PasswordStrengthBar::new();
 
-    let init_confirm_label =
-        gtk4::Label::new(Some(heelonvault_core::tr!("init-confirm-label").as_str()));
-    init_confirm_label.add_css_class("login-field-label");
-    init_confirm_label.add_css_class("login-field-label-caps");
-    init_confirm_label.set_halign(Align::Start);
-
-    let init_confirm_entry = gtk4::PasswordEntry::builder()
-        .placeholder_text(heelonvault_core::tr!("init-confirm-placeholder").as_str())
-        .hexpand(true)
-        .show_peek_icon(true)
-        .build();
-    init_confirm_entry.add_css_class("login-entry");
+    let init_password_hint =
+        gtk4::Label::new(Some(heelonvault_core::tr!("init-password-hint").as_str()));
+    init_password_hint.add_css_class("login-hint");
+    init_password_hint.set_wrap(true);
+    init_password_hint.set_halign(Align::Start);
 
     init_identity_box.append(&init_step_label_1);
-    init_identity_box.append(&init_sep_1);
-    init_identity_box.append(&init_username_label);
-    init_identity_box.append(&init_username_entry);
-    init_identity_box.append(&init_password_label);
-    init_identity_box.append(&init_password_entry);
+    init_identity_box.append(&init_identity_list);
     init_identity_box.append(init_strength_bar.root());
-    init_identity_box.append(&init_confirm_label);
-    init_identity_box.append(&init_confirm_entry);
+    init_identity_box.append(&init_password_hint);
 
     // ─── Bootstrap Widgets - Oath Step ────────────────────────────────────────────
     let init_oath_box = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(10)
+        .spacing(12)
         .build();
 
     let init_step_label_2 =
         gtk4::Label::new(Some(heelonvault_core::tr!("init-step-label-oath").as_str()));
-    init_step_label_2.add_css_class("dim-label");
-    init_step_label_2.set_halign(Align::End);
+    init_step_label_2.add_css_class("login-step-label");
+    init_step_label_2.set_halign(Align::Start);
 
     let init_warning_frame = gtk4::Frame::new(None);
     init_warning_frame.add_css_class("init-warning-banner");
@@ -773,19 +694,17 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     let init_warning_label =
         gtk4::Label::new(Some(heelonvault_core::tr!("init-oath-warning").as_str()));
     init_warning_label.set_wrap(true);
-    init_warning_label.add_css_class("caption");
-    init_warning_label.set_margin_top(8);
-    init_warning_label.set_margin_bottom(8);
-    init_warning_label.set_margin_start(10);
-    init_warning_label.set_margin_end(10);
+    init_warning_label.set_margin_top(10);
+    init_warning_label.set_margin_bottom(10);
+    init_warning_label.set_margin_start(12);
+    init_warning_label.set_margin_end(12);
     init_warning_label.set_halign(Align::Start);
     init_warning_frame.set_child(Some(&init_warning_label));
 
     let init_key_title = gtk4::Label::new(Some(
         heelonvault_core::tr!("init-recovery-key-title").as_str(),
     ));
-    init_key_title.add_css_class("login-field-label");
-    init_key_title.add_css_class("login-field-label-caps");
+    init_key_title.add_css_class("heading");
     init_key_title.set_halign(Align::Start);
 
     let init_grid_frame = gtk4::Frame::new(None);
@@ -798,10 +717,10 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
         .homogeneous(true)
         .column_spacing(4)
         .row_spacing(4)
-        .margin_top(8)
-        .margin_bottom(8)
-        .margin_start(8)
-        .margin_end(8)
+        .margin_top(10)
+        .margin_bottom(10)
+        .margin_start(10)
+        .margin_end(10)
         .build();
 
     let mut word_labels: Vec<gtk4::Label> = Vec::with_capacity(24);
@@ -833,36 +752,35 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     let init_copy_button =
         gtk4::Button::with_label(heelonvault_core::tr!("init-copy-button").as_str());
     init_copy_button.add_css_class("flat");
+    init_copy_button.add_css_class("login-link-accent");
     init_copy_button.set_halign(Align::End);
 
     let init_verify_hint_label = gtk4::Label::new(None);
-    init_verify_hint_label.add_css_class("login-support-copy");
+    init_verify_hint_label.add_css_class("login-hint");
     init_verify_hint_label.set_wrap(true);
     init_verify_hint_label.set_halign(Align::Start);
 
     let init_verify_a_label = gtk4::Label::new(None);
-    init_verify_a_label.add_css_class("login-field-label");
+    init_verify_a_label.add_css_class("login-field-caption");
     init_verify_a_label.set_halign(Align::Start);
 
     let init_verify_a_entry = gtk4::Entry::builder()
         .placeholder_text(heelonvault_core::tr!("init-verify-placeholder").as_str())
         .hexpand(true)
         .build();
-    init_verify_a_entry.add_css_class("login-entry");
 
     let init_verify_b_label = gtk4::Label::new(None);
-    init_verify_b_label.add_css_class("login-field-label");
+    init_verify_b_label.add_css_class("login-field-caption");
     init_verify_b_label.set_halign(Align::Start);
 
     let init_verify_b_entry = gtk4::Entry::builder()
         .placeholder_text(heelonvault_core::tr!("init-verify-placeholder").as_str())
         .hexpand(true)
         .build();
-    init_verify_b_entry.add_css_class("login-entry");
 
     let verify_col_a = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(4)
+        .spacing(6)
         .hexpand(true)
         .build();
     verify_col_a.append(&init_verify_a_label);
@@ -870,7 +788,7 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
 
     let verify_col_b = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(4)
+        .spacing(6)
         .hexpand(true)
         .build();
     verify_col_b.append(&init_verify_b_label);
@@ -878,7 +796,7 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
 
     let verify_row = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
-        .spacing(10)
+        .spacing(12)
         .build();
     verify_row.append(&verify_col_a);
     verify_row.append(&verify_col_b);
@@ -905,7 +823,7 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
 
     let init_pending_label =
         gtk4::Label::new(Some(heelonvault_core::tr!("init-progress-label").as_str()));
-    init_pending_label.add_css_class("login-support-copy");
+    init_pending_label.add_css_class("login-subtitle");
     init_pending_label.set_halign(Align::Center);
 
     init_pending_box.append(&init_pending_spinner);
@@ -921,11 +839,11 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
 
     // ─── Assemblage final ────────────────────────────────────────────────────────
     let clamp = adw::Clamp::new();
-    clamp.set_maximum_size(560);
-    clamp.set_tightening_threshold(420);
+    clamp.set_maximum_size(if in_bootstrap_mode { 600 } else { 420 });
+    clamp.set_tightening_threshold(360);
 
-    root.append(&hero_frame);
-    root.append(&form_card);
+    root.append(&header_box);
+    root.append(&form_box);
 
     clamp.set_child(Some(&root));
     shell.append(&clamp);
@@ -935,45 +853,39 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
         .vscrollbar_policy(PolicyType::Automatic)
         .min_content_width(360)
         .build();
+    container.add_css_class("login-surface");
     container.set_child(Some(&shell));
 
     // ─── Return structure ────────────────────────────────────────────────────────
     LoginDialogWidgets {
         container,
+        header_bar,
+        language_button,
+        language_popover,
+        language_fr_button,
+        language_en_button,
         shell,
         root,
-        hero_frame,
-        hero_box,
-        hero_top,
-        hero_icon,
-        eyebrow_label,
-        top_plan_badge,
+        header_box,
+        brand_icon,
         title_label,
         subtitle_label,
-        badges_box,
+        meta_box,
+        version_label,
         #[cfg(feature = "premium")]
         license_seal,
         #[cfg(feature = "premium")]
         license_seal_caption,
         license_badge,
         license: license.clone(),
-        form_card,
         form_box,
-        language_row,
-        language_label,
-        language_buttons,
-        language_fr_button,
-        language_en_button,
-        cps_frame,
-        cps_box,
+        cps_row,
         cps_image,
-        cps_info,
         cps_name,
         cps_sub,
         cps_badge,
-        username_label,
+        credentials_list,
         username_entry,
-        password_label,
         password_entry,
         strength_label,
         restore_button,
@@ -983,38 +895,31 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
         psc_artifact_entry,
         #[cfg(feature = "premium")]
         psc_complete_button,
-        credentials_box,
         credentials_step_box,
         totp_step_box,
         totp_back_button,
-        totp_spacer,
         totp_icon,
         totp_title,
         totp_subtitle,
-        totp_entry_wrap,
         totp_entry,
         step_stack,
         error_label,
         button_box,
+        links_box,
         back_button,
         submit_button,
         button_content,
         submit_spinner,
         button_label,
-        sec_strip,
-        sec_dot,
-        sec_text,
         clamp,
         init_identity_box,
         init_step_label_1,
-        init_sep_1,
-        init_username_label,
+        init_identity_list,
         init_username_entry,
-        init_password_label,
         init_password_entry,
-        init_strength_bar,
-        init_confirm_label,
         init_confirm_entry,
+        init_strength_bar,
+        init_password_hint,
         init_oath_box,
         init_step_label_2,
         init_warning_frame,
@@ -1096,17 +1001,14 @@ pub fn setup_language_toggle(widgets: &LoginDialogWidgets, in_bootstrap_mode: bo
                 .cps_badge
                 .set_text(heelonvault_core::tr!("login-cps-badge").as_str());
             widgets_clone
-                .username_label
-                .set_text(heelonvault_core::tr!("login-username-label").as_str());
-            widgets_clone.username_entry.set_placeholder_text(Some(
-                heelonvault_core::tr!("login-username-placeholder").as_str(),
-            ));
+                .username_entry
+                .set_title(heelonvault_core::tr!("login-username-label").as_str());
             widgets_clone
-                .password_label
-                .set_text(heelonvault_core::tr!("login-password-label").as_str());
-            widgets_clone.password_entry.set_placeholder_text(Some(
-                heelonvault_core::tr!("login-password-placeholder").as_str(),
-            ));
+                .username_entry
+                .set_tooltip_text(Some(heelonvault_core::tr!("login-username-hint").as_str()));
+            widgets_clone
+                .password_entry
+                .set_title(heelonvault_core::tr!("login-password-label").as_str());
             widgets_clone
                 .restore_button
                 .set_label(heelonvault_core::tr!("login-restore-button").as_str());
@@ -1123,40 +1025,34 @@ pub fn setup_language_toggle(widgets: &LoginDialogWidgets, in_bootstrap_mode: bo
                 .back_button
                 .set_label(heelonvault_core::tr!("login-back-button").as_str());
             widgets_clone
-                .sec_text
-                .set_text(heelonvault_core::tr!("login-security-note").as_str());
+                .language_button
+                .set_label(current_language_name().as_str());
             widgets_clone
-                .language_label
-                .set_text(heelonvault_core::tr!("login-language-label").as_str());
+                .language_button
+                .set_tooltip_text(Some(heelonvault_core::tr!("login-language-label").as_str()));
             widgets_clone
                 .language_fr_button
-                .set_tooltip_text(Some(heelonvault_core::tr!("login-language-fr").as_str()));
+                .set_label(heelonvault_core::tr!("login-language-fr").as_str());
             widgets_clone
                 .language_en_button
-                .set_tooltip_text(Some(heelonvault_core::tr!("login-language-en").as_str()));
+                .set_label(heelonvault_core::tr!("login-language-en").as_str());
 
             // Bootstrap widgets (même s'ils ne sont pas visibles, on met à jour pour quand ils le seront)
             widgets_clone
                 .init_step_label_1
                 .set_text(heelonvault_core::tr!("init-step-label-identity").as_str());
             widgets_clone
-                .init_username_label
-                .set_text(heelonvault_core::tr!("init-username-label").as_str());
-            widgets_clone.init_username_entry.set_placeholder_text(Some(
-                heelonvault_core::tr!("init-username-placeholder").as_str(),
-            ));
+                .init_username_entry
+                .set_title(heelonvault_core::tr!("init-username-label").as_str());
             widgets_clone
-                .init_password_label
-                .set_text(heelonvault_core::tr!("init-password-label").as_str());
-            widgets_clone.init_password_entry.set_placeholder_text(Some(
-                heelonvault_core::tr!("init-password-placeholder").as_str(),
-            ));
+                .init_password_entry
+                .set_title(heelonvault_core::tr!("init-password-label").as_str());
             widgets_clone
-                .init_confirm_label
-                .set_text(heelonvault_core::tr!("init-confirm-label").as_str());
-            widgets_clone.init_confirm_entry.set_placeholder_text(Some(
-                heelonvault_core::tr!("init-confirm-placeholder").as_str(),
-            ));
+                .init_confirm_entry
+                .set_title(heelonvault_core::tr!("init-confirm-label").as_str());
+            widgets_clone
+                .init_password_hint
+                .set_text(heelonvault_core::tr!("init-password-hint").as_str());
             widgets_clone
                 .init_step_label_2
                 .set_text(heelonvault_core::tr!("init-step-label-oath").as_str());
@@ -1251,10 +1147,12 @@ pub fn setup_language_toggle(widgets: &LoginDialogWidgets, in_bootstrap_mode: bo
         let apply_i18n = Rc::clone(&apply_login_i18n);
         let guard = Rc::clone(&language_toggle_guard);
         let fr_button = widgets.language_fr_button.clone();
+        let popover = widgets.language_popover.clone();
         fr_button.connect_toggled(move |button| {
             if guard.get() || !button.is_active() {
                 return;
             }
+            popover.popdown();
             if !heelonvault_core::i18n::current_language()
                 .to_ascii_lowercase()
                 .starts_with("fr")
@@ -1270,10 +1168,12 @@ pub fn setup_language_toggle(widgets: &LoginDialogWidgets, in_bootstrap_mode: bo
         let apply_i18n = Rc::clone(&apply_login_i18n);
         let guard = Rc::clone(&language_toggle_guard);
         let en_button = widgets.language_en_button.clone();
+        let popover = widgets.language_popover.clone();
         en_button.connect_toggled(move |button| {
             if guard.get() || !button.is_active() {
                 return;
             }
+            popover.popdown();
             if !heelonvault_core::i18n::current_language()
                 .to_ascii_lowercase()
                 .starts_with("en")
@@ -1355,7 +1255,7 @@ pub fn setup_bootstrap_gates(widgets: &LoginDialogWidgets) {
     // Connecter la strength bar à l'entry password pour qu'elle mette à jour son score
     widgets
         .init_strength_bar
-        .connect_to_password_entry(&widgets.init_password_entry);
+        .connect_to_password_entry_row(&widgets.init_password_entry);
 
     // ─── Gate 1: Identity step ───────────────────────────────────────────────────
     // Le bouton est activé si : username non vide + password non vide + confirm == password + strength >= 3

@@ -1,69 +1,222 @@
-/* Login screen: hero, card, badges, CPS teaser, entries, pills */
+/* Login window, first-run wizard, TOTP step and restore dialog (3.0 look): white canvas, flat
+   title bar, libadwaita boxed lists, teal kept for the primary action, focus and links. */
 
-.login-shell {
-    min-width: 460px;
+window.login-window,
+.login-surface {
+    background: @hv_canvas;
 }
 
-.login-panel {
-    padding: 12px;
+/* Flat title bar: overrides the brand header bar used by the main window. */
+headerbar.login-headerbar {
+    background: @hv_canvas;
+    color: @hv_text;
+    box-shadow: none;
+    border: none;
 }
 
-.login-hero,
-.login-card {
-    border-radius: 16px;
-    border: 1px solid alpha(@hv_brand_200, 0.95);
-    box-shadow: 0 20px 40px alpha(@hv_brand_900, 0.08);
+headerbar.login-headerbar label,
+headerbar.login-headerbar image,
+headerbar.login-headerbar button {
+    color: @hv_text;
 }
 
-.login-card {
-    background: linear-gradient(135deg, @hv_surface, @hv_canvas);
+headerbar.login-headerbar button.flat:hover:not(:disabled):not(:checked) {
+    background-color: alpha(@hv_text, 0.06);
 }
 
-.login-hero {
-    background: linear-gradient(135deg, @hv_brand_900, @hv_brand_800);
-    color: @hv_on_brand;
+headerbar.login-headerbar button.flat:active:not(:disabled):not(:checked),
+headerbar.login-headerbar button.flat:checked {
+    background-color: alpha(@hv_text, 0.10);
+    border-color: transparent;
+    color: @hv_text;
 }
 
-.login-hero-icon {
-    color: @hv_on_brand;
-    opacity: 0.95;
+headerbar.login-headerbar button:focus-visible {
+    outline-color: alpha(@hv_brand_600, 0.75);
 }
 
-.login-hero-title {
-    color: @hv_on_brand;
+/* The language menu button sits flat in the title bar like the window controls. */
+headerbar.login-headerbar menubutton.login-language-button > button {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
 }
 
-.login-hero-copy,
-.login-hero-meta {
-    color: rgba(255, 255, 255, 0.82);
+headerbar.login-headerbar menubutton.login-language-button > button:hover {
+    background-color: alpha(@hv_text, 0.06);
 }
 
-.login-hero-badge {
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    color: rgba(255, 255, 255, 0.85);
+headerbar.login-headerbar menubutton.login-language-button > button:checked {
+    background-color: alpha(@hv_text, 0.10);
+}
+
+button.login-language-choice {
+    padding: 6px 14px;
+}
+
+/* Header: app icon, title, subtitle, licence and version. */
+label.login-title {
+    font-weight: 800;
+}
+
+label.login-subtitle {
+    color: @hv_text_muted;
+}
+
+label.login-version {
+    color: @hv_text_muted;
+    font-size: 0.82rem;
+}
+
+label.login-license-badge {
+    background: @hv_brand_50;
+    color: @hv_brand_800;
     border-radius: 999px;
     padding: 3px 10px;
     font-size: 0.78rem;
-    font-weight: 600;
-}
-
-.login-license-badge {
-    background: linear-gradient(120deg, @hv_brand_200, @hv_brand_300);
-    border: 1px solid rgba(255, 255, 255, 0.42);
-    color: @hv_brand_900;
-    font-weight: 800;
-    box-shadow: 0 8px 18px alpha(@hv_brand_900, 0.26);
-}
-
-.login-badge {
-    background: rgba(255, 255, 255, 0.14);
-    color: @hv_brand_200;
-    border-radius: 999px;
-    padding: 6px 14px;
     font-weight: 700;
 }
 
+/* Credentials: one white boxed list with a hairline and the single elevation level. */
+list.login-boxed-list {
+    background: @hv_surface;
+    border-radius: 12px;
+    box-shadow: 0 0 0 1px @hv_border, 0 1px 3px @hv_shadow_soft;
+}
+
+/* Sign-in fields are always editable: drop libadwaita's pencil hint, keep the reveal button. */
+list.login-boxed-list row.entry .edit-icon {
+    opacity: 0;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    -gtk-icon-size: 1px;
+}
+
+.login-row-icon {
+    color: @hv_text_muted;
+}
+
+/* Actions: pill primary button, flat secondary links. */
+button.login-submit {
+    min-height: 46px;
+    padding: 0 32px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+button.login-link-accent {
+    color: @hv_brand_800;
+    font-weight: 600;
+}
+
+button.login-link {
+    color: @hv_text_muted;
+    font-weight: 500;
+}
+
+label.login-error {
+    color: @hv_danger;
+    font-weight: 600;
+}
+
+label.login-error.login-success {
+    color: @hv_success;
+}
+
+label.login-hint,
+label.login-step-label {
+    color: @hv_text_muted;
+    font-size: 0.86rem;
+}
+
+label.login-step-label {
+    font-weight: 600;
+}
+
+label.login-field-caption {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* TOTP step */
+.login-totp-icon {
+    color: @hv_brand_700;
+}
+
+entry.login-totp-entry {
+    min-height: 48px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.3rem;
+}
+
+/* CPS teaser: muted, non-interactive row with a "coming soon" badge. */
+box.login-cps-row {
+    background: @hv_surface_subtle;
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+
+.login-cps-image {
+    border-radius: 6px;
+}
+
+label.login-cps-title {
+    font-weight: 600;
+}
+
+label.login-cps-copy {
+    font-size: 0.82rem;
+    color: @hv_text_muted;
+}
+
+label.login-cps-badge {
+    background: @hv_warning_bg;
+    color: @hv_warning_strong;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* First-run wizard: recovery phrase */
+frame.init-warning-banner {
+    border: none;
+    border-radius: 12px;
+    background: @hv_warning_bg;
+}
+
+frame.init-warning-banner label {
+    color: @hv_warning_strong;
+}
+
+frame.init-recovery-grid-frame {
+    border: 1px solid @hv_border;
+    border-radius: 12px;
+    background: @hv_surface;
+}
+
+.init-recovery-badge {
+    border-radius: 8px;
+    background: @hv_surface_subtle;
+    padding: 6px 10px;
+    min-width: 84px;
+}
+
+label.init-badge-num {
+    font-size: 0.7rem;
+    color: @hv_text_muted;
+}
+
+label.init-badge-word {
+    font-family: monospace;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+/* Version pill of the main window header (shared class). */
 .beta-badge {
     border-radius: 999px;
     font-weight: 800;
@@ -71,47 +224,7 @@
     text-transform: uppercase;
 }
 
-.login-beta-badge {
-    background: linear-gradient(120deg, #F7D66E, #E8A43A);
-    color: #5A2E00;
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    padding: 5px 11px;
-    font-size: 0.70rem;
-    box-shadow: 0 8px 16px rgba(232, 164, 58, 0.30);
-}
-
-frame.login-cps-teaser {
-    border: 1px solid alpha(@hv_brand_200, 0.85);
-    border-radius: 12px;
-    background: alpha(@hv_brand_200, 0.14);
-    opacity: 1.0;
-}
-
-.login-cps-image {
-    border-radius: 8px;
-}
-
-.login-cps-badge {
-    background: alpha(@hv_brand_500, 0.18);
-    border: 1px solid alpha(@hv_brand_500, 0.45);
-    color: @hv_brand_900;
-    border-radius: 999px;
-    padding: 3px 10px;
-    font-size: 0.72rem;
-    font-weight: 700;
-}
-
-.login-cps-title {
-    font-size: 0.84rem;
-    font-weight: 700;
-    color: @hv_brand_900;
-}
-
-.login-cps-copy {
-    font-size: 0.76rem;
-    color: @hv_text_muted;
-}
-
+/* Field styles still shared with the secret editor (restyled with the editor). */
 .login-field-label {
     font-size: 0.72rem;
     font-weight: 700;
@@ -120,33 +233,9 @@ frame.login-cps-teaser {
     color: @hv_brand_900;
 }
 
-.login-field-label-caps {
-    text-transform: uppercase;
-}
-
-button.login-lang-flag {
-    min-width: 34px;
-    min-height: 30px;
-    padding: 4px 8px;
-    border-radius: 999px;
-    border: 1px solid alpha(@hv_brand_900, 0.24);
-    background: rgba(255, 255, 255, 0.78);
-    font-size: 1.0rem;
-}
-
-button.login-lang-flag:hover {
-    background: alpha(@hv_brand_200, 0.22);
-}
-
-button.login-lang-flag:checked {
-    border-color: @hv_brand_500;
-    background: alpha(@hv_brand_500, 0.18);
-    box-shadow: 0 0 0 1px alpha(@hv_brand_500, 0.22);
-}
-
 .login-support-copy,
 .login-strength {
-    color: #7F8C9A;
+    color: @hv_text_muted;
 }
 
 entry.login-entry,
@@ -163,30 +252,4 @@ entry.login-entry:focus,
 passwordentry.login-entry:focus {
     border-color: @hv_brand_500;
     box-shadow: 0 0 0 2px alpha(@hv_brand_500, 0.18);
-}
-
-entry.login-totp-entry {
-    font-size: 1.15rem;
-    font-weight: 700;
-    letter-spacing: 0.18rem;
-}
-
-.login-totp-icon {
-    color: @hv_brand_500;
-    margin-top: 8px;
-    margin-bottom: 4px;
-}
-
-.login-sec-dot {
-    color: @hv_brand_500;
-    font-weight: 900;
-}
-
-label.login-error {
-    color: @hv_danger_bright;
-    font-weight: 600;
-}
-
-label.login-error.login-success {
-    color: @hv_success;
 }

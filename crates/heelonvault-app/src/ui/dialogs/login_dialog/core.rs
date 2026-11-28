@@ -221,7 +221,9 @@ impl super::LoginDialog {
             Self::setup_submit_handler(&window, &widgets, Rc::clone(&context));
         }
 
-        // 6. Intégration du conteneur principal dans la fenêtre GTK
+        // 6. Intégration de la barre de titre plate et du conteneur principal
+        window.add_css_class("login-window");
+        window.set_titlebar(Some(&widgets.header_bar));
         window.set_child(Some(&widgets.container));
 
         // 7. Configuration du handler close_request pour la fenêtre

@@ -55,6 +55,12 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/).
   - **Database health**: integrity, references, content, size, schema version, and a restore **Test** button.
   - **History**: the last 10 backups, with date, trigger, outcome, size and mirror copies.
 
+### 3.0 look (#105)
+
+- Redesigned sign-in screen, lighter and uncluttered: flat white title bar (language menu on the left, product name, close button), app icon, centred title and subtitle, licence and version on a discreet line. Username and password are grouped in a libadwaita boxed list (`EntryRow`, `PasswordEntryRow`) with sentence-case titles instead of uppercase labels; the "username, display name or email address" hint becomes a tooltip. Pill-shaped **Sign in** button, then **Restore my database** and **Quit** as quiet links; restoring is offered only while entering credentials. The flags are replaced by a **Français / English** menu; live retranslation is unchanged.
+- The two-step verification step, the first-run wizard and the database restore window follow the same model: fields in boxed lists, master-password strength advice under the list, recovery phrase on a neutral background, warning as a borderless amber banner. The two-step verification icon, missing on some systems, is replaced by a bundled icon.
+- New native scenario `native_login_scenario` (Wayland, `fatal-warnings`): contrast of at least 4.5:1 on sign-in, the TOTP step and the wizard, minimum width honoured, retranslation from the language menu, captures available through `HEELONVAULT_UI_SNAPSHOT_DIR`.
+
 ### Interface fixes
 
 - Dashboard: the **list** view becomes the default (an already saved choice, grid or list, is kept). The copy count of each secret, hidden so far in list view, is shown there as the first badge, aligned across rows; the badge (copy icon and number instead of "↗") shows "Copied N times" as a tooltip and updates on each copy. The default sort, which already ranked secrets from most to least copied, is presented as such: the misleading "Sort by recency" button becomes "Sort by copy count" with a copy icon. The order stays stable while copying and refreshes on reload.

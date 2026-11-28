@@ -7,6 +7,8 @@ mod events;
 mod feedback;
 mod lock_state;
 mod login_flow;
+#[cfg(test)]
+pub(crate) mod native_tests;
 mod restore_flow;
 mod types;
 mod views;
