@@ -56,8 +56,7 @@ button.security-navigation.security-navigation-active {
     background: @hv_brand_700;
     color: @hv_on_brand;
     font-size: 0.70rem;
-    font-weight: 750;
-    letter-spacing: 0.03em;
+    font-weight: 700;
 }
 
 /* ── Page ──────────────────────────────────────────────────────────────── */
@@ -79,10 +78,10 @@ button.security-navigation.security-navigation-active {
 /* Hero: neutral by default, amber when findings need attention, green when clear. */
 .security-hero {
     padding: 26px 28px;
-    border-radius: 16px;
-    background: linear-gradient(125deg, @hv_brand_100, @hv_brand_50 60%, @hv_surface);
-    border: 1px solid alpha(@hv_brand_500, 0.24);
-    box-shadow: 0 1px 2px @hv_shadow_soft, 0 12px 32px @hv_shadow_key;
+    border-radius: 12px;
+    background: @hv_surface;
+    border: 1px solid @hv_border;
+    box-shadow: 0 1px 3px @hv_shadow_soft;
 }
 
 .security-hero-shield {
@@ -90,8 +89,8 @@ button.security-navigation.security-navigation-active {
 }
 
 .security-hero.security-hero-attention {
-    background: linear-gradient(125deg, alpha(@hv_warning_bg, 0.95), @hv_brand_50 65%, @hv_surface);
-    border-color: alpha(@hv_warning, 0.30);
+    background: @hv_warning_bg;
+    border-color: transparent;
 }
 
 .security-hero.security-hero-attention .security-hero-shield {
@@ -99,8 +98,8 @@ button.security-navigation.security-navigation-active {
 }
 
 .security-hero.security-hero-ok {
-    background: linear-gradient(125deg, @hv_success_bg, @hv_brand_50 65%, @hv_surface);
-    border-color: alpha(@hv_success, 0.30);
+    background: @hv_success_bg;
+    border-color: transparent;
 }
 
 .security-hero.security-hero-ok .security-hero-shield {
@@ -110,25 +109,25 @@ button.security-navigation.security-navigation-active {
 /* ── Metric cards ──────────────────────────────────────────────────────── */
 button.security-metric {
     padding: 14px 16px;
-    border-radius: 16px;
+    border-radius: 12px;
     background: @hv_surface;
     border: 1px solid @hv_border;
-    box-shadow: 0 1px 2px @hv_shadow_soft;
+    box-shadow: 0 1px 3px @hv_shadow_soft;
 }
 
 button.security-metric:hover {
-    border-color: alpha(@hv_brand_500, 0.45);
-    box-shadow: 0 2px 4px @hv_shadow_soft, 0 8px 20px @hv_shadow_soft;
+    border-color: @hv_border_strong;
+    box-shadow: 0 2px 8px @hv_shadow_key;
 }
 
 button.security-metric.security-metric-selected {
-    background: linear-gradient(135deg, @hv_brand_100, @hv_brand_50);
+    background: @hv_brand_50;
     border-color: @hv_brand_600;
-    box-shadow: inset 0 0 0 1px alpha(@hv_brand_600, 0.35), 0 6px 18px @hv_shadow_soft;
+    box-shadow: inset 0 0 0 1px @hv_brand_600;
 }
 
 .security-metric-icon {
-    color: @hv_text_subtle;
+    color: @hv_text_muted;
 }
 
 .security-metric-attention .security-metric-icon {
@@ -142,7 +141,7 @@ button.security-metric.security-metric-selected {
 .security-metric-count {
     font-size: 1.6rem;
     font-weight: 800;
-    color: @hv_brand_900;
+    color: @hv_text;
     font-feature-settings: "tnum";
 }
 
@@ -156,15 +155,15 @@ button.security-metric.security-metric-selected {
 .security-finding,
 .security-group {
     padding: 14px 16px;
-    border-radius: 16px;
+    border-radius: 12px;
     border: 1px solid @hv_border;
     background: @hv_surface;
-    box-shadow: 0 1px 2px @hv_shadow_soft;
+    box-shadow: 0 1px 3px @hv_shadow_soft;
 }
 
 .security-group {
     background: alpha(@hv_warning_bg, 0.55);
-    border-color: alpha(@hv_warning, 0.22);
+    border-color: transparent;
 }
 
 .security-finding-detail {
@@ -195,14 +194,13 @@ button.security-metric.security-metric-selected {
 }
 
 .security-severity-low {
-    background: alpha(@hv_brand_500, 0.10);
+    background: @hv_brand_50;
     color: @hv_brand_800;
 }
 
 /* Kind marker, not a finding: same tint as the dashboard passphrase badge. */
 .security-chip-passphrase {
-    background: alpha(@hv_brand_500, 0.16);
-    border: 1px solid alpha(@hv_brand_500, 0.36);
+    background: @hv_brand_50;
     color: @hv_brand_800;
 }
 
@@ -236,8 +234,7 @@ button.security-metric.security-metric-selected {
 }
 
 .url-badge-neutral {
-    background: alpha(@hv_brand_500, 0.08);
-    border-color: alpha(@hv_brand_500, 0.18);
+    background: @hv_surface_subtle;
     color: @hv_text_muted;
 }
 
