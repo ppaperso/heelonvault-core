@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use gtk4::glib;
 use gtk4::prelude::*;
+use libadwaita as adw;
 
 use heelonvault_core::errors::AppError;
 use heelonvault_core::i18n::I18nArg;
@@ -28,7 +29,7 @@ fn pick_verification_indices() -> (usize, usize) {
 }
 
 pub(super) fn handle_init_identity_step(
-    init_username: &gtk4::Entry,
+    init_username: &adw::EntryRow,
     error_label: &gtk4::Label,
     gen_key_fn: Option<&Arc<dyn Fn() -> Result<String, AppError> + Send + Sync>>,
     word_labels: &[gtk4::Label],
@@ -109,8 +110,8 @@ pub(super) fn handle_init_identity_step(
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_init_oath_step(
-    init_username: gtk4::Entry,
-    init_password: gtk4::PasswordEntry,
+    init_username: adw::EntryRow,
+    init_password: adw::PasswordEntryRow,
     step_stack: gtk4::Stack,
     init_pending_spinner: gtk4::Spinner,
     do_bootstrap_fn: Option<BootstrapCallback>,

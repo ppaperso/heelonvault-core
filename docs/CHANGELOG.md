@@ -55,6 +55,12 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/).
   - **Santé de la base** : intégrité, références, contenu, taille, version du schéma, et bouton **Tester** de restauration.
   - **Historique** : les 10 dernières sauvegardes, avec date, déclencheur, résultat, taille et copies miroirs.
 
+### Nouvel aspect 3.0 (#105)
+
+- Écran de connexion redessiné, plus clair et épuré : barre de titre blanche et plate (menu de langue à gauche, nom du produit, bouton de fermeture), icône de l'application, titre et sous-titre centrés, licence et version sur une ligne discrète. L'identifiant et le mot de passe sont regroupés dans une liste encadrée libadwaita (`EntryRow`, `PasswordEntryRow`) avec des libellés en casse normale à la place des étiquettes en majuscules ; l'aide « nom d'utilisateur, nom affiché ou adresse e-mail » passe en infobulle. Bouton **Connexion** en pilule, puis **Récupérer ma base** et **Quitter** en liens discrets ; la récupération n'est proposée qu'à la saisie des identifiants. Les drapeaux sont remplacés par un menu **Français / English**, retraduction immédiate inchangée.
+- Étape de double authentification, assistant de premier lancement et fenêtre de récupération de la base alignés sur le même modèle : champs en listes encadrées, conseil de robustesse du mot de passe maître sous la liste, phrase de récupération sur fond neutre, avertissement en bandeau ambré sans bordure. L'icône de l'étape de double authentification, absente sur certains systèmes, est remplacée par une icône embarquée.
+- Nouveau scénario natif `native_login_scenario` (Wayland, `fatal-warnings`) : contrastes d'au moins 4,5:1 sur la connexion, l'étape TOTP et l'assistant, largeur minimale respectée, retraduction depuis le menu de langue, captures disponibles via `HEELONVAULT_UI_SNAPSHOT_DIR`.
+
 ### Corrections d'interface
 
 - Tableau de bord : la vue **liste** devient la vue par défaut (un choix déjà enregistré, grille ou liste, est conservé). Le nombre de copies de chaque secret, masqué jusqu'ici en vue liste, y est affiché en premier badge, aligné d'une ligne à l'autre ; le badge (icône de copie et nombre, au lieu de « ↗ ») indique « Copié N fois » en infobulle et se met à jour à chaque copie. Le tri par défaut, qui classait déjà les secrets du plus copié au moins copié, est présenté comme tel : le bouton « Trier par récence », trompeur, devient « Trier par nombre de copies » avec une icône de copie. L'ordre reste stable pendant les copies et se met à jour au rechargement.

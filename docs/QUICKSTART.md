@@ -83,6 +83,9 @@ On first start, a wizard creates the vault's administrator account:
 3. Confirm two randomly chosen words to prove the phrase was written down.
 4. The wizard closes and the sign-in screen opens with your username pre-filled: sign in.
 
+The interface language (French or English) can be changed at any time from the menu at the top
+left of the wizard and of the sign-in screen.
+
 > Without the master password or the recovery phrase, your secrets are **unrecoverable**. That
 > is the price of encryption nobody but you can open.
 

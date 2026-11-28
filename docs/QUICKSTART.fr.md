@@ -86,6 +86,9 @@ Au premier démarrage, un assistant crée le compte administrateur du coffre :
 3. Confirmez deux mots tirés au hasard pour prouver que la phrase a bien été notée.
 4. L'assistant se ferme et l'écran de connexion s'ouvre, identifiant pré-rempli : connectez-vous.
 
+La langue de l'interface (français ou anglais) se choisit à tout moment dans le menu en haut à
+gauche de l'assistant et de l'écran de connexion.
+
 > Sans mot de passe maître ni phrase de récupération, vos secrets sont **irrécupérables**.
 > C'est le prix d'un chiffrement que personne d'autre que vous ne peut ouvrir.
 

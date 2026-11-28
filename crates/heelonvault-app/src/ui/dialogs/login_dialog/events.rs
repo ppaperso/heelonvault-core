@@ -1,5 +1,5 @@
 use super::views::LoginDialogWidgets;
-use gtk4::prelude::*;
+use libadwaita::prelude::*;
 
 /// Configure les écouteurs de signaux pour les widgets de connexion.
 /// Note: Le bouton submit n'est PAS connecté ici pour éviter les boucles infinies.
@@ -10,13 +10,13 @@ where
 {
     // 1. Appuyer sur "Entrée" dans le champ du nom d'utilisateur
     let user_cb = on_submit.clone();
-    widgets.username_entry.connect_activate(move |_| {
+    widgets.username_entry.connect_entry_activated(move |_| {
         user_cb();
     });
 
     // 2. Appuyer sur "Entrée" dans le champ du mot de passe
     let pass_cb = on_submit.clone();
-    widgets.password_entry.connect_activate(move |_| {
+    widgets.password_entry.connect_entry_activated(move |_| {
         pass_cb();
     });
 

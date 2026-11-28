@@ -4,8 +4,9 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use gtk4::glib;
-use gtk4::prelude::*;
 use gtk4::{Align, Orientation};
+use libadwaita as adw;
+use libadwaita::prelude::*;
 
 use crate::ui::widgets::password_strength_bar::PasswordStrengthBar;
 use heelonvault_core::errors::{AppError, RecoveryFailure};
@@ -92,85 +93,79 @@ pub(super) fn present_restore_dialog(
     let (restore_min_width, restore_min_height) = window_state::restore_min_size();
     dialog.set_size_request(restore_min_width, restore_min_height);
 
+    let header_bar = adw::HeaderBar::new();
+    header_bar.add_css_class("flat");
+    header_bar.add_css_class("login-headerbar");
+    dialog.add_css_class("login-window");
+    dialog.set_titlebar(Some(&header_bar));
+
     let content = gtk4::Box::builder()
         .orientation(Orientation::Vertical)
-        .spacing(14)
-        .margin_top(20)
-        .margin_bottom(20)
-        .margin_start(20)
-        .margin_end(20)
+        .spacing(18)
+        .margin_top(12)
+        .margin_bottom(24)
+        .margin_start(16)
+        .margin_end(16)
         .build();
 
-    let title = gtk4::Label::new(Some(
+    let description = gtk4::Label::new(Some(
         heelonvault_core::tr!("login-restore-description").as_str(),
     ));
-    title.set_wrap(true);
-    title.set_halign(Align::Start);
+    description.add_css_class("login-subtitle");
+    description.set_wrap(true);
+    description.set_halign(Align::Start);
 
-    let file_label = gtk4::Label::new(Some(
-        heelonvault_core::tr!("login-restore-file-label").as_str(),
-    ));
-    file_label.add_css_class("login-field-label");
-    file_label.set_halign(Align::Start);
+    let row_icon = |icon_name: &str| {
+        let icon = gtk4::Image::from_icon_name(icon_name);
+        icon.add_css_class("login-row-icon");
+        icon
+    };
 
-    let file_row = gtk4::Box::builder()
-        .orientation(Orientation::Horizontal)
-        .spacing(8)
+    let file_entry = adw::EntryRow::builder()
+        .title(heelonvault_core::tr!("login-restore-file-label").as_str())
         .build();
-
-    let file_entry = gtk4::Entry::builder()
-        .placeholder_text(heelonvault_core::tr!("login-restore-file-placeholder").as_str())
-        .hexpand(true)
-        .build();
-    file_entry.add_css_class("login-entry");
+    file_entry.add_prefix(&row_icon("hv-document-symbolic"));
 
     let browse_button =
         gtk4::Button::with_label(heelonvault_core::tr!("login-restore-browse").as_str());
-    browse_button.add_css_class("secondary-pill");
+    browse_button.add_css_class("flat");
+    browse_button.add_css_class("login-link-accent");
+    browse_button.set_valign(Align::Center);
+    file_entry.add_suffix(&browse_button);
 
-    file_row.append(&file_entry);
-    file_row.append(&browse_button);
-
-    let phrase_label = gtk4::Label::new(Some(
-        heelonvault_core::tr!("login-restore-phrase-label").as_str(),
-    ));
-    phrase_label.add_css_class("login-field-label");
-    phrase_label.set_halign(Align::Start);
-
-    let phrase_entry = gtk4::Entry::builder()
-        .placeholder_text(heelonvault_core::tr!("login-restore-phrase-placeholder").as_str())
-        .hexpand(true)
+    let phrase_entry = adw::EntryRow::builder()
+        .title(heelonvault_core::tr!("login-restore-phrase-label").as_str())
         .build();
-    phrase_entry.add_css_class("login-entry");
+    phrase_entry.add_prefix(&row_icon("hv-key-symbolic"));
 
-    let password_label = gtk4::Label::new(Some(
-        heelonvault_core::tr!("login-restore-password-label").as_str(),
-    ));
-    password_label.add_css_class("login-field-label");
-    password_label.set_halign(Align::Start);
-
-    let new_password_entry = gtk4::PasswordEntry::builder()
-        .placeholder_text(heelonvault_core::tr!("login-restore-password-placeholder").as_str())
-        .hexpand(true)
-        .show_peek_icon(true)
+    let source_list = gtk4::ListBox::builder()
+        .selection_mode(gtk4::SelectionMode::None)
         .build();
-    new_password_entry.add_css_class("login-entry");
+    source_list.add_css_class("boxed-list");
+    source_list.add_css_class("login-boxed-list");
+    source_list.append(&file_entry);
+    source_list.append(&phrase_entry);
+
+    let new_password_entry = adw::PasswordEntryRow::builder()
+        .title(heelonvault_core::tr!("login-restore-password-label").as_str())
+        .build();
+    new_password_entry.add_prefix(&row_icon("hv-lock-symbolic"));
+
+    let confirm_password_entry = adw::PasswordEntryRow::builder()
+        .title(heelonvault_core::tr!("login-restore-confirm-label").as_str())
+        .build();
+    confirm_password_entry.add_prefix(&row_icon("hv-lock-symbolic"));
+
+    let password_list = gtk4::ListBox::builder()
+        .selection_mode(gtk4::SelectionMode::None)
+        .build();
+    password_list.add_css_class("boxed-list");
+    password_list.add_css_class("login-boxed-list");
+    password_list.append(&new_password_entry);
+    password_list.append(&confirm_password_entry);
 
     let strength_bar = PasswordStrengthBar::new();
-    strength_bar.connect_to_password_entry(&new_password_entry);
-
-    let confirm_label = gtk4::Label::new(Some(
-        heelonvault_core::tr!("login-restore-confirm-label").as_str(),
-    ));
-    confirm_label.add_css_class("login-field-label");
-    confirm_label.set_halign(Align::Start);
-
-    let confirm_password_entry = gtk4::PasswordEntry::builder()
-        .placeholder_text(heelonvault_core::tr!("login-restore-confirm-placeholder").as_str())
-        .hexpand(true)
-        .show_peek_icon(true)
-        .build();
-    confirm_password_entry.add_css_class("login-entry");
+    strength_bar.connect_to_password_entry_row(&new_password_entry);
 
     let error_label = gtk4::Label::new(None);
     error_label.add_css_class("login-error");
@@ -180,19 +175,19 @@ pub(super) fn present_restore_dialog(
 
     let button_box = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
-        .spacing(10)
+        .spacing(8)
+        .halign(Align::End)
         .build();
 
     let cancel_button =
         gtk4::Button::with_label(heelonvault_core::tr!("login-restore-cancel").as_str());
-    cancel_button.add_css_class("secondary-pill");
+    cancel_button.add_css_class("flat");
+    cancel_button.add_css_class("login-link");
 
-    let restore_button = gtk4::Button::builder()
-        .hexpand(true)
-        .halign(Align::Fill)
-        .sensitive(false)
-        .build();
-    restore_button.add_css_class("primary-pill");
+    let restore_button = gtk4::Button::builder().sensitive(false).build();
+    restore_button.add_css_class("suggested-action");
+    restore_button.add_css_class("pill");
+    restore_button.add_css_class("login-submit");
 
     let restore_content = gtk4::Box::builder()
         .orientation(Orientation::Horizontal)
@@ -210,25 +205,32 @@ pub(super) fn present_restore_dialog(
     button_box.append(&cancel_button);
     button_box.append(&restore_button);
 
-    content.append(&title);
-    content.append(&file_label);
-    content.append(&file_row);
-    content.append(&phrase_label);
-    content.append(&phrase_entry);
-    content.append(&password_label);
-    content.append(&new_password_entry);
-    content.append(strength_bar.root());
-    content.append(&confirm_label);
-    content.append(&confirm_password_entry);
+    let password_box = gtk4::Box::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(8)
+        .build();
+    password_box.append(&password_list);
+    password_box.append(strength_bar.root());
+
+    content.append(&description);
+    content.append(&source_list);
+    content.append(&password_box);
     content.append(&error_label);
     content.append(&button_box);
+
+    let clamp = adw::Clamp::builder()
+        .maximum_size(560)
+        .tightening_threshold(420)
+        .child(&content)
+        .build();
 
     let content_scroll = gtk4::ScrolledWindow::builder()
         .hscrollbar_policy(gtk4::PolicyType::Never)
         .vscrollbar_policy(gtk4::PolicyType::Automatic)
         .min_content_width(420)
         .build();
-    content_scroll.set_child(Some(&content));
+    content_scroll.add_css_class("login-surface");
+    content_scroll.set_child(Some(&clamp));
     dialog.set_child(Some(&content_scroll));
 
     dialog.connect_close_request(move |win| {

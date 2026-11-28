@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use gtk4::glib;
 use gtk4::prelude::*;
+use libadwaita as adw;
 use secrecy::SecretBox;
 use tokio::runtime::Handle;
 
@@ -86,7 +87,7 @@ pub(super) fn handle_psc_artifact_completion<TFederated>(
     federated_auth_service: Arc<TFederated>,
     artifact: String,
     error_label: &gtk4::Label,
-    username_entry: &gtk4::Entry,
+    username_entry: &adw::EntryRow,
 ) where
     TFederated: FederatedAuthService + Send + Sync + 'static,
 {
@@ -175,8 +176,8 @@ pub(super) fn handle_totp_submit<TAuth, TPolicy, TUser, TTotp>(
     auth_policy_service: Arc<TPolicy>,
     user_service: Arc<TUser>,
     totp_service: Arc<TTotp>,
-    username_entry: &gtk4::Entry,
-    password_entry: &gtk4::PasswordEntry,
+    username_entry: &adw::EntryRow,
+    password_entry: &adw::PasswordEntryRow,
     totp_entry: &gtk4::Entry,
     submit_button: &gtk4::Button,
     submit_spinner: &gtk4::Spinner,
