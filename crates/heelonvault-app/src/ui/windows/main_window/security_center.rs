@@ -1458,7 +1458,11 @@ pub(super) mod tests {
             .collect();
             panel.main_stack.set_visible_child_name("entries_view");
             sidebar.audit_all_badge.set_text("4");
+            // A state the app really shows: a complete analysis without findings (green "0"),
+            // never the raw amber base style.
             sidebar.security_nav.count.set_text("0");
+            toggle_class(&sidebar.security_nav.count, "security-count-pending", false);
+            toggle_class(&sidebar.security_nav.count, "security-count-ok", true);
             sidebar.security_nav.new_pill.set_visible(false);
             for (mode, name) in [
                 (SecretViewMode::Grid, "dashboard-grid"),
