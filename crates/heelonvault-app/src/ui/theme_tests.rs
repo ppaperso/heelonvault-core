@@ -429,6 +429,8 @@ pub(crate) fn native_theme_scenario(
             child.set_child(Some(&card));
             flow.unselect_all();
             settle();
+            // White card: every drawn text and icon stays readable (3.0 cards, ≥ 4.5:1).
+            assert_mapped_text_contrast(&card, "#FFFFFF")?;
             let header = card.first_child().ok_or("missing typed card header")?;
             let bounds = header.compute_bounds(&flow);
             let rest = geometry(&card);

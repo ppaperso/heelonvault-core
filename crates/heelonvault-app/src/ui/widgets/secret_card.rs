@@ -178,7 +178,7 @@ fn usage_tooltip(count: u32) -> String {
 ///
 /// Grid layout (top → bottom), every card of a grid has the same size:
 ///   header_row : [type icon] [title, up to two lines] [copies]
-///   info_box : [login] [domain] [vault?] (each on its own line, hidden when all empty)
+///   info_box : [login] [domain] [vault?] (one line each; login and domain keep their slot)
 ///   chips : passphrase? · category · tags
 ///   badges_box : two status badges at most, the most at-risk first, then "+N"
 ///   separator
@@ -311,12 +311,14 @@ impl SecretCard {
                 "secret-card-vault",
             ),
         ];
-        for (icon, text, class) in lines {
-            if !text.is_empty() {
+        // Login and domain keep their line even when empty, so chips, badges and actions sit
+        // at the same height on every card; the origin vault line exists only in a
+        // cross-vault search, where every card has one.
+        for (index, (icon, text, class)) in lines.into_iter().enumerate() {
+            if index < 2 || !text.is_empty() {
                 info_box.append(&build_info_row(icon, text, class, None));
             }
         }
-        info_box.set_visible(info_box.first_child().is_some());
 
         let separator = Separator::new(gtk4::Orientation::Horizontal);
         separator.add_css_class("secret-card-separator");
@@ -564,7 +566,7 @@ impl SecretCard {
         if data.is_shared_vault {
             statuses.push((
                 heelonvault_core::tr!("secret-card-shared-badge"),
-                "badge-usage",
+                "badge-shared",
             ));
         }
         if data.is_health_access {
@@ -933,6 +935,27 @@ pub(crate) fn native_card_classification_scenario() -> Result<(), Box<dyn std::e
         &mut none,
     );
     assert!(none.is_empty(), "no badge row without category or tags");
+
+    // Fixed slots: login and domain keep their line when empty, so every grid card lays out
+    // its chips, badges and actions at the same height.
+    let mut bare = data("", "");
+    bare.login = String::new();
+    let bare = SecretCard::new(bare, SecretViewMode::Grid);
+    let mut info_boxes = Vec::new();
+    collect(
+        bare.get_widget().upcast_ref(),
+        "secret-card-info-box",
+        &mut info_boxes,
+    );
+    let info_box = info_boxes.first().ok_or("missing info box")?;
+    assert!(info_box.is_visible());
+    let mut lines = 0;
+    let mut line = info_box.first_child();
+    while let Some(current) = line {
+        lines += 1;
+        line = current.next_sibling();
+    }
+    assert_eq!(lines, 2, "login and domain slots kept without values");
     Ok(())
 }
 
