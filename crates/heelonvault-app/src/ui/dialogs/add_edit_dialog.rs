@@ -258,11 +258,10 @@ impl AddEditDialog {
             .build();
 
         let label = gtk4::Label::new(Some(label_text));
-        label.add_css_class("login-field-label");
+        label.add_css_class("field-label");
         label.set_halign(Align::Start);
 
         let entry = gtk4::Entry::builder().placeholder_text(placeholder).build();
-        entry.add_css_class("login-entry");
         entry.add_css_class(css_class);
 
         box_widget.append(&label);
@@ -286,7 +285,7 @@ impl AddEditDialog {
         let password_label = gtk4::Label::new(Some(
             heelonvault_core::tr!("add-edit-password-label").as_str(),
         ));
-        password_label.add_css_class("login-field-label");
+        password_label.add_css_class("field-label");
         password_label.set_halign(Align::Start);
         password_label.set_hexpand(true);
 
@@ -323,7 +322,6 @@ impl AddEditDialog {
             .show_peek_icon(true)
             .hexpand(true)
             .build();
-        password_entry.add_css_class("login-entry");
 
         let generator = PasswordGenerator::new(&password_entry);
         let generate_button = gtk4::ToggleButton::new();
@@ -432,14 +430,13 @@ impl AddEditDialog {
         let token_label = gtk4::Label::new(Some(
             heelonvault_core::tr!("add-edit-api-token-label").as_str(),
         ));
-        token_label.add_css_class("login-field-label");
+        token_label.add_css_class("field-label");
         token_label.set_halign(Align::Start);
 
         let token_entry = gtk4::PasswordEntry::builder()
             .placeholder_text(heelonvault_core::tr!("add-edit-api-token-placeholder").as_str())
             .show_peek_icon(true)
             .build();
-        token_entry.add_css_class("login-entry");
 
         let (provider_row, provider_entry) = Self::build_labeled_entry(
             heelonvault_core::tr!("add-edit-api-provider-label").as_str(),
@@ -470,7 +467,7 @@ impl AddEditDialog {
         let private_key_label = gtk4::Label::new(Some(
             heelonvault_core::tr!("add-edit-ssh-private-label").as_str(),
         ));
-        private_key_label.add_css_class("login-field-label");
+        private_key_label.add_css_class("field-label");
         private_key_label.set_halign(Align::Start);
 
         let private_key_scrolled = gtk4::ScrolledWindow::builder()
@@ -529,7 +526,7 @@ impl AddEditDialog {
         let import_hint = gtk4::Label::new(Some(
             heelonvault_core::tr!("add-edit-document-import-hint").as_str(),
         ));
-        import_hint.add_css_class("login-support-copy");
+        import_hint.add_css_class("field-hint");
         import_hint.set_wrap(true);
         import_hint.set_halign(Align::Start);
 

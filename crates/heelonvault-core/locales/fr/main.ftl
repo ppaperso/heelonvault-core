@@ -182,8 +182,8 @@ auth-error = Erreur d'authentification
     .title = Accès refusé
     .description = Le mot de passe ou le code TOTP est incorrect. Veuillez réessayer.
 
-twofa-badge-disabled = DÉSACTIVÉE
-twofa-badge-enabled = ACTIVÉE 🔒
+twofa-badge-disabled = Désactivée
+twofa-badge-enabled = Activée
 
 profile-totp-code-empty-error = Code TOTP requis pour confirmer l'activation.
 profile-totp-code-format-error = Le code TOTP doit contenir exactement 6 chiffres.
@@ -240,9 +240,9 @@ add-edit-target-vault-label = Coffre cible : { $name }
 add-edit-target-vault-current = Coffre cible : { $name } (actuel)
 add-edit-change-vault-button = Changer de coffre
 add-edit-change-vault-title = Changer le coffre cible
-add-edit-vaults-label = COFFRES
-add-edit-vault-badge-current = ACTUEL
-add-edit-vault-badge-target = CIBLE
+add-edit-vaults-label = Coffres
+add-edit-vault-badge-current = Actuel
+add-edit-vault-badge-target = Cible
 add-edit-vaults-empty = Aucun autre coffre
 
 add-edit-button-back = ← Retour
@@ -345,7 +345,7 @@ common-cancel = Annuler
 
 main-connected-label = Connecte: { $name }
 main-last-logins-tooltip = Dernières connexions
-main-admin-badge = ADMIN
+main-admin-badge = Admin
 main-admin-badge-tooltip = Compte administrateur: attention aux opérations sensibles.
 main-last-logins-title = Dernières connexions
 main-add-tooltip = Ajouter
@@ -610,7 +610,7 @@ main-panic-body = Les structures sensibles (clés, SecretBox) seront libérées 
     Cette action est irréversible.
 main-panic-cancel = Annuler
 main-panic-confirm = Effacer et quitter
-secret-card-duplicate-badge = DOUBLON
+secret-card-duplicate-badge = Doublon
 secret-card-chip-search = Rechercher { $query }
 secret-card-chip-more = +{ $count }
 secret-card-usage-tooltip = { $count ->
@@ -887,9 +887,9 @@ certification-report-key-missing = Clé de certification indisponible. Ouvrez la
 certification-report-error-title = Erreur de génération
 certification-report-error-body = Impossible de générer le rapport : { $error }
 certification-report-interrupted = La génération du rapport a été interrompue.
-vault-share-role-read = LECTURE
-vault-share-role-write = ÉCRITURE
-vault-share-role-admin = ADMIN
+vault-share-role-read = Lecture
+vault-share-role-write = Écriture
+vault-share-role-admin = Admin
 
 ## Indicateur de robustesse du mot de passe
 password-hint-too-short = Trop court — minimum 12 caractères ({ $count } saisis)

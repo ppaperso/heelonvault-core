@@ -1,106 +1,93 @@
-/* Add/Edit secret dialog and recovery-phrase/init screens */
+/* Secret editor (3.0 look): header on the canvas, one white form card split in two columns by
+   a hairline, neutral fields with sentence-case labels, teal for the selected choices only.
+   Also the shared field label/hint/error styles, classification chips and the generator. */
 
-    .dialog-password-edit-hint-wrap {
-        border-radius: 12px;
-        border: 1px solid alpha(@hv_brand_500, 0.35);
-        background: linear-gradient(135deg, alpha(@hv_brand_500, 0.09), alpha(@hv_brand_green, 0.06));
-        padding: 10px 12px;
-    }
+/* ── Shared form text ──────────────────────────────────────────────────── */
+label.field-label {
+    color: @hv_text;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
 
-    .dialog-password-edit-hint-icon {
-        color: @hv_brand_800;
-        opacity: 0.95;
-    }
+label.field-hint {
+    color: @hv_text_muted;
+    font-size: 0.86rem;
+}
 
-    .dialog-password-edit-hint {
-        color: @hv_text;
-        font-size: 0.83rem;
-        line-height: 1.3;
-    }
+label.form-error {
+    color: @hv_danger;
+    font-weight: 600;
+}
 
-/* Add/Edit dialog local rules migrated from add_edit_dialog.rs */
-.add-edit-dialog frame.dialog-type-frame {
-    background: alpha(@hv_canvas, 0.72);
+/* ── Header ────────────────────────────────────────────────────────────── */
+.add-edit-dialog frame.add-edit-header {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+label.add-edit-header-title {
+    color: @hv_text;
+    font-weight: 800;
+}
+
+label.add-edit-header-copy {
+    color: @hv_text_muted;
+}
+
+.add-edit-dialog button.add-edit-back-btn {
+    color: @hv_brand_800;
+    background: transparent;
+    border: none;
+    font-weight: 600;
+}
+
+.add-edit-dialog button.add-edit-back-btn:hover:not(:disabled) {
+    background: alpha(@hv_text, 0.06);
+}
+
+.add-edit-dialog button.add-edit-back-btn:active:not(:disabled) {
+    background: alpha(@hv_text, 0.10);
+}
+
+.add-edit-dialog button.add-edit-back-btn:disabled {
+    color: @hv_text_muted;
+    background: transparent;
+}
+
+.add-edit-dialog button.add-edit-back-btn label,
+.add-edit-dialog button.add-edit-back-btn image,
+.add-edit-dialog button.add-edit-delete-btn image,
+.add-edit-dialog button.add-edit-delete-btn label {
+    color: inherit;
+}
+
+/* ── Form card and columns ─────────────────────────────────────────────── */
+.add-edit-dialog frame.add-edit-form {
+    background: @hv_surface;
+    border: 1px solid @hv_border;
     border-radius: 12px;
-    border: 1px solid alpha(@hv_brand_200, 0.95);
+    box-shadow: 0 1px 3px @hv_shadow_soft;
 }
 
-.add-edit-dialog box.add-edit-type-pill-row {
-    margin-bottom: 4px;
-}
-
-.add-edit-dialog button.add-edit-type-pill {
-    padding: 7px 12px;
-}
-
-.add-edit-dialog button.add-edit-type-pill:checked {
-    border-color: alpha(@hv_brand_900, 0.5);
-    background: linear-gradient(145deg, @hv_brand_700, @hv_brand_700);
-    color: #f6fffd;
-}
-
-.add-edit-dialog grid.add-edit-common-grid {
-    margin-bottom: 4px;
-}
-
-/* Vault pills section */
-.add-edit-dialog label.add-edit-vaults-label {
-    margin-bottom: 8px;
-    margin-top: 0;
-}
-
-.add-edit-dialog box.add-edit-vault-pills-row {
-    margin-bottom: 4px;
-}
-
-.add-edit-dialog button.add-edit-vault-pill {
-    padding: 7px 12px;
-}
-
-.add-edit-dialog button.add-edit-vault-pill:checked {
-    border-color: alpha(@hv_brand_900, 0.5);
-    background: linear-gradient(145deg, @hv_brand_700, @hv_brand_700);
-    color: #f6fffd;
-}
-
-.add-edit-dialog button.add-edit-vault-pill:disabled {
-    opacity: 0.5;
-}
-
-.add-edit-dialog label.add-edit-vault-pill {
-    padding: 7px 12px;
-    border-radius: 999px;
-    border: 1px solid alpha(@hv_brand_200, 0.95);
-    background: rgba(255, 255, 255, 0.98);
-    color: @hv_brand_900;
-}
-
-.add-edit-dialog label.badge-inside-pill {
-    padding: 2px 6px;
-    font-size: 0.65em;
-    font-weight: 700;
-    border-radius: 4px;
-    margin-left: 6px;
-}
-
-.add-edit-dialog label.badge-current {
-    background: @hv_brand_green;
-    color: @hv_on_brand;
-}
-
-.add-edit-dialog label.badge-target {
-    background: #0E88B8;
-    color: @hv_on_brand;
-}
-
-.add-edit-dialog label.add-edit-vaults-empty-label {
-    opacity: 0.6;
-    font-style: italic;
-    font-size: 0.9em;
+/* Inner blocks are layout only: no nested borders or tints. */
+.add-edit-dialog frame.dialog-type-frame {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
 }
 
 .add-edit-dialog box.add-edit-main-split {
     margin-bottom: 4px;
+}
+
+.add-edit-dialog box.add-edit-main-split:not(.is-compact) > frame.add-edit-secret-block {
+    border-left: 1px solid @hv_border;
+}
+
+.add-edit-dialog box.add-edit-main-split.is-compact > frame.add-edit-secret-block {
+    border-top: 1px solid @hv_border;
 }
 
 .add-edit-dialog frame.add-edit-info-block,
@@ -113,57 +100,6 @@
     min-width: 0;
 }
 
-.add-edit-dialog dropdown.dialog-type-dropdown,
-.add-edit-dialog spinbutton.dialog-validity-spin {
-    border-radius: 12px;
-    border: 1px solid alpha(@hv_brand_200, 0.95);
-    background: rgba(255, 255, 255, 0.95);
-    padding: 8px 10px;
-}
-
-.add-edit-dialog textview,
-.add-edit-dialog scrolledwindow.dialog-notes-scroll {
-    border-radius: 12px;
-    border: 1px solid alpha(@hv_brand_200, 0.95);
-    background: rgba(255, 255, 255, 0.95);
-}
-
-.add-edit-dialog textview.dialog-ssh-private-key-text {
-    font-family: monospace;
-    font-size: 0.92rem;
-}
-
-.add-edit-dialog button.add-edit-back-btn {
-    color: @hv_on_brand;
-    background: alpha(@hv_on_brand, 0.06);
-    border: 1px solid alpha(@hv_on_brand, 0.35);
-}
-
-.add-edit-dialog button.add-edit-back-btn:hover:not(:disabled) {
-    background: alpha(@hv_on_brand, 0.10);
-}
-
-.add-edit-dialog button.add-edit-back-btn:active:not(:disabled) {
-    background: alpha(@hv_on_brand, 0.14);
-}
-
-.add-edit-dialog button.add-edit-back-btn:focus-visible {
-    outline-color: @hv_on_brand;
-}
-
-.add-edit-dialog button.add-edit-back-btn label,
-.add-edit-dialog button.add-edit-back-btn image,
-.add-edit-dialog button.add-edit-delete-btn image,
-.add-edit-dialog button.add-edit-delete-btn label {
-    color: inherit;
-}
-
-.add-edit-dialog button.add-edit-back-btn:disabled {
-    color: alpha(@hv_on_brand, 0.55);
-    background: transparent;
-    border-color: alpha(@hv_on_brand, 0.18);
-}
-
 frame.add-edit-footer-card {
     margin-top: 0;
     margin-bottom: 8px;
@@ -171,39 +107,143 @@ frame.add-edit-footer-card {
     margin-right: 16px;
 }
 
-/* ── Category and tags: one row of badges ─────────────────────────────── */
-.classification-field {
-    min-height: 46px;
+/* ── Fields: same neutral look as the base entries (01-base.css) ───────── */
+.add-edit-dialog dropdown.dialog-type-dropdown,
+.add-edit-dialog spinbutton.dialog-validity-spin {
+    border-radius: 12px;
+    border: 1px solid @hv_border_strong;
+    background: @hv_surface;
+}
+
+.add-edit-dialog scrolledwindow.dialog-notes-scroll {
+    border-radius: 12px;
+    border: 1px solid @hv_border_strong;
+    background: @hv_surface;
+}
+
+/* The notes view sits inside the bordered scroller: no second frame. */
+.add-edit-dialog scrolledwindow.dialog-notes-scroll textview {
+    border: none;
+    background: transparent;
+}
+
+.add-edit-dialog textview.dialog-ssh-private-key-text {
+    font-family: monospace;
+    font-size: 0.92rem;
+}
+
+/* ── Choice pills: type, vault, password kind ──────────────────────────── */
+.add-edit-dialog box.add-edit-type-pill-row,
+.add-edit-dialog box.add-edit-vault-pills-row,
+.add-edit-dialog grid.add-edit-common-grid {
+    margin-bottom: 4px;
+}
+
+.add-edit-dialog button.add-edit-type-pill,
+.add-edit-dialog button.add-edit-vault-pill {
+    padding: 7px 12px;
+}
+
+.add-edit-dialog button.add-edit-type-pill.password-kind-pill {
     padding: 4px 10px;
-    background: rgba(255, 255, 255, 0.92);
-    border-radius: 16px;
-    border: 1px solid alpha(@hv_brand_200, 0.95);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.add-edit-dialog button.add-edit-type-pill:checked,
+.add-edit-dialog button.add-edit-vault-pill:checked {
+    border-color: transparent;
+    background: @hv_brand_700;
+    color: @hv_on_brand;
+}
+
+.add-edit-dialog button.add-edit-vault-pill:disabled {
+    opacity: 0.5;
+}
+
+.add-edit-dialog label.add-edit-vaults-label {
+    margin-bottom: 8px;
+    margin-top: 0;
+}
+
+.add-edit-dialog label.add-edit-vault-pill {
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid @hv_border_strong;
+    background: @hv_surface;
+    color: @hv_text;
+}
+
+.add-edit-dialog label.badge-inside-pill {
+    padding: 2px 6px;
+    font-size: 0.65em;
+    font-weight: 700;
+    border-radius: 4px;
+    margin-left: 6px;
+}
+
+.add-edit-dialog label.badge-current {
+    background: @hv_success_strong;
+    color: @hv_on_brand;
+}
+
+.add-edit-dialog label.badge-target {
+    background: @hv_info_strong;
+    color: @hv_on_brand;
+}
+
+.add-edit-dialog label.add-edit-vaults-empty-label {
+    color: @hv_text_muted;
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+/* Edit-mode notice above the password field. */
+.dialog-password-edit-hint-wrap {
+    border-radius: 12px;
+    background: @hv_brand_50;
+    padding: 10px 12px;
+}
+
+.dialog-password-edit-hint-icon {
+    color: @hv_brand_800;
+}
+
+.dialog-password-edit-hint {
+    color: @hv_text;
+    font-size: 0.83rem;
+}
+
+/* ── Category and tags: one row of chips, styled like an entry ─────────── */
+.classification-field {
+    min-height: 40px;
+    padding: 3px 10px;
+    background: @hv_surface;
+    border-radius: 12px;
+    border: 1px solid @hv_border_strong;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .classification-field:focus-within {
-    border-color: @hv_brand_500;
-    box-shadow: 0 0 0 2px alpha(@hv_brand_500, 0.18);
+    border-color: @hv_brand_700;
+    box-shadow: 0 0 0 3px alpha(@hv_brand_600, 0.16);
 }
 
 text.classification-input {
-    min-height: 34px;
+    min-height: 32px;
     color: @hv_text;
 }
 
 .classification-chip {
     padding: 1px 2px 1px 10px;
     border-radius: 999px;
-    background: alpha(@hv_brand_500, 0.12);
-    border: 1px solid alpha(@hv_brand_500, 0.26);
-    color: @hv_brand_800;
+    background: @hv_surface_subtle;
+    color: @hv_text;
     font-size: 0.86rem;
     font-weight: 600;
 }
 
 .classification-chip-category {
-    background: alpha(@hv_brand_green, 0.14);
-    border-color: alpha(@hv_brand_green, 0.32);
+    background: @hv_brand_50;
+    color: @hv_brand_800;
 }
 
 button.classification-chip-remove {
@@ -224,9 +264,9 @@ flowbox.classification-tags flowboxchild,
 }
 
 .classification-counter {
-    font-size: 0.74rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    color: @hv_text_subtle;
+    color: @hv_text_muted;
 }
 
 .classification-counter-full {
@@ -243,8 +283,8 @@ button.classification-help {
     padding: 0;
     font-size: 0.72rem;
     font-weight: 800;
-    color: @hv_brand_600;
-    border: 1px solid alpha(@hv_brand_500, 0.35);
+    color: @hv_text_muted;
+    border: 1px solid @hv_border_strong;
 }
 
 .classification-help-text {
@@ -253,36 +293,33 @@ button.classification-help {
 }
 
 .classification-suggestions row:selected {
-    background: alpha(@hv_brand_500, 0.16);
+    background: @hv_brand_100;
     color: @hv_brand_900;
 }
 
-/* Password / passphrase generator panel */
-.add-edit-dialog button.add-edit-type-pill.password-kind-pill {
-    padding: 4px 10px;
-}
-
+/* ── Password / passphrase generator panel ─────────────────────────────── */
 .add-edit-dialog button.password-generator-toggle:checked {
-    border-color: alpha(@hv_brand_900, 0.5);
-    background: alpha(@hv_brand_500, 0.18);
+    border-color: transparent;
+    background: @hv_brand_100;
+    color: @hv_brand_900;
 }
 
 .password-generator-panel {
     padding: 10px 12px;
     border-radius: 10px;
-    background: alpha(@hv_brand_500, 0.06);
-    border: 1px solid alpha(@hv_brand_500, 0.22);
+    background: @hv_surface_subtle;
 }
 
 .password-generator-preview {
     font-size: 1.05rem;
     padding: 6px 8px;
     border-radius: 6px;
-    background: alpha(@window_fg_color, 0.05);
+    background: @hv_surface;
 }
 
 .password-generator-confirm {
     padding: 6px 8px;
     border-radius: 6px;
-    background: alpha(@warning_color, 0.12);
+    background: @hv_warning_bg;
+    color: @hv_warning_strong;
 }

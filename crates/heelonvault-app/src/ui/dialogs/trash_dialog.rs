@@ -360,7 +360,7 @@ impl TrashDialog {
                         };
                         let meta_label = gtk4::Label::new(Some(&meta));
                         meta_label.set_halign(Align::Start);
-                        meta_label.add_css_class("login-support-copy");
+                        meta_label.add_css_class("field-hint");
 
                         // Ligne de date de suppression
                         let deleted_text = item

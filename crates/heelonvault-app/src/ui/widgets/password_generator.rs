@@ -98,7 +98,7 @@ pub struct PasswordGenerator {
 fn title_label() -> gtk4::Label {
     let label = gtk4::Label::new(None);
     label.set_halign(gtk4::Align::Start);
-    label.add_css_class("login-field-label");
+    label.add_css_class("field-label");
     label
 }
 

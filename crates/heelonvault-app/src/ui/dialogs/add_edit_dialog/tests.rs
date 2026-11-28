@@ -72,7 +72,7 @@ where
             |_| {},
         );
         let root = editor.container.upcast_ref::<gtk4::Widget>();
-        let error = find(root, "login-error").ok_or("missing load error")?;
+        let error = find(root, "form-error").ok_or("missing load error")?;
         wait_until(|| editor.state.ready() || error.is_visible())?;
         if matches!(mode, DialogMode::CreateInVault(id) if id != second_vault.id) {
             assert!(
@@ -163,7 +163,7 @@ where
             assert_eq!(cancelled.get(), 0);
             assert!(editor.state.dirty(), "a failed save retains the draft");
             assert!(save.is_sensitive(), "a failed save permits retry");
-            assert!(find(root, "login-error").is_some_and(|label| label.is_visible()));
+            assert!(find(root, "form-error").is_some_and(|label| label.is_visible()));
         } else {
             assert_eq!(saved.get(), 1);
             assert_eq!(cancelled.get(), 1);

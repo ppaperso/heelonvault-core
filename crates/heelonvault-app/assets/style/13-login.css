@@ -192,32 +192,6 @@ label.init-badge-word {
     font-weight: 700;
 }
 
-/* Field styles still shared with the secret editor (restyled with the editor). */
-.login-field-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: @hv_brand_900;
-}
-
-.login-support-copy,
-.login-strength {
+label.login-strength {
     color: @hv_text_muted;
-}
-
-entry.login-entry,
-passwordentry.login-entry {
-    background: rgba(255, 255, 255, 0.92);
-    border-radius: 16px;
-    border: 1px solid alpha(@hv_brand_200, 0.95);
-    padding: 12px 14px;
-    color: @hv_text;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
-}
-
-entry.login-entry:focus,
-passwordentry.login-entry:focus {
-    border-color: @hv_brand_500;
-    box-shadow: 0 0 0 2px alpha(@hv_brand_500, 0.18);
 }
