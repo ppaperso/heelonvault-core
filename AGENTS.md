@@ -82,7 +82,8 @@ Integration tests live under `crates/heelonvault-core/tests/` (plus repo-consist
 5. No new dependency without prior agreement in an issue; never add permanent `cargo audit` / `cargo deny` ignore entries.
 6. **One version number** for the product, the `heelonvault-core` crate and `heelonvault-premium` (semver of the crate's public API): any API break = major release of the whole product. Prefer default trait methods, `#[non_exhaustive]`, deprecate-then-remove. Enforced by `crates/heelonvault-app/tests/release_consistency.rs` (which also requires the current version's section in **all four changelogs**: core `docs/CHANGELOG.md` + `docs/CHANGELOG.en.md`, premium `CHANGELOG.md` + `CHANGELOG.en.md`) and CI `cargo semver-checks`.
 7. **User-visible change → FR + EN changelog entry** plus the relevant guides (`docs/QUICKSTART*`, `USER_GUIDE*`, `UPDATE_GUIDE*`); follow the PR template checklist (`.github/pull_request_template.md`).
-8. Commits, PR titles, reviews and code comments in **English**. Commit/PR titles use
+8. Commits, PR titles **and descriptions**, reviews and code comments in **English**, even
+   when the conversation with the maintainer is in French. Commit/PR titles use
    `<type>(<scope>): <summary>` (the PR title becomes the squash commit on `main`).
    Issues may be FR or EN. User-facing docs are bilingual; see Documentation layout below.
 9. Workflow: issue first → branch `<type>/<short-subject>` → PR to `main` (protected, **squash only**). **Merge the premium PR before the core PR**: core's CI checks out premium's `main` (`docs/internal/RELEASING.md`, step 6). External contributions are limited to `crates/heelonvault-core` and docs.
