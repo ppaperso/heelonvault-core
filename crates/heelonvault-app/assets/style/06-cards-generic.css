@@ -1,10 +1,10 @@
 /* Generic .card component, card sub-elements (icon badge, title, hint, actions, tag pills), Heelonys seal component */
 
     .card {
-        background: linear-gradient(135deg, @hv_surface, @hv_canvas);
-        border: 1px solid alpha(@hv_brand_200, 0.85);
-        border-radius: 16px;
-        box-shadow: 0 1px 2px @hv_shadow_soft, 0 10px 28px @hv_shadow_key;
+        background: @hv_surface;
+        border: 1px solid @hv_border;
+        border-radius: 12px;
+        box-shadow: 0 1px 2px @hv_shadow_soft;
     }
 
     /* Badge icône */
@@ -16,14 +16,14 @@
     }
 
     .card-icon-badge-success { background: alpha(@hv_brand_green, 0.12); }
-    .card-icon-badge-warning { background: rgba(230, 184, 0,   0.12); }
+    .card-icon-badge-warning { background: @hv_warning_bg; }
     .card-icon-badge-error   { background: alpha(@hv_danger_bright, 0.12); }
 
     /* Titre de la card */
     .card-title {
         font-weight: 650;
         font-size: 0.95rem;
-        color: @hv_brand_900;
+        color: @hv_text;
     }
 
     /* Catégorie */
@@ -43,7 +43,7 @@
 
     /* Séparateur fin */
     .card-sep {
-        background: alpha(@hv_brand_200, 0.5);
+        background: @hv_border;
         min-height: 1px;
         margin-top: 2px;
         margin-bottom: 2px;
@@ -85,9 +85,9 @@
     }
 
     .card-alert-warning {
-        background: rgba(230, 184, 0, 0.15);
+        background: @hv_warning_bg;
         color: @hv_warning_strong;
-        border: 1px solid rgba(230, 184, 0, 0.4);
+        border: 1px solid alpha(@hv_warning, 0.35);
     }
 
     .card-alert-error {
@@ -121,28 +121,28 @@
 
 .heelonys-seal {
     border-radius: 8px;
-    border: 1px solid rgba(182, 141, 76, 0.88);
+    border: 1px solid alpha(@hv_seal_gold, 0.88);
     background-image:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.00) 28%),
-        linear-gradient(145deg, #1E2329, #0F1217);
-    color: #F0EBDD;
+        linear-gradient(135deg, alpha(@hv_on_brand, 0.12), alpha(@hv_on_brand, 0.0) 28%),
+        linear-gradient(145deg, @hv_seal_bg, @hv_seal_bg_deep);
+    color: @hv_seal_text;
     padding: 5px 9px;
     box-shadow:
-        0 0 8px rgba(181, 138, 74, 0.18),
-        0 4px 12px rgba(5, 8, 12, 0.42),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.28);
+        0 0 8px alpha(@hv_seal_gold, 0.18),
+        0 4px 12px alpha(@hv_seal_bg_deep, 0.42),
+        inset 0 1px 0 alpha(@hv_on_brand, 0.12),
+        inset 0 -1px 0 alpha(#000000, 0.28);
 }
 
 .heelonys-seal:hover {
     background-image:
-        linear-gradient(128deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.00) 36%),
-        linear-gradient(145deg, #252A31, #101419);
+        linear-gradient(128deg, alpha(@hv_on_brand, 0.24), alpha(@hv_on_brand, 0.0) 36%),
+        linear-gradient(145deg, @hv_seal_bg_hover, @hv_seal_bg_hover_deep);
     box-shadow:
-        0 0 11px rgba(186, 144, 80, 0.24),
-        0 5px 15px rgba(5, 8, 12, 0.50),
-        inset 0 1px 0 rgba(255, 255, 255, 0.16),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.34);
+        0 0 11px alpha(@hv_seal_gold, 0.24),
+        0 5px 15px alpha(@hv_seal_bg_deep, 0.50),
+        inset 0 1px 0 alpha(@hv_on_brand, 0.16),
+        inset 0 -1px 0 alpha(#000000, 0.34);
 }
 
 .heelonys-seal-login {
@@ -163,7 +163,7 @@
 .heelonys-seal-dot,
 .heelonys-seal-divider,
 .heelonys-seal-cert {
-    color: #B68D4C;
+    color: @hv_seal_gold;
 }
 
 .heelonys-seal-shield {
@@ -189,7 +189,7 @@
 }
 
 .heelonys-seal-customer {
-    color: #F1EEE5;
+    color: @hv_seal_customer;
     font-size: 0.78rem;
     font-weight: 800;
 }

@@ -174,15 +174,15 @@
     }
 
     .nav-drawer {
-        background: linear-gradient(170deg, @hv_surface 0%, @hv_brand_50 100%);
-        border: 1px solid alpha(@hv_brand_300, 0.42);
-        border-radius: 16px;
-        box-shadow: 0 22px 46px alpha(@hv_brand_900, 0.22);
+        background: @hv_surface;
+        border: 1px solid @hv_border;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px @hv_shadow_key;
         padding: 8px;
     }
 
     .nav-drawer-title {
-        color: @hv_brand_900;
+        color: @hv_text;
         font-weight: 780;
         letter-spacing: 0.02em;
     }
@@ -198,13 +198,13 @@
     button.nav-drawer-btn {
         border-radius: 12px;
         border: 1px solid transparent;
-        background: rgba(255, 255, 255, 0.48);
+        background: transparent;
     }
 
     button.nav-drawer-btn:hover {
-        border-color: alpha(@hv_brand_300, 0.48);
-        background: alpha(@hv_brand_50, 0.96);
-        box-shadow: 0 8px 18px alpha(@hv_brand_900, 0.12);
+        border-color: transparent;
+        background: @hv_surface_subtle;
+        box-shadow: none;
     }
 
     .secret-card-manage-popover > contents {

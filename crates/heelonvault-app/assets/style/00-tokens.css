@@ -1,9 +1,12 @@
 /* Design tokens: the only place where the palette is defined. Every other stylesheet refers
    to these names, so a colour change (or a future dark variant) happens here only.
    @define-color is used rather than CSS custom properties: it works on every GTK 4 runtime
-   bundled by the packages, including older Windows/macOS builds. */
+   bundled by the packages, including older Windows/macOS builds.
 
-/* Brand: one teal scale, deep to light. */
+   3.0 look: white surfaces on a near-white canvas, neutral greys for text and borders, and the
+   Heelonys teal reserved for actions, accent and selection. One elevation level, no gradients. */
+
+/* Brand: the Heelonys teal scale, deep to light. Accent use only (actions, selection, focus). */
 @define-color hv_brand_900 #07393A;
 @define-color hv_brand_800 #0A5F5C;
 @define-color hv_brand_700 #0E706B;
@@ -15,14 +18,17 @@
 @define-color hv_brand_100 #D6F1E9;
 @define-color hv_brand_50 #EEF8F7;
 
-/* Neutrals. */
-@define-color hv_text #2C3E50;
-@define-color hv_text_muted #5A7072;
-@define-color hv_text_subtle #8CACB0;
+/* Neutrals: text and structure carry no brand tint. Contrast on @hv_surface:
+   text 14:1, muted 5.6:1, subtle 4.6:1 (all pass WCAG AA for body text). */
+@define-color hv_text #1F2526;
+@define-color hv_text_muted #586466;
+@define-color hv_text_subtle #667375;
 @define-color hv_on_brand #FFFFFF;
 @define-color hv_surface #FFFFFF;
-@define-color hv_canvas #F3F6F3;
-@define-color hv_border #D4E5DF;
+@define-color hv_surface_subtle #F3F5F5;
+@define-color hv_canvas #FAFAFB;
+@define-color hv_border #E4E7E8;
+@define-color hv_border_strong #CDD3D5;
 
 /* Semantic colours: never reuse the brand teal for a warning. */
 @define-color hv_success #178A64;
@@ -40,11 +46,20 @@
 @define-color hv_info_strong #1F4FA8;
 @define-color hv_info_bg #E3EDFF;
 
-/* Elevation: two-layer shadows, tinted with the deep brand colour. */
-@define-color hv_shadow_soft alpha(#07393A, 0.06);
-@define-color hv_shadow_key alpha(#07393A, 0.10);
+/* Elevation: a single, neutral level (cards, popovers) plus a soft hairline. */
+@define-color hv_shadow_soft alpha(#000000, 0.05);
+@define-color hv_shadow_key alpha(#000000, 0.08);
+
+/* Heelonys certification seal: a dark, gold-trimmed brand mark kept on purpose. */
+@define-color hv_seal_bg #1E2329;
+@define-color hv_seal_bg_deep #0F1217;
+@define-color hv_seal_bg_hover #252A31;
+@define-color hv_seal_bg_hover_deep #101419;
+@define-color hv_seal_gold #B68D4C;
+@define-color hv_seal_text #F0EBDD;
+@define-color hv_seal_customer #F1EEE5;
 
 /* libadwaita widgets (switches, checks, progress bars, selections) follow the brand. */
-@define-color accent_bg_color @hv_brand_600;
+@define-color accent_bg_color @hv_brand_700;
 @define-color accent_fg_color @hv_on_brand;
 @define-color accent_color @hv_brand_800;
