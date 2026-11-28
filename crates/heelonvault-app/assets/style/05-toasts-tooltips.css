@@ -55,7 +55,6 @@
     tooltip label {
         color: @hv_on_brand;
         font-size: 0.90rem;
-        font-family: "Space Grotesk", "Inter", "Cantarell", sans-serif;
         padding: 11px 15px;
         line-height: 1.55;
     }

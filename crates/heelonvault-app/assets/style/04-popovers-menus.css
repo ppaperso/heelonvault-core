@@ -1,4 +1,4 @@
-/* Popovers, app menu, nav drawer, secret card manage popover */
+/* Popovers and app menu items */
 
     popover,
     popover.background {
@@ -12,7 +12,7 @@
         background: @hv_surface;
         color: @hv_text;
         padding: 6px;
-        border-radius: 16px;
+        border-radius: 12px;
         border: 1px solid @hv_border;
         box-shadow: 0 4px 8px @hv_shadow_soft, 0 12px 24px @hv_shadow_key;
     }
@@ -65,10 +65,6 @@
         margin: 6px 4px;
     }
 
-    .app-menu-popover > contents {
-        min-width: 260px;
-    }
-
     .profile-login-history-popover label,
     headerbar .profile-login-history-popover label {
         color: @hv_text;
@@ -92,12 +88,6 @@
         font-size: 0.82rem;
     }
 
-    .app-menu-section {
-        margin-top: 8px;
-        margin-bottom: 2px;
-        font-weight: 600;
-    }
-
     button.app-menu-item {
         min-height: 34px;
         padding: 5px 8px;
@@ -115,8 +105,7 @@
 
     button.app-menu-item:hover:not(:disabled) {
         background: @hv_brand_50;
-        border-color: alpha(@hv_brand_300, 0.35);
-        transform: none;
+        border-color: transparent;
         box-shadow: none;
     }
 
@@ -129,7 +118,7 @@
 
     button.app-menu-item:focus-visible {
         background: @hv_brand_50;
-        border-color: alpha(@hv_brand_300, 0.45);
+        border-color: transparent;
         outline: 2px solid @hv_brand_600;
         outline-offset: -2px;
     }
@@ -143,105 +132,13 @@
     button.app-menu-item-destructive:hover:not(:disabled),
     button.app-menu-item-destructive:focus-visible {
         background: @hv_danger_bg;
-        border-color: alpha(@hv_danger, 0.25);
+        border-color: transparent;
     }
 
     button.app-menu-item-destructive:hover:not(:disabled) label,
     button.app-menu-item-destructive:hover:not(:disabled) image,
     button.app-menu-item-destructive:focus-visible label,
     button.app-menu-item-destructive:focus-visible image {
-        color: @hv_danger_strong;
-    }
-
-    button.app-menu-item:disabled,
-    button.app-menu-item:disabled label,
-    button.app-menu-item:disabled image,
-    .secret-card-manage-btn:disabled,
-    .secret-card-manage-btn:disabled label,
-    .secret-card-manage-btn:disabled image {
-        color: @hv_text_muted;
-        background: transparent;
-        border-color: transparent;
-        box-shadow: none;
-    }
-
-    button.nav-drawer-scrim {
-        background: alpha(@hv_brand_900, 0.18);
-        border: none;
-        border-radius: 0;
-        box-shadow: none;
-        padding: 0;
-    }
-
-    .nav-drawer {
-        background: @hv_surface;
-        border: 1px solid @hv_border;
-        border-radius: 12px;
-        box-shadow: 0 4px 16px @hv_shadow_key;
-        padding: 8px;
-    }
-
-    .nav-drawer-title {
-        color: @hv_text;
-        font-weight: 780;
-        letter-spacing: 0.02em;
-    }
-
-    .nav-drawer-section {
-        color: @hv_text_muted;
-        font-weight: 680;
-        letter-spacing: 0.06em;
-        margin-top: 8px;
-        margin-bottom: 2px;
-    }
-
-    button.nav-drawer-btn {
-        border-radius: 12px;
-        border: 1px solid transparent;
-        background: transparent;
-    }
-
-    button.nav-drawer-btn:hover {
-        border-color: transparent;
-        background: @hv_surface_subtle;
-        box-shadow: none;
-    }
-
-    .secret-card-manage-popover > contents {
-        min-width: 148px;
-        border-radius: 12px;
-    }
-
-    .secret-card-manage-btn {
-        min-height: 30px;
-        border-radius: 8px;
-        color: @hv_text;
-        background: transparent;
-        border: 1px solid transparent;
-    }
-
-    .secret-card-manage-btn:hover:not(:disabled),
-    .secret-card-manage-btn:focus-visible {
-        background: @hv_brand_50;
-        color: @hv_brand_900;
-    }
-
-    .secret-card-manage-btn-destructive,
-    .secret-card-manage-btn-destructive label,
-    .secret-card-manage-btn-destructive image {
-        color: @hv_danger;
-    }
-
-    .secret-card-manage-btn-destructive:hover:not(:disabled),
-    .secret-card-manage-btn-destructive:focus-visible {
-        background: alpha(@hv_danger, 0.10);
-        color: @hv_danger_strong;
-    }
-
-    .secret-card-manage-btn-destructive:hover:not(:disabled) label,
-    .secret-card-manage-btn-destructive:hover:not(:disabled) image,
-    .secret-card-manage-btn-destructive:focus-visible label,
-    .secret-card-manage-btn-destructive:focus-visible image {
         color: @hv_danger_strong;
     }
 

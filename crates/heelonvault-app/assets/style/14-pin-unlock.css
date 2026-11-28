@@ -1,26 +1,5 @@
-/* PIN quick-unlock, master-key-change progress, password strength widget */
+/* PIN quick-unlock, password strength widget, recovery-phrase check entries */
 
-.mkchange-step-row {
-    min-height: 44px;
-}
-
-.mkchange-step-icon {
-    margin-right: 4px;
-}
-
-.mkchange-step-icon-pending {
-    opacity: 0.45;
-}
-
-.mkchange-step-icon-done {
-    /* GTK4: @success_color est une variable GTK native, valide — alarme linter supprimée */
-    color: @success_color;
-}
-
-.mkchange-step-icon-error {
-    /* GTK4: @error_color est une variable GTK native, valide — alarme linter supprimée */
-    color: @error_color;
-}
 
 /* ── Password strength widget ─────────────────────────────────────────── */
 .password-strength-root {
@@ -113,19 +92,14 @@
     border-radius: 12px;
 }
 
-.profile-section-separator {
-    margin-top: 8px;
-    margin-bottom: 8px;
-}
-
 /* Feedback visuel pour les entrées de vérification de la recovery phrase */
 entry.success {
-    background-color: alpha(@hv_brand_green, 0.15);
-    border-color: @hv_brand_green;
+    background-color: @hv_success_bg;
+    border-color: @hv_success;
 }
 
 entry.error {
-    background-color: alpha(@hv_danger_bright, 0.15);
-    border-color: @hv_danger_bright;
+    background-color: @hv_danger_bg;
+    border-color: @hv_danger;
 }
 
