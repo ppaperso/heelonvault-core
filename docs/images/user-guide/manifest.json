@@ -1,128 +1,128 @@
 {
-  "source_commit": "168da45bc2a1743404f80e181e74f87d8c65173a",
+  "source_commit": "74bfc475f4a65ccb0e8d3766aac8fd2be36c9b09",
   "source_dirty": false,
-  "app_version": "2.1.1",
-  "generated_utc": "2026-10-25T10:55:21Z",
+  "app_version": "3.0.0",
+  "generated_utc": "2026-11-28T12:53:09Z",
   "platform": "Linux",
   "renderer": "cairo",
   "scale": 1,
-  "gtk": "4.22.5",
-  "libadwaita": "1.9.4",
-  "premium_commit": "ae4563edefcbf0afa72a5bcd86eadbf16ff5dd7b",
+  "gtk": "4.24.2",
+  "libadwaita": "1.10.0",
+  "premium_commit": "0a7ee17b49832777725c63689431709513669f0a",
   "font": "DejaVu Sans 10",
   "theme": "light",
   "fixture": "synthetic in-memory SQLite; simulated releases; no real secrets",
   "images": [
     {
-      "sha256": "08212a9b78a353919b45287f73c3ef598d752a9431a4bcd77c2361cafe58199d",
+      "sha256": "23bd249916af577d6b619a27c244396a434bca208484d39bd602226c7d6bb452",
       "path": "docs/images/user-guide/fr/profile-community.png"
     },
     {
-      "sha256": "7d44918c3188bf4c8b90eb129e9f4e979d7dc37b8ac8c6e23beb0f63e231eb68",
+      "sha256": "3b6e387cc743acd9baa00d19a668aa4badd5520038e80697125aa4d5bdca201c",
       "path": "docs/images/user-guide/fr/profile-professional.png"
     },
     {
-      "sha256": "a2154ad186bdad49da25c76c049c7d1f7e446a6f8c70415519fdce5d9b9644bc",
+      "sha256": "865e4670101e370d9f34b9ec27d9d1454c87850fd98db8a4dfe50b14c72090ba",
       "path": "docs/images/user-guide/fr/security-center.png"
     },
     {
-      "sha256": "77a11bbf4edd20f386b248b3e56cf429352c913abec287f59f18ab76f28a6414",
+      "sha256": "25595f64dd4eeffccf765b6b79e36c32a9a9641085e48493e66ca1495e105062",
       "path": "docs/images/user-guide/fr/updates-available.png"
     },
     {
-      "sha256": "cbc3fd13660653c94de8053fdb5d5d0b8009717ab9aadcf0786931a0cf70ffd5",
+      "sha256": "b4f5b42b87f403315798449785d1c872933b70b3f3155a5a0acb506fdd5d6e7b",
       "path": "docs/images/user-guide/fr/updates-consent.png"
     },
     {
-      "sha256": "0b0ab300a2e3d1c219664aedee03e23c3329d1e109a061b73f08901accae73d0",
+      "sha256": "3dfd8c0a0a4d19284b3a6334a5a51ffb8d699e454a949be4ad31feacfe385225",
       "path": "docs/images/user-guide/fr/profile-community-data.png"
     },
     {
-      "sha256": "22fe4399035d5979c85684fc692011a30a4fbdefe954adf96e30477c73296fa5",
+      "sha256": "b029724c0c4ac7d561e5c306f351e137acaab63fc8d2b10a615e77a515108fb7",
       "path": "docs/images/user-guide/fr/profile-professional-data.png"
     },
     {
-      "sha256": "5c181ac9665dfeea940f2a0866661c65efd41ee3ff92d2d7d9a07f4b5e3607ed",
+      "sha256": "06c3d750b94532ffdf2a9cea6cfa5af2913097c9bd13ca65aa08cd3a2ec421d7",
       "path": "docs/images/user-guide/fr/dashboard-grid.png"
     },
     {
-      "sha256": "748a723b130414ad3472244b45df07880a345db95bd3793ffac71833ac7f3737",
+      "sha256": "d0fd7d01c54814f4f13bcad57ac666c9a6c1502e86ce33b9b48c8db3c8d58a5a",
       "path": "docs/images/user-guide/fr/dashboard-list.png"
     },
     {
-      "sha256": "7e118e0fa03c1717cd181d66e2a4caed05621ad504ad44a0f3895a91c71ee2c2",
+      "sha256": "5a75cf6dbd3c0af6938713202215eb2a265d01e8fa268c9cbc2bab53103e5c87",
       "path": "docs/images/user-guide/fr/search.png"
     },
     {
-      "sha256": "5855cd75c64ef01e50fd429ae20115fc9b05d773b1a37756b82e5d7fd758543b",
+      "sha256": "7d02f695ca262699a05a233dfa4de338489576d194adfb0e344dea0c7c958ff1",
       "path": "docs/images/user-guide/fr/editor-password.png"
     },
     {
-      "sha256": "8b2f2add6ee7a9521ff76c32def86c36e130d9394c254adedb457d47a5b755e6",
+      "sha256": "a38023b75c8880179ab3fc6b6dae384a68cfb92b5b3c8213b8c79e9784c9761d",
       "path": "docs/images/user-guide/fr/editor-api.png"
     },
     {
-      "sha256": "a7fdfe65afc25f53c2e0955ceaf2821ac8d4b79e1083add4533e2d4ba0844987",
+      "sha256": "7e8665c657acdcf81185b40e097e50617668aca5f24d9d417ca4b02d734b8e24",
       "path": "docs/images/user-guide/fr/editor-ssh.png"
     },
     {
-      "sha256": "842cba874b5600b70249ff4b8eabe8d61ea536843a5605d753bb8cd7377bc5b5",
+      "sha256": "e9292ac00bc931e958648db2a1246117f846ead07669348552e79cafc96183f3",
       "path": "docs/images/user-guide/fr/editor-document.png"
     },
     {
-      "sha256": "06e071478843bfdf1c438242b65e5b14153975a253bcaca93d507dd8dbc69732",
+      "sha256": "b279a7d3df0478c56e39beac90d163f8a9a5b15c7344e12473ff44474eeba561",
       "path": "docs/images/user-guide/en/profile-community.png"
     },
     {
-      "sha256": "3d6613ca25616ffab4c2e41e972d4de027b18fa53834de7bc0edfe303566134f",
+      "sha256": "7279c04011fd9e0d0607c663b5c049f548fa27f2f2c50995beb3a41ed9be623e",
       "path": "docs/images/user-guide/en/profile-professional.png"
     },
     {
-      "sha256": "fd82b2082c1d0caf65eb4a7ec909f970a829bbba364086a84054f4f5de0b6538",
+      "sha256": "4f4fae91e228d9a5dcbd86e0f3583a17f1b7abdc2596730a7678aefa87e5697f",
       "path": "docs/images/user-guide/en/security-center.png"
     },
     {
-      "sha256": "2c34c2a11ced5c8d9919823782952c2806813f5590a0733c75dfb73ab000f034",
+      "sha256": "d1793ae741c349498f90998efadfe8f2190b4fad6cf23069ca78c178827bd5d1",
       "path": "docs/images/user-guide/en/updates-available.png"
     },
     {
-      "sha256": "d92058867f20f32a780d5af73ba7a0b2226e55e5d05eb7e5c2a87b8bea00df6c",
+      "sha256": "0c1f8bc7b4aef31157c37685c03036ca49edadeb294d6367c4badfaa1c6990d5",
       "path": "docs/images/user-guide/en/updates-consent.png"
     },
     {
-      "sha256": "da66286fd1d23e8744a9849fe79de2f331549a336f8312981983de593fff9ec2",
+      "sha256": "27d06263174b9bb622dea4bdc6256aec1a2d6a9eb780f25e22af39105b1186b9",
       "path": "docs/images/user-guide/en/profile-community-data.png"
     },
     {
-      "sha256": "984d259daec9d164f580b3208bf6ca935e607da911805492d6671c2d5a8692d2",
+      "sha256": "34819ed9021a70db21591d62a7ada3f4d6b89c2800774849f457bfef05af8837",
       "path": "docs/images/user-guide/en/profile-professional-data.png"
     },
     {
-      "sha256": "371c3658c74324699192aa512c625e09f0de252c0edfa1039b728544b32bb6dd",
+      "sha256": "79715783a4c7a935905983e8c4e039ccfa703225b69c892e9a8ffd9be675340f",
       "path": "docs/images/user-guide/en/dashboard-grid.png"
     },
     {
-      "sha256": "97eb5fa6b60e8b836ce050e47636ed7e4bb788ace2473588327daea796044330",
+      "sha256": "bbfe5d8b55a8c22bfb2a78c9a870b5790d0aca41ebf706e1766b5dcc41d2c5d5",
       "path": "docs/images/user-guide/en/dashboard-list.png"
     },
     {
-      "sha256": "d0a4ab417780abad2f64e41b740e9bce409913606d5685b14864d25186853a49",
+      "sha256": "a05a3e18360dc61b8289f76044f93a2ec08da5c9274895b7449f6b96f9e72829",
       "path": "docs/images/user-guide/en/search.png"
     },
     {
-      "sha256": "af93f67e61965af6a3a670ab41d72c6a12b8e2d03f2214157e1b160a0b4b8e8f",
+      "sha256": "0607b91f427f112b1889c62a892ea60ff8722597950b5b44d354a136fd6571d0",
       "path": "docs/images/user-guide/en/editor-password.png"
     },
     {
-      "sha256": "fad567d9c6ee1d7361968a5fca7f963f750929d9b75f0d21406a24b79a04fef8",
+      "sha256": "36d54b9e9e6a7422d4ad6b0cba55cecab2117d3e850288d76eadbd553c44563f",
       "path": "docs/images/user-guide/en/editor-api.png"
     },
     {
-      "sha256": "0afbaeedd39ef99f299774c3b99c585e8fb778949f66c4fcbfd62b6fa1b15cf0",
+      "sha256": "e47a3848c80867e72311f25838cddbd084f7ac0c9414f5c664f948d0b255a806",
       "path": "docs/images/user-guide/en/editor-ssh.png"
     },
     {
-      "sha256": "31aeb016de8aedab450350255b6989ab7af5afa53682cdcf2855dd0f2b36b4ac",
+      "sha256": "cd94172120b2ec6792b71a7301eaab20c95a2ad9eaf12f7727fb3b8d6ef0ecf7",
       "path": "docs/images/user-guide/en/editor-document.png"
     }
   ]

@@ -1,4 +1,4 @@
-/* Generic .card component, card sub-elements (icon badge, title, hint, actions, tag pills), Heelonys seal component */
+/* Generic .card component and the Heelonys certification seal. */
 
     .card {
         background: @hv_surface;
@@ -7,118 +7,8 @@
         box-shadow: 0 1px 2px @hv_shadow_soft;
     }
 
-    /* Badge icône */
-    .card-icon-badge {
-        border-radius: 8px;
-        padding: 6px;
-        min-width: 32px;
-        min-height: 32px;
-    }
-
-    .card-icon-badge-success { background: alpha(@hv_brand_green, 0.12); }
-    .card-icon-badge-warning { background: @hv_warning_bg; }
-    .card-icon-badge-error   { background: alpha(@hv_danger_bright, 0.12); }
-
-    /* Titre de la card */
-    .card-title {
-        font-weight: 650;
-        font-size: 0.95rem;
-        color: @hv_text;
-    }
-
-    /* Catégorie */
-    .card-category {
-        font-size: 0.73rem;
-        color: @hv_text_subtle;
-        font-weight: 500;
-    }
-
-    /* Ligne identifiant/domaine */
-    .card-hint {
-        font-family: "Space Mono", "JetBrains Mono", monospace;
-        font-size: 0.72rem;
-        color: @hv_text_subtle;
-        font-weight: 400;
-    }
-
-    /* Séparateur fin */
-    .card-sep {
-        background: @hv_border;
-        min-height: 1px;
-        margin-top: 2px;
-        margin-bottom: 2px;
-    }
-
-    /* Boutons d'action dans les cards */
-    .card-action-btn {
-        min-width: 28px;
-        min-height: 28px;
-        padding: 4px;
-        opacity: 0.65;
-        transition: opacity 150ms ease, transform 150ms ease;
-    }
-
-    .card-action-btn:hover {
-        opacity: 1;
-        transform: scale(1.15);
-    }
-
-    /* Bouton corbeille */
-    .card-delete-btn {
-        opacity: 0.35;
-        min-width: 26px;
-        min-height: 26px;
-        padding: 3px;
-        transition: opacity 180ms ease, color 180ms ease;
-    }
-
-    .card-delete-btn:hover {
-        opacity: 0.9;
-    }
-
-    /* Badges d'alerte */
-    .card-alert-badge {
-        font-size: 0.68rem;
-        font-weight: 700;
-        border-radius: 999px;
-        padding: 2px 6px;
-    }
-
-    .card-alert-warning {
-        background: @hv_warning_bg;
-        color: @hv_warning_strong;
-        border: 1px solid alpha(@hv_warning, 0.35);
-    }
-
-    .card-alert-error {
-        background: alpha(@hv_danger_bright, 0.12);
-        color: @hv_danger;
-        border: 1px solid alpha(@hv_danger_bright, 0.35);
-    }
-
-    .card-usage-badge {
-        background: alpha(@hv_brand_500, 0.14);
-        color: @hv_brand_800;
-        border: 1px solid alpha(@hv_brand_500, 0.32);
-    }
-
-    /* Tag pills */
-    .card-tag-pill {
-        font-size: 0.65rem;
-        font-weight: 600;
-        color: @hv_brand_800;
-        background: alpha(@hv_brand_500, 0.10);
-        border: 1px solid alpha(@hv_brand_500, 0.28);
-        border-radius: 999px;
-        padding: 1px 7px;
-    }
-
-    .card-tag-more {
-        font-size: 0.63rem;
-        font-weight: 600;
-        color: @hv_text_subtle;
-    }
-
+/* Heelonys certification seal: the one dark, gradient surface, kept on purpose as a brand
+   mark (see hv_seal_* in 00-tokens.css). */
 .heelonys-seal {
     border-radius: 8px;
     border: 1px solid alpha(@hv_seal_gold, 0.88);

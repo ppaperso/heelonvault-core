@@ -246,6 +246,7 @@ mod native_gtk_tests {
         crate::ui::dialogs::add_edit_dialog::native_password_hint_scenario();
         crate::ui::dialogs::add_edit_dialog::native_password_panel_scenario()?;
         crate::ui::widgets::password_generator::native_generator_scenario()?;
+        crate::ui::widgets::back_button::native_back_button_scenario()?;
         crate::ui::dialogs::add_edit_dialog::native_operation_scenario()?;
         crate::ui::dialogs::add_edit_dialog::native_lifecycle_scenario();
         crate::ui::widgets::url_security::native_url_check_scenario()?;

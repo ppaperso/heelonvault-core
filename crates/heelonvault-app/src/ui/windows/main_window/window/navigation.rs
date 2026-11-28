@@ -35,7 +35,7 @@ use crate::ui::windows::main_window::profile_view;
 struct InlinePage {
     container: gtk4::ScrolledWindow,
     root: gtk4::Box,
-    back_button: gtk4::Button,
+    back_button: crate::ui::widgets::back_button::BackButton,
     title: gtk4::Label,
     intro: gtk4::Label,
 }
@@ -65,22 +65,17 @@ fn build_inline_page(title_key: &str, intro_key: &str) -> InlinePage {
         .build();
     header.add_css_class("profile-view-header");
 
-    let back_button = gtk4::Button::builder()
-        .label(heelonvault_core::tr!("main-view-back").as_str())
-        .icon_name("go-previous-symbolic")
-        .build();
-    back_button.add_css_class("flat");
-    back_button.add_css_class("main-inline-back-button");
-    back_button.set_halign(Align::Start);
+    let back_button = crate::ui::widgets::back_button::BackButton::new(
+        crate::ui::widgets::back_button::BackTarget::Page,
+    );
 
+    // Same header as the profile page: back button, then a left-aligned page title.
     let title = gtk4::Label::new(Some(heelonvault_core::i18n::tr(title_key).as_str()));
-    title.add_css_class("title-3");
-    title.add_css_class("heading");
-    title.add_css_class("main-section-title");
+    title.add_css_class("title-2");
     title.set_hexpand(true);
-    title.set_halign(Align::Center);
+    title.set_xalign(0.0);
 
-    header.append(&back_button);
+    header.append(back_button.button());
     header.append(&title);
     root.append(&header);
 
@@ -119,7 +114,7 @@ fn install_inline_page(
     main_stack.add_titled(&page.container, Some(page_name), page_title);
 
     let stack_for_back = main_stack.clone();
-    page.back_button.connect_clicked(move |_| {
+    page.back_button.button().connect_clicked(move |_| {
         stack_for_back.set_visible_child_name("entries_view");
     });
 
@@ -248,18 +243,14 @@ pub struct AdminPages {
 impl AdminPages {
     /// Re-apply translations to both admin pages and their stack titles.
     pub fn refresh_i18n(&self, main_stack: &gtk4::Stack) {
-        self.users
-            .back_button
-            .set_label(heelonvault_core::tr!("main-view-back").as_str());
+        self.users.back_button.refresh_i18n();
         self.users
             .title
             .set_text(heelonvault_core::tr!("main-users-view-title").as_str());
         self.users
             .intro
             .set_text(heelonvault_core::tr!("main-users-view-intro").as_str());
-        self.teams
-            .back_button
-            .set_label(heelonvault_core::tr!("main-view-back").as_str());
+        self.teams.back_button.refresh_i18n();
         self.teams
             .title
             .set_text(heelonvault_core::tr!("main-teams-view-title").as_str());

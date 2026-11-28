@@ -1,5 +1,5 @@
 /* Profile & Security page (3.0 look): white summary card with a neutral hairline, libadwaita
-   boxed lists for the settings, flat pills. */
+   boxed lists for the settings, flat pills. Also the administration pages (users, teams). */
 
 .profile-view-header {
     margin-bottom: 2px;
@@ -156,4 +156,34 @@ button.profile-save-button {
 
 .profile-inline-status {
     margin: 8px 12px 4px 12px;
+}
+
+/* ── Administration pages (users, teams): rows stay calm ───────────────── */
+/* Role column: a fixed-width pill, teal for the privileged role only. */
+label.admin-role-pill {
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: @hv_surface_subtle;
+    color: @hv_text_muted;
+}
+
+label.admin-role-pill.admin-role-pill-accent {
+    background: @hv_brand_50;
+    color: @hv_brand_800;
+}
+
+/* A per-row destructive action is flat red text, not a filled red button repeated on every
+   row. Confirmation dialogs keep libadwaita's destructive response. */
+button.flat.row-destructive {
+    color: @hv_danger_strong;
+}
+
+button.flat.row-destructive:hover:not(:disabled) {
+    background: @hv_danger_bg;
+}
+
+button.flat.row-destructive:active:not(:disabled) {
+    background: alpha(@hv_danger, 0.18);
 }

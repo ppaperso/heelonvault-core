@@ -81,9 +81,10 @@ where
         .spacing(10)
         .build();
     header.add_css_class("profile-view-header");
-    let back_button = gtk4::Button::with_label(heelonvault_core::tr!("profile-view-back").as_str());
-    back_button.add_css_class("flat");
-    back_button.set_halign(Align::Start);
+    let back = crate::ui::widgets::back_button::BackButton::new(
+        crate::ui::widgets::back_button::BackTarget::Page,
+    );
+    let back_button = back.button().clone();
     let title = gtk4::Label::new(Some(heelonvault_core::tr!("profile-view-title").as_str()));
     title.add_css_class("title-2");
     title.set_hexpand(true);
@@ -133,7 +134,7 @@ where
     }
 
     let admin_section_for_i18n = admin_section.clone();
-    let back_button_for_i18n = back_button.clone();
+    let back_for_i18n = back.clone();
     let title_for_i18n = title.clone();
     let protection_group_for_i18n = protection_group.clone();
     let summary_section_for_i18n = summary_section.clone();
@@ -147,7 +148,7 @@ where
 
     let on_language_changed_for_i18n = Rc::clone(&on_language_changed);
     let apply_profile_i18n: Rc<dyn Fn()> = Rc::new(move || {
-        back_button_for_i18n.set_label(heelonvault_core::tr!("profile-view-back").as_str());
+        back_for_i18n.refresh_i18n();
         title_for_i18n.set_text(heelonvault_core::tr!("profile-view-title").as_str());
         protection_group_for_i18n
             .set_title(heelonvault_core::tr!("profile-section-protection").as_str());

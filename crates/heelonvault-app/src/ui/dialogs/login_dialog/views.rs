@@ -72,7 +72,7 @@ pub struct LoginDialogWidgets {
     pub totp_step_box: gtk4::Box,
 
     // Widgets TOTP
-    pub totp_back_button: gtk4::Button,
+    pub totp_back_button: crate::ui::widgets::back_button::BackButton,
     pub totp_icon: gtk4::Image,
     pub totp_title: gtk4::Label,
     pub totp_subtitle: gtk4::Label,
@@ -511,10 +511,9 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
         .build();
     totp_step_box.add_css_class("login-totp-block");
 
-    let totp_back_button =
-        gtk4::Button::with_label(heelonvault_core::tr!("login-totp-back").as_str());
-    totp_back_button.add_css_class("flat");
-    totp_back_button.set_halign(Align::Start);
+    let totp_back_button = crate::ui::widgets::back_button::BackButton::new(
+        crate::ui::widgets::back_button::BackTarget::Credentials,
+    );
 
     let totp_icon = gtk4::Image::from_icon_name("hv-shield-symbolic");
     totp_icon.set_pixel_size(40);
@@ -543,7 +542,7 @@ pub fn build_login_view(license: &LicenseDisplay, in_bootstrap_mode: bool) -> Lo
     totp_entry.set_margin_top(6);
     gtk4::prelude::EntryExt::set_alignment(&totp_entry, 0.5);
 
-    totp_step_box.append(&totp_back_button);
+    totp_step_box.append(totp_back_button.button());
     totp_step_box.append(&totp_icon);
     totp_step_box.append(&totp_title);
     totp_step_box.append(&totp_subtitle);
@@ -1012,9 +1011,7 @@ pub fn setup_language_toggle(widgets: &LoginDialogWidgets, in_bootstrap_mode: bo
             widgets_clone
                 .restore_button
                 .set_label(heelonvault_core::tr!("login-restore-button").as_str());
-            widgets_clone
-                .totp_back_button
-                .set_label(heelonvault_core::tr!("login-totp-back").as_str());
+            widgets_clone.totp_back_button.refresh_i18n();
             widgets_clone
                 .totp_title
                 .set_text(heelonvault_core::tr!("login-totp-title").as_str());

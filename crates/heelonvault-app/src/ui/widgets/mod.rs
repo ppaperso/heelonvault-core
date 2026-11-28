@@ -1,3 +1,4 @@
+pub mod back_button;
 pub mod classification;
 pub mod clipboard_indicator;
 pub mod password_generator;

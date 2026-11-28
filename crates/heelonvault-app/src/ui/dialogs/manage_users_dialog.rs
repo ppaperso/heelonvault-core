@@ -153,6 +153,11 @@ impl ManageUsersDialog {
                                 let role = gtk4::Label::new(Some(role_text.as_str()));
                                 role.set_width_chars(10);
                                 role.set_halign(gtk4::Align::Start);
+                                role.set_valign(gtk4::Align::Center);
+                                role.add_css_class("admin-role-pill");
+                                if matches!(user.role, UserRole::Admin) {
+                                    role.add_css_class("admin-role-pill-accent");
+                                }
                                 let created = gtk4::Label::new(Some(
                                     user.updated_at.as_deref().unwrap_or("-"),
                                 ));
@@ -174,7 +179,8 @@ impl ManageUsersDialog {
                                 let delete_btn = gtk4::Button::with_label(
                                     heelonvault_core::tr!("manage-users-delete").as_str(),
                                 );
-                                delete_btn.add_css_class("destructive-action");
+                                delete_btn.add_css_class("flat");
+                                delete_btn.add_css_class("row-destructive");
 
                                 row_box.append(&username);
                                 row_box.append(&role);

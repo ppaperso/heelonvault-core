@@ -30,6 +30,7 @@ pub(super) struct SecurityCenter {
 
 struct View {
     root: gtk4::Box,
+    back: crate::ui::widgets::back_button::BackButton,
     title: gtk4::Label,
     subtitle: gtk4::Label,
     summary: gtk4::Label,
@@ -409,6 +410,7 @@ impl View {
     }
 
     fn render(&self) {
+        self.back.refresh_i18n();
         self.title.set_text(&tr("security-center-title"));
         self.subtitle.set_text(&tr("security-center-subtitle"));
         self.privacy.set_text(&tr("security-center-privacy"));
@@ -721,6 +723,9 @@ where
     };
     let view = Rc::new(View {
         root,
+        back: crate::ui::widgets::back_button::BackButton::new(
+            crate::ui::widgets::back_button::BackTarget::Page,
+        ),
         title: label("security-center-title", "title-1"),
         subtitle: label("security-center-subtitle", "security-subtitle"),
         summary: label("security-center-ready", "title-2"),
@@ -759,8 +764,20 @@ where
         completed_at: RefCell::new(None),
         open,
     });
-    view.root.append(&view.title);
+    // Same header as the other pages: back to the secret list, then the page title.
+    let header = gtk4::Box::new(Orientation::Horizontal, 10);
+    view.title.set_hexpand(true);
+    view.title.set_xalign(0.0);
+    header.append(view.back.button());
+    header.append(&view.title);
+    view.root.append(&header);
     view.root.append(&view.subtitle);
+    {
+        let stack = deps.stack.clone();
+        view.back.button().connect_clicked(move |_| {
+            stack.set_visible_child_name("entries_view");
+        });
+    }
     let hero = view.hero.clone();
     hero.add_css_class("security-hero");
     view.shield.set_pixel_size(64);
@@ -1155,6 +1172,7 @@ pub(super) mod tests {
             "hv-shield-ok-symbolic",
             "hv-reuse-symbolic",
             "hv-link-symbolic",
+            "hv-back-symbolic",
         ] {
             assert!(icons.has_icon(name), "bundled icon {name} not found");
         }
@@ -1440,7 +1458,11 @@ pub(super) mod tests {
             .collect();
             panel.main_stack.set_visible_child_name("entries_view");
             sidebar.audit_all_badge.set_text("4");
+            // A state the app really shows: a complete analysis without findings (green "0"),
+            // never the raw amber base style.
             sidebar.security_nav.count.set_text("0");
+            toggle_class(&sidebar.security_nav.count, "security-count-pending", false);
+            toggle_class(&sidebar.security_nav.count, "security-count-ok", true);
             sidebar.security_nav.new_pill.set_visible(false);
             for (mode, name) in [
                 (SecretViewMode::Grid, "dashboard-grid"),
@@ -1707,6 +1729,23 @@ pub(super) mod tests {
             center.view.generation.get(),
             generation,
             "fresh results are reused"
+        );
+        assert_eq!(
+            panel.main_stack.visible_child_name().as_deref(),
+            Some("security_center_view")
+        );
+        assert!(center.view.back.button().has_css_class("page-back-button"));
+        center.view.back.button().emit_clicked();
+        assert_eq!(
+            panel.main_stack.visible_child_name().as_deref(),
+            Some("entries_view"),
+            "the back button returns to the secret list"
+        );
+        assert!(
+            !sidebar
+                .security_nav
+                .button
+                .has_css_class("security-navigation-active")
         );
         center.view.refresh.emit_clicked();
         assert!(center.view.busy.get());

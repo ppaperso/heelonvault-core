@@ -107,12 +107,15 @@ Search uses the **active vault** by default. Enable **MultiVault** to search acr
 
 The list reports whether loading is complete, partial or unavailable. For partial results,
 the banner counts inaccessible vaults and unreadable entries: these are excluded from the
-displayed list and its audit counts. A zero count in this state does **not** prove that the
-vaults are empty or free of security findings. Use **Retry loading** after resolving access
+displayed list and its audit counts. Audit counts (weak passwords, duplicates) and status
+chips (non-compliant, incomplete, never used) are hidden when they are zero: in this state,
+a missing or zero count does **not** prove that the vaults are empty or free of security
+findings. Use **Retry loading** after resolving access
 or data problems. A complete empty result and a loading failure have different messages.
 The filter summary shows visible/loaded entry counts, the selected type and audit filter,
 and whether search is active. Clear filters before concluding that no entry matches.
-During a reload, old entries and copy actions are removed and counts display `-`, not zero;
+During a reload, old entries and copy actions are removed and counts display `-` or are
+hidden, never zero;
 late results from a previous scope or locked session cannot repopulate the list.
 
 Plain terms search the title, login, email, URL, notes, category, tags, type and vault name. Matching is case-insensitive and normalizes common accented characters; sufficiently long terms have light typo tolerance. Search does not inspect decrypted secret values.

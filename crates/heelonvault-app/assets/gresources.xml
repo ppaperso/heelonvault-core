@@ -10,6 +10,7 @@
     <file>style.css</file>
     <!-- Bundled symbolic icons: same look on every platform, whatever the system theme. -->
     <file alias="scalable/actions/hv-add-symbolic.svg">icons/symbolic/hv-add-symbolic.svg</file>
+    <file alias="scalable/actions/hv-back-symbolic.svg">icons/symbolic/hv-back-symbolic.svg</file>
     <file alias="scalable/actions/hv-check-symbolic.svg">icons/symbolic/hv-check-symbolic.svg</file>
     <file alias="scalable/actions/hv-clock-symbolic.svg">icons/symbolic/hv-clock-symbolic.svg</file>
     <file alias="scalable/actions/hv-copy-symbolic.svg">icons/symbolic/hv-copy-symbolic.svg</file>
