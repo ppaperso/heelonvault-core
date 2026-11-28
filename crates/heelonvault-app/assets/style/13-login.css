@@ -6,33 +6,9 @@ window.login-window,
     background: @hv_canvas;
 }
 
-/* Flat title bar: overrides the brand header bar used by the main window. */
+/* No hairline under the title bar: the login canvas runs up to the top edge. */
 headerbar.login-headerbar {
-    background: @hv_canvas;
-    color: @hv_text;
     box-shadow: none;
-    border: none;
-}
-
-headerbar.login-headerbar label,
-headerbar.login-headerbar image,
-headerbar.login-headerbar button {
-    color: @hv_text;
-}
-
-headerbar.login-headerbar button.flat:hover:not(:disabled):not(:checked) {
-    background-color: alpha(@hv_text, 0.06);
-}
-
-headerbar.login-headerbar button.flat:active:not(:disabled):not(:checked),
-headerbar.login-headerbar button.flat:checked {
-    background-color: alpha(@hv_text, 0.10);
-    border-color: transparent;
-    color: @hv_text;
-}
-
-headerbar.login-headerbar button:focus-visible {
-    outline-color: alpha(@hv_brand_600, 0.75);
 }
 
 /* The language menu button sits flat in the title bar like the window controls. */
@@ -214,14 +190,6 @@ label.init-badge-word {
     font-family: monospace;
     font-size: 0.92rem;
     font-weight: 700;
-}
-
-/* Version pill of the main window header (shared class). */
-.beta-badge {
-    border-radius: 999px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 /* Field styles still shared with the secret editor (restyled with the editor). */
