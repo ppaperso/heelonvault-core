@@ -150,7 +150,8 @@ impl ManageTeamsDialog {
                                 let share_btn = gtk4::Button::with_label(heelonvault_core::tr!("manage-teams-share-vault-button").as_str());
                                 share_btn.add_css_class("flat");
                                 let delete_btn = gtk4::Button::with_label(heelonvault_core::tr!("manage-teams-delete-button").as_str());
-                                delete_btn.add_css_class("destructive-action");
+                                delete_btn.add_css_class("flat");
+                                delete_btn.add_css_class("row-destructive");
 
                                 row_box.append(&name);
                                 row_box.append(&created);
@@ -284,8 +285,14 @@ impl ManageTeamsDialog {
                                                             };
                                                             let role_label = gtk4::Label::new(Some(role_text.as_str()));
                                                             role_label.set_width_chars(10);
+                                                            role_label.set_valign(gtk4::Align::Center);
+                                                            role_label.add_css_class("admin-role-pill");
+                                                            if matches!(member.role, TeamMemberRole::Leader) {
+                                                                role_label.add_css_class("admin-role-pill-accent");
+                                                            }
                                                             let remove_btn = gtk4::Button::with_label(heelonvault_core::tr!("manage-teams-remove-member-button").as_str());
-                                                            remove_btn.add_css_class("destructive-action");
+                                                            remove_btn.add_css_class("flat");
+                                                            remove_btn.add_css_class("row-destructive");
                                                             row_box.append(&member_label);
                                                             row_box.append(&role_label);
                                                             row_box.append(&remove_btn);

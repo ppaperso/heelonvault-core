@@ -174,7 +174,7 @@ impl super::LoginDialog {
             let step_stack_for_back = widgets.step_stack.clone();
             let error_label_for_back = widgets.error_label.clone();
             let password_entry_for_back = widgets.password_entry.clone();
-            widgets.totp_back_button.connect_clicked(move |_| {
+            widgets.totp_back_button.button().connect_clicked(move |_| {
                 step_stack_for_back.set_visible_child_name("credentials");
                 feedback::clear_feedback(&error_label_for_back);
                 password_entry_for_back.grab_focus();

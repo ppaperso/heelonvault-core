@@ -230,9 +230,11 @@ pub(crate) fn native_theme_scenario(
     editor.add_css_class("add-edit-dialog");
     let hero = gtk4::Box::new(Orientation::Horizontal, 8);
     hero.add_css_class("add-edit-header");
-    let back = gtk4::Button::with_label("Retour");
-    back.add_css_class("flat");
-    back.add_css_class("add-edit-back-btn");
+    let back = crate::ui::widgets::back_button::BackButton::new(
+        crate::ui::widgets::back_button::BackTarget::Page,
+    )
+    .button()
+    .clone();
     hero.append(&back);
     editor.append(&hero);
     let delete = gtk4::Button::new();

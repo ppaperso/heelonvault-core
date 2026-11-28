@@ -108,3 +108,25 @@ button.text-button:disabled:not(.flat) {
     border-color: @hv_border;
     box-shadow: none;
 }
+
+/* The one "Back" button (ui/widgets/back_button.rs): flat, arrow icon and label in the action
+   teal, same look on every page, in the editor and on the two-step sign-in step. */
+button.flat.page-back-button {
+    padding: 6px 12px 6px 8px;
+    border-radius: 8px;
+    color: @hv_brand_800;
+    font-weight: 600;
+}
+
+button.flat.page-back-button:hover:not(:disabled) {
+    background: alpha(@hv_text, 0.06);
+}
+
+button.flat.page-back-button:active:not(:disabled) {
+    background: alpha(@hv_text, 0.10);
+}
+
+button.flat.page-back-button label,
+button.flat.page-back-button image {
+    color: inherit;
+}

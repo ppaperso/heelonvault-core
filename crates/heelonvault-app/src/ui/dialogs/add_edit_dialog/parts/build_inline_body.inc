@@ -38,9 +38,11 @@
             .margin_end(16)
             .build();
 
-        let back_button = gtk4::Button::with_label(heelonvault_core::tr!("add-edit-button-back").as_str());
-        back_button.add_css_class("flat");
-        back_button.add_css_class("add-edit-back-btn");
+        let back_button = crate::ui::widgets::back_button::BackButton::new(
+            crate::ui::widgets::back_button::BackTarget::Page,
+        )
+        .button()
+        .clone();
         let on_cancel_for_back = Rc::clone(&on_cancel);
         back_button.connect_clicked(move |_| {
             on_cancel_for_back();

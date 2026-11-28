@@ -9,7 +9,7 @@
 
     .accent,
     label.accent {
-        background: alpha(@hv_brand_500, 0.12);
+        background: @hv_brand_50;
         color: @hv_brand_800;
         border-radius: 999px;
         padding: 6px 14px;
@@ -84,37 +84,21 @@ label.inline-status {
     padding: 6px 10px;
 }
 
+/* Inline feedback: neutral while loading, semantic pairs (light background, dark text) once
+   the outcome is known. Success is never shown in the brand teal. */
 label.inline-status-loading {
-    background: alpha(@hv_brand_500, 0.12);
-    color: @hv_brand_800;
+    background: @hv_surface_subtle;
+    color: @hv_text_muted;
 }
 
 label.inline-status-success {
-    background: alpha(@hv_brand_green, 0.14);
-    color: @hv_brand_green;
+    background: @hv_success_bg;
+    color: @hv_success_strong;
 }
 
 label.inline-status-error {
-    background: alpha(@hv_danger, 0.12);
-    color: @hv_danger;
-}
-
-/* Badge styles for status indicators */
-.badge {
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.85em;
-    font-weight: 600;
-}
-
-.badge-disabled {
-    background: @hv_danger_bright;
-    color: @hv_on_brand;
-}
-
-.badge-enabled {
-    background: @hv_success;
-    color: @hv_on_brand;
+    background: @hv_danger_bg;
+    color: @hv_danger_strong;
 }
 
 /* Reduce vertical spacing in PreferencesGroup */

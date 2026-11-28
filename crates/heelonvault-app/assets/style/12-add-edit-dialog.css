@@ -35,28 +35,6 @@ label.add-edit-header-copy {
     color: @hv_text_muted;
 }
 
-.add-edit-dialog button.add-edit-back-btn {
-    color: @hv_brand_800;
-    background: transparent;
-    border: none;
-    font-weight: 600;
-}
-
-.add-edit-dialog button.add-edit-back-btn:hover:not(:disabled) {
-    background: alpha(@hv_text, 0.06);
-}
-
-.add-edit-dialog button.add-edit-back-btn:active:not(:disabled) {
-    background: alpha(@hv_text, 0.10);
-}
-
-.add-edit-dialog button.add-edit-back-btn:disabled {
-    color: @hv_text_muted;
-    background: transparent;
-}
-
-.add-edit-dialog button.add-edit-back-btn label,
-.add-edit-dialog button.add-edit-back-btn image,
 .add-edit-dialog button.add-edit-delete-btn image,
 .add-edit-dialog button.add-edit-delete-btn label {
     color: inherit;

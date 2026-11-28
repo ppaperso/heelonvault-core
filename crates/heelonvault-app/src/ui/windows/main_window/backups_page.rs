@@ -189,6 +189,7 @@ struct View {
     user_id: Uuid,
     key: Rc<RefCell<Vec<u8>>>,
     nav_pill: gtk4::Label,
+    back: crate::ui::widgets::back_button::BackButton,
     title: gtk4::Label,
     subtitle: gtk4::Label,
     status_icon: gtk4::Image,
@@ -224,6 +225,7 @@ impl View {
     }
 
     fn refresh_i18n(&self) {
+        self.back.refresh_i18n();
         self.title.set_text(&tr("backups-title"));
         self.subtitle.set_text(&tr("backups-subtitle"));
         self.backup_now.set_label(&tr("backups-now"));
@@ -506,15 +508,29 @@ pub(super) fn build(deps: BackupsDeps) -> BackupsPage {
     deps.stack
         .add_titled(&page, Some(PAGE_NAME), &tr("backups-title"));
 
+    // Same header as the other pages: back to the secret list, then the page title.
+    let back = crate::ui::widgets::back_button::BackButton::new(
+        crate::ui::widgets::back_button::BackTarget::Page,
+    );
+    {
+        let stack = deps.stack.clone();
+        back.button().connect_clicked(move |_| {
+            stack.set_visible_child_name("entries_view");
+        });
+    }
     let title = gtk4::Label::new(None);
     title.add_css_class("title-2");
-    title.set_halign(Align::Start);
+    title.set_hexpand(true);
+    title.set_xalign(0.0);
+    let header = gtk4::Box::new(Orientation::Horizontal, 10);
+    header.append(back.button());
+    header.append(&title);
     let subtitle = gtk4::Label::new(None);
     subtitle.add_css_class("dim-label");
     subtitle.set_halign(Align::Start);
     subtitle.set_wrap(true);
     subtitle.set_xalign(0.0);
-    root.append(&title);
+    root.append(&header);
     root.append(&subtitle);
 
     // Status card: icon, state, last verified backup, "Back up now".
@@ -598,6 +614,7 @@ pub(super) fn build(deps: BackupsDeps) -> BackupsPage {
         user_id: deps.user_id,
         key: Rc::clone(&deps.key),
         nav_pill: deps.nav_pill.clone(),
+        back,
         title,
         subtitle,
         status_icon,
@@ -872,6 +889,16 @@ pub(super) fn native_backups_scenario() -> Result<(), Box<dyn std::error::Error>
     );
     assert_eq!(schedule_from(false, true), BackupSchedule::OnClose);
     assert_eq!(schedule_from(false, false), BackupSchedule::Off);
+
+    // The shared back button leads back to the secret list.
+    let back = widgets
+        .iter()
+        .filter_map(|widget| widget.clone().downcast::<gtk4::Button>().ok())
+        .find(|button| button.has_css_class("page-back-button"))
+        .ok_or("missing back button")?;
+    back.emit_clicked();
+    assert_eq!(stack.visible_child_name().as_deref(), Some("entries_view"));
+    assert!(!nav_button.has_css_class("backups-navigation-active"));
 
     // Live retranslation keeps the page consistent.
     assert!(heelonvault_core::i18n::set_language("fr"));
