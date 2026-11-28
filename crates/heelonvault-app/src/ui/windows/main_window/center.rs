@@ -96,6 +96,10 @@ pub(super) fn build_center_panel(view_mode: SecretViewMode) -> CenterPanelWidget
         build_status_metric_chip("hv-info-symbolic", "0", true);
     let (status_never_used_chip, status_never_used_badge) =
         build_status_metric_chip("hv-clock-symbolic", "0", false);
+    // Attention counters appear only when non-zero; the total stays as the reference.
+    super::sidebar::hide_when_zero(&status_non_compliant_badge, &status_non_compliant_chip);
+    super::sidebar::hide_when_zero(&status_incomplete_badge, &status_incomplete_chip);
+    super::sidebar::hide_when_zero(&status_never_used_badge, &status_never_used_chip);
     metrics_box.append(&status_total_chip);
     metrics_box.append(&status_non_compliant_chip);
     metrics_box.append(&status_incomplete_chip);

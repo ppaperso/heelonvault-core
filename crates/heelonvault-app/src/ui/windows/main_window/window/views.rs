@@ -66,7 +66,6 @@ pub fn build_header_bar(
 
     // Version badge
     let header_plan_badge = gtk4::Label::new(Some(&format!("v{}", env!("CARGO_PKG_VERSION"))));
-    header_plan_badge.add_css_class("beta-badge");
     header_plan_badge.add_css_class("header-beta-badge");
 
     // License badge

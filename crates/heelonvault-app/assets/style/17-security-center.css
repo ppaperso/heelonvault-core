@@ -2,29 +2,28 @@
 
 /* ── Sidebar entry ─────────────────────────────────────────────────────── */
 button.security-navigation {
-    padding: 9px 12px;
-    border-radius: 12px;
-    border: 1px solid alpha(@hv_brand_500, 0.22);
-    background: alpha(@hv_brand_500, 0.06);
-    color: @hv_brand_900;
-    font-weight: 650;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: @hv_text;
+    font-weight: 500;
     box-shadow: none;
 }
 
 button.security-navigation:hover {
-    background: alpha(@hv_brand_500, 0.12);
-    border-color: alpha(@hv_brand_500, 0.36);
+    background: alpha(@hv_text, 0.05);
 }
 
-/* Current page: filled pill plus an accent bar on the leading edge. */
+/* Current page: same selection as the navigation-sidebar rows. */
 button.security-navigation.security-navigation-active {
-    background: linear-gradient(120deg, alpha(@hv_brand_500, 0.20), alpha(@hv_brand_300, 0.12));
-    border-color: alpha(@hv_brand_600, 0.55);
-    box-shadow: inset 3px 0 0 @hv_brand_600, 0 1px 2px @hv_shadow_soft;
+    background: @hv_brand_100;
+    color: @hv_brand_900;
+    font-weight: 700;
 }
 
 .security-navigation-icon {
-    color: @hv_brand_700;
+    color: @hv_text_muted;
 }
 
 .security-navigation-count {
@@ -54,7 +53,7 @@ button.security-navigation.security-navigation-active {
 .security-new-pill {
     padding: 1px 8px;
     border-radius: 999px;
-    background-image: linear-gradient(120deg, @hv_brand_500, @hv_brand_green);
+    background: @hv_brand_700;
     color: @hv_on_brand;
     font-size: 0.70rem;
     font-weight: 750;

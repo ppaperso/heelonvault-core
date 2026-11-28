@@ -1,120 +1,77 @@
-/* Sidebar branding, vault list rows, main sidebar/center panel frame, vault chips */
+/* Sidebar (3.0 look): libadwaita navigation-sidebar lists on a subtle surface, no boxed
+   groups, brand tint for the selected row only. Main panels, vault rows and share badges. */
 
-    .sidebar-card,
-    .sidebar-expander {
-        border-color: alpha(@hv_brand_300, 0.40);
-        box-shadow: 0 6px 18px alpha(@hv_brand_900, 0.07);
-    }
+frame.main-sidebar {
+    background: @hv_surface_subtle;
+    border: none;
+    border-radius: 12px;
+    box-shadow: none;
+}
 
-    .sidebar-branding {
-        border-color: alpha(@hv_brand_300, 0.55);
-        border-radius: 16px;
-        background: linear-gradient(135deg, @hv_surface 0%, @hv_brand_50 100%);
-        box-shadow: 0 10px 24px alpha(@hv_brand_900, 0.10);
-        padding: 8px 12px;
-    }
+/* Sidebar/content split: a gap on the canvas, not a drawn double line. */
+paned.main-split > separator {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
 
-    .sidebar-brand-logo {
-        min-width: 24px;
-        min-height: 24px;
-        padding: 0;
-    }
-
-    .sidebar-brand-title {
-        font-size: 1.08rem;
-        font-weight: 820;
-        letter-spacing: 0.03em;
-        font-family: "Space Grotesk", "Inter", "Cantarell", sans-serif;
-        color: @hv_brand_800;
-    }
-
-    /* ─── VAULT ROWS PREMIUM ─────────────────────────────────────────────── */
-    .vault-row {
-        border-radius: 12px;
-        transition: all 150ms ease-in-out;
-    }
-
-    .vault-accent-bar {
-        min-width: 4px;
-        border-radius: 12px 0 0 12px;
-        background: linear-gradient(180deg, @hv_brand_500, @hv_brand_900);
-    }
-
-    .vault-row-icon {
-        color: @hv_brand_800;
-        opacity: 0.85;
-    }
-
-    .vault-row:selected {
-        background: linear-gradient(135deg, alpha(@hv_brand_500, 0.16), alpha(@hv_brand_300, 0.14));
-        border-color: @hv_brand_500;
-        box-shadow: 0 4px 12px alpha(@hv_brand_900, 0.08);
-    }
-
-    .vault-row:selected .vault-accent-bar {
-        background: linear-gradient(180deg, @hv_brand_green, @hv_brand_800);
-    }
-
-    .vault-row:selected .vault-row-icon {
-        color: @hv_brand_900;
-        opacity: 1;
-    }
-
-    .vault-entry-chip {
-        background: alpha(@hv_brand_500, 0.14);
-        color: @hv_brand_800;
-    }
-
-    .vault-row:selected .vault-entry-chip {
-        background: alpha(@hv_brand_500, 0.22);
-        color: @hv_brand_900;
-    }
-
-frame.main-sidebar,
 frame.main-center-panel {
-    background: @hv_surface;
-    border: 1px solid alpha(@hv_brand_200, 0.70);
-    border-radius: 16px;
-    box-shadow: 0 1px 2px @hv_shadow_soft, 0 12px 32px @hv_shadow_key;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
 }
 
 .main-section-title {
-    color: @hv_brand_900;
-    font-weight: 800;
+    color: @hv_text_muted;
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-top: 6px;
 }
 
-list.main-category-list row,
-list.main-audit-list row {
-    border-radius: 12px;
-    margin: 2px 0;
-    transition: background-color 150ms ease, box-shadow 150ms ease;
+list.navigation-sidebar {
+    background: transparent;
+    padding: 0;
 }
 
-list.main-category-list row:hover,
-list.main-audit-list row:hover {
-    background: alpha(@hv_brand_500, 0.07);
+list.navigation-sidebar > row {
+    border-radius: 8px;
+    margin: 1px 0;
+    transition: background-color 150ms ease;
 }
 
-/* Selected row: brand tint plus an accent bar, never the system (blue) accent. */
-list.main-category-list row:selected,
-list.main-audit-list row:selected {
-    background: alpha(@hv_brand_500, 0.15);
-    box-shadow: inset 3px 0 0 @hv_brand_600;
+list.navigation-sidebar > row:hover {
+    background: alpha(@hv_text, 0.05);
 }
 
-list.main-category-list row:selected .main-sidebar-label,
-list.main-audit-list row:selected .main-sidebar-label {
+list.navigation-sidebar > row:selected {
+    background: @hv_brand_100;
+}
+
+list.navigation-sidebar > row:selected:hover {
+    background: alpha(@hv_brand_200, 0.75);
+}
+
+list.navigation-sidebar > row:selected .main-sidebar-label {
     color: @hv_brand_900;
     font-weight: 700;
 }
 
+list.navigation-sidebar > row:selected .main-sidebar-icon {
+    color: @hv_brand_700;
+}
+
 .main-sidebar-icon {
-    color: @hv_brand_800;
+    color: @hv_text_muted;
+}
+
+.main-sidebar-label {
+    color: @hv_text;
+    font-weight: 500;
 }
 
 .vault-shared-indicator {
     color: @hv_brand_700;
-    opacity: 0.95;
 }
 
 .vault-drag-handle {
@@ -127,8 +84,7 @@ list.main-audit-list row:selected .main-sidebar-label {
 
 .vault-share-role-badge {
     border-radius: 999px;
-    border: 1px solid alpha(@hv_brand_500, 0.32);
-    background: alpha(@hv_brand_500, 0.12);
+    background: @hv_brand_50;
     color: @hv_brand_800;
     font-size: 10px;
     font-weight: 800;
@@ -136,33 +92,30 @@ list.main-audit-list row:selected .main-sidebar-label {
     padding: 2px 8px;
 }
 
-.main-sidebar-label {
-    color: @hv_text;
-    font-weight: 600;
-}
-
+/* Sidebar entries that are buttons (profile, backups, teams, certification menu). */
 button.sidebar-profile-entry {
-    border-radius: 12px;
-    border: 1px solid transparent;
+    border-radius: 8px;
+    border: none;
     padding: 0;
     background: transparent;
 }
 
 button.sidebar-profile-entry:hover {
-    background: alpha(@hv_brand_500, 0.12);
-    border-color: alpha(@hv_brand_500, 0.26);
+    background: alpha(@hv_text, 0.05);
+}
+
+button.sidebar-profile-entry:checked {
+    background: @hv_brand_100;
 }
 
 button.main-inline-back-button {
     border-radius: 8px;
-    border: 1px solid alpha(@hv_brand_500, 0.28);
-    background: alpha(@hv_brand_500, 0.08);
+    border: 1px solid @hv_border_strong;
+    background: @hv_surface;
     color: @hv_brand_800;
     padding: 5px 10px;
 }
 
 button.main-inline-back-button:hover {
-    background: alpha(@hv_brand_500, 0.14);
-    border-color: alpha(@hv_brand_500, 0.40);
+    background: @hv_surface_subtle;
 }
-

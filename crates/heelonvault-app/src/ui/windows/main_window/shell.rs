@@ -168,6 +168,7 @@ pub(super) fn build_content_shell(
         .vexpand(true)
         .build();
     split.set_position(270);
+    split.add_css_class("main-split");
     split.set_start_child(Some(sidebar_frame));
     split.set_end_child(Some(center_frame));
 

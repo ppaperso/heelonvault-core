@@ -40,7 +40,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     sidebar_box.append(&my_vaults_header);
 
     let my_vaults_list = gtk4::ListBox::new();
-    my_vaults_list.add_css_class("boxed-list");
+    my_vaults_list.add_css_class("navigation-sidebar");
     my_vaults_list.add_css_class("main-category-list");
     my_vaults_list.set_selection_mode(gtk4::SelectionMode::Single);
     sidebar_box.append(&my_vaults_list);
@@ -53,7 +53,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     shared_vaults_title.set_visible(false);
 
     let shared_vaults_list = gtk4::ListBox::new();
-    shared_vaults_list.add_css_class("boxed-list");
+    shared_vaults_list.add_css_class("navigation-sidebar");
     shared_vaults_list.add_css_class("main-category-list");
     shared_vaults_list.set_selection_mode(gtk4::SelectionMode::Single);
     shared_vaults_list.set_visible(false);
@@ -71,7 +71,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     sidebar_box.append(&security_nav.button);
 
     let audit_list = gtk4::ListBox::new();
-    audit_list.add_css_class("boxed-list");
+    audit_list.add_css_class("navigation-sidebar");
     audit_list.add_css_class("main-audit-list");
     audit_list.set_selection_mode(gtk4::SelectionMode::Single);
 
@@ -88,6 +88,9 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
             heelonvault_core::tr!("main-audit-duplicates").as_str(),
             "hv-reuse-symbolic",
         );
+    // Weak passwords and duplicates are counted only when there is something to fix.
+    hide_when_zero(&audit_weak_badge, &audit_weak_badge);
+    hide_when_zero(&audit_duplicate_badge, &audit_duplicate_badge);
     audit_list.append(&audit_all_row);
     audit_list.append(&audit_weak_row);
     audit_list.append(&audit_duplicate_row);
@@ -114,7 +117,7 @@ pub(super) fn build_sidebar_panel() -> SidebarWidgets {
     sidebar_box.append(&sidebar_title);
 
     let category_list = gtk4::ListBox::new();
-    category_list.add_css_class("boxed-list");
+    category_list.add_css_class("navigation-sidebar");
     category_list.add_css_class("main-category-list");
     category_list.set_selection_mode(gtk4::SelectionMode::Single);
 
@@ -418,6 +421,20 @@ fn build_security_navigation() -> SecurityNavigation {
     }
 }
 
+fn shows_a_count(label: &gtk4::Label) -> bool {
+    !matches!(label.text().as_str(), "" | "0" | "-")
+}
+
+/// Keeps `target` hidden while `counter` reads zero (or is not loaded yet), so that empty
+/// counters never draw attention; the counter text itself is left to its updaters.
+pub(super) fn hide_when_zero(counter: &gtk4::Label, target: &impl IsA<gtk4::Widget>) {
+    let target = target.clone().upcast::<gtk4::Widget>();
+    target.set_visible(shows_a_count(counter));
+    counter.connect_label_notify(move |label| {
+        target.set_visible(shows_a_count(label));
+    });
+}
+
 pub(super) fn build_audit_sidebar_row(
     title: &str,
     icon_name: &str,
@@ -545,6 +562,7 @@ pub(super) fn build_vault_sidebar_row(
     let count_badge = gtk4::Label::new(Some(count_text.as_str()));
     count_badge.add_css_class("audit-count-badge");
     count_badge.set_margin_end(6);
+    count_badge.set_visible(secret_count > 0);
     content.append(&count_badge);
 
     if can_delete {
